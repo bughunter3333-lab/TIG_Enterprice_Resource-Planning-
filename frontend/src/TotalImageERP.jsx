@@ -1883,7 +1883,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           <button onClick={() => openModal('job')} className="flex items-center gap-2 bg-[#1e3a8a] text-white px-3 py-2 rounded-lg hover:bg-blue-900 text-sm font-semibold shadow-sm">
           <Plus className="w-4 h-4" /> New Job
         </button>
-        <button onClick={() => openModal('purchase-order')} className="flex items-center gap-2 bg-white border text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium shadow-sm">
+        <button onClick={() => openModal('po')} className="flex items-center gap-2 bg-white border text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium shadow-sm">
           <Package className="w-4 h-4" /> New Purchase Order
         </button>
         <button onClick={() => openModal('customer')} className="flex items-center gap-2 bg-white border text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium shadow-sm">
