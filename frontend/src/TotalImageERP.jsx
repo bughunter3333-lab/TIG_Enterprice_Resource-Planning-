@@ -13,15 +13,18 @@ import AccountsPayableModule from './modules/AccountsPayableModule';
 
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
-  { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300' },
+  { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300', hasStitch: true },
   { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700 border-orange-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-orange-400 text-orange-700 border-orange-300' },
-  { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-blue-500',    pill: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { v: 'DTF',    l: 'DTF Print',     emoji: '🖨️',  dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700 border-teal-200' },
+  { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-blue-500',    pill: 'bg-blue-50 text-blue-700 border-blue-200', hasColors: true },
+  { v: 'DTF',    l: 'DTF Print',     emoji: '🎨', dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700 border-teal-200', hasColors: true },
+  { v: 'DTG',    l: 'DTG Print',     emoji: '👕', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', hasColors: true },
+  { v: 'Sub',    l: 'Sublimation',   emoji: '🌈', dot: 'bg-pink-500',    pill: 'bg-pink-50 text-pink-700 border-pink-200', hasColors: true },
+  { v: 'Pad',    l: 'Pad Print',     emoji: '🔵', dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-700 border-blue-200', hasColors: true },
   { v: 'Laser',  l: 'Laser Engrave', emoji: '⚡',  dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700 border-red-200' },
-  { v: 'Sub',    l: 'Sublimation',   emoji: '🌈', dot: 'bg-pink-500',    pill: 'bg-pink-50 text-pink-700 border-pink-200' },
-  { v: 'Pad',    l: 'Pad Print',     emoji: '🔵', dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-700 border-blue-200' },
   { v: 'Vinyl',  l: 'Vinyl Cut',     emoji: '✂️',  dot: 'bg-green-500',   pill: 'bg-green-50 text-green-700 border-green-200' },
 ];
+
+const DEC_POSITIONS = ['Chest', 'Back', 'L.Sleeve', 'R.Sleeve', 'Cap Front', 'Cap Back', 'Hood', 'Pocket', 'Other'];
 
 const DraggableModal = ({ onClose, children, cardClass = '', cardStyle = {}, overlayClass = '' }) => {
   const [pos, setPos] = useState(null);
@@ -1183,6 +1186,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const blankItem = () => ({
     displayType: 'product', decorationType: 'None',
     description: '', sizes: '', stockCode: '', embCode: '', trsCode: '',
+    stitchCount: '', colorCount: '', decPosition: '',
     order: 0, supply: 0, bOrd: 0, purchasePrice: 0, discount: 0, marginPercent: 0, margin: 0,
     priceEx: 0, priceInc: 0, total: 0,
     qtyDelivered: 0, qtyInvoiced: 0, qtyPick: 0, poNo: '', poDue: '', hide: false,
@@ -1208,10 +1212,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const updateJobItem = (idx, field, value) => setJobForm(f => {
     const items = [...f.items];
     items[idx] = { ...items[idx], [field]: value };
-    // Clear stale decoration codes when type changes
+    // Clear stale decoration fields when type changes
     if (field === 'decorationType') {
-      if (value !== 'EMB') items[idx].embCode = '';
-      if (value !== 'TRS') items[idx].trsCode = '';
+      if (value !== 'EMB') { items[idx].embCode = ''; items[idx].stitchCount = ''; }
+      if (value !== 'TRS' && value !== 'SP') items[idx].trsCode = '';
+      const newOpt = DEC_OPTIONS.find(d => d.v === value);
+      if (!newOpt?.hasColors) items[idx].colorCount = '';
+      items[idx].decPosition = '';
     }
     const it = items[idx];
     const qty = parseFloat(field === 'order' ? value : it.order) || 0;
@@ -1695,9 +1702,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
     // Decoration type breakdown across all job items
     const decBreakdown = {};
+    let totalStitches = 0;
     jobs.forEach(j => (j.items || []).forEach(i => {
       if (i.decorationType && i.decorationType !== 'None') {
         decBreakdown[i.decorationType] = (decBreakdown[i.decorationType] || 0) + 1;
+        if (i.decorationType === 'EMB' && i.stitchCount) totalStitches += parseInt(i.stitchCount) || 0;
       }
     }));
 
@@ -1715,7 +1724,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       revenueThisMonth, revenueLastMonth, revChange,
       overdueJobs, quotesAwaitingApproval, inProduction, toInvoice, statusBreakdown,
       onTimeRate, quoteExpiringSoon, dueToday, dueSoon,
-      revenueByMonth, topCustomers, avgMarginPct, decBreakdown,
+      revenueByMonth, topCustomers, avgMarginPct, decBreakdown, totalStitches,
     };
   })();
 
@@ -2174,7 +2183,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* Decoration type breakdown */}
           {Object.keys(ds.decBreakdown).length > 0 && (
             <div className="bg-white rounded-lg border border-slate-200 p-5">
-              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2"><Tag className="w-4 h-4 text-purple-500" /> Decoration Mix</h3>
+              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-purple-500" /> Decoration Mix
+                {ds.totalStitches > 0 && (
+                  <span className="ml-auto text-[11px] font-normal text-purple-600 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                    🧵 {ds.totalStitches.toLocaleString()} sts tracked
+                  </span>
+                )}
+              </h3>
               <div className="space-y-2">
                 {Object.entries(ds.decBreakdown).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
                   const total = Object.values(ds.decBreakdown).reduce((s, v) => s + v, 0);
@@ -6985,14 +7001,35 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                             </div>
                                           </>
                                         )}
-                                        {decOpt.v === 'EMB' && (
+                                        {/* EMB: design code + stitch count */}
+                                        {decOpt.v === 'EMB' && (<>
                                           <input type="text" value={item.embCode || ''} onChange={e => updateJobItem(idx, 'embCode', e.target.value)}
-                                            className="h-5 border border-purple-200 rounded px-1.5 text-[11px] font-mono text-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-400 w-44 bg-white" placeholder="EMB code…" />
-                                        )}
+                                            className="h-5 border border-purple-200 rounded px-1.5 text-[11px] font-mono text-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-400 w-32 bg-white" placeholder="EMB code…" />
+                                          <div className="flex items-center gap-0.5">
+                                            <input type="number" min="0" value={item.stitchCount || ''} onChange={e => updateJobItem(idx, 'stitchCount', e.target.value)}
+                                              className="h-5 w-20 border border-purple-200 rounded px-1.5 text-[11px] text-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-400 bg-white" placeholder="Stitches" />
+                                            <span className="text-[10px] text-purple-400 shrink-0">sts</span>
+                                          </div>
+                                        </>)}
+                                        {/* TRS/SP: transfer code */}
                                         {(decOpt.v === 'TRS' || decOpt.v === 'SP') && (
                                           <input type="text" value={item.trsCode || ''} onChange={e => updateJobItem(idx, 'trsCode', e.target.value)}
-                                            className="h-5 border border-orange-200 rounded px-1.5 text-[11px] font-mono text-orange-700 focus:outline-none focus:ring-1 focus:ring-orange-400 w-44 bg-white" placeholder="TRS/SP code…" />
+                                            className="h-5 border border-orange-200 rounded px-1.5 text-[11px] font-mono text-orange-700 focus:outline-none focus:ring-1 focus:ring-orange-400 w-32 bg-white" placeholder="TRS/SP code…" />
                                         )}
+                                        {/* Color count for Screen/DTF/DTG/Sub/Pad */}
+                                        {decOpt.hasColors && (
+                                          <div className="flex items-center gap-0.5">
+                                            <input type="number" min="1" max="16" value={item.colorCount || ''} onChange={e => updateJobItem(idx, 'colorCount', e.target.value)}
+                                              className="h-5 w-12 border border-gray-200 rounded px-1.5 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" placeholder="#" />
+                                            <span className="text-[10px] text-gray-400 shrink-0">col</span>
+                                          </div>
+                                        )}
+                                        {/* Position for all decoration types */}
+                                        <select value={item.decPosition || ''} onChange={e => updateJobItem(idx, 'decPosition', e.target.value)}
+                                          className="h-5 border border-gray-200 rounded px-1 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
+                                          <option value="">Position…</option>
+                                          {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
                                       </div>
                                     </td>
                                     <td style={{ width: 24 }}></td>
