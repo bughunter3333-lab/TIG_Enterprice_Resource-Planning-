@@ -3,6 +3,7 @@ Run once to create the first admin user:
     python seed_admin.py
 """
 import sys
+import getpass
 from app.database import SessionLocal
 from app.models.user import User
 from app.core.security import hash_password
@@ -11,7 +12,7 @@ def main():
     username = input("Admin username: ").strip()
     email = input("Admin email: ").strip()
     full_name = input("Full name: ").strip()
-    password = input("Password: ").strip()
+    password = getpass.getpass("Password: ").strip()
 
     db = SessionLocal()
     if db.query(User).filter(User.username == username).first():

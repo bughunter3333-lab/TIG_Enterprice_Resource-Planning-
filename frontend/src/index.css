@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── ERP Design System ── */
+:root {
+  --tig-primary:       #1d4ed8;
+  --tig-primary-dark:  #1e40af;
+  --tig-primary-light: #dbeafe;
+  --tig-bg:            #edf2f7;
+  --tig-surface:       #ffffff;
+  --tig-border:        #cbd5e1;
+  --tig-border-light:  #e2e8f0;
+  --tig-text:          #1e293b;
+  --tig-text-muted:    #64748b;
+  --tig-nav:           #1e3a8a;
+}
+
+/* Remove native number spinners from line-items table inputs — they eat column width */
+.line-items-table input[type=number]::-webkit-outer-spin-button,
+.line-items-table input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.line-items-table input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ── Scrollbar styling (enterprise-neutral) ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ── Inputs: consistent focus ring ── */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+/* ── ERP table: tighter alternating rows ── */
+.erp-table tbody tr:nth-child(even) { background: #f8fafc; }
+.erp-table tbody tr:hover { background: #eff6ff !important; }
+.erp-table th {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #cbd5e1;
+  padding: 6px 8px;
+}
+.erp-table td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }

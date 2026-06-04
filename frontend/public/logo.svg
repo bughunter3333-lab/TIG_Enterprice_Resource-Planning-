@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 72" fill="none">
+  <defs>
+    <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e2e"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── T (crossbar + stem) ── -->
+  <rect x="1"    y="2"   width="42"  height="6"  rx="1" fill="#111"/>
+  <rect x="15.5" y="2"   width="12"  height="30" rx="1" fill="#111"/>
+
+  <!-- ── o (lens/ring — imaging motif) ── -->
+  <circle cx="57" cy="17" r="14.5" fill="url(#circleGrad)"/>
+  <circle cx="57" cy="17" r="9"    fill="#fff"/>
+  <circle cx="57" cy="17" r="3.5"  fill="url(#circleGrad)" opacity="0.35"/>
+
+  <!-- ── tal ── -->
+  <text x="73" y="31"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="29" font-weight="700"
+    fill="#111" letter-spacing="-0.5">tal</text>
+
+  <!-- ── image ── -->
+  <text x="2" y="56"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="25" font-weight="400"
+    fill="#111" letter-spacing="2.5">image</text>
+
+  <!-- ── thin rule under image ── -->
+  <line x1="2" y1="60" x2="152" y2="60" stroke="#ccc" stroke-width="0.75"/>
+
+  <!-- ── group ── -->
+  <text x="152" y="70"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="11.5" font-weight="400"
+    text-anchor="end"
+    fill="#888" letter-spacing="1">group</text>
+</svg>

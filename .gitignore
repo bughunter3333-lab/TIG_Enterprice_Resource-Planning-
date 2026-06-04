@@ -5,13 +5,16 @@ __pycache__/
 *.pyd
 .Python
 venv/
+.venv/
 .env
 *.egg-info/
 dist/
 build/
 
-# Alembic
-alembic/versions/*.py
+# Test / coverage artefacts
+.coverage
+coverage.xml
+.pytest_cache/
 
 # Node
 node_modules/
@@ -25,3 +28,7 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Backup / scratch files
+total_image_erp_full_1.jsx
+*.diff.txt

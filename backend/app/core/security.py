@@ -66,7 +66,7 @@ def get_totp_uri(secret: str, username: str) -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    return pyotp.TOTP(secret).verify(code, valid_window=1)
+    return pyotp.TOTP(secret).verify(code, valid_window=0)
 
 
 def totp_qr_base64(secret: str, username: str) -> str:

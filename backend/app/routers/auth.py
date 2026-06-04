@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime, timezone
+import re
 
 from app.database import get_db
 from app.models.user import User
@@ -11,10 +12,12 @@ from app.core.security import (
     create_access_token, create_refresh_token, create_pre_mfa_token,
     decode_token, generate_totp_secret, verify_totp, totp_qr_base64,
 )
+from app.core.limiter import limiter
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=False)  # set secure=True behind HTTPS
+COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=settings.is_production)
 
 
 class LoginRequest(BaseModel):
@@ -34,9 +37,21 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
 
 @router.post("/login")
-def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -57,7 +72,9 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
 
 
 @router.post("/verify-2fa")
+@limiter.limit("5/minute")
 def verify_2fa(
+    request: Request,
     body: MFAVerifyRequest,
     response: Response,
     pre_mfa_token: Optional[str] = Cookie(default=None),
@@ -69,7 +86,11 @@ def verify_2fa(
     if not payload or payload.get("type") != "pre_mfa":
         raise HTTPException(status_code=401, detail="Invalid or expired MFA session")
 
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid or expired MFA session")
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.totp_secret:
         raise HTTPException(status_code=401, detail="User not found")
     if not verify_totp(user.totp_secret, body.code):
@@ -122,7 +143,11 @@ def refresh(response: Response, refresh_token: Optional[str] = Cookie(default=No
     payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
     access = create_access_token(user.id, user.role, mfa_verified=True)
@@ -167,7 +192,11 @@ def _require_authenticated(token: Optional[str], db: Session) -> User:
     payload = decode_token(token)
     if not payload or payload.get("type") != "access" or not payload.get("mfa"):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user

@@ -19,6 +19,7 @@ class InventoryCreate(BaseModel):
     supplier: Optional[str] = None
     stock: int = 0
     min_stock: int = 0
+    reorder_qty: int = 0
     unit_cost: float = 0
     sell_price: float = 0
     location: Optional[str] = None
@@ -30,6 +31,7 @@ class InventoryUpdate(BaseModel):
     category: Optional[str] = None
     supplier: Optional[str] = None
     min_stock: Optional[int] = None
+    reorder_qty: Optional[int] = None
     unit_cost: Optional[float] = None
     sell_price: Optional[float] = None
     location: Optional[str] = None
@@ -41,23 +43,133 @@ class StockAdjust(BaseModel):
     reason: str
 
 
+class TransferRequest(BaseModel):
+    from_sku: str
+    to_sku: Optional[str] = None
+    quantity: int
+    from_location: Optional[str] = None
+    to_location: Optional[str] = None
+    reference: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class StocktakeItemIn(BaseModel):
+    sku: str
+    counted_qty: int
+    notes: Optional[str] = None
+
+
+class StocktakeRequest(BaseModel):
+    reference: Optional[str] = None
+    method: str = "Informed"
+    items: List[StocktakeItemIn]
+
+
 @router.get("/")
 def list_inventory(
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     low_stock: bool = Query(False),
+    limit: int = Query(1000, ge=1, le=5000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _: User = Depends(require_any),
 ):
+    try:
+        q = db.query(InventoryItem)
+        if search:
+            term = f"%{search}%"
+            q = q.filter(InventoryItem.sku.ilike(term) | InventoryItem.name.ilike(term))
+        if category:
+            q = q.filter(InventoryItem.category == category)
+        if low_stock:
+            q = q.filter(InventoryItem.stock <= InventoryItem.min_stock)
+        return q.order_by(InventoryItem.name).offset(offset).limit(limit).all()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to retrieve inventory")
+
+
+@router.get("/low-stock")
+def low_stock_alert(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Return all active SKUs where stock <= min_stock, sorted by urgency."""
+    items = db.query(InventoryItem).filter(
+        InventoryItem.min_stock > 0,
+        InventoryItem.stock <= InventoryItem.min_stock,
+        InventoryItem.status == "Active",
+    ).order_by(InventoryItem.stock).all()
+
+    rows = [
+        {
+            "sku": i.sku,
+            "name": i.name,
+            "category": i.category or "",
+            "supplier": i.supplier or "",
+            "stock": i.stock,
+            "min_stock": i.min_stock,
+            "reorder_qty": i.reorder_qty or 0,
+            "shortfall": max(0, (i.min_stock or 0) - (i.stock or 0)),
+            "unit_cost": float(i.unit_cost or 0),
+            "reorder_value": float(i.unit_cost or 0) * max(0, (i.reorder_qty or i.min_stock or 0)),
+        }
+        for i in items
+    ]
+    total_value = round(sum(r["reorder_value"] for r in rows), 2)
+    return {"count": len(rows), "reorder_value": total_value, "rows": rows}
+
+
+@router.get("/movements")
+def list_movements(
+    sku: Optional[str] = Query(None),
+    limit: int = Query(50),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    from app.models.inventory import StockMovement
+    q = db.query(StockMovement)
+    if sku:
+        q = q.filter(StockMovement.sku == sku)
+    return q.order_by(StockMovement.created_at.desc()).limit(limit).all()
+
+
+@router.get("/stock-flow")
+def stock_flow(
+    sku: Optional[str] = Query(None),
+    limit: int = Query(100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Return stock items with their recent movement history for the Stock Flow view."""
     q = db.query(InventoryItem)
-    if search:
-        term = f"%{search}%"
-        q = q.filter(InventoryItem.sku.ilike(term) | InventoryItem.name.ilike(term))
-    if category:
-        q = q.filter(InventoryItem.category == category)
-    if low_stock:
-        q = q.filter(InventoryItem.stock <= InventoryItem.min_stock)
-    return q.order_by(InventoryItem.name).all()
+    if sku:
+        q = q.filter(InventoryItem.sku.ilike(f"%{sku}%") | InventoryItem.name.ilike(f"%{sku}%"))
+    items = q.order_by(InventoryItem.name).limit(limit).all()
+    result = []
+    for item in items:
+        movements = (
+            db.query(StockMovement)
+            .filter(StockMovement.sku == item.sku)
+            .order_by(StockMovement.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        result.append({
+            "sku": item.sku,
+            "name": item.name,
+            "category": item.category,
+            "stock": item.stock,
+            "min_stock": item.min_stock,
+            "location": item.location,
+            "unit_cost": float(item.unit_cost or 0),
+            "sell_price": float(item.sell_price or 0),
+            "movements": [
+                {"id": m.id, "date": m.date, "type": m.type, "quantity": m.quantity, "reference": m.reference, "notes": m.notes}
+                for m in movements
+            ],
+        })
+    return result
 
 
 @router.get("/{sku}")
@@ -121,3 +233,160 @@ def delete_item(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
     db.delete(item)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/transfer")
+def transfer_stock(body: TransferRequest, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    """Move quantity from one SKU/location to another, creating movement records for both."""
+    from_item = db.query(InventoryItem).filter(InventoryItem.sku == body.from_sku).first()
+    if not from_item:
+        raise HTTPException(status_code=404, detail=f"SKU '{body.from_sku}' not found")
+    if from_item.stock < body.quantity:
+        raise HTTPException(status_code=400, detail="Insufficient stock for transfer")
+
+    ref = body.reference or f"XFER-{body.from_sku}"
+    now = datetime.now().strftime("%d/%m/%Y")
+
+    from_item.stock -= body.quantity
+    out_movement = StockMovement(
+        sku=body.from_sku,
+        date=now,
+        type="Transfer Out",
+        quantity=-body.quantity,
+        reference=ref,
+        notes=body.notes or f"Transfer to {body.to_location or body.to_sku or 'unknown'}",
+    )
+    db.add(out_movement)
+
+    if body.to_sku and body.to_sku != body.from_sku:
+        to_item = db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first()
+        if not to_item:
+            raise HTTPException(status_code=404, detail=f"Destination SKU '{body.to_sku}' not found")
+        to_item.stock += body.quantity
+        in_movement = StockMovement(
+            sku=body.to_sku,
+            date=now,
+            type="Transfer In",
+            quantity=body.quantity,
+            reference=ref,
+            notes=body.notes or f"Transfer from {body.from_location or body.from_sku}",
+        )
+        db.add(in_movement)
+    elif body.to_location:
+        from_item.location = body.to_location
+        loc_movement = StockMovement(
+            sku=body.from_sku,
+            date=now,
+            type="Location Change",
+            quantity=body.quantity,
+            reference=ref,
+            notes=f"Moved from {body.from_location or from_item.location or '?'} to {body.to_location}",
+        )
+        db.add(loc_movement)
+
+    db.commit()
+    return {"ok": True, "from_sku": body.from_sku, "quantity": body.quantity}
+
+
+@router.post("/stocktake")
+def stocktake(body: StocktakeRequest, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    """Reconcile physical counts against system stock, creating adjustment movements."""
+    ref = body.reference or f"STKTK-{datetime.now().strftime('%Y%m%d%H%M')}"
+    now = datetime.now().strftime("%d/%m/%Y")
+    results = []
+    for entry in body.items:
+        item = db.query(InventoryItem).filter(InventoryItem.sku == entry.sku).first()
+        if not item:
+            results.append({"sku": entry.sku, "error": "Not found"})
+            continue
+        variance = entry.counted_qty - item.stock
+        if variance != 0:
+            item.stock = entry.counted_qty
+            movement = StockMovement(
+                sku=entry.sku,
+                date=now,
+                type="Stocktake",
+                quantity=variance,
+                reference=ref,
+                notes=entry.notes or f"Stocktake ({body.method}): counted {entry.counted_qty}, was {item.stock + (-variance)}",
+            )
+            db.add(movement)
+        results.append({"sku": entry.sku, "previous": item.stock - variance if variance != 0 else item.stock, "counted": entry.counted_qty, "variance": variance})
+    db.commit()
+    return {"reference": ref, "method": body.method, "results": results}
+
+
+@router.post("/auto-reorder")
+def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    """Find all low-stock items and create draft purchase orders grouped by supplier."""
+    from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
+    from app.models.supplier import Supplier
+    from datetime import date
+
+    low_stock = db.query(InventoryItem).filter(
+        InventoryItem.stock <= InventoryItem.min_stock,
+        InventoryItem.min_stock > 0,
+        InventoryItem.status == "Active",
+    ).all()
+
+    if not low_stock:
+        return {"created": 0, "purchase_orders": []}
+
+    # Group items by supplier name
+    by_supplier: dict = {}
+    for item in low_stock:
+        key = item.supplier or "Unassigned"
+        by_supplier.setdefault(key, []).append(item)
+
+    today = date.today().strftime("%Y-%m-%d")
+    created_ids = []
+
+    for idx, (supplier_name, items) in enumerate(by_supplier.items(), 1):
+        # Try to match supplier name to DB record
+        supplier_rec = db.query(Supplier).filter(
+            Supplier.name.ilike(f"%{supplier_name}%")
+        ).first()
+        supplier_id = supplier_rec.id if supplier_rec else None
+
+        po_id = f"AR-{date.today().strftime('%Y%m%d')}-{idx:03d}"
+        # Avoid duplicate IDs if run multiple times per day
+        suffix = 0
+        base_id = po_id
+        while db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first():
+            suffix += 1
+            po_id = f"{base_id}-{suffix}"
+
+        po_items = []
+        total = 0.0
+        for item in items:
+            # Use explicit reorder_qty when set; fall back to doubling the min_stock shortfall
+            if item.reorder_qty and item.reorder_qty > 0:
+                qty = item.reorder_qty
+            else:
+                qty = max(item.min_stock * 2 - item.stock, item.min_stock)
+            line_total = float(qty * (item.unit_cost or 0))
+            total += line_total
+            po_items.append(PurchaseOrderItem(
+                sku=item.sku,
+                description=item.name,
+                qty_ordered=qty,
+                qty_received=0,
+                unit_cost=float(item.unit_cost or 0),
+                total=line_total,
+            ))
+
+        po = PurchaseOrder(
+            id=po_id,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            status="Draft",
+            order_date=today,
+            total=total,
+            notes=f"Auto-generated reorder — {len(items)} low-stock item(s)",
+        )
+        po.items = po_items
+        db.add(po)
+        created_ids.append(po_id)
+
+    db.commit()
+    return {"created": len(created_ids), "purchase_orders": created_ids}

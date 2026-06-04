@@ -7,12 +7,18 @@ class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
 
     id = Column(String(20), primary_key=True)
-    supplier_id = Column(String(20), ForeignKey("suppliers.id"), nullable=False)
+    supplier_id = Column(String(20), ForeignKey("suppliers.id"), nullable=True, index=True)
     supplier_name = Column(String(100))
-    status = Column(String(20), default="Draft")
+    status = Column(String(20), default="Draft", index=True)
     order_date = Column(String(20))
     expected_date = Column(String(20))
     total = Column(Numeric(10, 2), default=0)
+    total_ex = Column(Numeric(10, 2), default=0)
+    tax_total = Column(Numeric(10, 2), default=0)
+    total_inc = Column(Numeric(10, 2), default=0)
+    bill_no = Column(String(50))
+    due_date = Column(String(20))
+    received_date = Column(String(20))
     notes = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

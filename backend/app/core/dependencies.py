@@ -22,7 +22,11 @@ def get_current_user(
     if not payload or payload.get("type") != "access" or not payload.get("mfa"):
         raise credentials_error
 
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    try:
+        user_id = int(payload["sub"])
+    except (ValueError, TypeError):
+        raise credentials_error
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise credentials_error
     return user

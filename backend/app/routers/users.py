@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
+import re
 
 from app.database import get_db
 from app.models.user import User
@@ -11,12 +12,27 @@ from app.core.dependencies import require_admin, get_current_user
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+def _validate_password_strength(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not re.search(r"[0-9]", v):
+        raise ValueError("Password must contain at least one digit")
+    return v
+
+
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
     full_name: str
     password: str
     role: str = "staff"
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -78,6 +94,27 @@ def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db), _
     db.commit()
     db.refresh(user)
     return user
+
+
+class PasswordReset(BaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
+
+
+@router.post("/{user_id}/reset-password")
+def reset_user_password(user_id: int, body: PasswordReset, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.hashed_password = hash_password(body.new_password)
+    user.totp_enabled = False
+    user.totp_secret = None
+    db.commit()
+    return {"ok": True}
 
 
 @router.delete("/{user_id}")
