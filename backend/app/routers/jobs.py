@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -137,7 +137,7 @@ class JobCreate(_JobSharedFields):
     payment_status: str = "unpaid"
     locked: bool = False
     invoice_status: str = "not_invoiced"
-    items: List[JobItemSchema] = []
+    items: List[JobItemSchema] = Field(default_factory=list)
 
 
 class JobUpdate(_JobSharedFields):
@@ -494,6 +494,14 @@ def create_job(body: JobCreate, db: Session = Depends(get_db), _: User = Depends
         raise HTTPException(status_code=409, detail="Job ID already exists")
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+    # Enforce required fields for the requested status on creation.
+    required = REQUIRED_FIELDS_FOR_STATUS.get(body.status, [])
+    missing_messages: List[str] = []
+    for field, message in required:
+        if not getattr(body, field, None):
+            missing_messages.append(message)
+    if missing_messages:
+        raise HTTPException(status_code=400, detail="; ".join(missing_messages))
     job = Job(**{**body.model_dump(exclude={"items"}), "id": job_id})
     for item_data in body.items:
         job.items.append(JobItem(**item_data.model_dump()))

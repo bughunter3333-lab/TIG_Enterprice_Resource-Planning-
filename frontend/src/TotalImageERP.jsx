@@ -9755,10 +9755,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* ── PURCHASES ribbon ── */}
           {activeModule === 'purchase-orders' && (<>
             <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('purchaseOrder')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
+              <button onClick={() => openModal('po')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
                 <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Purchase</span>
               </button>
-              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('purchaseOrder', selectedPO)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
+              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
                 <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View/Edit</span>
               </button>
               <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
