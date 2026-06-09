@@ -47,6 +47,13 @@ class Job(Base):
     ship_to_id = Column(Integer, ForeignKey("customer_ship_tos.id"), nullable=True)
     weight_total = Column(Numeric(8, 3), default=0)
     fuel_levy = Column(Numeric(10, 2), default=0)
+    # Jim2 Sprint-2 fields
+    price_level = Column(String(50))             # Retail / Trade / Wholesale / VIP / Cost
+    acc_mgr = Column(String(100))                # account manager name or initials
+    invoice_desc = Column(Text)                  # description printed on invoice
+    ex_job_ref = Column(String(100))             # customer's own PO / reference number
+    requested_by = Column(String(100))           # free-text person who placed the order
+    lock_rate = Column(Boolean, default=False)   # lock exchange/pricing rate
     # Compliance / audit timestamps
     invoice_date = Column(String(20))
     payment_date = Column(String(20))
