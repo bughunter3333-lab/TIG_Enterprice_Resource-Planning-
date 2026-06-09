@@ -65,6 +65,13 @@ function normalizeJob(j) {
     projectNo: j.project_no ?? j.projectNo ?? '',
     serialNo: j.serial_no ?? j.serialNo ?? '',
     nameContact: j.name_contact ?? j.nameContact ?? '',
+    // Jim2 Sprint-2 fields
+    priceLevel: j.price_level ?? j.priceLevel ?? '',
+    accMgr: j.acc_mgr ?? j.accMgr ?? '',
+    invoiceDesc: j.invoice_desc ?? j.invoiceDesc ?? '',
+    exJobRef: j.ex_job_ref ?? j.exJobRef ?? '',
+    requestedBy: j.requested_by ?? j.requestedBy ?? '',
+    lockRate: j.lock_rate ?? j.lockRate ?? false,
     // ERP enhancement fields
     paymentStatus: j.payment_status ?? j.paymentStatus ?? 'unpaid',
     commitmentDate: j.commitment_date ?? j.commitmentDate ?? '',
@@ -287,6 +294,13 @@ export const jobs = {
     project_no: data.projectNo,
     serial_no: data.serialNo,
     name_contact: data.nameContact,
+    // Jim2 Sprint-2 fields
+    price_level: data.priceLevel || null,
+    acc_mgr: data.accMgr || null,
+    invoice_desc: data.invoiceDesc || null,
+    ex_job_ref: data.exJobRef || null,
+    requested_by: data.requestedBy || null,
+    lock_rate: data.lockRate || false,
     // ERP enhancement fields
     payment_status: data.paymentStatus || 'unpaid',
     commitment_date: data.commitmentDate || null,
@@ -360,6 +374,13 @@ export const jobs = {
     project_no: data.projectNo,
     serial_no: data.serialNo,
     name_contact: data.nameContact,
+    // Jim2 Sprint-2 fields
+    price_level: data.priceLevel || null,
+    acc_mgr: data.accMgr || null,
+    invoice_desc: data.invoiceDesc || null,
+    ex_job_ref: data.exJobRef || null,
+    requested_by: data.requestedBy || null,
+    lock_rate: data.lockRate || false,
     payment_status: data.paymentStatus,
     commitment_date: data.commitmentDate || null,
     validity_date: data.validityDate || null,
@@ -1097,4 +1118,14 @@ export const importData = {
   jobs: (file) => uploadCSV('/import/jobs', file),
   cardFiles: (file) => uploadCSV('/import/card-files', file),
   templateUrl: (entity) => `${BASE}/import/template/${entity}`,
+};
+
+// ── Admin Settings ────────────────────────────────────────────────────────────
+
+export const adminSettings = {
+  get: (key) => request(`/admin/settings/${key}`),
+  set: (key, value) => request(`/admin/settings/${key}`, {
+    method: 'PUT',
+    body: { value: typeof value === 'string' ? value : JSON.stringify(value) },
+  }),
 };
