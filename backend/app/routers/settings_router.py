@@ -34,6 +34,9 @@ class CompanySettingsUpdate(BaseModel):
     smtp_password: Optional[str] = None  # plaintext in request; stored encrypted
     smtp_from_name: Optional[str] = None
     smtp_use_tls: Optional[bool] = None
+    tyro_merchant_id: Optional[str] = None
+    tyro_terminal_id: Optional[str] = None
+    tyro_environment: Optional[str] = None
 
 
 def _get_or_create_settings(db: Session) -> CompanySettings:

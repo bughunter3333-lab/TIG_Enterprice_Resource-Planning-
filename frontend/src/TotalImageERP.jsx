@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Package, Users, User, FileText, BarChart3, Warehouse, Plus, Edit, Trash2, Eye, DollarSign, TrendingUp, ShoppingCart, AlertCircle, X, Calendar, Printer, Download, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, LogOut, Bot, Send, RefreshCw, PieChart, ClipboardList, Layers, ChevronDown, ChevronRight, Tag, CheckSquare, BookOpen, Navigation, Weight, Ruler, Settings, ExternalLink, Copy, LayoutGrid, Clock } from 'lucide-react';
 import * as api from './api';
@@ -8,8 +8,12 @@ import EmailModule from './modules/EmailModule';
 import SettingsModule from './modules/SettingsModule';
 import UserManagement from './modules/UserManagement';
 import StylesModule from './modules/StylesModule';
+import { initiateTyroPurchase } from './lib/tyroClient';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountsPayableModule from './modules/AccountsPayableModule';
+import AnalyticsModule from './modules/AnalyticsModule';
+import { notify } from './lib/notify';
+
 
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
@@ -72,6 +76,7 @@ function POGoodsReceiptsPanel({ po }) {
     queryKey: ['goods-receipts', po.id],
     queryFn: () => api.goodsReceipts.list({ po_id: po.id }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); setErr(m); notify(m, { type: 'error' }); },
   });
 
   const [showForm, setShowForm] = React.useState(false);
@@ -241,6 +246,7 @@ function SupplierPriceListPanel({ supplierId }) {
     queryKey: ['supplier-price-list', supplierId],
     queryFn: () => api.supplierPriceLists.list(supplierId),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); setErr(m); notify(m, { type: 'error' }); },
   });
 
   const emptyForm = { sku: '', description: '', unitCost: '', minQty: 1, leadTimeDays: '', validFrom: '', validTo: '', notes: '' };
@@ -658,7 +664,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [editingItem, setEditingItem] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  // notifications is derived — no setState needed (avoids infinite-loop from new [] refs each render)
   const [jobsViewMode, setJobsViewMode] = useState('table');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -695,16 +701,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [apiError, setApiError] = useState('');
 
   const queryClient = useQueryClient();
-  const { data: jobs = [], isLoading: jobsLoading } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000 });
-  const { data: inventory = [], isLoading: invLoading } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000 });
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list });
-  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list });
-  const { data: purchaseOrders = [] } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000 });
-  const { data: garmentReqs = [], refetch: refetchGarmentReqs } = useQuery({ queryKey: ['orderRequirements', 'garment'], queryFn: () => api.jobs.orderRequirements('garment'), enabled: activeModule === 'order-requirements', staleTime: 0 });
-  const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0 });
-  const { data: stockMovements = [] } = useQuery({ queryKey: ['stockMovements'], queryFn: () => api.inventory.movements({ limit: 50 }), refetchInterval: 60_000 });
-  const { data: cardFiles = [] } = useQuery({ queryKey: ['cardFiles'], queryFn: api.cardFiles.list });
-  const { data: ofParcels = [] } = useQuery({ queryKey: ['ofParcels'], queryFn: api.openFreight.listParcels });
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany, staleTime: 300_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: inventory = [], isLoading: invLoading } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: purchaseOrders = [] } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: garmentReqs = [], refetch: refetchGarmentReqs } = useQuery({ queryKey: ['orderRequirements', 'garment'], queryFn: () => api.jobs.orderRequirements('garment'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: stockMovements = [] } = useQuery({ queryKey: ['stockMovements'], queryFn: () => api.inventory.movements({ limit: 50 }), refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: cardFiles = [] } = useQuery({ queryKey: ['cardFiles'], queryFn: api.cardFiles.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: ofParcels = [] } = useQuery({ queryKey: ['ofParcels'], queryFn: api.openFreight.listParcels, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const loading = (jobsLoading && !jobs.length) || (invLoading && !inventory.length);
   const [cardFileModal, setCardFileModal] = useState({ open: false, editing: null });
   const [cardFileForm, setCardFileForm] = useState({ shipCode: '', customerCode: '', companyName: '', contactName: '', address1: '', address2: '', suburb: '', state: '', postcode: '', country: 'AU', phone: '', email: '', notes: '' });
@@ -914,8 +921,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     api.openFreight.getAccount().then(acc => setOfAccount(acc)).catch(() => {});
   }, []);
 
-  // Derive notifications from live data
-  useEffect(() => {
+  // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
+  const notifications = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -926,7 +933,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       try { const d = parseD(job.due); return d && d < now; } catch { return false; }
     });
 
-    // Quote expiry alerts (within 7 days)
     const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
     const expiringQuotes = jobs.filter(j => {
       if (j.status !== 'QUOTE' || !j.validityDate) return false;
@@ -934,21 +940,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return d && d >= now && d <= in7Days;
     });
 
-    // Jobs due today
     const dueTodayJobs = jobs.filter(j => {
       if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
       const d = parseD(j.due);
       return d && d.toISOString().split('T')[0] === todayStr;
     });
 
-    // Credit limit breaches
     const creditBreaches = customers.filter(c => {
       if (!c.creditLimit || c.creditLimit <= 0) return false;
       const outstanding = jobs.filter(j => j.customerId === c.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
       return outstanding > c.creditLimit;
     });
 
-    setNotifications([
+    return [
       ...dueTodayJobs.map(job => ({
         id: `today-${job.id}`, type: 'warning', title: 'Due Today',
         message: `Job #${job.id} for ${job.customer} is due today — ${job.status}`,
@@ -974,7 +978,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         message: `${item.name} (${item.sku}) is below reorder level. Current: ${item.stock}, Min: ${item.reorderLevel}`,
         time: 'Now'
       })),
-    ]);
+    ];
   }, [inventory, jobs, customers]);
 
   useEffect(() => {
@@ -7738,62 +7742,130 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   const renderPaymentModal = () => {
     if (!paymentModal.show) return null;
+    const closeModal = () => setPaymentModal({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card', tyroStatus: null, tyroProcessing: false });
+    const isTyro = paymentModal.method === 'Tyro EFTPOS';
+
+    const handleConfirm = async () => {
+      const amount = parseFloat(paymentModal.amount);
+      if (!amount || amount <= 0) return;
+
+      if (isTyro) {
+        // Load Tyro settings from cache
+        const companySettings = queryClient.getQueryData(['settings/company']);
+        const merchantId = companySettings?.tyro_merchant_id;
+        const terminalId = companySettings?.tyro_terminal_id;
+        const environment = companySettings?.tyro_environment || 'sandbox';
+        if (!merchantId || !terminalId) {
+          setPaymentModal(m => ({
+            ...m,
+            tyroProcessing: false,
+            tyroStatus: 'Tyro not configured: missing merchant or terminal ID',
+          }));
+          return;
+        }
+        setPaymentModal(m => ({ ...m, tyroProcessing: true, tyroStatus: 'Connecting to terminal…' }));
+        try {
+          await initiateTyroPurchase(amount, {
+            merchantId: companySettings?.tyro_merchant_id,
+            terminalId: companySettings?.tyro_terminal_id,
+            environment,
+          }, {
+            onStatusUpdate: (msg) => setPaymentModal(m => ({ ...m, tyroStatus: msg })),
+            onApproved: async () => {
+              try {
+                await recordPayment(paymentModal.jobId, amount, 'Tyro EFTPOS');
+                closeModal();
+              } catch (err) {
+                console.error('Tyro payment approved but recordPayment failed', err);
+                setPaymentModal(m => ({
+                  ...m,
+                  tyroProcessing: false,
+                  tyroStatus: 'Payment approved but could not record the transaction. Please retry or contact support.',
+                }));
+              }
+            },
+            onDeclined: () => setPaymentModal(m => ({ ...m, tyroProcessing: false, tyroStatus: 'Declined — payment was not approved by the bank.' })),
+            onCancelled: () => setPaymentModal(m => ({ ...m, tyroProcessing: false, tyroStatus: 'Cancelled — transaction was cancelled at the terminal.' })),
+            onFailed: (r) => setPaymentModal(m => ({ ...m, tyroProcessing: false, tyroStatus: `Failed — ${r?.statusText || 'unknown error'}. Please try again.` })),
+          });
+        } catch (err) {
+          setPaymentModal(m => ({ ...m, tyroProcessing: false, tyroStatus: `Error: ${err.message}` }));
+        }
+      } else {
+        await recordPayment(paymentModal.jobId, amount, paymentModal.method);
+        closeModal();
+      }
+    };
+
     return (
-      <DraggableModal onClose={() => setPaymentModal({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' })} cardClass="max-w-sm w-full p-6">
-          <div className="flex items-center justify-between mb-4 cursor-move select-none">
-            <h3 className="text-lg font-bold">Record Payment</h3>
-            <button onClick={() => setPaymentModal({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' })}>
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
+      <DraggableModal onClose={closeModal} cardClass="max-w-sm w-full p-6">
+        <div className="flex items-center justify-between mb-4 cursor-move select-none">
+          <h3 className="text-lg font-bold">Record Payment</h3>
+          <button onClick={closeModal}><X className="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+            <input
+              type="number" step="0.01" min="0.01" max={paymentModal.maxAmount}
+              value={paymentModal.amount}
+              onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
+              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus disabled={paymentModal.tyroProcessing}
+            />
+            <p className="text-xs text-gray-500 mt-1">Balance due: ${paymentModal.maxAmount.toFixed(2)}</p>
           </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                max={paymentModal.maxAmount}
-                value={paymentModal.amount}
-                onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
-              <p className="text-xs text-gray-500 mt-1">Balance due: ${paymentModal.maxAmount.toFixed(2)}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-              <select
-                value={paymentModal.method}
-                onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value })}
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option>Credit Card</option>
-                <option>Cash</option>
-                <option>Bank Transfer</option>
-                <option>Account</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2 mt-4 pt-4 border-t">
-            <button
-              onClick={() => setPaymentModal({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' })}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <select
+              value={paymentModal.method}
+              onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value, tyroStatus: null })}
+              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={paymentModal.tyroProcessing}
             >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                const amount = parseFloat(paymentModal.amount);
-                if (amount > 0) recordPayment(paymentModal.jobId, amount, paymentModal.method);
-                setPaymentModal({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center"
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Confirm Payment
-            </button>
+              <option>Tyro EFTPOS</option>
+              <option>Credit Card</option>
+              <option>Cash</option>
+              <option>Bank Transfer</option>
+              <option>Account</option>
+            </select>
           </div>
+
+          {/* Tyro status panel */}
+          {isTyro && (
+            <div className={`rounded-lg border px-4 py-3 text-sm ${
+              paymentModal.tyroStatus?.startsWith('Declined') || paymentModal.tyroStatus?.startsWith('Failed') || paymentModal.tyroStatus?.startsWith('Error')
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : paymentModal.tyroStatus?.startsWith('Cancelled')
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}>
+              {paymentModal.tyroProcessing && (
+                <div className="flex items-center gap-2 mb-1">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span className="font-medium">Processing…</span>
+                </div>
+              )}
+              <p>{paymentModal.tyroStatus || 'Click "Charge via Tyro" to send to the EFTPOS terminal.'}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end space-x-2 mt-4 pt-4 border-t">
+          <button onClick={closeModal} className="px-4 py-2 border rounded hover:bg-gray-50" disabled={paymentModal.tyroProcessing}>
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={paymentModal.tyroProcessing || !parseFloat(paymentModal.amount)}
+            className={`px-4 py-2 text-white rounded flex items-center gap-2 disabled:opacity-50 ${
+              isTyro ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            {isTyro ? 'Charge via Tyro' : 'Confirm Payment'}
+          </button>
+        </div>
       </DraggableModal>
     );
   };
@@ -9522,98 +9594,75 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   };
 
   return (
-    <div className="h-screen bg-[#edf2f7] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden">
 
-      {/* ── Jim2-style: TIG System Menu + Module Tabs ── */}
-      <header className="shrink-0 bg-[#1e3a8a] flex items-stretch select-none z-40 shadow-md" style={{ minHeight: 26, maxHeight: 26 }}>
-        {/* TIG System Menu Button */}
+      {/* ── Modern Top App Bar ── */}
+      <header className="shrink-0 bg-[#0f172a] flex items-center gap-3 px-4 z-40 shadow-lg" style={{ height: 52 }}>
+        {/* Brand + TIG dropdown */}
         <div className="relative shrink-0">
           <button
             onClick={() => setTigMenuOpen(o => !o)}
-            className={`h-full px-3 flex items-center gap-1 border-r border-blue-900 text-[11px] font-bold transition-colors ${tigMenuOpen ? 'bg-white text-[#1e3a8a]' : 'hover:bg-blue-800 text-white'}`}
+            className={`flex items-center gap-2.5 h-9 px-2.5 rounded-lg transition-colors ${tigMenuOpen ? 'bg-slate-700' : 'hover:bg-slate-800'}`}
           >
-            <span className="font-black tracking-wide">TIG</span>
-            <ChevronDown className="w-2.5 h-2.5 opacity-70" />
+            <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
+              <span className="text-white font-black text-[11px]">TIG</span>
+            </div>
+            <span className="text-white font-semibold text-sm hidden sm:block">Total Image</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
           {tigMenuOpen && (
-            <div className="absolute left-0 top-full z-[9999] bg-white border border-gray-300 shadow-2xl min-w-[200px] text-[12px] py-1 rounded-b-md" onClick={() => setTigMenuOpen(false)}>
-              <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+            <div className="absolute left-0 top-full mt-1 z-[9999] bg-white border border-gray-200 shadow-2xl min-w-[210px] text-[13px] py-1 rounded-lg" onClick={() => setTigMenuOpen(false)}>
+              <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <User className="w-3.5 h-3.5 shrink-0" /> User Preferences
               </button>
-              <div className="border-t border-gray-200 my-0.5" />
-              <button className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+              <div className="border-t border-gray-100 my-0.5" />
+              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <RefreshCw className="w-3.5 h-3.5 shrink-0" /> New Session
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <LayoutGrid className="w-3.5 h-3.5 shrink-0" /> Calculator
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <Settings className="w-3.5 h-3.5 shrink-0" /> Shortcuts
               </button>
-              <div className="border-t border-gray-200 my-0.5" />
-              <button className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+              <div className="border-t border-gray-100 my-0.5" />
+              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <BookOpen className="w-3.5 h-3.5 shrink-0" /> Help
               </button>
-              <button className="w-full text-left px-4 py-1.5 hover:bg-[#1e3a8a] hover:text-white flex items-center gap-2.5 text-gray-700">
+              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" /> About
               </button>
-              <div className="border-t border-gray-200 my-0.5" />
-              <button onClick={onLogout} className="w-full text-left px-4 py-1.5 hover:bg-red-600 hover:text-white flex items-center gap-2.5 text-gray-700">
+              <div className="border-t border-gray-100 my-0.5" />
+              <button onClick={onLogout} className="w-full text-left px-4 py-2 hover:bg-red-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
                 <LogOut className="w-3.5 h-3.5 shrink-0" /> Log Off
               </button>
             </div>
           )}
         </div>
 
-        {/* Module Tabs — Jim2 exact set */}
-        <nav className="flex items-stretch flex-1 overflow-x-auto scrollbar-none">
-          {[
-            { id: 'jobs',               label: 'Jobs' },
-            { id: 'projects',           label: 'Projects' },
-            { id: 'assets',             label: 'Assets' },
-            { id: 'quotes',             label: 'Quotes' },
-            { id: 'purchase-orders',    label: 'Purchases' },
-            { id: 'card-files',         label: 'CardFiles' },
-            { id: 'order-requirements', label: 'Items' },
-            { id: 'inventory',          label: 'Stock' },
-            { id: 'styles',             label: 'Styles' },
-            { id: 'accounts',           label: 'Accounts' },
-            { id: 'reports',            label: 'Management' },
-            { id: 'dashboard',          label: 'Dashboard' },
-            { id: 'scheduling',         label: 'Scheduling' },
-            { id: 'email',              label: 'Email' },
-            { id: 'ebusiness',          label: 'eBusiness' },
-            { id: 'documents',          label: 'Documents' },
-            { id: 'import',             label: 'Tools' },
-            { id: 'settings',           label: 'Settings' },
-            { id: 'user-management',    label: 'Users', adminOnly: true },
-          ].filter(m => !m.adminOnly || currentUser?.role === 'admin').map(m => (
-            <button
-              key={m.id}
-              onClick={() => { setActiveModule(m.id); setSearchTerm(''); }}
-              className={`px-3 text-[11px] font-medium border-r border-blue-900/40 whitespace-nowrap transition-colors ${
-                activeModule === m.id
-                  ? 'bg-white text-[#1e3a8a] font-semibold'
-                  : 'text-blue-200 hover:bg-blue-800 hover:text-white'
-              }`}
-            >{m.label}</button>
-          ))}
-        </nav>
+        {/* Global search */}
+        <button
+          onClick={() => { setGlobalSearchOpen(true); setGlobalSearchQuery(''); setTimeout(() => globalSearchRef.current?.focus(), 50); }}
+          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg px-3 py-2 text-slate-400 text-sm transition-colors w-64"
+        >
+          <Search className="w-4 h-4 shrink-0" />
+          <span className="flex-1 text-left text-slate-500">Search anything...</span>
+          <kbd className="text-[10px] bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono">Ctrl K</kbd>
+        </button>
 
-        {/* Right: F12 + Ctrl+K + Refresh + Notifications + User + Logout */}
-        <div className="flex items-center gap-0.5 px-2 border-l border-blue-900 shrink-0">
-          <button onClick={() => { setGlobalSearchOpen(true); setGlobalSearchQuery(''); setTimeout(() => globalSearchRef.current?.focus(), 50); }} title="Global Search (Ctrl+K)" className="px-2 py-0.5 bg-blue-700 hover:bg-blue-600 rounded text-[10px] font-mono text-white mr-1 flex items-center gap-1"><Search className="w-3 h-3" /><span className="hidden sm:inline">Ctrl+K</span></button>
-          <button onClick={() => setF12Open(true)} title="F12 Quick Job Search" className="px-2 py-0.5 bg-blue-700 hover:bg-blue-600 rounded text-[10px] font-mono text-white mr-1">F12</button>
-          <button onClick={() => queryClient.invalidateQueries()} title="Refresh All" className="p-1 hover:bg-blue-800 rounded text-blue-300 hover:text-white">
-            <RefreshCw className="w-3 h-3" />
+        <div className="flex-1" />
+
+        {/* Right controls */}
+        <div className="flex items-center gap-1">
+          <button onClick={() => setF12Open(true)} title="F12 Quick Job Search" className="h-8 px-2.5 bg-slate-800 hover:bg-slate-700 rounded-md text-[11px] font-mono text-slate-300 hover:text-white transition-colors">F12</button>
+          <button onClick={() => queryClient.invalidateQueries()} title="Refresh All" className="h-8 w-8 flex items-center justify-center hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors">
+            <RefreshCw className="w-4 h-4" />
           </button>
           <div className="relative">
-            <button onClick={() => setNotifOpen(o => !o)} className="p-1 hover:bg-blue-800 rounded text-blue-300 hover:text-white relative" title="Notifications">
-              <Bell className="w-3 h-3" />
+            <button onClick={() => setNotifOpen(o => !o)} className="h-8 w-8 flex items-center justify-center hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors relative" title="Notifications">
+              <Bell className="w-4 h-4" />
               {notifications.length > 0 && (
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full text-white text-[7px] flex items-center justify-center leading-none">
-                  {notifications.length > 9 ? '9+' : notifications.length}
-                </span>
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
               )}
             </button>
             {notifOpen && (
@@ -9637,111 +9686,111 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
             )}
           </div>
-          <div className="w-px h-4 bg-blue-700 mx-1" />
-          <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="flex items-center gap-1 px-1.5 py-0.5 hover:bg-blue-800 rounded">
-            <div className="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold text-[9px] shrink-0">
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+          <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="flex items-center gap-2 h-8 px-2 hover:bg-slate-800 rounded-md transition-colors">
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
               {(currentUser?.full_name || currentUser?.username || '?')[0].toUpperCase()}
             </div>
-            <span className="text-[10px] text-blue-200 hidden sm:block max-w-[80px] truncate">{currentUser?.username}</span>
+            <span className="text-[12px] text-slate-300 hidden sm:block max-w-[80px] truncate">{currentUser?.username}</span>
           </button>
-          <button onClick={onLogout} title="Sign out" className="p-1 hover:bg-blue-800 rounded text-blue-300 hover:text-red-300">
-            <LogOut className="w-3 h-3" />
+          <button onClick={onLogout} title="Sign out" className="h-8 w-8 flex items-center justify-center hover:bg-red-900/30 rounded-md text-slate-400 hover:text-red-400 transition-colors">
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* ── Ribbon Toolbar ── */}
-      <div className="shrink-0 bg-[#f4f6f9] border-b border-slate-300 overflow-x-auto">
-        <div className="flex items-end min-h-[58px] px-1 pb-1 gap-0">
+      {/* ── Contextual Action Toolbar ── */}
+      <div className="shrink-0 bg-white border-b border-gray-200 overflow-x-auto">
+        <div className="flex items-center h-11 px-3 gap-0.5">
 
           {/* ── JOBS ribbon ── */}
           {activeModule === 'jobs' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('job')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Job</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Job</span>
               </button>
-              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View Job</span>
+              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View Job</span>
               </button>
-              <button onClick={() => setJobListModal(m => ({ ...m, open: true }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Create List</span>
+              <button onClick={() => setJobListModal(m => ({ ...m, open: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Return</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Truck className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Return</span>
               </button>
-              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Sales Reg.</span>
+              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Sales Reg.</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDispatchModal(m => ({ ...m, open: true, job: activeJob, shipVia: '', shipRef: '', cartons: 1, notes: '', error: '' }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Box className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Dispatch</span>
+              <button disabled={!activeJob} onClick={() => activeJob && setDispatchModal(m => ({ ...m, open: true, job: activeJob, shipVia: '', shipRef: '', cartons: 1, notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Dispatch</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Payment</span>
+              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Import Jobs</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Jobs</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               <button
                 disabled={!activeJob || !['INVOICE','PAID'].includes(activeJob?.status)}
                 onClick={() => activeJob && setUnprintModal({ open: true, job: activeJob, loading: false, error: '' })}
                 title={!activeJob ? 'Open a job first' : !['INVOICE','PAID'].includes(activeJob?.status) ? `Only available on INVOICE or PAID jobs (current: ${activeJob?.status})` : 'Revert this job from invoiced back to FINISH'}
-                className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
               >
-                <Printer className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Unprint</span>
+                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setInvoiceJob(activeJob)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <FileText className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Invoice Job</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Copy className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Clone</span>
+              <button disabled={!activeJob} onClick={() => activeJob && setInvoiceJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <FileText className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Invoice Job</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Edit</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Reply</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Forward</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Preview</span>
+              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Copy className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Clone</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Print</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
-              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Excel</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Send className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reply</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Forward</span>
+              </button>
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Preview</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Print</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
+              </button>
+              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Excel</span>
               </button>
               <div className="relative">
                 <button
                   disabled={!activeJob}
                   onClick={() => setReportDropdownOpen(o => !o)}
-                  className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
                   title={activeJob ? 'Print a report for this job' : 'Open a job first'}
                 >
-                  <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Report ▾</span>
+                  <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
                 </button>
                 {reportDropdownOpen && activeJob && (
                   <div
-                    className="absolute left-0 top-full z-[9999] bg-white border border-gray-300 shadow-2xl min-w-[230px] py-1 text-[12px]"
+                    className="absolute left-0 top-full z-[9999] bg-white border border-gray-200 shadow-2xl min-w-[230px] py-1 text-[13px] rounded-lg"
                     onMouseLeave={() => setReportDropdownOpen(false)}
                     onClick={() => setReportDropdownOpen(false)}
                   >
@@ -9767,7 +9816,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             key={i}
                             disabled={r.disabled}
                             onClick={r.action}
-                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-gray-300 cursor-default' : 'hover:bg-[#1e3a8a] hover:text-white text-gray-700'}`}
+                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-gray-300 cursor-default' : 'hover:bg-blue-600 hover:text-white text-gray-700'}`}
                           >
                             <FileText className="w-3.5 h-3.5 shrink-0" />{r.label}
                           </button>
@@ -9777,223 +9826,223 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 )}
               </div>
             </div>
-            <div className="flex items-end gap-0">
+            <div className="flex items-center gap-0.5">
               <button
                 disabled={!activeJob}
                 title={activeJob ? 'View job notes & internal comments' : 'Open a job first'}
                 onClick={() => { if (activeJob) { pinJob(activeJob); setShowJobDetail(true); } }}
-                className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
               >
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Scripts</span>
+                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── PURCHASES ribbon ── */}
           {activeModule === 'purchase-orders' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('po')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Purchase</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('po')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Purchase</span>
               </button>
-              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View/Edit</span>
+              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">PO List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">PO List</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Return to Vendor</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Unprint</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">PO Other</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Truck className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Return to Vendor</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Pick/Pack</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">PO Other</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email Actions</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Job Reports</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Scripts</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Job Reports</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── CARDFILES ribbon ── */}
           {activeModule === 'card-files' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add CardFile</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add CardFile</span>
               </button>
-              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View/Edit</span>
+              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Create List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Time Sheets</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Clock className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Time Sheets</span>
               </button>
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <User className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Quick Add</span>
+              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Quick Add</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Merge</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Merge</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Reassign</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reassign</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Payment</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">CF Other</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">CF Other</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Print</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Excel</span>
-              </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Report ▾</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Scripts</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Print</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Excel</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── ITEMS (order-requirements) ribbon ── */}
           {activeModule === 'order-requirements' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('inventory')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Item</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Item</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View/Edit Item</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit Item</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Create Item List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create Item List</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── STOCK (inventory) ribbon ── */}
           {activeModule === 'inventory' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('inventory')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Stock</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Stock</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">View/Edit Stock</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit Stock</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Create List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <RefreshCw className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Transfer Stock</span>
+              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <RefreshCw className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Transfer Stock</span>
               </button>
-              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Stock Adjustments</span>
+              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Adjustments</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ShoppingCart className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Procurement</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ShoppingCart className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Procurement</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Packaging</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Packaging</span>
               </button>
-              <button onClick={() => setActiveModule('warehouse')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Warehouse className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Warehouse Mgmt</span>
+              <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Warehouse className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Warehouse Mgmt</span>
               </button>
-              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <CheckSquare className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Stocktake</span>
+              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <CheckSquare className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stocktake</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Tag className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Promo Pricing</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Tag className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Promo Pricing</span>
               </button>
-              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Stock Flow</span>
+              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Flow</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Stock Other</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Unprint</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Other</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Pick/Pack</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email Actions</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Job Reports</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Scripts</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Job Reports</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── ACCOUNTS ribbon ── */}
           {activeModule === 'accounts' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <DollarSign className="w-5 h-5 text-indigo-600" /><span className="text-[9px] text-indigo-700 whitespace-nowrap font-semibold">AP Bills</span>
               </button>
               {[['Users','Debtors (AR)'],['BarChart3','GST/BAS']].map(([, lbl]) => (
-                <button key={lbl} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                  <DollarSign className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                  <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
@@ -10001,259 +10050,259 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
           {/* ── MANAGEMENT (reports) ribbon ── */}
           {activeModule === 'reports' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => setActiveModule('reports')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Reports</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reports</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <PieChart className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Business Analysis</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <PieChart className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Business Analysis</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Budgets</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Budgets</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Cash Flow</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Cash Flow</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Commission Rates</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Management</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Commission Rates</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Management</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── DASHBOARD ribbon ── */}
           {activeModule === 'dashboard' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => setActiveModule('dashboard')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Mgmt Dashboard</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <User className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Security</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Dashboard Board</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Dashboard Board</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Edit</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Edit</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Trash2 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Delete</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Trash2 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Delete</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Select Layout</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Select Layout</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Combine Layout</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Combine Layout</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Add Widget</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Widget</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Manage Widget</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Widgets</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Manage Widget</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Widgets</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── SCHEDULING ribbon ── */}
           {activeModule === 'scheduling' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               {['Schedule','Task','Day','Work Week','Week','Month','Year','Timeline','Current Job','Scheduler View'].map(lbl => (
-                <button key={lbl} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                  <Calendar className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                  <Calendar className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Group By</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Group By</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Search className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Filters</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Search className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Filters</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Resources</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Resources</span>
               </button>
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Manage Views</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Manage Views</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Views</span>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Views</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
             </div>
           </>)}
 
           {/* ── EMAIL ribbon ── */}
           {activeModule === 'email' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               {['Create List','Email Rules','Templates','Editor','Archive','Email Security','Send/Receive','Delete','Unread/Read','Move'].map(lbl => (
-                <button key={lbl} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                  <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                  <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email Other</span>
-              </button>
-            </div>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Email Actions</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Other</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Send className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── eBUSINESS ribbon ── */}
           {activeModule === 'ebusiness' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Vendor Stock Feeds</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Import Vendor Prices</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Vendor Prices</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Customer Feeds</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Customer Feeds</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">eBusiness Trans.</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">eBusiness Trans.</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── DOCUMENTS ribbon ── */}
           {activeModule === 'documents' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               {['Add Document','View/Edit','Create List','Open','Save Properties','Delete','Actions','Checkout','Cancel Checkout','Large Icons','Show Hidden','List Layout'].map(lbl => (
-                <button key={lbl} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                  <FileText className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                  <FileText className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── TOOLS (import) ribbon ── */}
           {activeModule === 'import' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Options</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Options</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Setup</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Setup</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Status</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Status</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Watchouts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Watchouts</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Currency Rates</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Currency Rates</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Groups</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Groups</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <User className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Security</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">History</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Clock className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">History</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Integration Config</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Integration Config</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Scripting Engine</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripting Engine</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Report Designer</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report Designer</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Download className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Import Data</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Data</span>
               </button>
             </div>
-            <div className="flex items-end gap-0">
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Tools</span>
+            <div className="flex items-center gap-0.5">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Tools Other</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools Other</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Tools Accounts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools Accounts</span>
               </button>
             </div>
           </>)}
 
           {/* ── SETTINGS ribbon ── */}
           {activeModule === 'settings' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               {['Company','Bank & Payments','SMTP'].map(lbl => (
-                <button key={lbl} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                  <Settings className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                  <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
@@ -10261,39 +10310,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
           {/* ── USER MANAGEMENT ribbon ── */}
           {activeModule === 'user-management' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => {}} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Users className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Users</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => {}} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Users</span>
               </button>
             </div>
           </>)}
 
           {/* ── CUSTOMERS ribbon (hidden tab, accessible via nav) ── */}
           {activeModule === 'customers' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('customer')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New Customer</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('customer')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New Customer</span>
               </button>
             </div>
           </>)}
 
           {/* ── SUPPLIERS ribbon ── */}
           {activeModule === 'suppliers' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => openModal('supplier')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">New Supplier</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New Supplier</span>
               </button>
             </div>
           </>)}
 
           {/* ── WAREHOUSE ribbon ── */}
           {activeModule === 'warehouse' && (<>
-            <div className="flex items-end gap-0 pr-2 mr-1 border-r border-gray-300">
-              <button onClick={() => setActiveModule('inventory')} className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px]">
-                <Package className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Stock Items</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+              <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Items</span>
               </button>
-              <button className="flex flex-col items-center px-2 py-1 hover:bg-slate-200 rounded gap-0.5 min-w-[46px] opacity-40 cursor-default">
-                <Warehouse className="w-5 h-5 text-gray-600" /><span className="text-[9px] text-gray-600 whitespace-nowrap">Bin Map</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+                <Warehouse className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Bin Map</span>
               </button>
             </div>
           </>)}
@@ -10301,8 +10350,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         </div>
       </div>
 
-      {/* ── Attention Bar — always-visible live KPIs (NetSuite / BC style) ── */}
-      <div className="shrink-0 bg-white border-b border-gray-200 flex items-center h-7 select-none overflow-x-auto">
+      {/* ── Live KPI Bar ── */}
+      <div className="shrink-0 bg-white border-b border-gray-100 flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
           { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-red-500',    bg: 'hover:bg-red-50',    text: 'text-red-600',    border: 'border-red-100',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
           { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-orange-500', bg: 'hover:bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', action: () => { setActiveModule('jobs'); } },
@@ -10332,104 +10381,92 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       {/* ── Content Row ── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Nav Tree ── */}
-        <aside className="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-hidden select-none">
-          <div className="flex-1 overflow-y-auto">
-            {navTreeTab === 'navigation' ? (
-              <div className="py-0.5">
-                {[
-                  { id: 'jobs',               label: 'Jobs',       icon: FileText    },
-                  { id: 'projects',           label: 'Projects',   icon: ClipboardList },
-                  { id: 'assets',             label: 'Assets',     icon: Package     },
-                  { id: 'quotes',             label: 'Quotes',     icon: FileText    },
-                  { id: 'purchase-orders',    label: 'Purchases',  icon: ShoppingCart },
-                  { id: 'card-files',         label: 'CardFiles',  icon: Users       },
-                  { id: 'order-requirements', label: 'Items',      icon: Tag         },
-                  { id: 'inventory',          label: 'Stock',      icon: Package     },
-                  { id: 'styles',             label: 'Styles',     icon: Layers      },
-                  { id: 'accounts',           label: 'Accounts',   icon: DollarSign  },
-                  { id: 'reports',            label: 'Management', icon: BarChart3   },
-                  { id: 'dashboard',          label: 'Dashboard',  icon: LayoutGrid  },
-                  { id: 'scheduling',         label: 'Scheduling', icon: Calendar    },
-                  { id: 'email',              label: 'Email',      icon: Mail        },
-                  { id: 'ebusiness',          label: 'eBusiness',  icon: ExternalLink },
-                  { id: 'documents',          label: 'Documents',  icon: FileSpreadsheet },
-                  { id: 'import',             label: 'Tools',      icon: Settings    },
-                ].map(mod => {
-                  const isActive = activeModule === mod.id;
-                  const isExpanded = !!navExpanded[mod.id];
-                  const ModIcon = mod.icon;
-                  const hasChildren = mod.id === 'jobs' && pinnedJobs.length > 0;
-                  return (
-                    <div key={mod.id}>
-                      <div
-                        className={`flex items-center gap-1 px-1.5 py-1 cursor-pointer transition-colors text-[11px] ${isActive ? 'bg-[#cce0f5] text-[#1e3a8a] border-l-2 border-l-[#1e3a8a]' : 'hover:bg-gray-100 text-gray-700'}`}
-                        onClick={() => { setActiveModule(mod.id); setSearchTerm(''); }}
-                        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: mod.id, pinnedJobId: null }); }}
-                      >
-                        <button
-                          onClick={e => { e.stopPropagation(); if (hasChildren) setNavExpanded(p => ({ ...p, [mod.id]: !p[mod.id] })); }}
-                          className={`w-3.5 h-3.5 shrink-0 flex items-center justify-center text-gray-400 rounded hover:text-gray-600 ${!hasChildren ? 'invisible' : ''}`}
-                        >
-                          {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                        </button>
-                        <ModIcon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#1e3a8a]' : 'text-gray-400'}`} />
-                        <span className={`flex-1 truncate leading-tight ${isActive ? 'font-semibold' : ''}`}>{mod.label}</span>
-                      </div>
-                      {/* Expanded pinned jobs under Jobs node */}
-                      {mod.id === 'jobs' && isExpanded && pinnedJobs.length > 0 && (
-                        <div className="ml-5 border-l border-gray-200">
-                          {[...pinnedJobs].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true })).map(pj => {
-                            const isJobActive = activeJob?.id === pj.id && showJobDetail && activeModule === 'jobs';
-                            const SC = { QUOTE:'bg-gray-100 text-gray-600', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-orange-100 text-orange-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700' };
-                            return (
-                              <div
-                                key={pj.id}
-                                className={`group flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors border-b border-gray-50 ${isJobActive ? 'bg-[#cce0f5] border-l-2 border-l-[#1e3a8a]' : 'hover:bg-blue-50'}`}
-                                onClick={() => { setActiveJob(pj); setShowJobDetail(true); setActiveModule('jobs'); }}
-                                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: 'jobs', pinnedJobId: pj.id }); }}
-                              >
-                                <FileText className="w-3 h-3 text-gray-300 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-[10px] font-mono font-bold leading-none ${isJobActive ? 'text-[#1e3a8a]' : 'text-gray-700'}`}>{pj.id}</p>
-                                  <p className="text-[9px] text-gray-400 truncate leading-tight">{pj.customer || pj.customerName}</p>
-                                  {pj.status && <span className={`inline-block text-[8px] px-1 rounded mt-0.5 font-medium ${SC[pj.status] || 'bg-gray-100 text-gray-500'}`}>{pj.status}</span>}
-                                </div>
-                                <button onClick={e => { e.stopPropagation(); unpinJob(pj.id); }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 shrink-0">
-                                  <X className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+        {/* ── Nav Sidebar ── */}
+        <aside className="w-56 bg-[#0f172a] flex flex-col shrink-0 overflow-hidden select-none">
+          <div className="flex-1 overflow-y-auto py-2 scrollbar-none">
+            {[
+              { id: 'dashboard',          label: 'Dashboard',  icon: LayoutGrid  },
+              null,
+              { id: 'jobs',               label: 'Jobs',       icon: FileText    },
+              { id: 'quotes',             label: 'Quotes',     icon: FileText    },
+              { id: 'scheduling',         label: 'Scheduling', icon: Calendar    },
+              { id: 'purchase-orders',    label: 'Purchases',  icon: ShoppingCart },
+              null,
+              { id: 'card-files',         label: 'CardFiles',  icon: Users       },
+              { id: 'order-requirements', label: 'Items',      icon: Tag         },
+              { id: 'inventory',          label: 'Stock',      icon: Package     },
+              { id: 'styles',             label: 'Styles',     icon: Layers      },
+              null,
+              { id: 'accounts',           label: 'Accounts',   icon: DollarSign  },
+              { id: 'reports',            label: 'Management', icon: BarChart3   },
+              null,
+              { id: 'email',              label: 'Email',      icon: Mail        },
+              { id: 'documents',          label: 'Documents',  icon: FileSpreadsheet },
+              { id: 'projects',           label: 'Projects',   icon: ClipboardList },
+              { id: 'assets',             label: 'Assets',     icon: Package     },
+              { id: 'ebusiness',          label: 'eBusiness',  icon: ExternalLink },
+              null,
+              { id: 'import',             label: 'Tools',      icon: Settings    },
+              { id: 'settings',           label: 'Settings',   icon: Settings    },
+              { id: 'user-management',    label: 'Users',      icon: Users, adminOnly: true },
+            ].filter(m => m === null || !m.adminOnly || currentUser?.role === 'admin').map((mod, idx) => {
+              if (mod === null) return <div key={idx} className="h-px bg-slate-800 mx-3 my-1" />;
+              const isActive = activeModule === mod.id;
+              const isExpanded = !!navExpanded[mod.id];
+              const ModIcon = mod.icon;
+              const hasChildren = mod.id === 'jobs' && pinnedJobs.length > 0;
+              return (
+                <div key={mod.id}>
+                  <div
+                    className={`flex items-center gap-2.5 mx-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-[13px] ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
+                    onClick={() => { setActiveModule(mod.id); setSearchTerm(''); }}
+                    onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: mod.id, pinnedJobId: null }); }}
+                  >
+                    <button
+                      onClick={e => { e.stopPropagation(); if (hasChildren) setNavExpanded(p => ({ ...p, [mod.id]: !p[mod.id] })); }}
+                      className={`w-3.5 h-3.5 shrink-0 flex items-center justify-center rounded ${!hasChildren ? 'invisible' : 'hover:text-white'}`}
+                    >
+                      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    </button>
+                    <ModIcon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                    <span className={`flex-1 truncate leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>{mod.label}</span>
+                  </div>
+                  {/* Expanded pinned jobs under Jobs node */}
+                  {mod.id === 'jobs' && isExpanded && pinnedJobs.length > 0 && (
+                    <div className="ml-9 border-l border-slate-700 my-0.5">
+                      {[...pinnedJobs].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true })).map(pj => {
+                        const isJobActive = activeJob?.id === pj.id && showJobDetail && activeModule === 'jobs';
+                        const SC = { QUOTE:'bg-gray-700 text-gray-300', New:'bg-blue-900 text-blue-300', ORDER:'bg-indigo-900 text-indigo-300', 'In Progress':'bg-yellow-900 text-yellow-300', PROOF:'bg-purple-900 text-purple-300', PRINT:'bg-orange-900 text-orange-300', 'Pick/Pack':'bg-cyan-900 text-cyan-300', FINISH:'bg-green-900 text-green-300', INVOICE:'bg-teal-900 text-teal-300', PAID:'bg-emerald-900 text-emerald-300', CANCEL:'bg-red-900 text-red-300' };
+                        return (
+                          <div
+                            key={pj.id}
+                            className={`group flex items-center gap-1.5 px-3 py-1.5 cursor-pointer transition-colors ${isJobActive ? 'bg-blue-700/40 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
+                            onClick={() => { setActiveJob(pj); setShowJobDetail(true); setActiveModule('jobs'); }}
+                            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: 'jobs', pinnedJobId: pj.id }); }}
+                          >
+                            <FileText className="w-3 h-3 text-slate-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-mono font-bold leading-none">{pj.id}</p>
+                              <p className="text-[10px] text-slate-500 truncate leading-tight">{pj.customer || pj.customerName}</p>
+                              {pj.status && <span className={`inline-block text-[9px] px-1 rounded mt-0.5 font-medium ${SC[pj.status] || 'bg-slate-700 text-slate-400'}`}>{pj.status}</span>}
+                            </div>
+                            <button onClick={e => { e.stopPropagation(); unpinJob(pj.id); }} className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 shrink-0 transition-opacity">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-3">
-                <p className="text-[10px] text-gray-400 text-center py-6">No search results</p>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom: Navigation | Search Results tabs */}
-          <div className="border-t border-gray-200 flex shrink-0 bg-gray-50">
-            <button
-              onClick={() => setNavTreeTab('navigation')}
-              className={`flex-1 py-1.5 text-[10px] font-medium text-center transition-colors ${navTreeTab === 'navigation' ? 'bg-white text-[#1e3a8a] border-t-2 border-t-[#1e3a8a]' : 'text-gray-500 hover:bg-gray-100'}`}
-            >Navigation</button>
-            <button
-              onClick={() => setNavTreeTab('search-results')}
-              className={`flex-1 py-1.5 text-[10px] font-medium text-center transition-colors border-l border-gray-200 ${navTreeTab === 'search-results' ? 'bg-white text-[#1e3a8a] border-t-2 border-t-[#1e3a8a]' : 'text-gray-500 hover:bg-gray-100'}`}
-            >Search Results</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </aside>
 
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <main className="flex-1 p-4 overflow-auto">
+          <main className="flex-1 p-5 overflow-auto bg-[#f8fafc]">
             {loading && (
               <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Loading data...</div>
             )}
@@ -10472,16 +10509,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       </div>
 
       {/* ── Status Bar ── */}
-      <div className="shrink-0 bg-[#e0e0e0] border-t border-gray-300 flex items-center px-3 gap-3 text-[10px] text-gray-600" style={{ height: 20 }}>
-        <span className="font-semibold">User:</span><span>{currentUser?.full_name || currentUser?.username}</span>
-        <span className="text-gray-400">|</span>
-        <span className="font-semibold">Location:</span><span>HQ</span>
-        <span className="text-gray-400">|</span>
-        <span className="font-semibold">Server:</span><span>localhost</span>
-        <span className="text-gray-400">|</span>
+      <div className="shrink-0 bg-white border-t border-gray-100 flex items-center px-4 gap-4 text-[11px] text-gray-400" style={{ height: 24 }}>
+        <span className="text-gray-500 font-medium">{currentUser?.full_name || currentUser?.username}</span>
+        <span>·</span>
         <span>TIG ERP v1.0</span>
         <div className="flex-1" />
-        <span className="text-gray-400">{new Date().toLocaleDateString('en-AU')}</span>
+        <span>{new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
       </div>
 
       {/* ── Nav context menu ── */}

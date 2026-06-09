@@ -1,7 +1,13 @@
 import json
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import datetime, timezone
+
+
+# ── Request-scoped context ────────────────────────────────────────────────────
+# Set by RequestIDMiddleware in main.py; read by _JSONFormatter below.
+request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 
 class _JSONFormatter(logging.Formatter):
@@ -14,8 +20,10 @@ class _JSONFormatter(logging.Formatter):
         }
         if record.exc_info:
             entry["exc_info"] = self.formatException(record.exc_info)
-        if hasattr(record, "request_id"):
-            entry["request_id"] = record.request_id
+        # Pull request_id from contextvars (set per-request by middleware)
+        req_id = request_id_var.get()
+        if req_id:
+            entry["request_id"] = req_id
         return json.dumps(entry)
 
 

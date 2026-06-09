@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Plus, Edit, Trash2, Shield, CheckCircle, XCircle, RefreshCw, Key, AlertCircle, Search } from 'lucide-react';
 import * as api from '../api';
+import { notify } from '../lib/notify';
 
 const ROLES = ['admin', 'staff', 'overseas_staff'];
 const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', overseas_staff: 'Overseas Staff' };
@@ -38,30 +39,31 @@ export default function UserManagement({ currentUser }) {
     queryKey: ['users/list'],
     queryFn: () => api.users.list(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
 
   const { mutate: createUser, isPending: creating } = useMutation({
     mutationFn: (data) => api.users.create(data),
     onSuccess: () => { qc.invalidateQueries(['users/list']); setCreateOpen(false); setForm(EMPTY_FORM); setError(''); },
-    onError: (e) => setError(e.message),
+    onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
 
   const { mutate: updateUser, isPending: updating } = useMutation({
     mutationFn: ({ id, data }) => api.users.update(id, data),
     onSuccess: () => { qc.invalidateQueries(['users/list']); setEditUser(null); setError(''); },
-    onError: (e) => setError(e.message),
+    onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
 
   const { mutate: removeUser, isPending: removing } = useMutation({
     mutationFn: (id) => api.users.delete(id),
     onSuccess: () => { qc.invalidateQueries(['users/list']); setDeleteUser(null); },
-    onError: (e) => setError(e.message),
+    onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
 
   const { mutate: resetPassword, isPending: resetting } = useMutation({
     mutationFn: ({ id, password }) => api.users.resetPassword(id, password),
     onSuccess: () => { setResetUser(null); setNewPassword(''); setError(''); },
-    onError: (e) => setError(e.message),
+    onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
 
   const [search, setSearch] = useState('');

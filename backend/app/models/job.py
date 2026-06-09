@@ -103,7 +103,7 @@ class JobComment(Base):
     __tablename__ = "job_comments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    job_id = Column(String(20), ForeignKey("jobs.id"), nullable=False)
+    job_id = Column(String(20), ForeignKey("jobs.id"), nullable=False, index=True)
     date = Column(String(20))
     time = Column(String(10))
     initials = Column(String(10))

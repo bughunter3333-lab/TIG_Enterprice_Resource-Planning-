@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, DollarSign, Package, Users, Download, RefreshCw, Clock, AlertTriangle, Layers } from 'lucide-react';
 import * as api from '../api';
+import { notify } from '../lib/notify';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -77,6 +78,7 @@ function SalesSummaryTab() {
     queryKey: ['reports/sales-summary', range],
     queryFn: () => api.reports.salesSummary({ date_from: range.from, date_to: range.to }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -159,6 +161,7 @@ function GSTTab() {
     queryKey: ['reports/gst', range],
     queryFn: () => api.reports.gst({ date_from: range.from, date_to: range.to }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.monthly_breakdown || [];
@@ -226,6 +229,7 @@ function AgedReceivablesTab() {
     queryKey: ['reports/aged-receivables'],
     queryFn: () => api.reports.agedReceivables(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -303,6 +307,7 @@ function AgedPayablesTab() {
     queryKey: ['reports/aged-payables'],
     queryFn: () => api.reports.agedPayables(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -378,6 +383,7 @@ function InventoryValuationTab() {
     queryKey: ['reports/inventory-valuation'],
     queryFn: () => api.reports.inventoryValuation(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -461,6 +467,7 @@ function JobProfitabilityTab() {
     queryKey: ['reports/job-profitability', range],
     queryFn: () => api.reports.jobProfitability({ date_from: range.from, date_to: range.to }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -544,6 +551,7 @@ function OnTimeDeliveryTab() {
     queryKey: ['reports/on-time-delivery', range],
     queryFn: () => api.reports.onTimeDelivery({ date_from: range.from, date_to: range.to }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const summary = data?.summary || {};
@@ -631,6 +639,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
     queryKey: ['reports/back-orders'],
     queryFn: () => api.reports.backOrders(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];
@@ -964,6 +973,7 @@ function DecorationPerformanceTab() {
     queryKey: ['reports/decoration-performance', range],
     queryFn: () => api.reports.decorationPerformance({ date_from: range.from, date_to: range.to }),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const rows = data?.rows || [];

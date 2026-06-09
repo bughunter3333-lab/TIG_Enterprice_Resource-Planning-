@@ -25,6 +25,9 @@ class CompanySettings(Base):
     smtp_password = Column(String(200))
     smtp_from_name = Column(String(100), default="Total Image Group")
     smtp_use_tls = Column(Boolean, default=True)
+    tyro_merchant_id = Column(String(100))
+    tyro_terminal_id = Column(String(100))
+    tyro_environment = Column(String(20), default='sandbox')
 
 
 class EmailLog(Base):

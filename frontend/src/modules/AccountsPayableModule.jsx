@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, DollarSign, AlertCircle, Clock, CheckCircle, X, Download } from 'lucide-react';
 import * as api from '../api';
+import { notify } from '../lib/notify';
 
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -239,6 +240,7 @@ function PayModal({ bill, onPay, onClose }) {
 export default function AccountsPayableModule({ suppliers = [] }) {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
+  const [queryErr, setQueryErr] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [billForm, setBillForm] = useState(null);   // null = closed, {} = new, bill = edit
   const [payModal, setPayModal] = useState(null);
@@ -248,12 +250,14 @@ export default function AccountsPayableModule({ suppliers = [] }) {
     queryKey: ['ap-bills', statusFilter],
     queryFn: () => api.supplierBills.list(statusFilter ? { status: statusFilter } : {}),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); setQueryErr(m); notify(m, { type: 'error' }); },
   });
 
   const { data: summary } = useQuery({
     queryKey: ['ap-summary'],
     queryFn: api.supplierBills.summary,
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); setQueryErr(m); notify(m, { type: 'error' }); },
   });
 
   const invalidate = () => {

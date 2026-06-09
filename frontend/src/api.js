@@ -934,6 +934,21 @@ export const reports = {
   },
 };
 
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+export const analytics = {
+  getOverview: () => request('/analytics/overview'),
+  getForecast: () => request('/analytics/forecast'),
+  getDso: () => request('/analytics/dso'),
+  getAbc: () => request('/analytics/abc'),
+  getChurn: () => request('/analytics/churn'),
+  getMargins: () => request('/analytics/margins'),
+  getTurnaround: () => request('/analytics/turnaround'),
+  getSeasonality: () => request('/analytics/seasonality'),
+  getAnomalies: () => request('/analytics/anomalies'),
+};
+
+
 // ── Accounts Payable ──────────────────────────────────────────────────────────
 
 function normalizeBill(b) {

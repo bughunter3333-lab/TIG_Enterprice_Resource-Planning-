@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Building2, CreditCard, Mail, Save, CheckCircle, AlertCircle, RefreshCw, Wifi } from 'lucide-react';
+import { Settings, Building2, CreditCard, Mail, Save, CheckCircle, AlertCircle, RefreshCw, Wifi, Terminal } from 'lucide-react';
 import * as api from '../api';
+import { notify } from '../lib/notify';
 
 const TABS = [
   { id: 'company', label: 'Company Info', icon: Building2 },
   { id: 'bank', label: 'Bank & Payments', icon: CreditCard },
   { id: 'email', label: 'SMTP / Email', icon: Mail },
+  { id: 'tyro', label: 'Tyro EFTPOS', icon: Terminal },
 ];
 
 function FieldRow({ label, children }) {
@@ -43,6 +45,7 @@ export default function SettingsModule({ currentUser }) {
     queryKey: ['settings/company'],
     queryFn: () => api.settings.getCompany(),
     staleTime: 60000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   useEffect(() => {
@@ -248,6 +251,60 @@ export default function SettingsModule({ currentUser }) {
                     {smtpTest.message}
                   </span>
                 )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Tyro EFTPOS ── */}
+        {tab === 'tyro' && (
+          <>
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-2">
+              <Terminal className="w-4 h-4 text-blue-600" />Tyro EFTPOS Integration
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Connect TIG ERP to your Tyro EFTPOS terminal. When taking card payments in the job payment screen,
+              the charge will be sent directly to the terminal for the customer to tap or insert their card.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700 mb-4">
+              <strong>Setup:</strong> Your Merchant ID and Terminal ID are provided by Tyro when you sign up.
+              Use <em>Sandbox</em> for testing without a real terminal — switch to <em>Production</em> when you're ready to go live.
+            </div>
+            <FieldRow label="Merchant ID">
+              <TextInput
+                value={form.tyro_merchant_id}
+                onChange={v => set('tyro_merchant_id', v)}
+                placeholder="e.g. MID-12345"
+                disabled={!isAdmin}
+              />
+            </FieldRow>
+            <FieldRow label="Terminal ID">
+              <TextInput
+                value={form.tyro_terminal_id}
+                onChange={v => set('tyro_terminal_id', v)}
+                placeholder="e.g. TID-67890"
+                disabled={!isAdmin}
+              />
+            </FieldRow>
+            <FieldRow label="Environment">
+              <select
+                value={form.tyro_environment || 'sandbox'}
+                onChange={e => set('tyro_environment', e.target.value)}
+                disabled={!isAdmin}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              >
+                <option value="sandbox">Sandbox (testing)</option>
+                <option value="production">Production (live)</option>
+              </select>
+            </FieldRow>
+            {form.tyro_merchant_id && (
+              <div className="bg-gray-50 border rounded-lg p-4 text-sm text-gray-700 mt-2 space-y-1">
+                <p className="font-semibold text-gray-800 mb-1">Current configuration:</p>
+                <p>Merchant ID: <span className="font-mono">{form.tyro_merchant_id}</span></p>
+                {form.tyro_terminal_id && <p>Terminal ID: <span className="font-mono">{form.tyro_terminal_id}</span></p>}
+                <p>Environment: <span className={`font-semibold ${form.tyro_environment === 'production' ? 'text-green-700' : 'text-amber-700'}`}>
+                  {form.tyro_environment === 'production' ? 'Production — live charges' : 'Sandbox — test mode'}
+                </span></p>
               </div>
             )}
           </>

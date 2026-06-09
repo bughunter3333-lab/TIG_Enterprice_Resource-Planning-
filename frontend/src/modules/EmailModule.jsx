@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import * as api from '../api';
+import { notify } from '../lib/notify';
 
 const EMAIL_TYPES = [
   { value: 'invoice', label: 'Tax Invoice' },
@@ -45,6 +46,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
     queryKey: ['email/log'],
     queryFn: () => api.email.log({ limit: 100 }),
     staleTime: 15000,
+    onError: (e) => { const m = e?.message || String(e); console.error('email.log fetch error', e); notify(m, { type: 'error' }); },
   });
   const log = logData || [];
 

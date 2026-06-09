@@ -427,6 +427,7 @@ function StyleDetail({ style, onEdit, onDelete, onRefresh }) {
     queryKey: ['inventory'],
     queryFn: () => inventoryApi.list(),
     staleTime: 30000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   async function handleGenerateSkus() {
@@ -657,12 +658,14 @@ export default function StylesModule() {
     queryKey: ['styles', search, filterCategory, filterBrand, filterSeason],
     queryFn: () => stylesApi.list({ search, category: filterCategory, brand: filterBrand, season: filterSeason }),
     staleTime: 15000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const { data: meta = { categories: [], brands: [], seasons: [] } } = useQuery({
     queryKey: ['styles-meta'],
     queryFn: stylesApi.meta,
     staleTime: 60000,
+    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
   });
 
   const selected = styleList.find(s => s.id === selectedId) ?? null;
