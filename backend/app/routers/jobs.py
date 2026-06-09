@@ -120,6 +120,13 @@ class _JobSharedFields(BaseModel):
     ship_to_id: Optional[int] = None
     weight_total: Optional[float] = None
     fuel_levy: Optional[float] = None
+    # Jim2 Sprint-2 fields
+    price_level: Optional[str] = None
+    acc_mgr: Optional[str] = None
+    invoice_desc: Optional[str] = None
+    ex_job_ref: Optional[str] = None
+    requested_by: Optional[str] = None
+    lock_rate: Optional[bool] = None
 
 
 class JobCreate(_JobSharedFields):

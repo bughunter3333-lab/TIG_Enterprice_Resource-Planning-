@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.logging_config import configure_logging, request_id_var
 from app.routers import auth, users, jobs, inventory, customers, suppliers, purchase_orders, ai, import_data, card_files, open_freight, reports, email_router, settings_router, styles
 from app.routers import health, pdf, ship_to, supplier_price_list, goods_receipt, accounts_payable, analytics
+from app.routers.admin_settings import router as admin_settings_router
 
 configure_logging(json_logs=settings.is_production)
 
@@ -80,4 +81,5 @@ app.include_router(supplier_price_list.router)
 app.include_router(goods_receipt.router)
 app.include_router(accounts_payable.router)
 app.include_router(analytics.router)
+app.include_router(admin_settings_router)
 
