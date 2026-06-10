@@ -10,6 +10,13 @@ const STATUS_COLORS = {
 
 const KANBAN_STATUSES = ['QUOTE', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'FINISH', 'INVOICE', 'PAID'];
 
+function normalizeDate(d) {
+  if (!d) return null;
+  const m = String(d).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return d;
+}
+
 export default function Dashboard({ jobs, onNewJob, onNavigateJobs }) {
   const today = new Date().toISOString().slice(0, 10);
   const thisMonth = today.slice(0, 7);
@@ -17,13 +24,13 @@ export default function Dashboard({ jobs, onNewJob, onNavigateJobs }) {
   const allJobs = jobs ?? [];
 
   const revenue = allJobs
-    .filter(j => j.status === 'PAID' && (j.out ?? j.due ?? '').startsWith(thisMonth))
+    .filter(j => j.status === 'PAID' && (normalizeDate(j.out) ?? normalizeDate(j.due) ?? '').startsWith(thisMonth))
     .reduce((s, j) => s + (j.total ?? 0), 0);
 
   const jobsOpen = allJobs.filter(j => !['PAID', 'CANCEL'].includes(j.status)).length;
-  const dueToday = allJobs.filter(j => j.due === today && !['PAID', 'CANCEL'].includes(j.status)).length;
+  const dueToday = allJobs.filter(j => normalizeDate(j.due) === today && !['PAID', 'CANCEL'].includes(j.status)).length;
   const paid = allJobs
-    .filter(j => j.status === 'PAID' && (j.out ?? j.due ?? '').startsWith(thisMonth))
+    .filter(j => j.status === 'PAID' && (normalizeDate(j.out) ?? normalizeDate(j.due) ?? '').startsWith(thisMonth))
     .reduce((s, j) => s + (j.invoicePaid ?? 0), 0);
 
   return (
