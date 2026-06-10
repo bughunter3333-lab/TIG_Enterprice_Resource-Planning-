@@ -1,5 +1,6 @@
 const STATUS_COLORS = {
   QUOTE: '#f59e0b', ORDER: '#3b82f6', 'In Progress': '#8b5cf6',
+  'Pick/Pack': '#0ea5e9',
   PROOF: '#06b6d4', PRINT: '#ec4899', FINISH: '#10b981',
   INVOICE: '#a855f7', PAID: '#64748b', CANCEL: '#ef4444',
 };
@@ -9,11 +10,20 @@ const DEC_PILL_COLORS = {
   DTG: '#10b98120', Vinyl: '#22c55e20',
 };
 
+function parseJobDate(str) {
+  if (!str) return null;
+  const m = String(str).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export default function JobCard({ job, onClick }) {
   const color = STATUS_COLORS[job.status] ?? '#94a3b8';
   const decTypes = [...new Set((job.items ?? []).map(i => i.decorationType).filter(d => d && d !== 'None'))];
-  const today = new Date().toISOString().slice(0, 10);
-  const overdue = job.due && job.due < today && !['PAID', 'CANCEL'].includes(job.status);
+  const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+  const dueDate = parseJobDate(job.due);
+  const overdue = dueDate && dueDate < todayDate && !['PAID', 'CANCEL'].includes(job.status);
 
   return (
     <div

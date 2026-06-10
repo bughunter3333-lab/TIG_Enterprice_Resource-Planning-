@@ -1997,7 +1997,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
     return (
       <div className="space-y-4">
-        {!showJobDetail && (<><div className="flex items-center justify-between">
+        {!showJobDetail && (
+          <JobsBoard
+            jobs={filteredJobs}
+            onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
+            currentUser={currentUser}
+          />
+        )}
+        {false && (<><div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <p className="text-sm text-gray-500">
               {filteredJobs.length} of {jobs.length} jobs

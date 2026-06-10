@@ -2,6 +2,7 @@ import JobCard from './JobCard';
 
 const STATUS_COLORS = {
   QUOTE: '#f59e0b', ORDER: '#3b82f6', 'In Progress': '#8b5cf6',
+  'Pick/Pack': '#0ea5e9',
   PROOF: '#06b6d4', PRINT: '#ec4899', FINISH: '#10b981',
   INVOICE: '#a855f7', PAID: '#64748b', CANCEL: '#ef4444',
 };

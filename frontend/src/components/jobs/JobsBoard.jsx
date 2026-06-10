@@ -1,25 +1,37 @@
 import { useState } from 'react';
 import KanbanColumn from './KanbanColumn';
 
-const STATUSES = ['QUOTE', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'FINISH', 'INVOICE', 'PAID'];
+const STATUSES = ['QUOTE', 'ORDER', 'In Progress', 'Pick/Pack', 'PROOF', 'PRINT', 'FINISH', 'INVOICE', 'PAID'];
 
 const STATUS_COLORS = {
   QUOTE: '#f59e0b', ORDER: '#3b82f6', 'In Progress': '#8b5cf6',
+  'Pick/Pack': '#0ea5e9',
   PROOF: '#06b6d4', PRINT: '#ec4899', FINISH: '#10b981',
   INVOICE: '#a855f7', PAID: '#64748b', CANCEL: '#ef4444',
 };
+
+function parseJobDate(str) {
+  if (!str) return null;
+  const m = String(str).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 export default function JobsBoard({ jobs, onJobClick, currentUser }) {
   const [view, setView] = useState('board');
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  const today = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const todayStr = todayDate.toISOString().slice(0, 10);
 
   const filtered = (jobs ?? []).filter(job => {
-    if (filter === 'today') return job.due === today && !['PAID','CANCEL'].includes(job.status);
-    if (filter === 'overdue') return job.due && job.due < today && !['PAID','CANCEL'].includes(job.status);
-    if (filter === 'mine') return job.assignedTo === currentUser?.username;
+    const due = parseJobDate(job.due);
+    if (filter === 'today') return due && due.toISOString().slice(0, 10) === todayStr && !['PAID','CANCEL'].includes(job.status);
+    if (filter === 'overdue') return due && due < todayDate && !['PAID','CANCEL'].includes(job.status);
+    if (filter === 'mine') return job.assignedTo === (currentUser?.full_name || currentUser?.username);
     return true;
   }).filter(job => {
     if (!search) return true;
