@@ -14,6 +14,7 @@ import AccountsPayableModule from './modules/AccountsPayableModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import Shell from './components/shell/Shell';
+import Dashboard from './components/dashboard/Dashboard';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -1871,6 +1872,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Render Dashboard
   const renderDashboard = () => {
+    return (
+      <Dashboard
+        jobs={jobs}
+        onNewJob={() => openModal('job')}
+        onNavigateJobs={() => setActiveModule('jobs')}
+      />
+    );
+  };
+  const _renderDashboard_unused = () => {
     const ds = dashboardStats;
     const SC = { QUOTE:'bg-gray-100 text-gray-700', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-cyan-100 text-cyan-700', PROOF:'bg-yellow-100 text-yellow-700', PRINT:'bg-orange-100 text-orange-700', 'Pick/Pack':'bg-teal-100 text-teal-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-purple-100 text-purple-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-600' };
     const parseJobDate2 = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
