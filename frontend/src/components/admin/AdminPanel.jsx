@@ -31,15 +31,19 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('fields');
   const queryClient = useQueryClient();
 
-  const { data: fieldSettingRaw } = useAdminSetting('field_config');
-  const { data: statusSettingRaw } = useAdminSetting('status_config');
-  const { data: priceSettingRaw } = useAdminSetting('price_levels');
-  const { data: decSettingRaw } = useAdminSetting('dec_types');
+  const fieldQuery = useAdminSetting('field_config');
+  const statusQuery = useAdminSetting('status_config');
+  const priceQuery = useAdminSetting('price_levels');
+  const decQuery = useAdminSetting('dec_types');
 
-  async function saveKey(key) {
+  function saveKey(key) {
     return async (value) => {
-      await api.adminSettings.set(key, value);
-      queryClient.invalidateQueries({ queryKey: ['admin-setting', key] });
+      try {
+        await api.adminSettings.set(key, value);
+        queryClient.invalidateQueries({ queryKey: ['admin-setting', key] });
+      } catch (err) {
+        console.error(`Failed to save admin setting: ${key}`, err);
+      }
     };
   }
 
@@ -68,17 +72,17 @@ export default function AdminPanel() {
       </div>
 
       <div>
-        {activeTab === 'fields' && (
-          <FieldConfig config={parseJson(fieldSettingRaw)} onChange={saveKey('field_config')} />
+        {activeTab === 'fields' && !fieldQuery.isLoading && (
+          <FieldConfig config={parseJson(fieldQuery.data)} onChange={saveKey('field_config')} />
         )}
-        {activeTab === 'statuses' && (
-          <StatusWorkflow config={parseJson(statusSettingRaw)} onChange={saveKey('status_config')} />
+        {activeTab === 'statuses' && !statusQuery.isLoading && (
+          <StatusWorkflow config={parseJson(statusQuery.data)} onChange={saveKey('status_config')} />
         )}
-        {activeTab === 'prices' && (
-          <PriceLevels config={parseJson(priceSettingRaw)} onChange={saveKey('price_levels')} />
+        {activeTab === 'prices' && !priceQuery.isLoading && (
+          <PriceLevels config={parseJson(priceQuery.data)} onChange={saveKey('price_levels')} />
         )}
-        {activeTab === 'decorations' && (
-          <DecorationTypes config={parseJson(decSettingRaw)} onChange={v => saveKey('dec_types')(v)} />
+        {activeTab === 'decorations' && !decQuery.isLoading && (
+          <DecorationTypes config={parseJson(decQuery.data)} onChange={saveKey('dec_types')} />
         )}
         {activeTab === 'migration' && <MigrationWizard />}
       </div>
