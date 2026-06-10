@@ -13,6 +13,7 @@ import SchedulingModule from './modules/SchedulingModule';
 import AccountsPayableModule from './modules/AccountsPayableModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
+import Shell from './components/shell/Shell';
 
 
 const DEC_OPTIONS = [
@@ -658,6 +659,7 @@ function SizeColourMatrixPopup({ current, onApply, onClose }) {
 
 const TotalImageERP = ({ currentUser, onLogout }) => {
   const [activeModule, setActiveModule] = useState('dashboard');
+  const [adminMode, setAdminMode] = useState(false);
   const [pinnedJobs, setPinnedJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -9594,7 +9596,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   };
 
   return (
-    <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden">
+    <Shell
+      activeModule={activeModule}
+      onNavigate={setActiveModule}
+      adminMode={adminMode}
+      onAdminToggle={() => setAdminMode(v => !v)}
+      currentUser={currentUser}
+      badges={{
+        jobCount: (jobs ?? []).filter(j => !['PAID','CANCEL'].includes(j.status)).length,
+        quoteCount: (jobs ?? []).filter(j => j.status === 'QUOTE').length,
+      }}
+      onNewJob={() => openModal('job')}
+      searchValue={searchTerm}
+      onSearchChange={setSearchTerm}
+      notifCount={(jobs ?? []).filter(j => j.status !== 'PAID' && j.due && new Date(j.due) < new Date()).length}
+    >
 
       {/* ── Modern Top App Bar ── */}
       <header className="shrink-0 bg-[#0f172a] flex items-center gap-3 px-4 z-40 shadow-lg" style={{ height: 52 }}>
@@ -10381,89 +10397,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       {/* ── Content Row ── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Nav Sidebar ── */}
-        <aside className="w-56 bg-[#0f172a] flex flex-col shrink-0 overflow-hidden select-none">
-          <div className="flex-1 overflow-y-auto py-2 scrollbar-none">
-            {[
-              { id: 'dashboard',          label: 'Dashboard',  icon: LayoutGrid  },
-              null,
-              { id: 'jobs',               label: 'Jobs',       icon: FileText    },
-              { id: 'quotes',             label: 'Quotes',     icon: FileText    },
-              { id: 'scheduling',         label: 'Scheduling', icon: Calendar    },
-              { id: 'purchase-orders',    label: 'Purchases',  icon: ShoppingCart },
-              null,
-              { id: 'card-files',         label: 'CardFiles',  icon: Users       },
-              { id: 'order-requirements', label: 'Items',      icon: Tag         },
-              { id: 'inventory',          label: 'Stock',      icon: Package     },
-              { id: 'styles',             label: 'Styles',     icon: Layers      },
-              null,
-              { id: 'accounts',           label: 'Accounts',   icon: DollarSign  },
-              { id: 'reports',            label: 'Management', icon: BarChart3   },
-              null,
-              { id: 'email',              label: 'Email',      icon: Mail        },
-              { id: 'documents',          label: 'Documents',  icon: FileSpreadsheet },
-              { id: 'projects',           label: 'Projects',   icon: ClipboardList },
-              { id: 'assets',             label: 'Assets',     icon: Package     },
-              { id: 'ebusiness',          label: 'eBusiness',  icon: ExternalLink },
-              null,
-              { id: 'import',             label: 'Tools',      icon: Settings    },
-              { id: 'settings',           label: 'Settings',   icon: Settings    },
-              { id: 'user-management',    label: 'Users',      icon: Users, adminOnly: true },
-            ].filter(m => m === null || !m.adminOnly || currentUser?.role === 'admin').map((mod, idx) => {
-              if (mod === null) return <div key={idx} className="h-px bg-slate-800 mx-3 my-1" />;
-              const isActive = activeModule === mod.id;
-              const isExpanded = !!navExpanded[mod.id];
-              const ModIcon = mod.icon;
-              const hasChildren = mod.id === 'jobs' && pinnedJobs.length > 0;
-              return (
-                <div key={mod.id}>
-                  <div
-                    className={`flex items-center gap-2.5 mx-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-[13px] ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
-                    onClick={() => { setActiveModule(mod.id); setSearchTerm(''); }}
-                    onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: mod.id, pinnedJobId: null }); }}
-                  >
-                    <button
-                      onClick={e => { e.stopPropagation(); if (hasChildren) setNavExpanded(p => ({ ...p, [mod.id]: !p[mod.id] })); }}
-                      className={`w-3.5 h-3.5 shrink-0 flex items-center justify-center rounded ${!hasChildren ? 'invisible' : 'hover:text-white'}`}
-                    >
-                      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                    </button>
-                    <ModIcon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span className={`flex-1 truncate leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>{mod.label}</span>
-                  </div>
-                  {/* Expanded pinned jobs under Jobs node */}
-                  {mod.id === 'jobs' && isExpanded && pinnedJobs.length > 0 && (
-                    <div className="ml-9 border-l border-slate-700 my-0.5">
-                      {[...pinnedJobs].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true })).map(pj => {
-                        const isJobActive = activeJob?.id === pj.id && showJobDetail && activeModule === 'jobs';
-                        const SC = { QUOTE:'bg-gray-700 text-gray-300', New:'bg-blue-900 text-blue-300', ORDER:'bg-indigo-900 text-indigo-300', 'In Progress':'bg-yellow-900 text-yellow-300', PROOF:'bg-purple-900 text-purple-300', PRINT:'bg-orange-900 text-orange-300', 'Pick/Pack':'bg-cyan-900 text-cyan-300', FINISH:'bg-green-900 text-green-300', INVOICE:'bg-teal-900 text-teal-300', PAID:'bg-emerald-900 text-emerald-300', CANCEL:'bg-red-900 text-red-300' };
-                        return (
-                          <div
-                            key={pj.id}
-                            className={`group flex items-center gap-1.5 px-3 py-1.5 cursor-pointer transition-colors ${isJobActive ? 'bg-blue-700/40 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
-                            onClick={() => { setActiveJob(pj); setShowJobDetail(true); setActiveModule('jobs'); }}
-                            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setNavCtxMenu({ open: true, x: e.clientX, y: e.clientY, itemId: 'jobs', pinnedJobId: pj.id }); }}
-                          >
-                            <FileText className="w-3 h-3 text-slate-600 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-mono font-bold leading-none">{pj.id}</p>
-                              <p className="text-[10px] text-slate-500 truncate leading-tight">{pj.customer || pj.customerName}</p>
-                              {pj.status && <span className={`inline-block text-[9px] px-1 rounded mt-0.5 font-medium ${SC[pj.status] || 'bg-slate-700 text-slate-400'}`}>{pj.status}</span>}
-                            </div>
-                            <button onClick={e => { e.stopPropagation(); unpinJob(pj.id); }} className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 shrink-0 transition-opacity">
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <main className="flex-1 p-5 overflow-auto bg-[#f8fafc]">
@@ -10913,7 +10846,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </button>
         </div>
       )}
-    </div>
+    </Shell>
   );
 };
 
