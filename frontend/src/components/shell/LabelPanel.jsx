@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const SECTIONS = [
   {
     label: 'WORK',
@@ -26,6 +28,7 @@ const SECTIONS = [
 ];
 
 export default function LabelPanel({ activeModule, onNavigate, badges = {}, adminMode, onAdminToggle, currentUser }) {
+  const [hoveredId, setHoveredId] = useState(null);
   return (
     <div style={{ width: 196, background: '#1e293b', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '100vh', overflowY: 'auto' }}>
       <div style={{ padding: '14px 14px 6px', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '.07em' }}>
@@ -42,15 +45,19 @@ export default function LabelPanel({ activeModule, onNavigate, badges = {}, admi
             return (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onNavigate(item.id)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(item.id); } }}
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px',
-                  color: active ? '#60a5fa' : '#64748b', fontSize: 13, cursor: 'pointer',
-                  background: active ? '#172554' : 'transparent',
+                  fontSize: 13, cursor: 'pointer',
+                  background: active ? '#172554' : hoveredId === item.id ? '#334155' : 'transparent',
+                  color: active ? '#60a5fa' : hoveredId === item.id ? '#e2e8f0' : '#64748b',
                   borderRight: active ? '2px solid #3b82f6' : '2px solid transparent',
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#334155'; e.currentTarget.style.color = '#e2e8f0'; } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; } }}
               >
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: item.dot, flexShrink: 0 }} />
                 <span style={{ flex: 1 }}>{item.label}</span>
@@ -70,7 +77,10 @@ export default function LabelPanel({ activeModule, onNavigate, badges = {}, admi
             ADMIN
           </div>
           <div
+            role="button"
+            tabIndex={0}
             onClick={onAdminToggle}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAdminToggle(); } }}
             style={{
               display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px',
               color: adminMode ? '#fbbf24' : '#64748b', fontSize: 13, cursor: 'pointer',

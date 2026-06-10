@@ -22,7 +22,7 @@ export default function Shell({
   currentUser,
   badges,
   onNewJob,
-  searchValue,
+  searchValue = '',
   onSearchChange,
   notifCount,
   children,

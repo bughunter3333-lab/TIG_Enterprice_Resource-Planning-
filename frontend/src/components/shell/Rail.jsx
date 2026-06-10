@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { LayoutGrid, Briefcase, FileText, ShoppingCart, Users, Package, BookOpen, Lock } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Rail({ activeModule, onNavigate, adminMode, onAdminToggle, currentUser }) {
+  const [hoveredId, setHoveredId] = useState(null);
   const initials = (currentUser?.username ?? 'U').slice(0, 2).toUpperCase();
   return (
     <div style={{ width: 52, background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 2, flexShrink: 0, height: '100vh' }}>
@@ -21,14 +23,18 @@ export default function Rail({ activeModule, onNavigate, adminMode, onAdminToggl
         <div
           key={id}
           title={label}
+          role="button"
+          tabIndex={0}
           onClick={() => onNavigate(id)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(id); } }}
+          onMouseEnter={() => setHoveredId(id)}
+          onMouseLeave={() => setHoveredId(null)}
           style={{
             width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: activeModule === id ? 'white' : '#475569',
-            background: activeModule === id ? '#1d4ed8' : 'transparent',
+            cursor: 'pointer',
+            background: activeModule === id ? '#1d4ed8' : hoveredId === id ? '#1e293b' : 'transparent',
+            color: activeModule === id ? 'white' : hoveredId === id ? '#94a3b8' : '#475569',
           }}
-          onMouseEnter={e => { if (activeModule !== id) { e.currentTarget.style.background = '#1e293b'; e.currentTarget.style.color = '#94a3b8'; } }}
-          onMouseLeave={e => { if (activeModule !== id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } }}
         >
           <Icon size={15} />
         </div>
@@ -37,7 +43,10 @@ export default function Rail({ activeModule, onNavigate, adminMode, onAdminToggl
       {currentUser?.role === 'admin' && (
         <div
           title={adminMode ? 'Exit Admin' : 'Admin Tools'}
+          role="button"
+          tabIndex={0}
           onClick={onAdminToggle}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAdminToggle(); } }}
           style={{
             width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: adminMode ? '#fbbf24' : '#f59e0b',
