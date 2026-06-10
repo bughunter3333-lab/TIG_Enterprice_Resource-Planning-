@@ -15,6 +15,7 @@ import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import Shell from './components/shell/Shell';
 import Dashboard from './components/dashboard/Dashboard';
+import JobsBoard from './components/jobs/JobsBoard';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -2257,90 +2258,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         </div>
 
         {/* Kanban Board */}
-        {jobsViewMode === 'kanban' && (() => {
-          const kanbanCols = [
-            { key: 'QUOTE', label: 'Quote', color: 'border-t-gray-400', bg: 'bg-gray-50' },
-            { key: 'ORDER', label: 'Order', color: 'border-t-indigo-400', bg: 'bg-indigo-50' },
-            { key: 'In Progress', label: 'In Progress', color: 'border-t-yellow-400', bg: 'bg-yellow-50' },
-            { key: 'PROOF', label: 'Proof', color: 'border-t-purple-400', bg: 'bg-purple-50' },
-            { key: 'PRINT', label: 'Print', color: 'border-t-orange-400', bg: 'bg-orange-50' },
-            { key: 'Pick/Pack', label: 'Pick/Pack', color: 'border-t-cyan-400', bg: 'bg-cyan-50' },
-            { key: 'FINISH', label: 'Finish', color: 'border-t-green-400', bg: 'bg-green-50' },
-            { key: 'INVOICE', label: 'Invoice', color: 'border-t-teal-400', bg: 'bg-teal-50' },
-          ];
-          return (
-            <div className="overflow-x-auto pb-4">
-              <p className="text-xs text-gray-400 mb-2 pl-1">Drag cards between columns to update status</p>
-              <div className="flex gap-3 min-w-max">
-                {kanbanCols.map(col => {
-                  const colJobs = filteredJobs.filter(j => j.status === col.key).sort((a, b) => {
-                    const da = parseJobDate(a.due), db = parseJobDate(b.due);
-                    if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
-                    return da - db;
-                  });
-                  return (
-                    <div
-                      key={col.key}
-                      className={`w-56 flex-shrink-0 rounded-lg border-t-4 ${col.color} shadow transition-all`}
-                      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('ring-2','ring-blue-400','ring-inset'); }}
-                      onDragLeave={e => { e.currentTarget.classList.remove('ring-2','ring-blue-400','ring-inset'); }}
-                      onDrop={e => {
-                        e.preventDefault();
-                        e.currentTarget.classList.remove('ring-2','ring-blue-400','ring-inset');
-                        const jobId = e.dataTransfer.getData('kanban-job-id');
-                        if (jobId && jobId !== col.key) updateJobStatus(jobId, col.key);
-                      }}
-                    >
-                      <div className={`${col.bg} px-3 py-2 rounded-t-lg flex items-center justify-between`}>
-                        <span className="font-semibold text-sm text-gray-700">{col.label}</span>
-                        <span className="text-xs bg-white px-1.5 py-0.5 rounded-full text-gray-500 font-medium shadow-sm">{colJobs.length}</span>
-                      </div>
-                      <div className="bg-white rounded-b-lg min-h-32 space-y-2 p-2 max-h-[60vh] overflow-y-auto">
-                        {colJobs.map(job => {
-                          const d = parseJobDate(job.due);
-                          const over = d && d < new Date() && !['FINISH','PAID','CANCEL','INVOICE'].includes(job.status);
-                          const decs = [...new Set((job.items || []).filter(i => i.decorationType && i.decorationType !== 'None').map(i => i.decorationType))];
-                          return (
-                            <div key={job.id}
-                              draggable
-                              onDragStart={e => { e.dataTransfer.setData('kanban-job-id', job.id); e.currentTarget.style.opacity = '0.5'; }}
-                              onDragEnd={e => { e.currentTarget.style.opacity = '1'; }}
-                              onClick={() => { pinJob(job); }}
-                              className={`p-2.5 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow select-none ${over ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}
-                            >
-                              <div className="flex items-start justify-between gap-1 mb-1">
-                                <span className="font-mono text-xs font-bold text-blue-600">#{job.id}</span>
-                                <div className="flex gap-0.5">
-                                  {job.priority === 'Urgent' && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold">URG</span>}
-                                  {job.priority === 'High' && <span className="text-[10px] bg-orange-100 text-orange-600 px-1 rounded font-bold">HIGH</span>}
-                                </div>
-                              </div>
-                              <p className="text-xs font-medium text-gray-800 truncate">{job.customer}</p>
-                              {job.custRef && <p className="text-xs text-gray-400 truncate">Ref: {job.custRef}</p>}
-                              {decs.length > 0 && (
-                                <div className="flex gap-1 flex-wrap mt-1">
-                                  {decs.slice(0,2).map(d => <span key={d} className="text-[10px] bg-purple-50 text-purple-700 px-1 rounded">{d}</span>)}
-                                </div>
-                              )}
-                              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-100">
-                                <span className={`text-xs flex items-center gap-0.5 ${over ? 'text-red-600 font-bold' : 'text-gray-400'}`}>
-                                  <Calendar className="w-3 h-3" />{job.due || '—'}{over ? ' ⚠' : ''}
-                                </span>
-                                <span className="text-xs font-semibold text-gray-700">${(job.total || 0).toLocaleString('en-AU', { minimumFractionDigits: 0 })}</span>
-                              </div>
-                              {job.assignedTo && <p className="text-xs text-gray-400 mt-0.5 truncate">👤 {job.assignedTo}</p>}
-                            </div>
-                          );
-                        })}
-                        {colJobs.length === 0 && <p className="text-xs text-gray-300 text-center py-4">Drop here</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
+        {jobsViewMode === 'kanban' && (
+          <JobsBoard
+            jobs={filteredJobs}
+            onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
+            currentUser={currentUser}
+          />
+        )}
 
         {/* Calendar View */}
         {jobsViewMode === 'calendar' && (() => {
