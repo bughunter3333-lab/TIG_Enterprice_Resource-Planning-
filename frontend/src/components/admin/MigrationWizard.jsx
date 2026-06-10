@@ -48,7 +48,8 @@ export default function MigrationWizard() {
   const currentStep = STEPS.find(s => s.id === step);
 
   async function handleUpload(e, stepDef) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     setUploading(true);
     setError('');
@@ -59,6 +60,7 @@ export default function MigrationWizard() {
       setError(err.message ?? 'Upload failed');
     } finally {
       setUploading(false);
+      input.value = '';
     }
   }
 
