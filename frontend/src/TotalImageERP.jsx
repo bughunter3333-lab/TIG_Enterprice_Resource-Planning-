@@ -16,6 +16,8 @@ import { notify } from './lib/notify';
 import Shell from './components/shell/Shell';
 
 
+const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
+
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
   { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300', hasStitch: true },
@@ -927,8 +929,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const notifications = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
-
     const lowStockItems = inventory.filter(item => item.stock < item.reorderLevel);
     const overdueJobs = jobs.filter(job => {
       if (['FINISH','PAID','CANCEL'].includes(job.status)) return false;
@@ -9609,111 +9609,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       onNewJob={() => openModal('job')}
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      notifCount={(jobs ?? []).filter(j => j.status !== 'PAID' && j.due && new Date(j.due) < new Date()).length}
+      notifCount={(jobs ?? []).filter(j => !['PAID','CANCEL'].includes(j.status) && j.due && parseD(j.due) < new Date()).length}
     >
-
-      {/* ── Modern Top App Bar ── */}
-      <header className="shrink-0 bg-[#0f172a] flex items-center gap-3 px-4 z-40 shadow-lg" style={{ height: 52 }}>
-        {/* Brand + TIG dropdown */}
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setTigMenuOpen(o => !o)}
-            className={`flex items-center gap-2.5 h-9 px-2.5 rounded-lg transition-colors ${tigMenuOpen ? 'bg-slate-700' : 'hover:bg-slate-800'}`}
-          >
-            <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center shrink-0">
-              <span className="text-white font-black text-[11px]">TIG</span>
-            </div>
-            <span className="text-white font-semibold text-sm hidden sm:block">Total Image</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-          {tigMenuOpen && (
-            <div className="absolute left-0 top-full mt-1 z-[9999] bg-white border border-gray-200 shadow-2xl min-w-[210px] text-[13px] py-1 rounded-lg" onClick={() => setTigMenuOpen(false)}>
-              <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <User className="w-3.5 h-3.5 shrink-0" /> User Preferences
-              </button>
-              <div className="border-t border-gray-100 my-0.5" />
-              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <RefreshCw className="w-3.5 h-3.5 shrink-0" /> New Session
-              </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <LayoutGrid className="w-3.5 h-3.5 shrink-0" /> Calculator
-              </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <Settings className="w-3.5 h-3.5 shrink-0" /> Shortcuts
-              </button>
-              <div className="border-t border-gray-100 my-0.5" />
-              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <BookOpen className="w-3.5 h-3.5 shrink-0" /> Help
-              </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> About
-              </button>
-              <div className="border-t border-gray-100 my-0.5" />
-              <button onClick={onLogout} className="w-full text-left px-4 py-2 hover:bg-red-600 hover:text-white flex items-center gap-2.5 text-gray-700 transition-colors">
-                <LogOut className="w-3.5 h-3.5 shrink-0" /> Log Off
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Global search */}
-        <button
-          onClick={() => { setGlobalSearchOpen(true); setGlobalSearchQuery(''); setTimeout(() => globalSearchRef.current?.focus(), 50); }}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg px-3 py-2 text-slate-400 text-sm transition-colors w-64"
-        >
-          <Search className="w-4 h-4 shrink-0" />
-          <span className="flex-1 text-left text-slate-500">Search anything...</span>
-          <kbd className="text-[10px] bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded font-mono">Ctrl K</kbd>
-        </button>
-
-        <div className="flex-1" />
-
-        {/* Right controls */}
-        <div className="flex items-center gap-1">
-          <button onClick={() => setF12Open(true)} title="F12 Quick Job Search" className="h-8 px-2.5 bg-slate-800 hover:bg-slate-700 rounded-md text-[11px] font-mono text-slate-300 hover:text-white transition-colors">F12</button>
-          <button onClick={() => queryClient.invalidateQueries()} title="Refresh All" className="h-8 w-8 flex items-center justify-center hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors">
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <div className="relative">
-            <button onClick={() => setNotifOpen(o => !o)} className="h-8 w-8 flex items-center justify-center hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors relative" title="Notifications">
-              <Bell className="w-4 h-4" />
-              {notifications.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </button>
-            {notifOpen && (
-              <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-2xl border z-50 max-h-96 overflow-y-auto" onMouseLeave={() => setNotifOpen(false)}>
-                <div className="flex items-center justify-between px-4 py-3 border-b">
-                  <h3 className="font-semibold text-sm">Notifications</h3>
-                  <span className="text-xs text-gray-400">{notifications.length} active</span>
-                </div>
-                {notifications.length === 0
-                  ? <p className="text-center text-sm text-gray-400 py-8">All clear — no alerts</p>
-                  : <div className="divide-y">{notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-3 flex items-start gap-3 ${n.type === 'error' ? 'hover:bg-red-50' : 'hover:bg-yellow-50'}`}>
-                        <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${n.type === 'error' ? 'text-red-500' : 'text-yellow-500'}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800">{n.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">{n.message}</p>
-                        </div>
-                      </div>
-                    ))}</div>
-                }
-              </div>
-            )}
-          </div>
-          <div className="w-px h-5 bg-slate-700 mx-1" />
-          <button onClick={() => { setShowUserSettings(true); setChangePasswordMsg(''); }} className="flex items-center gap-2 h-8 px-2 hover:bg-slate-800 rounded-md transition-colors">
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
-              {(currentUser?.full_name || currentUser?.username || '?')[0].toUpperCase()}
-            </div>
-            <span className="text-[12px] text-slate-300 hidden sm:block max-w-[80px] truncate">{currentUser?.username}</span>
-          </button>
-          <button onClick={onLogout} title="Sign out" className="h-8 w-8 flex items-center justify-center hover:bg-red-900/30 rounded-md text-slate-400 hover:text-red-400 transition-colors">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
 
       {/* ── Contextual Action Toolbar ── */}
       <div className="shrink-0 bg-white border-b border-gray-200 overflow-x-auto">

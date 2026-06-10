@@ -6,7 +6,7 @@ const MODULE_TITLES = {
   dashboard:    { title: 'Dashboard',       subtitle: 'Total Image Group' },
   jobs:         { title: 'Jobs',             subtitle: 'All production jobs' },
   quotes:       { title: 'Quotes',           subtitle: 'Active quotes' },
-  purchases:    { title: 'Purchase Orders',  subtitle: 'Supplier orders' },
+  'purchase-orders': { title: 'Purchase Orders',  subtitle: 'Supplier orders' },
   customers:    { title: 'Customers',        subtitle: 'Card files' },
   inventory:    { title: 'Stock',            subtitle: 'Inventory' },
   accounts:     { title: 'Accounts',         subtitle: 'Financial records' },

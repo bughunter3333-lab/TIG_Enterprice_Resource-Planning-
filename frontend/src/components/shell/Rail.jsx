@@ -5,7 +5,7 @@ const NAV_ITEMS = [
   { id: 'dashboard',  icon: LayoutGrid,    label: 'Dashboard' },
   { id: 'jobs',       icon: Briefcase,     label: 'Jobs' },
   { id: 'quotes',     icon: FileText,      label: 'Quotes' },
-  { id: 'purchases',  icon: ShoppingCart,  label: 'Purchases' },
+  { id: 'purchase-orders',  icon: ShoppingCart,  label: 'Purchase Orders' },
   { id: 'customers',  icon: Users,         label: 'Customers' },
   { id: 'inventory',  icon: Package,       label: 'Stock' },
   { id: 'accounts',   icon: BookOpen,      label: 'Accounts' },

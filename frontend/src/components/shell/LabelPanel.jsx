@@ -7,7 +7,7 @@ const SECTIONS = [
       { id: 'dashboard',  label: 'Dashboard',       dot: '#3b82f6' },
       { id: 'jobs',       label: 'Jobs',             dot: '#8b5cf6', badgeKey: 'jobCount' },
       { id: 'quotes',     label: 'Quotes',           dot: '#f59e0b', badgeKey: 'quoteCount' },
-      { id: 'purchases',  label: 'Purchase Orders',  dot: '#14b8a6' },
+      { id: 'purchase-orders',  label: 'Purchase Orders',  dot: '#14b8a6' },
     ],
   },
   {
