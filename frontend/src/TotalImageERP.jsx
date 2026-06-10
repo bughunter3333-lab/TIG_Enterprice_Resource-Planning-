@@ -16,6 +16,7 @@ import { notify } from './lib/notify';
 import Shell from './components/shell/Shell';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
+import AdminPanel from './components/admin/AdminPanel';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -9191,33 +9192,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <button onClick={() => setApiError('')} className="ml-4 text-red-400 hover:text-red-600">✕</button>
               </div>
             )}
-            {!loading && activeModule === 'dashboard'          && renderDashboard()}
-            {!loading && activeModule === 'jobs'               && renderJobs()}
-            {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
-            {!loading && activeModule === 'inventory'          && renderInventory()}
-            {!loading && activeModule === 'customers'          && renderCustomers()}
-            {!loading && activeModule === 'suppliers'          && renderSuppliers()}
-            {!loading && activeModule === 'purchase-orders'    && renderPurchaseOrders()}
-            {!loading && activeModule === 'reports'            && renderReports()}
-            {!loading && activeModule === 'warehouse'          && renderWarehouse()}
-            {!loading && activeModule === 'scheduling'         && renderScheduling()}
-            {!loading && activeModule === 'card-files'         && renderCardFiles()}
-            {activeModule === 'import'                         && renderImport()}
-            {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
-            {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
-            {!loading && activeModule === 'user-management'    && <UserManagement currentUser={currentUser} />}
-            {!loading && activeModule === 'styles'             && <StylesModule />}
-            {!loading && activeModule === 'accounts' && (
-              <AccountsPayableModule suppliers={suppliers} />
-            )}
-            {!loading && ['ebusiness','documents','projects','assets','quotes'].includes(activeModule) && (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Settings className="w-8 h-8 text-gray-300" />
-                </div>
-                <p className="text-lg font-medium text-gray-500 capitalize">{activeModule.replace(/-/g,' ')}</p>
-                <p className="text-sm text-gray-400 mt-1">This module is coming soon</p>
-              </div>
+            {adminMode ? (
+              <AdminPanel />
+            ) : (
+              <>
+                {!loading && activeModule === 'dashboard'          && renderDashboard()}
+                {!loading && activeModule === 'jobs'               && renderJobs()}
+                {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
+                {!loading && activeModule === 'inventory'          && renderInventory()}
+                {!loading && activeModule === 'customers'          && renderCustomers()}
+                {!loading && activeModule === 'suppliers'          && renderSuppliers()}
+                {!loading && activeModule === 'purchase-orders'    && renderPurchaseOrders()}
+                {!loading && activeModule === 'reports'            && renderReports()}
+                {!loading && activeModule === 'warehouse'          && renderWarehouse()}
+                {!loading && activeModule === 'scheduling'         && renderScheduling()}
+                {!loading && activeModule === 'card-files'         && renderCardFiles()}
+                {activeModule === 'import'                         && renderImport()}
+                {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
+                {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
+                {!loading && activeModule === 'user-management'    && <UserManagement currentUser={currentUser} />}
+                {!loading && activeModule === 'styles'             && <StylesModule />}
+                {!loading && activeModule === 'accounts' && (
+                  <AccountsPayableModule suppliers={suppliers} />
+                )}
+                {!loading && ['ebusiness','documents','projects','assets','quotes'].includes(activeModule) && (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Settings className="w-8 h-8 text-gray-300" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-500 capitalize">{activeModule.replace(/-/g,' ')}</p>
+                    <p className="text-sm text-gray-400 mt-1">This module is coming soon</p>
+                  </div>
+                )}
+              </>
             )}
           </main>
         </div>
