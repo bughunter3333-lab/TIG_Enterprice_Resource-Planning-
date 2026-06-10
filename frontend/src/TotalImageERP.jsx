@@ -1020,6 +1020,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     invoiceStatus: 'not_invoiced',
     proofStatus: 'none',
     proofNotes: '',
+    priceLevel: '',
+    accMgr: '',
+    invoiceDesc: '',
+    exJobRef: '',
+    requestedBy: '',
+    lockRate: false,
     items: []
   });
 
@@ -1092,6 +1098,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           dateIn: parseDateToInput(item.dateIn),
           due: parseDateToInput(item.due),
           notes: item.notes || '',
+          priceLevel: item.priceLevel ?? '',
+          accMgr: item.accMgr ?? '',
+          invoiceDesc: item.invoiceDesc ?? '',
+          exJobRef: item.exJobRef ?? '',
+          requestedBy: item.requestedBy ?? '',
+          lockRate: item.lockRate ?? false,
         });
       } else {
         setJobForm({
@@ -1101,6 +1113,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           paymentMethod: 'Account', custRef: '', ourRef: '', description: '', shipTo: '',
           projectNo: '', notes: '', paymentStatus: 'unpaid', commitmentDate: '', validityDate: '',
           locked: false, invoiceStatus: 'not_invoiced', proofStatus: 'none', proofNotes: '',
+          priceLevel: '', accMgr: '', invoiceDesc: '', exJobRef: '', requestedBy: '', lockRate: false,
           fuelLevy: 0, items: []
         });
       }
@@ -5177,6 +5190,68 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         </div>
                       );
                     })()}
+                  </div>
+
+                  {/* Row 6: Jim2 Sprint-2 fields */}
+                  <div className="flex divide-x border-t">
+                    <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:120}}>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Price Level</span>
+                      <select
+                        value={jobForm.priceLevel || ''}
+                        onChange={e => setJobForm(f => ({ ...f, priceLevel: e.target.value }))}
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                      >
+                        <option value="">— select —</option>
+                        {['Retail', 'Trade', 'Wholesale', 'VIP', 'Cost'].map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:110}}>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Acc Mgr</span>
+                      <input
+                        value={jobForm.accMgr || ''}
+                        onChange={e => setJobForm(f => ({ ...f, accMgr: e.target.value }))}
+                        placeholder="Initials or name"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Ex Job Ref</span>
+                      <input
+                        value={jobForm.exJobRef || ''}
+                        onChange={e => setJobForm(f => ({ ...f, exJobRef: e.target.value }))}
+                        placeholder="Customer PO or ref"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:140}}>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Requested By</span>
+                      <input
+                        value={jobForm.requestedBy || ''}
+                        onChange={e => setJobForm(f => ({ ...f, requestedBy: e.target.value }))}
+                        placeholder="Person who placed order"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col px-2.5 py-1.5 flex-1">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Invoice Description</span>
+                      <textarea
+                        value={jobForm.invoiceDesc || ''}
+                        onChange={e => setJobForm(f => ({ ...f, invoiceDesc: e.target.value }))}
+                        rows={2}
+                        placeholder="Description to print on invoice"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full resize-none leading-relaxed"
+                      />
+                    </div>
+                    <div className="flex items-center px-2.5 py-1.5 gap-1.5">
+                      <input
+                        type="checkbox"
+                        id="lockRate"
+                        checked={!!jobForm.lockRate}
+                        onChange={e => setJobForm(f => ({ ...f, lockRate: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <label htmlFor="lockRate" className="text-[9px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">Lock Rate</label>
+                    </div>
                   </div>
 
                 </div>
