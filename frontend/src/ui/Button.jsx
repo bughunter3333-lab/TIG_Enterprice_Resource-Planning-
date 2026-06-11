@@ -10,9 +10,10 @@ const VARIANTS = {
 export default function Button({ variant = 'secondary', size = 'md', children, disabled, style, ...rest }) {
   return (
     <button
+      type="button"
       disabled={disabled}
       style={{
-        ...VARIANTS[variant],
+        ...(VARIANTS[variant] ?? VARIANTS.secondary),
         fontFamily: T.font,
         fontSize: size === 'sm' ? T.fsSmall : T.fsGrid,
         fontWeight: 600,
