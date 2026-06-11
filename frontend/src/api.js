@@ -1123,8 +1123,8 @@ export const importData = {
 // ── Admin Settings ────────────────────────────────────────────────────────────
 
 export const adminSettings = {
-  get: (key) => request(`/admin/settings/${key}`),
-  set: (key, value) => request(`/admin/settings/${key}`, {
+  get: (key) => request(`/admin/settings/${encodeURIComponent(key)}`),
+  set: (key, value) => request(`/admin/settings/${encodeURIComponent(key)}`, {
     method: 'PUT',
     body: { value: typeof value === 'string' ? value : JSON.stringify(value) },
   }),
