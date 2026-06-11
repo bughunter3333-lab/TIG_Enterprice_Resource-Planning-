@@ -56,7 +56,7 @@ export const STATUS_COLORS = {
   FINISH: '#15803d',
   INVOICE: '#0f766e',
   PAID: '#047857',
-  CANCEL: '#71717a',
+  CANCEL: T.textMuted,
 };
 
 export function statusColor(status) {
