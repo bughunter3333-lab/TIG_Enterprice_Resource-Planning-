@@ -32,3 +32,4 @@ Thumbs.db
 # Backup / scratch files
 total_image_erp_full_1.jsx
 *.diff.txt
+.superpowers/
