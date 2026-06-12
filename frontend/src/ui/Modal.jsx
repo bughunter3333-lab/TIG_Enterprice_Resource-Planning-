@@ -3,6 +3,8 @@ import { X } from 'lucide-react';
 import { T } from './tokens';
 
 export default function Modal({ title, onClose, width = 560, children, footer }) {
+  // Known limitation: every open Modal closes on a single Escape press. If Phase 2
+  // stacks modals (confirm-on-top-of-form), add a topmost-modal guard here first.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -19,7 +21,7 @@ export default function Modal({ title, onClose, width = 560, children, footer })
           <div style={{ fontSize: T.fsBase, fontWeight: 700, color: T.text }}>{title}</div>
           <div style={{ flex: 1 }} />
           <div role="button" tabIndex={0} aria-label="Close" onClick={onClose}
-            onKeyDown={e => { if (e.key === 'Enter') onClose(); }}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); } }}
             style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }}>
             <X size={15} />
           </div>

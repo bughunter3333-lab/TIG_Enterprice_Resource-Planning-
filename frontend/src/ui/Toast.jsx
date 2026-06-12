@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { T } from './tokens';
 
 const ToastCtx = createContext(null);
@@ -19,10 +19,10 @@ export function ToastProvider({ children }) {
     setTimeout(() => setToasts(ts => ts.filter(t => t.id !== id)), type === 'error' ? 8000 : 4000);
   }, []);
 
-  const api = {
-    success: (m) => push('success', m),
-    error: (m) => push('error', m),
-  };
+  const api = useMemo(
+    () => ({ success: (m) => push('success', m), error: (m) => push('error', m) }),
+    [push]
+  );
 
   return (
     <ToastCtx.Provider value={api}>
