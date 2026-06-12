@@ -10,6 +10,8 @@ const jobs = [
   { id: 'J2', status: 'ORDER', due: fmt(yesterday), accMgr: 'other' },
   { id: 'J3', status: 'Pick/Pack', due: null, accMgr: 'em' },
   { id: 'J4', status: 'PAID', due: fmt(yesterday), accMgr: 'em' },
+  // FINISH excluded from My Jobs/Overdue/Due Today by ACTIVE — pins the monolith-aligned rule
+  { id: 'J5', status: 'FINISH', due: fmt(yesterday), accMgr: 'em' },
 ];
 
 const base = {

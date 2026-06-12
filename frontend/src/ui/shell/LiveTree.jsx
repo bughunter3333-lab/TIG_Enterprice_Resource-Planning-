@@ -2,8 +2,12 @@ import { X } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
-const ACTIVE = (j) => !['PAID', 'CANCEL'].includes(j.status);
+// Matches the monolith's dominant active-job semantics (e.g. TotalImageERP.jsx:1637,1734):
+// FINISH jobs are done-awaiting-invoice and don't need workflow attention here.
+const ACTIVE = (j) => !['FINISH', 'PAID', 'CANCEL'].includes(j.status);
 
+// Local-time comparison (deliberate divergence from the monolith's UTC string compare):
+// a job due 12/06 counts as "due today" from local midnight, not from 10:00 AEST.
 const isToday = (d) => {
   if (!d) return false;
   const now = new Date();
