@@ -22,3 +22,10 @@ test('Tabs switches active tab on click', () => {
   fireEvent.click(screen.getByText('Pricing'));
   expect(onChange).toHaveBeenCalledWith('b');
 });
+
+test('Field merges caller onFocus with its own focus ring handler', () => {
+  const onFocus = vi.fn();
+  render(<Field label="Qty" value="5" onChange={() => {}} onFocus={onFocus} />);
+  fireEvent.focus(screen.getByLabelText('Qty'));
+  expect(onFocus).toHaveBeenCalledTimes(1);
+});

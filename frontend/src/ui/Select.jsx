@@ -1,8 +1,9 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { T } from './tokens';
 
 export default function Select({ label, options = [], error, style, ...rest }) {
   const id = useId();
+  const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontFamily: T.font, ...style }}>
       {label && (
@@ -10,6 +11,8 @@ export default function Select({ label, options = [], error, style, ...rest }) {
       )}
       <select
         id={id}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={{
           height: T.inputHeight,
           fontSize: T.fsGrid,
@@ -19,6 +22,7 @@ export default function Select({ label, options = [], error, style, ...rest }) {
           borderRadius: T.radius - 1,
           background: T.panel,
           outline: 'none',
+          boxShadow: focused ? `0 0 0 2px ${T.accentFocus}` : 'none',
         }}
         {...rest}
       >
