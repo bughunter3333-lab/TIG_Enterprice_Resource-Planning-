@@ -1129,3 +1129,9 @@ export const adminSettings = {
     body: { value: typeof value === 'string' ? value : JSON.stringify(value) },
   }),
 };
+
+// ── Health ───────────────────────────────────────────────────────────────────
+
+export const health = {
+  check: () => request('/health'),
+};
