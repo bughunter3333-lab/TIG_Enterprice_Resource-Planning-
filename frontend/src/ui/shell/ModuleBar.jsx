@@ -86,7 +86,12 @@ export default function ModuleBar({
         />
       </div>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 5, cursor: 'pointer', marginRight: 2 }}>
+      <div
+        role="status"
+        aria-label={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
+        title={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 5, marginRight: 2 }}
+      >
         <Bell size={14} color={T.chromeTextMuted} />
         {notifCount > 0 && (
           <span style={{ position: 'absolute', top: 3, right: 2, width: 7, height: 7, background: T.danger, borderRadius: '50%', border: `1px solid ${T.chrome}` }} />
