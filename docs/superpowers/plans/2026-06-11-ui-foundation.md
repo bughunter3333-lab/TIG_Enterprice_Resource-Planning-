@@ -1750,3 +1750,13 @@ git commit -m "docs: CLAUDE.md — ui/ folder and frontend test runner"
 ```
 
 Phase 2 (core module migration: Jobs, Stock, Quotes, POs, CardFiles, Accounts, Dashboard) is planned next, against this now-real foundation.
+
+---
+
+## Phase 1 completion notes (2026-06-13)
+
+All 12 tasks complete. Three spec deviations to carry into the Phase 2 plan:
+
+1. **Ctrl+K shortcut not wired** — spec §2 gives the ModuleBar search a Ctrl+K focus shortcut; the input works by mouse only. Wire it when Jobs search lands in Phase 2.
+2. **"Despatch Ready" saved list shipped as "Pick/Pack"** — Despatch Ready implies allocation checks that don't exist yet; LiveTree filters on `status === 'Pick/Pack'` instead. Revisit when allocation data exists.
+3. **Per-module tree sections deferred** — spec §2's "module-specific sections appear per active module (e.g. recent SKUs under Stock)" needs migrated modules to exist; LiveTree currently shows the same OPEN/LISTS regardless of module. Add with the Stock module migration.

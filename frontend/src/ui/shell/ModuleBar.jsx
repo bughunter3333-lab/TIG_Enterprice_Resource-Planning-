@@ -118,6 +118,7 @@ export default function ModuleBar({
       </div>
 
       <button
+        type="button"
         onClick={onNewJob}
         style={{
           background: T.accentStrong, color: '#fff', border: 'none', borderRadius: 4,

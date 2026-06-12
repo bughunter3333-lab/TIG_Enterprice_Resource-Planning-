@@ -2,7 +2,7 @@ import { T } from './tokens';
 
 export default function Tabs({ tabs, active, onChange }) {
   return (
-    <div style={{ display: 'flex', gap: 2, borderBottom: `1px solid ${T.hairline}`, fontFamily: T.font }}>
+    <div role="tablist" style={{ display: 'flex', gap: 2, borderBottom: `1px solid ${T.hairline}`, fontFamily: T.font }}>
       {tabs.map(t => {
         const isActive = t.id === active;
         return (
