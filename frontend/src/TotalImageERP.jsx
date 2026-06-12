@@ -13,7 +13,7 @@ import SchedulingModule from './modules/SchedulingModule';
 import AccountsPayableModule from './modules/AccountsPayableModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
-import Shell from './components/shell/Shell';
+import AppShell from './ui/shell/AppShell';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
 import AdminPanel from './components/admin/AdminPanel';
@@ -8482,7 +8482,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   };
 
   return (
-    <Shell
+    <AppShell
       activeModule={activeModule}
       onNavigate={setActiveModule}
       adminMode={adminMode}
@@ -8496,6 +8496,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
       notifCount={(jobs ?? []).filter(j => !['PAID','CANCEL'].includes(j.status) && j.due && parseD(j.due) < new Date()).length}
+      jobs={jobs ?? []}
+      pinnedJobs={pinnedJobs}
+      onOpenJob={pinJob}
+      onUnpinJob={unpinJob}
     >
 
       {/* ── Contextual Action Toolbar ── */}
@@ -9635,7 +9639,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </button>
         </div>
       )}
-    </Shell>
+    </AppShell>
   );
 };
 
