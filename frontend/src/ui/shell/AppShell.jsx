@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { PanelLeft } from 'lucide-react';
 import { T } from '../tokens';
 import ModuleBar from './ModuleBar';
 import LiveTree from './LiveTree';
@@ -15,10 +14,12 @@ export default function AppShell({
   jobs, pinnedJobs, onOpenJob, onUnpinJob,
   children,
 }) {
-  const [treeOpen, setTreeOpen] = useState(() => localStorage.getItem(TREE_KEY) !== '0');
+  const [treeOpen, setTreeOpen] = useState(() => {
+    try { return localStorage.getItem(TREE_KEY) !== '0'; } catch { return true; }
+  });
 
   const toggleTree = () => setTreeOpen(open => {
-    localStorage.setItem(TREE_KEY, open ? '0' : '1');
+    try { localStorage.setItem(TREE_KEY, open ? '0' : '1'); } catch { /* storage blocked — session-only */ }
     return !open;
   });
 
@@ -35,6 +36,8 @@ export default function AppShell({
         searchValue={searchValue}
         onSearchChange={onSearchChange}
         notifCount={notifCount}
+        treeOpen={treeOpen}
+        onToggleTree={toggleTree}
       />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {treeOpen && (
@@ -47,23 +50,7 @@ export default function AppShell({
             onSelectList={() => onNavigate('jobs')}
           />
         )}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={treeOpen ? 'Collapse tree' : 'Expand tree'}
-            title={treeOpen ? 'Collapse tree' : 'Expand tree'}
-            onClick={toggleTree}
-            onKeyDown={e => { if (e.key === 'Enter') toggleTree(); }}
-            style={{
-              position: 'absolute', top: 6, left: 6, zIndex: 20,
-              width: 22, height: 22, borderRadius: 4, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', cursor: 'pointer', color: T.textFaint,
-              background: T.page, border: `1px solid ${T.hairline}`,
-            }}
-          >
-            <PanelLeft size={13} />
-          </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: 18 }}>
             {children}
           </div>

@@ -35,3 +35,12 @@ test('search input forwards changes and New Job fires', () => {
   fireEvent.click(screen.getByText('New Job'));
   expect(base.onNewJob).toHaveBeenCalled();
 });
+
+test('tree toggle renders only when onToggleTree provided and fires it', () => {
+  const onToggleTree = vi.fn();
+  const { rerender } = render(<ModuleBar {...base} />);
+  expect(screen.queryByLabelText(/tree/i)).not.toBeInTheDocument();
+  rerender(<ModuleBar {...base} treeOpen onToggleTree={onToggleTree} />);
+  fireEvent.click(screen.getByLabelText('Collapse tree'));
+  expect(onToggleTree).toHaveBeenCalledTimes(1);
+});

@@ -1,4 +1,4 @@
-import { Search, Bell, Plus, Lock } from 'lucide-react';
+import { Search, Bell, Plus, Lock, PanelLeft } from 'lucide-react';
 import { T } from '../tokens';
 
 // Same module ids as the old LabelPanel — navigation behaviour is unchanged.
@@ -17,6 +17,7 @@ const MODULES = [
 export default function ModuleBar({
   activeModule, onNavigate, adminMode, onAdminToggle, currentUser,
   badges = {}, onNewJob, searchValue = '', onSearchChange, notifCount = 0,
+  treeOpen, onToggleTree,
 }) {
   const initials = (currentUser?.username ?? 'U').slice(0, 2).toUpperCase();
 
@@ -25,6 +26,24 @@ export default function ModuleBar({
       height: 40, background: T.chrome, display: 'flex', alignItems: 'center',
       padding: '0 10px', gap: 2, flexShrink: 0, fontFamily: T.font,
     }}>
+      {onToggleTree && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={treeOpen ? 'Collapse tree' : 'Expand tree'}
+          title={treeOpen ? 'Collapse tree' : 'Expand tree'}
+          onClick={onToggleTree}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleTree(); } }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 26, height: 26, borderRadius: 4, cursor: 'pointer',
+            color: treeOpen ? T.chromeText : T.chromeTextMuted, marginRight: 6, flexShrink: 0,
+          }}
+        >
+          <PanelLeft size={14} />
+        </div>
+      )}
+
       <div style={{
         width: 22, height: 22, background: T.accent, borderRadius: 4,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
