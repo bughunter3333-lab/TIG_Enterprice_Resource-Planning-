@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, func
-from sqlalchemy.orm import relationship
 from app.database import Base
 
 
@@ -7,9 +6,13 @@ class SupplierBill(Base):
     __tablename__ = "supplier_bills"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    supplier_id = Column(String(20), ForeignKey("suppliers.id"), nullable=True, index=True)
+    supplier_id = Column(
+        String(20), ForeignKey("suppliers.id"), nullable=True, index=True
+    )
     supplier_name = Column(String(100))
-    po_id = Column(String(20), ForeignKey("purchase_orders.id"), nullable=True, index=True)
+    po_id = Column(
+        String(20), ForeignKey("purchase_orders.id"), nullable=True, index=True
+    )
     bill_number = Column(String(50))
     bill_date = Column(String(20))
     due_date = Column(String(20))

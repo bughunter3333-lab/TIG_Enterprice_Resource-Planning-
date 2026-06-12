@@ -10,11 +10,14 @@ import pytest
 @pytest.mark.integration
 class TestSupplierCRUD:
     def test_create_supplier(self, client):
-        r = client.post("/suppliers/", json={
-            "id": "SUP010",
-            "name": "Acme Supplies Pty Ltd",
-            "currency": "AUD",
-        })
+        r = client.post(
+            "/suppliers/",
+            json={
+                "id": "SUP010",
+                "name": "Acme Supplies Pty Ltd",
+                "currency": "AUD",
+            },
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["id"] == "SUP010"
@@ -50,20 +53,26 @@ class TestSupplierCRUD:
 @pytest.mark.integration
 class TestSupplierABN:
     def test_create_supplier_with_valid_abn(self, client):
-        r = client.post("/suppliers/", json={
-            "id": "SUP040",
-            "name": "Valid ABN Supplier",
-            "abn": "51824753556",
-        })
+        r = client.post(
+            "/suppliers/",
+            json={
+                "id": "SUP040",
+                "name": "Valid ABN Supplier",
+                "abn": "51824753556",
+            },
+        )
         assert r.status_code == 200
         assert r.json().get("abn") == "51824753556"
 
     def test_create_supplier_invalid_abn_rejected(self, client):
-        r = client.post("/suppliers/", json={
-            "id": "SUP041",
-            "name": "Bad ABN Supplier",
-            "abn": "12345678901",
-        })
+        r = client.post(
+            "/suppliers/",
+            json={
+                "id": "SUP041",
+                "name": "Bad ABN Supplier",
+                "abn": "12345678901",
+            },
+        )
         assert r.status_code == 422
         assert "ABN" in r.json().get("detail", "")
 

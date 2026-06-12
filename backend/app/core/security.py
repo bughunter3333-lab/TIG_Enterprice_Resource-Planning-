@@ -12,9 +12,9 @@ from app.core.config import settings
 
 def hash_password(password: str) -> str:
     """Hash a plaintext password using bcrypt with 12 work-factor rounds."""
-    return bcrypt.hashpw(
-        password.encode("utf-8"), bcrypt.gensalt(rounds=12)
-    ).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode(
+        "utf-8"
+    )
 
 
 def verify_password(plain: str, hashed: str) -> bool:

@@ -7,7 +7,9 @@ from app.core.security import hash_password
 
 
 @pytest.mark.integration
-async def test_login_success(async_client: AsyncClient, test_admin_user: User, test_db_session: Session):
+async def test_login_success(
+    async_client: AsyncClient, test_admin_user: User, test_db_session: Session
+):
     """Test successful login."""
     # Note: This test assumes the user exists in the test database
     response = await async_client.post(
@@ -15,7 +17,7 @@ async def test_login_success(async_client: AsyncClient, test_admin_user: User, t
         json={
             "username": "testadmin",
             "password": "password123",
-        }
+        },
     )
 
     assert response.status_code == 200
@@ -32,7 +34,7 @@ async def test_login_invalid_credentials(async_client: AsyncClient):
         json={
             "username": "nonexistent",
             "password": "wrongpassword",
-        }
+        },
     )
 
     assert response.status_code == 401
@@ -59,7 +61,7 @@ async def test_login_inactive_user(async_client: AsyncClient, test_db_session: S
         json={
             "username": "inactive",
             "password": "password123",
-        }
+        },
     )
 
     assert response.status_code == 403
@@ -78,7 +80,7 @@ async def test_rate_limiting_login(async_client: AsyncClient):
             json={
                 "username": f"user{i}",
                 "password": "password",
-            }
+            },
         )
         if response.status_code == 429:
             rate_limited = True

@@ -60,14 +60,18 @@ def list_card_files(
             | CardFile.suburb.ilike(term)
         )
     if group:
-        q = q.filter(CardFile.ship_code.ilike(f"{group}.%") | CardFile.ship_code.ilike(group))
+        q = q.filter(
+            CardFile.ship_code.ilike(f"{group}.%") | CardFile.ship_code.ilike(group)
+        )
     if customer_code:
         q = q.filter(CardFile.customer_code == customer_code)
     return q.order_by(CardFile.ship_code).all()
 
 
 @router.get("/{ship_code}")
-def get_card_file(ship_code: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_card_file(
+    ship_code: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     card = db.query(CardFile).filter(CardFile.ship_code == ship_code).first()
     if not card:
         raise HTTPException(status_code=404, detail="Card file not found")
@@ -75,7 +79,11 @@ def get_card_file(ship_code: str, db: Session = Depends(get_db), _: User = Depen
 
 
 @router.post("/")
-def create_card_file(body: CardFileCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_card_file(
+    body: CardFileCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if db.query(CardFile).filter(CardFile.ship_code == body.ship_code).first():
         raise HTTPException(status_code=409, detail="Ship code already exists")
     card = CardFile(**body.model_dump())
@@ -86,7 +94,12 @@ def create_card_file(body: CardFileCreate, db: Session = Depends(get_db), _: Use
 
 
 @router.patch("/{ship_code}")
-def update_card_file(ship_code: str, body: CardFileUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_card_file(
+    ship_code: str,
+    body: CardFileUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     card = db.query(CardFile).filter(CardFile.ship_code == ship_code).first()
     if not card:
         raise HTTPException(status_code=404, detail="Card file not found")
@@ -98,7 +111,9 @@ def update_card_file(ship_code: str, body: CardFileUpdate, db: Session = Depends
 
 
 @router.delete("/{ship_code}")
-def delete_card_file(ship_code: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_card_file(
+    ship_code: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     card = db.query(CardFile).filter(CardFile.ship_code == ship_code).first()
     if not card:
         raise HTTPException(status_code=404, detail="Card file not found")

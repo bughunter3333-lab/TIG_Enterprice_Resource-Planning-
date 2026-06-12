@@ -24,12 +24,11 @@ from app.models.supplier import Supplier
 from app.models.inventory import InventoryItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.settings import CompanySettings
-from app.models.admin_setting import AdminSetting  # noqa: F401 — registers table with Base.metadata
-
 
 # ---------------------------------------------------------------------------
 # Database engine — session-scoped so schema is created once
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def test_db_engine():
@@ -46,6 +45,7 @@ def test_db_engine():
 # ---------------------------------------------------------------------------
 # Per-test DB session — rolls back after every test for isolation
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def test_db_session(test_db_engine):
@@ -68,6 +68,7 @@ def db(test_db_session):
 # Company settings — needed by several routes
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def company_settings(test_db_session):
     """Ensure company settings row exists for every test."""
@@ -88,6 +89,7 @@ def company_settings(test_db_session):
 # ---------------------------------------------------------------------------
 # Test admin user
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def admin_user(test_db_session):
@@ -126,6 +128,7 @@ def staff_user(test_db_session):
 def test_admin_user(admin_user):
     return admin_user
 
+
 @pytest.fixture
 def test_regular_user(staff_user):
     return staff_user
@@ -135,6 +138,7 @@ def test_regular_user(staff_user):
 # Test client with fully wired dependency overrides
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def client(test_db_session, admin_user):
     """
@@ -142,6 +146,7 @@ def client(test_db_session, admin_user):
       - get_db overridden to use the rollback-per-test session
       - get_current_user overridden to return the admin test user
     """
+
     def _override_db():
         try:
             yield test_db_session
@@ -163,6 +168,7 @@ def client(test_db_session, admin_user):
 @pytest.fixture
 def staff_client(test_db_session, staff_user):
     """TestClient authenticated as a staff (non-admin) user."""
+
     def _override_db():
         try:
             yield test_db_session
@@ -198,7 +204,9 @@ async def async_client(test_db_session, admin_user):
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user] = _override_user
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -207,6 +215,7 @@ async def async_client(test_db_session, admin_user):
 @pytest.fixture
 def unauth_client(test_db_session):
     """TestClient with no auth override — tests 401 responses."""
+
     def _override_db():
         try:
             yield test_db_session
@@ -225,6 +234,7 @@ def unauth_client(test_db_session):
 # Domain object factories
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def make_customer(test_db_session):
     def _factory(
@@ -241,9 +251,15 @@ def make_customer(test_db_session):
         **kwargs,
     ) -> Customer:
         c = Customer(
-            id=id, name=name, abn=abn, email=email, phone=phone,
-            payment_terms=payment_terms, credit_limit=credit_limit,
-            status=status, **kwargs,
+            id=id,
+            name=name,
+            abn=abn,
+            email=email,
+            phone=phone,
+            payment_terms=payment_terms,
+            credit_limit=credit_limit,
+            status=status,
+            **kwargs,
         )
         test_db_session.add(c)
         test_db_session.commit()
@@ -267,9 +283,14 @@ def make_supplier(test_db_session):
         **kwargs,
     ) -> Supplier:
         s = Supplier(
-            id=id, name=name, email=email, phone=phone,
-            payment_terms=payment_terms, currency=currency,
-            status=status, **kwargs,
+            id=id,
+            name=name,
+            email=email,
+            phone=phone,
+            payment_terms=payment_terms,
+            currency=currency,
+            status=status,
+            **kwargs,
         )
         test_db_session.add(s)
         test_db_session.commit()
@@ -293,9 +314,15 @@ def make_inventory(test_db_session):
         **kwargs,
     ) -> InventoryItem:
         item = InventoryItem(
-            sku=sku, name=name, category=category, stock=stock,
-            unit_cost=unit_cost, sell_price=sell_price,
-            min_stock=min_stock, status=status, **kwargs,
+            sku=sku,
+            name=name,
+            category=category,
+            stock=stock,
+            unit_cost=unit_cost,
+            sell_price=sell_price,
+            min_stock=min_stock,
+            status=status,
+            **kwargs,
         )
         test_db_session.add(item)
         test_db_session.commit()
@@ -323,8 +350,13 @@ def make_purchase_order(test_db_session, make_supplier):
             make_supplier(id=supplier_id, name=supplier_name)
 
         item_list = items or [
-            {"sku": "SKU001", "description": "Test Item", "qty_ordered": 10,
-             "unit_cost": 20.00, "gst_applicable": True},
+            {
+                "sku": "SKU001",
+                "description": "Test Item",
+                "qty_ordered": 10,
+                "unit_cost": 20.00,
+                "gst_applicable": True,
+            },
         ]
         total_ex = sum(i["qty_ordered"] * i["unit_cost"] for i in item_list)
         gst = round(total_ex * 0.1, 2) if gst_applicable else 0.0
@@ -341,10 +373,14 @@ def make_purchase_order(test_db_session, make_supplier):
         )
         for item_data in item_list:
             item_data.setdefault("qty_received", 0)
-            item_data.setdefault("total", item_data["qty_ordered"] * item_data["unit_cost"])
-            po.items.append(PurchaseOrderItem(**{
-                k: v for k, v in item_data.items() if k != "gst_applicable"
-            }))
+            item_data.setdefault(
+                "total", item_data["qty_ordered"] * item_data["unit_cost"]
+            )
+            po.items.append(
+                PurchaseOrderItem(
+                    **{k: v for k, v in item_data.items() if k != "gst_applicable"}
+                )
+            )
 
         test_db_session.add(po)
         test_db_session.commit()

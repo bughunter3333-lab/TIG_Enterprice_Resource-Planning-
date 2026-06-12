@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Text, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Numeric,
+    DateTime,
+    ForeignKey,
+    Text,
+    func,
+)
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -27,7 +36,9 @@ class InventoryItem(Base):
     colour_code = Column(String(20), nullable=True)
     size_code = Column(String(20), nullable=True)
 
-    movements = relationship("StockMovement", back_populates="item", cascade="all, delete-orphan")
+    movements = relationship(
+        "StockMovement", back_populates="item", cascade="all, delete-orphan"
+    )
     style = relationship("Style", back_populates="inventory_items")
 
     @property
@@ -41,7 +52,7 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     sku = Column(String(50), ForeignKey("inventory.sku"), nullable=False)
     date = Column(String(20))
-    type = Column(String(30))   # e.g. Adjustment, Job Allocation, Purchase
+    type = Column(String(30))  # e.g. Adjustment, Job Allocation, Purchase
     quantity = Column(Integer)
     reference = Column(String(50))
     notes = Column(Text)

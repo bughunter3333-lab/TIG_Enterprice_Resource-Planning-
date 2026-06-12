@@ -7,8 +7,18 @@ class GoodsReceipt(Base):
     __tablename__ = "goods_receipts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    po_id = Column(String(20), ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True)
-    supplier_id = Column(String(20), ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True)
+    po_id = Column(
+        String(20),
+        ForeignKey("purchase_orders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    supplier_id = Column(
+        String(20),
+        ForeignKey("suppliers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     supplier_name = Column(String(100))
     received_date = Column(String(20), nullable=False)
     reference = Column(String(50))
@@ -18,7 +28,9 @@ class GoodsReceipt(Base):
     created_by = Column(String(50))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    lines = relationship("GoodsReceiptLine", back_populates="receipt", cascade="all, delete-orphan")
+    lines = relationship(
+        "GoodsReceiptLine", back_populates="receipt", cascade="all, delete-orphan"
+    )
     purchase_order = relationship("PurchaseOrder", foreign_keys=[po_id])
 
 
@@ -26,7 +38,12 @@ class GoodsReceiptLine(Base):
     __tablename__ = "goods_receipt_lines"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    receipt_id = Column(Integer, ForeignKey("goods_receipts.id", ondelete="CASCADE"), nullable=False, index=True)
+    receipt_id = Column(
+        Integer,
+        ForeignKey("goods_receipts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     sku = Column(String(50), nullable=False, index=True)
     description = Column(String(255))
     qty_expected = Column(Integer, default=0)

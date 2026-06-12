@@ -5,15 +5,22 @@ Covers: CRUD, status transitions, payment recording, credit checks, PDF.
 """
 
 import pytest
-from app.models.job import Job, JobItem
+from app.models.job import Job
 from app.models.customer import Customer
 
 
-def _make_job(db, job_id: str, customer_id: str, status: str = "QUOTE",
-              total_inc: float = 110.0, total_ex: float = 100.0) -> Job:
+def _make_job(
+    db,
+    job_id: str,
+    customer_id: str,
+    status: str = "QUOTE",
+    total_inc: float = 110.0,
+    total_ex: float = 100.0,
+) -> Job:
     if not db.query(Customer).filter_by(id=customer_id).first():
-        db.add(Customer(id=customer_id, name=f"Cust {customer_id}",
-                        credit_limit=10000.0))
+        db.add(
+            Customer(id=customer_id, name=f"Cust {customer_id}", credit_limit=10000.0)
+        )
     j = Job(
         id=job_id,
         customer_id=customer_id,
@@ -41,18 +48,21 @@ class TestJobCRUD:
 
     def test_create_job(self, client, make_customer):
         make_customer(id="JCUST01")
-        r = client.post("/jobs/", json={
-            "id": "J-T001",
-            "customer_id": "JCUST01",
-            "customer_name": "Cust JCUST01",
-            "status": "QUOTE",
-            "date_in": "2025-09-01",
-            "total_ex": 100.0,
-            "tax": 10.0,
-            "total_inc": 110.0,
-            "deposit": 0,
-            "balance_due": 110.0,
-        })
+        r = client.post(
+            "/jobs/",
+            json={
+                "id": "J-T001",
+                "customer_id": "JCUST01",
+                "customer_name": "Cust JCUST01",
+                "status": "QUOTE",
+                "date_in": "2025-09-01",
+                "total_ex": 100.0,
+                "tax": 10.0,
+                "total_inc": 110.0,
+                "deposit": 0,
+                "balance_due": 110.0,
+            },
+        )
         assert r.status_code in (200, 201)
 
     def test_get_job_not_found(self, client):
@@ -111,25 +121,30 @@ class TestJobStatusTransitions:
 class TestJobPayments:
     def test_record_payment_reduces_balance(self, client, db, make_customer):
         make_customer(id="JCUST20", credit_limit=5000.0)
-        job = _make_job(db, "J-P001", "JCUST20", status="INVOICE",
-                        total_inc=110.0, total_ex=100.0)
+        job = _make_job(
+            db, "J-P001", "JCUST20", status="INVOICE", total_inc=110.0, total_ex=100.0
+        )
         job.invoice = "INV-P001"
         job.invoice_date = "2025-09-10"
         db.commit()
 
-        r = client.post("/jobs/J-P001/payment", json={
-            "amount": 55.0,
-            "method": "EFT",
-            "reference": "REF001",
-        })
+        r = client.post(
+            "/jobs/J-P001/payment",
+            json={
+                "amount": 55.0,
+                "method": "EFT",
+                "reference": "REF001",
+            },
+        )
         assert r.status_code == 200
         data = r.json()
         assert float(data.get("balance_due", 999)) == pytest.approx(55.0)
 
     def test_full_payment_marks_paid(self, client, db, make_customer):
         make_customer(id="JCUST21", credit_limit=5000.0)
-        job = _make_job(db, "J-P002", "JCUST21", status="INVOICE",
-                        total_inc=110.0, total_ex=100.0)
+        job = _make_job(
+            db, "J-P002", "JCUST21", status="INVOICE", total_inc=110.0, total_ex=100.0
+        )
         job.invoice = "INV-P002"
         job.invoice_date = "2025-09-10"
         db.commit()
@@ -141,8 +156,9 @@ class TestJobPayments:
 
     def test_overpayment_rejected(self, client, db, make_customer):
         make_customer(id="JCUST22", credit_limit=5000.0)
-        job = _make_job(db, "J-P003", "JCUST22", status="INVOICE",
-                        total_inc=110.0, total_ex=100.0)
+        job = _make_job(
+            db, "J-P003", "JCUST22", status="INVOICE", total_inc=110.0, total_ex=100.0
+        )
         job.invoice = "INV-P003"
         job.invoice_date = "2025-09-10"
         db.commit()
@@ -155,8 +171,9 @@ class TestJobPayments:
 class TestJobPDF:
     def test_invoice_pdf_returns_pdf(self, client, db, make_customer):
         make_customer(id="JCUST30")
-        job = _make_job(db, "J-PDF1", "JCUST30", status="INVOICE",
-                        total_inc=110.0, total_ex=100.0)
+        job = _make_job(
+            db, "J-PDF1", "JCUST30", status="INVOICE", total_inc=110.0, total_ex=100.0
+        )
         job.invoice = "INV-PDF1"
         job.invoice_date = "2025-09-15"
         db.commit()
@@ -168,8 +185,9 @@ class TestJobPDF:
 
     def test_quote_pdf_returns_pdf(self, client, db, make_customer):
         make_customer(id="JCUST31")
-        job = _make_job(db, "J-PDF2", "JCUST31", status="QUOTE",
-                        total_inc=110.0, total_ex=100.0)
+        job = _make_job(
+            db, "J-PDF2", "JCUST31", status="QUOTE", total_inc=110.0, total_ex=100.0
+        )
         job.quote = "Q-PDF2"
         db.commit()
 

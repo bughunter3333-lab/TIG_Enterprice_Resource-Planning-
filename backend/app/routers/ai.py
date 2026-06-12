@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
+
 def has(text: str, *keywords) -> bool:
     t = text.lower()
     return any(k in t for k in keywords)
@@ -56,56 +57,79 @@ def get_active_jobs(db: Session) -> list:
 
 
 def get_overdue_jobs(db: Session) -> list:
-    return [j for j in get_active_jobs(db)
-            if (d := parse_date(j.due or "")) and d < date.today()]
+    return [
+        j
+        for j in get_active_jobs(db)
+        if (d := parse_date(j.due or "")) and d < date.today()
+    ]
 
 
 def get_low_stock(db: Session) -> list:
-    return db.query(InventoryItem).filter(
-        InventoryItem.stock <= InventoryItem.min_stock,
-        InventoryItem.min_stock > 0,
-        InventoryItem.status == "Active"
-    ).all()
+    return (
+        db.query(InventoryItem)
+        .filter(
+            InventoryItem.stock <= InventoryItem.min_stock,
+            InventoryItem.min_stock > 0,
+            InventoryItem.status == "Active",
+        )
+        .all()
+    )
 
 
 def get_jobs_due_soon(db: Session, days: int = 7) -> list:
     cutoff = date.today() + timedelta(days=days)
-    return [j for j in get_active_jobs(db)
-            if (d := parse_date(j.due or "")) and date.today() <= d <= cutoff]
+    return [
+        j
+        for j in get_active_jobs(db)
+        if (d := parse_date(j.due or "")) and date.today() <= d <= cutoff
+    ]
 
 
 def get_open_freight(db: Session) -> list:
-    return db.query(Job).filter(
-        Job.ship_to.isnot(None),
-        Job.ship_to != "",
-        Job.status.notin_(["PAID", "CANCEL"]),
-    ).all()
+    return (
+        db.query(Job)
+        .filter(
+            Job.ship_to.isnot(None),
+            Job.ship_to != "",
+            Job.status.notin_(["PAID", "CANCEL"]),
+        )
+        .all()
+    )
 
 
 def jobs_this_month(db: Session) -> list:
     today = date.today()
     month_start = today.replace(day=1)
-    return [j for j in db.query(Job).all()
-            if (d := parse_date(j.date_in or "")) and d >= month_start]
+    return [
+        j
+        for j in db.query(Job).all()
+        if (d := parse_date(j.date_in or "")) and d >= month_start
+    ]
 
 
 def jobs_last_month(db: Session) -> list:
     today = date.today()
     first_this = today.replace(day=1)
     first_last = (first_this - timedelta(days=1)).replace(day=1)
-    return [j for j in db.query(Job).all()
-            if (d := parse_date(j.date_in or "")) and first_last <= d < first_this]
+    return [
+        j
+        for j in db.query(Job).all()
+        if (d := parse_date(j.date_in or "")) and first_last <= d < first_this
+    ]
 
 
 # ── ML algorithms ─────────────────────────────────────────────────────────────
+
 
 def _linear_regression(xs: list, ys: list) -> tuple:
     n = len(xs)
     if n < 2:
         return 0.0, (ys[0] if ys else 0.0), 0.0
-    sx = sum(xs); sy = sum(ys)
-    sxx = sum(x * x for x in xs); sxy = sum(x * y for x, y in zip(xs, ys))
-    denom = n * sxx - sx ** 2
+    sx = sum(xs)
+    sy = sum(ys)
+    sxx = sum(x * x for x in xs)
+    sxy = sum(x * y for x, y in zip(xs, ys))
+    denom = n * sxx - sx**2
     if denom == 0:
         return 0.0, sy / n, 0.0
     m = (n * sxy - sx * sy) / denom
@@ -127,7 +151,9 @@ def _exponential_smoothing(ys: list, alpha: float = 0.3) -> list:
     return smoothed
 
 
-def _holt_forecast(ys: list, alpha: float = 0.4, beta: float = 0.3, steps: int = 1) -> tuple:
+def _holt_forecast(
+    ys: list, alpha: float = 0.4, beta: float = 0.3, steps: int = 1
+) -> tuple:
     """Holt's double exponential smoothing for trend. Returns (forecast, trend, r2_approx)."""
     if len(ys) < 3:
         return ys[-1] if ys else 0.0, 0.0, 0.0
@@ -155,10 +181,15 @@ def _zscore_anomalies(values: list) -> list[tuple[int, float]]:
     std = (sum((v - mean) ** 2 for v in values) / len(values)) ** 0.5
     if std < 0.01:
         return []
-    return [(i, (v - mean) / std) for i, v in enumerate(values) if abs((v - mean) / std) > 2.0]
+    return [
+        (i, (v - mean) / std)
+        for i, v in enumerate(values)
+        if abs((v - mean) / std) > 2.0
+    ]
 
 
 # ── Analytics response builders ───────────────────────────────────────────────
+
 
 def respond_jobs_summary(db: Session) -> str:
     all_jobs = db.query(Job).all()
@@ -171,7 +202,8 @@ def respond_jobs_summary(db: Session) -> str:
     lines = [
         "**Job Summary**",
         f"• Total: {len(all_jobs)} | Active: {len(active)} | Overdue: {len(overdue)} | Due ≤7d: {len(due_soon)}",
-        "", "**By Status:**",
+        "",
+        "**By Status:**",
     ]
     for status, count in sorted(by_status.items(), key=lambda x: -x[1]):
         lines.append(f"  {status}: {count}")
@@ -202,7 +234,9 @@ def respond_overdue(db: Session) -> str:
 def respond_revenue(db: Session) -> str:
     all_jobs = db.query(Job).all()
     total_rev = sum(float(j.total_inc or 0) for j in all_jobs)
-    outstanding = sum(float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0)
+    outstanding = sum(
+        float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0
+    )
     collected = sum(float(j.deposit or 0) for j in all_jobs)
     this_m = jobs_this_month(db)
     last_m = jobs_last_month(db)
@@ -262,7 +296,8 @@ def respond_inventory(db: Session) -> str:
         "**Inventory Summary**",
         f"• SKUs: {len(items)} ({len(active)} active) | Zero stock: {len(zero_stock)} | Low stock: {len(low)}",
         f"• Total stock value: {fmt_currency(total_value)}",
-        "", "**By Category:**",
+        "",
+        "**By Category:**",
     ]
     for cat, count in sorted(by_cat.items(), key=lambda x: -x[1])[:8]:
         lines.append(f"  {cat}: {count} SKUs")
@@ -280,7 +315,9 @@ def respond_low_stock(db: Session) -> str:
     lines = [f"**{len(low)} item(s) below reorder level:**"]
     for i in sorted(low, key=lambda x: (x.stock or 0) - (x.min_stock or 0)):
         shortage = (i.min_stock or 0) - (i.stock or 0)
-        lines.append(f"• {i.sku} – {i.name} | Stock: {i.stock} | Min: {i.min_stock} | Short: {shortage} | Supplier: {i.supplier or '—'}")
+        lines.append(
+            f"• {i.sku} – {i.name} | Stock: {i.stock} | Min: {i.min_stock} | Short: {shortage} | Supplier: {i.supplier or '—'}"
+        )
     lines.append("\n→ Stock → Auto-Reorder All to generate draft POs.")
     return "\n".join(lines)
 
@@ -289,18 +326,28 @@ def respond_customers(db: Session) -> str:
     customers = db.query(Customer).all()
     active = [c for c in customers if c.status == "Active"]
     jobs = db.query(Job).all()
-    job_rev: dict = {}; job_counts: dict = {}
+    job_rev: dict = {}
+    job_counts: dict = {}
     for j in jobs:
         job_rev[j.customer_id] = job_rev.get(j.customer_id, 0) + float(j.total_inc or 0)
         job_counts[j.customer_id] = job_counts.get(j.customer_id, 0) + 1
     top = sorted(customers, key=lambda c: job_rev.get(c.id, 0), reverse=True)[:5]
-    lines = ["**Customer Summary**", f"• Total: {len(customers)} ({len(active)} active)", "", "**Top by Revenue:**"]
+    lines = [
+        "**Customer Summary**",
+        f"• Total: {len(customers)} ({len(active)} active)",
+        "",
+        "**Top by Revenue:**",
+    ]
     for c in top:
         rev = job_rev.get(c.id, 0)
         if rev > 0:
-            lines.append(f"  {c.id} — {c.name}: {fmt_currency(rev)} ({job_counts.get(c.id, 0)} jobs)")
-    outstanding = [(j.customer_id, j.customer_name or '', float(j.balance_due or 0))
-                   for j in db.query(Job).filter(Job.balance_due > 0).all()]
+            lines.append(
+                f"  {c.id} — {c.name}: {fmt_currency(rev)} ({job_counts.get(c.id, 0)} jobs)"
+            )
+    outstanding = [
+        (j.customer_id, j.customer_name or "", float(j.balance_due or 0))
+        for j in db.query(Job).filter(Job.balance_due > 0).all()
+    ]
     if outstanding:
         cust_bal: dict = {}
         for cid, cname, bal in outstanding:
@@ -313,19 +360,33 @@ def respond_customers(db: Session) -> str:
 
 
 def respond_customer_jobs(db: Session, keyword: str) -> str:
-    jobs = db.query(Job).filter(
-        Job.customer_name.ilike(f"%{keyword}%") | Job.customer_id.ilike(f"%{keyword}%")
-    ).order_by(Job.id.desc()).limit(20).all()
+    jobs = (
+        db.query(Job)
+        .filter(
+            Job.customer_name.ilike(f"%{keyword}%")
+            | Job.customer_id.ilike(f"%{keyword}%")
+        )
+        .order_by(Job.id.desc())
+        .limit(20)
+        .all()
+    )
     if not jobs:
-        return f"No jobs found for **\"{keyword}\"**."
+        return f'No jobs found for **"{keyword}"**.'
     total_rev = sum(float(j.total_inc or 0) for j in jobs)
-    outstanding = sum(float(j.balance_due or 0) for j in jobs if float(j.balance_due or 0) > 0)
-    lines = [f"**Jobs for \"{keyword}\" ({len(jobs)}):**",
-             f"• Total: {fmt_currency(total_rev)} | Outstanding: {fmt_currency(outstanding)}", ""]
+    outstanding = sum(
+        float(j.balance_due or 0) for j in jobs if float(j.balance_due or 0) > 0
+    )
+    lines = [
+        f'**Jobs for "{keyword}" ({len(jobs)}):**',
+        f"• Total: {fmt_currency(total_rev)} | Outstanding: {fmt_currency(outstanding)}",
+        "",
+    ]
     for j in jobs[:10]:
         bal = float(j.balance_due or 0)
-        lines.append(f"• #{j.id} | {j.status} | Due: {j.due} | {fmt_currency(j.total_inc)}"
-                     + (f" | Owes: {fmt_currency(bal)}" if bal > 0 else ""))
+        lines.append(
+            f"• #{j.id} | {j.status} | Due: {j.due} | {fmt_currency(j.total_inc)}"
+            + (f" | Owes: {fmt_currency(bal)}" if bal > 0 else "")
+        )
     return "\n".join(lines)
 
 
@@ -333,24 +394,40 @@ def respond_specific_job(db: Session, job_id: str) -> str:
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         return f"Job **#{job_id}** not found."
-    comments = db.query(JobComment).filter(JobComment.job_id == job_id).order_by(JobComment.id.desc()).limit(3).all()
+    comments = (
+        db.query(JobComment)
+        .filter(JobComment.job_id == job_id)
+        .order_by(JobComment.id.desc())
+        .limit(3)
+        .all()
+    )
     bal = float(job.balance_due or 0)
     lines = [
         f"**Job #{job.id}**",
         f"• Customer: {job.customer_name} ({job.customer_id})",
         f"• Status: {job.status} | Priority: {job.priority}",
-        f"• Date In: {job.date_in} | Due: {job.due}" + (f" | Out: {job.out}" if job.out else ""),
-        f"• Value: {fmt_currency(job.total_inc)}" + (f" | Balance: {fmt_currency(bal)}" if bal > 0 else " | Paid ✓"),
+        f"• Date In: {job.date_in} | Due: {job.due}"
+        + (f" | Out: {job.out}" if job.out else ""),
+        f"• Value: {fmt_currency(job.total_inc)}"
+        + (f" | Balance: {fmt_currency(bal)}" if bal > 0 else " | Paid ✓"),
     ]
-    if job.assigned_to: lines.append(f"• Assigned: {job.assigned_to}")
-    if job.ship_to: lines.append(f"• Ship To: {job.ship_to}")
-    if job.cust_ref: lines.append(f"• Cust Ref: {job.cust_ref}")
-    if job.description: lines.append(f"• Description: {job.description}")
+    if job.assigned_to:
+        lines.append(f"• Assigned: {job.assigned_to}")
+    if job.ship_to:
+        lines.append(f"• Ship To: {job.ship_to}")
+    if job.cust_ref:
+        lines.append(f"• Cust Ref: {job.cust_ref}")
+    if job.description:
+        lines.append(f"• Description: {job.description}")
     if comments:
         lines.append("\n**Latest comments:**")
         for c in comments:
             lines.append(f"  [{c.date} {c.initials}] {c.comment}")
-    if (due := parse_date(job.due or "")) and due < date.today() and job.status not in ("FINISH", "PAID", "CANCEL"):
+    if (
+        (due := parse_date(job.due or ""))
+        and due < date.today()
+        and job.status not in ("FINISH", "PAID", "CANCEL")
+    ):
         lines.append(f"\n⚠ **{(date.today() - due).days} day(s) overdue.**")
     return "\n".join(lines)
 
@@ -368,7 +445,11 @@ def respond_production_pipeline(db: Session) -> str:
             val = sum(float(j.total_inc or 0) for j in js)
             lines.append(f"  **{stage}** ({len(js)} jobs | {fmt_currency(val)}):")
             for j in js[:3]:
-                flag = " ⚠OVERDUE" if (d := parse_date(j.due or "")) and d < date.today() else ""
+                flag = (
+                    " ⚠OVERDUE"
+                    if (d := parse_date(j.due or "")) and d < date.today()
+                    else ""
+                )
                 lines.append(f"    #{j.id} – {j.customer_name} | Due: {j.due}{flag}")
             if len(js) > 3:
                 lines.append(f"    …{len(js) - 3} more")
@@ -387,7 +468,9 @@ def respond_quote_pipeline(db: Session) -> str:
     if quotes:
         lines.append("\n**Open Quotes:**")
         for j in quotes[:6]:
-            lines.append(f"  #{j.id} – {j.customer_name} | {fmt_currency(j.total_inc)} | Due: {j.due or '—'}")
+            lines.append(
+                f"  #{j.id} – {j.customer_name} | {fmt_currency(j.total_inc)} | Due: {j.due or '—'}"
+            )
     return "\n".join(lines)
 
 
@@ -400,7 +483,9 @@ def respond_due_soon(db: Session, days: int = 7) -> str:
         d = parse_date(j.due or "")
         days_left = (d - date.today()).days if d else 0
         flag = "🔴" if days_left <= 1 else "🟡" if days_left <= 3 else "🟢"
-        lines.append(f"{flag} #{j.id} – {j.customer_name} | Due: {j.due} ({days_left}d) | {j.status} | {fmt_currency(j.total_inc)}")
+        lines.append(
+            f"{flag} #{j.id} – {j.customer_name} | Due: {j.due} ({days_left}d) | {j.status} | {fmt_currency(j.total_inc)}"
+        )
     return "\n".join(lines)
 
 
@@ -412,7 +497,10 @@ def respond_open_freight(db: Session) -> str:
     for j in freight:
         by_ship.setdefault(j.ship_to or "No Code", []).append(j)
     total_val = sum(float(j.total_inc or 0) for j in freight)
-    lines = [f"**Open Freight — {len(freight)} job(s) | {fmt_currency(total_val)}**", ""]
+    lines = [
+        f"**Open Freight — {len(freight)} job(s) | {fmt_currency(total_val)}**",
+        "",
+    ]
     for code, js in sorted(by_ship.items()):
         lines.append(f"**{code}** ({len(js)}):")
         for j in js[:4]:
@@ -424,8 +512,13 @@ def respond_purchase_orders(db: Session) -> str:
     pos = db.query(PurchaseOrder).all()
     drafts = [p for p in pos if p.status == "Draft"]
     sent = [p for p in pos if p.status == "Sent"]
-    open_val = sum(float(p.total or 0) for p in pos if p.status not in ("Received", "Cancelled"))
-    lines = ["**Purchase Orders**", f"• Total: {len(pos)} | Draft: {len(drafts)} | Sent: {len(sent)} | Open value: {fmt_currency(open_val)}"]
+    open_val = sum(
+        float(p.total or 0) for p in pos if p.status not in ("Received", "Cancelled")
+    )
+    lines = [
+        "**Purchase Orders**",
+        f"• Total: {len(pos)} | Draft: {len(drafts)} | Sent: {len(sent)} | Open value: {fmt_currency(open_val)}",
+    ]
     if drafts:
         lines.append("\n**Draft — send these:**")
         for p in drafts[:5]:
@@ -433,7 +526,9 @@ def respond_purchase_orders(db: Session) -> str:
     if sent:
         lines.append("\n**Awaiting delivery:**")
         for p in sent[:4]:
-            lines.append(f"  {p.id} – {p.supplier_name} | Expected: {p.expected_date or '—'}")
+            lines.append(
+                f"  {p.id} – {p.supplier_name} | Expected: {p.expected_date or '—'}"
+            )
     return "\n".join(lines)
 
 
@@ -445,7 +540,10 @@ def respond_card_files(db: Session) -> str:
     for c in cards:
         g = c.ship_code.split(".")[0] if "." in c.ship_code else c.ship_code
         groups.setdefault(g, []).append(c)
-    lines = [f"**Card Files — {len(cards)} addresses across {len(groups)} group(s)**", ""]
+    lines = [
+        f"**Card Files — {len(cards)} addresses across {len(groups)} group(s)**",
+        "",
+    ]
     for group, group_cards in sorted(groups.items()):
         lines.append(f"**{group}** ({len(group_cards)}):")
         for c in group_cards:
@@ -455,19 +553,32 @@ def respond_card_files(db: Session) -> str:
 
 
 def respond_ship_to(db: Session, ship_code: str) -> str:
-    jobs = db.query(Job).filter(Job.ship_to.ilike(f"%{ship_code}%")).order_by(Job.id.desc()).limit(15).all()
+    jobs = (
+        db.query(Job)
+        .filter(Job.ship_to.ilike(f"%{ship_code}%"))
+        .order_by(Job.id.desc())
+        .limit(15)
+        .all()
+    )
     card = db.query(CardFile).filter(CardFile.ship_code.ilike(ship_code)).first()
     lines = [f"**Ship-to: {ship_code.upper()}**"]
     if card:
-        addr = " ".join(filter(None, [card.address1, card.suburb, card.state, card.postcode]))
+        addr = " ".join(
+            filter(None, [card.address1, card.suburb, card.state, card.postcode])
+        )
         lines += [f"• Company: {card.company_name or '—'}", f"• Address: {addr or '—'}"]
-        if card.contact_name: lines.append(f"• Contact: {card.contact_name}")
+        if card.contact_name:
+            lines.append(f"• Contact: {card.contact_name}")
     if not jobs:
         lines.append(f"No jobs found shipping to {ship_code}.")
     else:
         total_val = sum(float(j.total_inc or 0) for j in jobs)
-        outstanding = sum(float(j.balance_due or 0) for j in jobs if float(j.balance_due or 0) > 0)
-        lines.append(f"\n**{len(jobs)} job(s) | {fmt_currency(total_val)} | {fmt_currency(outstanding)} outstanding:**")
+        outstanding = sum(
+            float(j.balance_due or 0) for j in jobs if float(j.balance_due or 0) > 0
+        )
+        lines.append(
+            f"\n**{len(jobs)} job(s) | {fmt_currency(total_val)} | {fmt_currency(outstanding)} outstanding:**"
+        )
         for j in jobs[:8]:
             lines.append(f"  #{j.id} – {j.customer_name} | {j.status} | Due: {j.due}")
     return "\n".join(lines)
@@ -482,19 +593,27 @@ def respond_todays_summary(db: Session) -> str:
     open_freight = get_open_freight(db)
     quotes = db.query(Job).filter(Job.status == "QUOTE").all()
     urgent = []
-    if overdue: urgent.append(f"🔴 {len(overdue)} overdue job(s)")
-    if due_soon: urgent.append(f"🟡 {len(due_soon)} job(s) due within 3 days")
-    if open_freight: urgent.append(f"🚚 {len(open_freight)} open freight job(s)")
-    if low: urgent.append(f"🟠 {len(low)} low stock alert(s)")
-    if draft_pos: urgent.append(f"📋 {len(draft_pos)} draft PO(s) not sent")
-    if quotes: urgent.append(f"💬 {len(quotes)} open quote(s)")
+    if overdue:
+        urgent.append(f"🔴 {len(overdue)} overdue job(s)")
+    if due_soon:
+        urgent.append(f"🟡 {len(due_soon)} job(s) due within 3 days")
+    if open_freight:
+        urgent.append(f"🚚 {len(open_freight)} open freight job(s)")
+    if low:
+        urgent.append(f"🟠 {len(low)} low stock alert(s)")
+    if draft_pos:
+        urgent.append(f"📋 {len(draft_pos)} draft PO(s) not sent")
+    if quotes:
+        urgent.append(f"💬 {len(quotes)} open quote(s)")
     lines = [f"**Daily Briefing — {today.strftime('%A, %d %B %Y')}**", ""]
     if urgent:
         lines.append("**Action Required:**")
         lines.extend(f"  {u}" for u in urgent)
     else:
         lines.append("✅ No critical items — all clear.")
-    in_prog = db.query(Job).filter(Job.status.in_(["In Progress", "PRINT", "PROOF"])).all()
+    in_prog = (
+        db.query(Job).filter(Job.status.in_(["In Progress", "PRINT", "PROOF"])).all()
+    )
     if in_prog:
         lines.append(f"\n**In Production ({len(in_prog)}):**")
         for j in in_prog[:4]:
@@ -502,11 +621,14 @@ def respond_todays_summary(db: Session) -> str:
     this_m = jobs_this_month(db)
     if this_m:
         rev = sum(float(j.total_inc or 0) for j in this_m)
-        lines.append(f"\n**{today.strftime('%B')} so far:** {len(this_m)} jobs | {fmt_currency(rev)}")
+        lines.append(
+            f"\n**{today.strftime('%B')} so far:** {len(this_m)} jobs | {fmt_currency(rev)}"
+        )
     return "\n".join(lines)
 
 
 # ── Advanced ML Analytics ─────────────────────────────────────────────────────
+
 
 def respond_forecast(db: Session) -> str:
     all_jobs = db.query(Job).all()
@@ -533,7 +655,11 @@ def respond_forecast(db: Session) -> str:
     today = date.today()
     next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
     confidence = "High" if holt_r2 > 0.7 else "Moderate" if holt_r2 > 0.4 else "Low"
-    trend_dir = "upward 📈" if holt_trend > 50 else "downward 📉" if holt_trend < -50 else "flat ➡"
+    trend_dir = (
+        "upward 📈"
+        if holt_trend > 50
+        else "downward 📉" if holt_trend < -50 else "flat ➡"
+    )
     avg_3 = sum(ys[-3:]) / 3
 
     lines = [
@@ -549,9 +675,15 @@ def respond_forecast(db: Session) -> str:
         "**Recent Monthly Revenue:**",
     ]
     for (yr, mo), rev in sorted(monthly.items())[-6:]:
-        ewma = _exponential_smoothing([monthly[k] for k in sorted_months if k <= (yr, mo)], 0.3)
-        lines.append(f"  {date(yr, mo, 1).strftime('%b %Y')}: {fmt_currency(rev)}  (EWMA: {fmt_currency(ewma[-1])})")
-    lines.append("\n→ Holt's method captures revenue trend. Ensemble blends two models for stability.")
+        ewma = _exponential_smoothing(
+            [monthly[k] for k in sorted_months if k <= (yr, mo)], 0.3
+        )
+        lines.append(
+            f"  {date(yr, mo, 1).strftime('%b %Y')}: {fmt_currency(rev)}  (EWMA: {fmt_currency(ewma[-1])})"
+        )
+    lines.append(
+        "\n→ Holt's method captures revenue trend. Ensemble blends two models for stability."
+    )
     return "\n".join(lines)
 
 
@@ -593,15 +725,20 @@ def respond_anomalies(db: Session) -> str:
 
     # Stagnant jobs
     active_jobs = get_active_jobs(db)
-    stuck = [(j, (date.today() - (parse_date(j.date_in or "") or date.today())).days)
-             for j in active_jobs if (d := parse_date(j.date_in or "")) and (date.today() - d).days > 30]
+    stuck = [
+        (j, (date.today() - (parse_date(j.date_in or "") or date.today())).days)
+        for j in active_jobs
+        if (d := parse_date(j.date_in or "")) and (date.today() - d).days > 30
+    ]
     stuck.sort(key=lambda x: -x[1])
 
     lines = ["**ML Anomaly Detection**", ""]
     if stock_anomalies:
         lines.append(f"**⚠ Stock Consumption Spikes ({len(stock_anomalies)}):**")
         for item, z, recent, mean in sorted(stock_anomalies, key=lambda x: -x[1])[:5]:
-            lines.append(f"  {item.sku} – {item.name} | Z={round(z,1)}σ | Recent: {round(recent)} vs avg: {round(mean)}")
+            lines.append(
+                f"  {item.sku} – {item.name} | Z={round(z,1)}σ | Recent: {round(recent)} vs avg: {round(mean)}"
+            )
     else:
         lines.append("✅ No stock consumption anomalies.")
 
@@ -610,7 +747,9 @@ def respond_anomalies(db: Session) -> str:
         for idx, z in rev_anomalies[:4]:
             month = months_list[idx] if idx < len(months_list) else "?"
             direction = "spike ↑" if z > 0 else "dip ↓"
-            lines.append(f"  {month}: {fmt_currency(sorted_revs[idx])} — {direction} (Z={round(z,1)}σ)")
+            lines.append(
+                f"  {month}: {fmt_currency(sorted_revs[idx])} — {direction} (Z={round(z,1)}σ)"
+            )
     else:
         lines.append("✅ Revenue is within normal variance.")
 
@@ -636,7 +775,9 @@ def respond_customer_churn(db: Session) -> str:
             if j.customer_id not in last_order or d > last_order[j.customer_id]:
                 last_order[j.customer_id] = d
             order_counts[j.customer_id] = order_counts.get(j.customer_id, 0) + 1
-            total_spend[j.customer_id] = total_spend.get(j.customer_id, 0) + float(j.total_inc or 0)
+            total_spend[j.customer_id] = total_spend.get(j.customer_id, 0) + float(
+                j.total_inc or 0
+            )
     today = date.today()
     at_risk, high_risk, never = [], [], []
     for c in customers:
@@ -645,8 +786,10 @@ def respond_customer_churn(db: Session) -> str:
             never.append(c)
         else:
             days = (today - last).days
-            if days > 120: high_risk.append((c, days, last))
-            elif days > 60: at_risk.append((c, days, last))
+            if days > 120:
+                high_risk.append((c, days, last))
+            elif days > 60:
+                at_risk.append((c, days, last))
     lines = [
         "**Customer Churn Risk — ML Analysis**",
         f"• Analysed: {len(customers)} active customers",
@@ -657,11 +800,15 @@ def respond_customer_churn(db: Session) -> str:
         lines.append("**🔴 High Risk — Re-engage Now:**")
         for c, days, last in sorted(high_risk, key=lambda x: -x[1])[:6]:
             spend = fmt_currency(total_spend.get(c.id, 0))
-            lines.append(f"  {c.name} ({c.id}) | Last: {last.strftime('%d/%m/%Y')} ({days}d) | LTV: {spend}")
+            lines.append(
+                f"  {c.name} ({c.id}) | Last: {last.strftime('%d/%m/%Y')} ({days}d) | LTV: {spend}"
+            )
     if at_risk:
         lines.append("\n**🟡 At Risk — Follow Up:**")
         for c, days, last in sorted(at_risk, key=lambda x: -x[1])[:5]:
-            lines.append(f"  {c.name} ({c.id}) | Last: {last.strftime('%d/%m/%Y')} ({days}d ago)")
+            lines.append(
+                f"  {c.name} ({c.id}) | Last: {last.strftime('%d/%m/%Y')} ({days}d ago)"
+            )
     if not at_risk and not high_risk:
         lines.append("✅ All customers ordered within 60 days — good retention!")
     return "\n".join(lines)
@@ -669,7 +816,11 @@ def respond_customer_churn(db: Session) -> str:
 
 def respond_abc_analysis(db: Session) -> str:
     """ABC/Pareto analysis of inventory by stock value."""
-    items = db.query(InventoryItem).filter(InventoryItem.status == "Active", InventoryItem.stock > 0).all()
+    items = (
+        db.query(InventoryItem)
+        .filter(InventoryItem.status == "Active", InventoryItem.stock > 0)
+        .all()
+    )
     if not items:
         return "No active inventory to analyse."
     valued = [(i, int(i.stock or 0) * float(i.unit_cost or 0)) for i in items]
@@ -697,11 +848,16 @@ def respond_abc_analysis(db: Session) -> str:
         f"• **B Items** (next 15%): {len(b_items)} SKUs = {fmt_currency(b_val)}",
         f"• **C Items** (bottom 5%): {len(c_items)} SKUs = {fmt_currency(c_val)}",
         f"• Total stock value: {fmt_currency(total_value)}",
-        "", "**Top A Items (highest value):**",
+        "",
+        "**Top A Items (highest value):**",
     ]
     for item, val in a_items[:8]:
-        lines.append(f"  {item.sku} – {item.name} | Qty: {item.stock} | Value: {fmt_currency(val)}")
-    lines.append("\n→ Focus reorder attention on A items — they represent 80% of your capital.")
+        lines.append(
+            f"  {item.sku} – {item.name} | Qty: {item.stock} | Value: {fmt_currency(val)}"
+        )
+    lines.append(
+        "\n→ Focus reorder attention on A items — they represent 80% of your capital."
+    )
     return "\n".join(lines)
 
 
@@ -713,7 +869,9 @@ def respond_margin_analysis(db: Session) -> str:
     total_rev = sum(float(j.total_inc or 0) for j in all_jobs)
     # Use deposit as proxy for collected; balance_due as outstanding
     # Margin by customer: revenue - cost (estimated via total_ex → tax = cost proxy)
-    cust_rev: dict = {}; cust_ex: dict = {}; cust_count: dict = {}
+    cust_rev: dict = {}
+    cust_ex: dict = {}
+    cust_count: dict = {}
     for j in all_jobs:
         if j.customer_id and j.status not in ("CANCEL",):
             inc = float(j.total_inc or 0)
@@ -725,12 +883,15 @@ def respond_margin_analysis(db: Session) -> str:
     sorted_custs = sorted(cust_rev.keys(), key=lambda k: -cust_rev[k])
     lines = ["**Revenue & Margin Analysis by Customer**", ""]
     total_gst = sum(float(j.tax or 0) for j in all_jobs if j.status not in ("CANCEL",))
-    total_ex = sum(float(j.total_ex or 0) for j in all_jobs if j.status not in ("CANCEL",))
+    total_ex = sum(
+        float(j.total_ex or 0) for j in all_jobs if j.status not in ("CANCEL",)
+    )
     lines += [
         f"• Total billed (inc GST): {fmt_currency(total_rev)}",
         f"• Total ex GST: {fmt_currency(total_ex)} | Total GST: {fmt_currency(total_gst)}",
         f"• Avg job value: {fmt_currency(total_rev / len(all_jobs) if all_jobs else 0)}",
-        "", "**Top Customers by Revenue:**",
+        "",
+        "**Top Customers by Revenue:**",
     ]
     for cid in sorted_custs[:8]:
         rev = cust_rev[cid]
@@ -738,14 +899,18 @@ def respond_margin_analysis(db: Session) -> str:
         count = cust_count[cid]
         avg = rev / count if count else 0
         rev_share = pct(int(rev), int(total_rev))
-        lines.append(f"  {cid} | {fmt_currency(rev)} ({rev_share} of total) | {count} jobs | Avg: {fmt_currency(avg)}")
+        lines.append(
+            f"  {cid} | {fmt_currency(rev)} ({rev_share} of total) | {count} jobs | Avg: {fmt_currency(avg)}"
+        )
     # Job value distribution
     vals = [float(j.total_inc or 0) for j in all_jobs if float(j.total_inc or 0) > 0]
     if vals:
         vals.sort()
         median = vals[len(vals) // 2]
-        lines.append(f"\n**Job Value Distribution:**")
-        lines.append(f"  Median: {fmt_currency(median)} | Min: {fmt_currency(vals[0])} | Max: {fmt_currency(vals[-1])}")
+        lines.append("\n**Job Value Distribution:**")
+        lines.append(
+            f"  Median: {fmt_currency(median)} | Min: {fmt_currency(vals[0])} | Max: {fmt_currency(vals[-1])}"
+        )
         small = len([v for v in vals if v < 500])
         medium = len([v for v in vals if 500 <= v < 2000])
         large = len([v for v in vals if v >= 2000])
@@ -759,13 +924,22 @@ def respond_dso(db: Session) -> str:
     invoiced = [j for j in all_jobs if j.status in ("INVOICE", "PAID") and j.date_in]
     if not invoiced:
         return "No invoiced jobs to calculate DSO."
-    total_outstanding = sum(float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0)
-    total_rev_90 = sum(float(j.total_inc or 0) for j in all_jobs
-                       if (d := parse_date(j.date_in or "")) and (date.today() - d).days <= 90)
+    total_outstanding = sum(
+        float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0
+    )
+    total_rev_90 = sum(
+        float(j.total_inc or 0)
+        for j in all_jobs
+        if (d := parse_date(j.date_in or "")) and (date.today() - d).days <= 90
+    )
     dso = (total_outstanding / total_rev_90 * 90) if total_rev_90 > 0 else 0
     # Collection efficiency
     paid = [j for j in all_jobs if j.status == "PAID"]
-    partially_paid = [j for j in all_jobs if float(j.deposit or 0) > 0 and float(j.balance_due or 0) > 0]
+    partially_paid = [
+        j
+        for j in all_jobs
+        if float(j.deposit or 0) > 0 and float(j.balance_due or 0) > 0
+    ]
     fully_outstanding = [j for j in invoiced if float(j.deposit or 0) == 0]
     lines = [
         "**Days Sales Outstanding (DSO) — AR Analysis**",
@@ -776,10 +950,16 @@ def respond_dso(db: Session) -> str:
         f"• Fully paid jobs: {len(paid)} | Partially paid: {len(partially_paid)} | Unpaid invoices: {len(fully_outstanding)}",
         "",
     ]
-    rating = "🟢 Excellent" if dso < 20 else "🟡 Acceptable" if dso < 35 else "🔴 Action needed"
+    rating = (
+        "🟢 Excellent"
+        if dso < 20
+        else "🟡 Acceptable" if dso < 35 else "🔴 Action needed"
+    )
     lines.append(f"**Collection health: {rating}**")
     if dso > 30:
-        lines.append(f"\n→ DSO above 30 days — chase outstanding invoices in the Jobs module.")
+        lines.append(
+            "\n→ DSO above 30 days — chase outstanding invoices in the Jobs module."
+        )
     # Top outstanding by customer
     cust_bal: dict = {}
     for j in all_jobs:
@@ -796,14 +976,21 @@ def respond_dso(db: Session) -> str:
 
 def respond_turnaround(db: Session) -> str:
     """Average job turnaround time from creation to completion."""
-    finished = [j for j in db.query(Job).all()
-                if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in]
+    finished = [
+        j
+        for j in db.query(Job).all()
+        if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in
+    ]
     if not finished:
         return "No completed jobs to analyse turnaround time."
     durations = []
     for j in finished:
         d_in = parse_date(j.date_in or "")
-        d_out = parse_date(j.out or "") or (parse_date(j.due or "") if j.status in ("FINISH", "INVOICE", "PAID") else None)
+        d_out = parse_date(j.out or "") or (
+            parse_date(j.due or "")
+            if j.status in ("FINISH", "INVOICE", "PAID")
+            else None
+        )
         if d_in and d_out and d_out >= d_in:
             durations.append((d_out - d_in).days)
     if not durations:
@@ -824,17 +1011,26 @@ def respond_turnaround(db: Session) -> str:
         f"• Fast (≤3d): {fast} | Medium (4–10d): {medium} | Slow (>10d): {slow}",
         "",
     ]
-    rating = "🟢 Fast" if avg <= 5 else "🟡 Moderate" if avg <= 10 else "🔴 Slow — review workflow"
+    rating = (
+        "🟢 Fast"
+        if avg <= 5
+        else "🟡 Moderate" if avg <= 10 else "🔴 Slow — review workflow"
+    )
     lines.append(f"**Throughput rating: {rating}**")
     # Backlog — active jobs and how long they've been open
     active = get_active_jobs(db)
     if active:
-        ages = [(j, (date.today() - (parse_date(j.date_in or "") or date.today())).days) for j in active]
+        ages = [
+            (j, (date.today() - (parse_date(j.date_in or "") or date.today())).days)
+            for j in active
+        ]
         avg_backlog_age = sum(a for _, a in ages) / len(ages) if ages else 0
-        lines.append(f"\n**Current Backlog:** {len(active)} jobs | Avg age: {round(avg_backlog_age, 1)} days")
+        lines.append(
+            f"\n**Current Backlog:** {len(active)} jobs | Avg age: {round(avg_backlog_age, 1)} days"
+        )
         old = [(j, a) for j, a in ages if a > avg * 1.5]
         if old:
-            lines.append(f"**At-risk (>1.5× avg turnaround):**")
+            lines.append("**At-risk (>1.5× avg turnaround):**")
             for j, age in sorted(old, key=lambda x: -x[1])[:5]:
                 lines.append(f"  #{j.id} – {j.customer_name} | {j.status} | {age} days")
     return "\n".join(lines)
@@ -848,7 +1044,20 @@ def respond_seasonality(db: Session) -> str:
         d = parse_date(j.date_in or "")
         if d:
             by_month_num[d.month].append(float(j.total_inc or 0))
-    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    month_names = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
     avgs = {m: (sum(v) / len(v)) if v else 0 for m, v in by_month_num.items()}
     overall_avg = sum(avgs.values()) / 12 if any(avgs.values()) else 1
     lines = ["**Seasonality Analysis — Monthly Revenue Patterns**", ""]
@@ -859,7 +1068,8 @@ def respond_seasonality(db: Session) -> str:
     lines += [
         f"• Peak month: **{month_names[peak_month-1]}** (avg {fmt_currency(avgs[peak_month])})",
         f"• Slowest month: **{month_names[low_month-1]}** (avg {fmt_currency(avgs[low_month])})",
-        "", "**Seasonal Index (1.0 = average):**",
+        "",
+        "**Seasonal Index (1.0 = average):**",
     ]
     for m in range(1, 13):
         avg = avgs[m]
@@ -872,12 +1082,15 @@ def respond_seasonality(db: Session) -> str:
             filled = int(si * 10)
             bar = "█" * min(filled, 20) + ("↑" if si > 1.1 else "↓" if si < 0.9 else "")
         count = len(by_month_num[m])
-        lines.append(f"  {month_names[m-1]:>3}: {bar:<22} {idx}  ({count} jobs, avg {fmt_currency(avgs[m])})")
+        lines.append(
+            f"  {month_names[m-1]:>3}: {bar:<22} {idx}  ({count} jobs, avg {fmt_currency(avgs[m])})"
+        )
     lines.append("\n→ Use peak months to plan capacity and staffing in advance.")
     return "\n".join(lines)
 
 
 # ── Build live data context for LLM ───────────────────────────────────────────
+
 
 def build_live_context(db: Session) -> str:
     """Snapshot of key metrics to inject into the LLM system prompt."""
@@ -888,7 +1101,9 @@ def build_live_context(db: Session) -> str:
     this_m = jobs_this_month(db)
     this_m_rev = sum(float(j.total_inc or 0) for j in this_m)
     total_rev = sum(float(j.total_inc or 0) for j in all_jobs)
-    outstanding = sum(float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0)
+    outstanding = sum(
+        float(j.balance_due or 0) for j in all_jobs if float(j.balance_due or 0) > 0
+    )
     customers = db.query(Customer).count()
     inventory_count = db.query(InventoryItem).count()
     draft_pos = db.query(PurchaseOrder).filter(PurchaseOrder.status == "Draft").count()
@@ -911,12 +1126,14 @@ LIVE ERP DATA SNAPSHOT ({date.today().strftime('%d %b %Y')}):
 
 # ── Claude LLM call ───────────────────────────────────────────────────────────
 
+
 def call_claude(user_message: str, live_context: str, username: str) -> Optional[str]:
     """Call Claude claude-haiku-4-5 with ERP context. Returns None if no API key."""
     if not settings.ANTHROPIC_API_KEY:
         return None
     try:
         import anthropic
+
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         system = f"""You are an intelligent ERP assistant for Total Image Group (TIG), a garment decoration company specialising in embroidery, screen printing, DTF, and transfers.
 
@@ -951,6 +1168,7 @@ Be conversational but data-driven. If you can answer from the live data above, d
 
 # ── Help text ─────────────────────────────────────────────────────────────────
 
+
 def respond_help() -> str:
     return (
         "**TIG AI Assistant — What I Can Do**\n\n"
@@ -984,13 +1202,14 @@ def respond_help() -> str:
 
 def respond_unknown(message: str) -> str:
     return (
-        f"I'm not sure about *\"{message}\"*\n\n"
+        f'I\'m not sure about *"{message}"*\n\n'
         "Try: *daily briefing*, *overdue jobs*, *forecast revenue*, *low stock*, "
         "*ABC analysis*, *churn risk*, *DSO*, *turnaround time*, or *help*."
     )
 
 
 # ── Main route ────────────────────────────────────────────────────────────────
+
 
 @router.post("/chat")
 def ai_chat(
@@ -1005,8 +1224,14 @@ def ai_chat(
     if re.match(r"^(hi|hello|hey|g'day|good morning|good afternoon|howdy)\b", m):
         name = current_user.full_name or current_user.username
         hour = datetime.now().hour
-        greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
-        return {"response": f"{greeting}, {name}! Ask me about jobs, revenue, inventory, ML forecasts, or type *help*."}
+        greeting = (
+            "Good morning"
+            if hour < 12
+            else "Good afternoon" if hour < 17 else "Good evening"
+        )
+        return {
+            "response": f"{greeting}, {name}! Ask me about jobs, revenue, inventory, ML forecasts, or type *help*."
+        }
 
     # Help
     if has(m, "help", "what can you", "commands"):
@@ -1018,12 +1243,18 @@ def ai_chat(
         return {"response": respond_specific_job(db, job_id_match.group(1))}
 
     # Customer-specific lookup
-    cust_match = re.search(r"(?:jobs?\s+for|customer|client)\s+([A-Z0-9][A-Z0-9.\-_]+)", msg, re.IGNORECASE)
+    cust_match = re.search(
+        r"(?:jobs?\s+for|customer|client)\s+([A-Z0-9][A-Z0-9.\-_]+)", msg, re.IGNORECASE
+    )
     if cust_match:
         return {"response": respond_customer_jobs(db, cust_match.group(1))}
 
     # Ship-to lookup
-    ship_match = re.search(r"(?:ship(?:ping)?(?:\s+to)?|dispatch(?:ing)?(?:\s+to)?)\s+([A-Z0-9][A-Z0-9._]+)", msg, re.IGNORECASE)
+    ship_match = re.search(
+        r"(?:ship(?:ping)?(?:\s+to)?|dispatch(?:ing)?(?:\s+to)?)\s+([A-Z0-9][A-Z0-9._]+)",
+        msg,
+        re.IGNORECASE,
+    )
     if ship_match:
         return {"response": respond_ship_to(db, ship_match.group(1))}
 
@@ -1061,12 +1292,16 @@ def ai_chat(
 
     if has(m, "due this week", "due soon", "due in", "coming due", "deadline"):
         days = 7
-        if has(m, "today"): days = 0
-        elif has(m, "tomorrow"): days = 1
-        elif has(m, "3 day"): days = 3
+        if has(m, "today"):
+            days = 0
+        elif has(m, "tomorrow"):
+            days = 1
+        elif has(m, "3 day"):
+            days = 3
         else:
             dm = re.search(r"due in (\d+)", m)
-            if dm: days = int(dm.group(1))
+            if dm:
+                days = int(dm.group(1))
         return {"response": respond_due_soon(db, days)}
 
     if has(m, "card file", "cardfile", "ship address", "ship code"):
@@ -1075,7 +1310,17 @@ def ai_chat(
     if has(m, "this month", "last month", "monthly"):
         return {"response": respond_monthly_revenue(db)}
 
-    if has(m, "revenue", "income", "sales", "turnover", "financial", "outstanding", "owed", "who owes"):
+    if has(
+        m,
+        "revenue",
+        "income",
+        "sales",
+        "turnover",
+        "financial",
+        "outstanding",
+        "owed",
+        "who owes",
+    ):
         return {"response": respond_revenue(db)}
 
     if has(m, "low stock", "reorder", "stock alert", "running low", "out of stock"):
@@ -1122,5 +1367,14 @@ def ai_status(_: User = Depends(require_any)):
     return {
         "claude_available": bool(settings.ANTHROPIC_API_KEY),
         "model": "claude-haiku-4-5-20251001" if settings.ANTHROPIC_API_KEY else None,
-        "analytics": ["forecast", "anomalies", "churn", "abc", "margins", "dso", "turnaround", "seasonality"],
+        "analytics": [
+            "forecast",
+            "anomalies",
+            "churn",
+            "abc",
+            "margins",
+            "dso",
+            "turnaround",
+            "seasonality",
+        ],
     }

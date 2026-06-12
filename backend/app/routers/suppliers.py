@@ -16,7 +16,9 @@ def _validate_abn(abn: Optional[str]) -> Optional[str]:
     if not abn:
         return abn
     if not validate_abn(abn):
-        raise HTTPException(status_code=422, detail="Invalid ABN: must pass ATO checksum")
+        raise HTTPException(
+            status_code=422, detail="Invalid ABN: must pass ATO checksum"
+        )
     return clean_abn(abn)
 
 
@@ -64,7 +66,9 @@ def list_suppliers(
 
 
 @router.get("/{supplier_id}")
-def get_supplier(supplier_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_supplier(
+    supplier_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     s = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -72,7 +76,11 @@ def get_supplier(supplier_id: str, db: Session = Depends(get_db), _: User = Depe
 
 
 @router.post("/")
-def create_supplier(body: SupplierCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_supplier(
+    body: SupplierCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if db.query(Supplier).filter(Supplier.id == body.id).first():
         raise HTTPException(status_code=409, detail="Supplier ID already exists")
     data = body.model_dump()
@@ -85,7 +93,12 @@ def create_supplier(body: SupplierCreate, db: Session = Depends(get_db), _: User
 
 
 @router.patch("/{supplier_id}")
-def update_supplier(supplier_id: str, body: SupplierUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_supplier(
+    supplier_id: str,
+    body: SupplierUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     s = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -100,7 +113,9 @@ def update_supplier(supplier_id: str, body: SupplierUpdate, db: Session = Depend
 
 
 @router.delete("/{supplier_id}")
-def delete_supplier(supplier_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_supplier(
+    supplier_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     s = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="Supplier not found")

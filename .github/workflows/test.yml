@@ -68,7 +68,6 @@ jobs:
 
       - name: Integration tests
         run: pytest -m integration -v --no-cov
-        continue-on-error: true  # TDD red phase — will go green in Phase 2a
 
       - name: Full suite + coverage (Python 3.11 only)
         if: matrix.python-version == '3.11'

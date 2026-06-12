@@ -4,7 +4,9 @@ import pytest
 @pytest.mark.integration
 def test_admin_settings_put_and_get(client):
     # PUT a setting
-    res = client.put("/admin/settings/field_config", json={"value": '{"price_level": true}'})
+    res = client.put(
+        "/admin/settings/field_config", json={"value": '{"price_level": true}'}
+    )
     assert res.status_code == 200
     assert res.json()["key"] == "field_config"
 

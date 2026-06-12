@@ -6,7 +6,6 @@ Covers: CRUD, GST calculation on create, GST on receive.
 
 import pytest
 
-
 PO_BASE = {
     "id": "PO-TEST1",
     "supplier_id": "SUP001",
@@ -14,7 +13,13 @@ PO_BASE = {
     "status": "Draft",
     "order_date": "2025-07-01",
     "items": [
-        {"sku": "SKU001", "description": "T-Shirt", "qty_ordered": 10, "unit_cost": 20.00, "total": 200.00},
+        {
+            "sku": "SKU001",
+            "description": "T-Shirt",
+            "qty_ordered": 10,
+            "unit_cost": 20.00,
+            "total": 200.00,
+        },
     ],
 }
 
@@ -81,21 +86,36 @@ class TestPOGST:
         """Legacy `total` field should match total_inc."""
         r = client.post("/purchase-orders/", json=PO_BASE)
         data = r.json()
-        assert float(data["total"]) == pytest.approx(float(data.get("total_inc", data["total"])))
+        assert float(data["total"]) == pytest.approx(
+            float(data.get("total_inc", data["total"]))
+        )
 
 
 @pytest.mark.integration
 class TestPOReceive:
-    def test_receive_items_updates_stock(self, client, make_purchase_order, make_inventory):
+    def test_receive_items_updates_stock(
+        self, client, make_purchase_order, make_inventory
+    ):
         make_inventory(sku="RECV001", stock=0)
-        make_purchase_order(id="PO-RCV1", items=[
-            {"sku": "RECV001", "description": "Item", "qty_ordered": 5,
-             "qty_received": 0, "unit_cost": 10.00, "total": 50.00},
-        ])
+        make_purchase_order(
+            id="PO-RCV1",
+            items=[
+                {
+                    "sku": "RECV001",
+                    "description": "Item",
+                    "qty_ordered": 5,
+                    "qty_received": 0,
+                    "unit_cost": 10.00,
+                    "total": 50.00,
+                },
+            ],
+        )
         po = client.get("/purchase-orders/PO-RCV1").json()
         item_id = po["items"][0]["id"]
 
-        r = client.post("/purchase-orders/PO-RCV1/receive",
-                        json={"items": [{"id": item_id, "qty_received": 5}]})
+        r = client.post(
+            "/purchase-orders/PO-RCV1/receive",
+            json={"items": [{"id": item_id, "qty_received": 5}]},
+        )
         assert r.status_code == 200
         assert r.json()["status"] == "Received"

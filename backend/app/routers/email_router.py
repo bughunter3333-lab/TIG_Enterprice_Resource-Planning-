@@ -9,7 +9,7 @@ from typing import Optional
 from app.database import get_db, SessionLocal
 from app.models.job import Job
 from app.models.settings import CompanySettings, EmailLog
-from app.core.dependencies import require_any, require_staff, get_current_user
+from app.core.dependencies import require_any, require_staff
 from app.core.config import settings as app_settings
 from app.core.encryption import decrypt_value
 from app.models.user import User
@@ -23,7 +23,7 @@ class SendEmailRequest(BaseModel):
     cc: Optional[str] = None
     subject: Optional[str] = None
     message: Optional[str] = None
-    email_type: str = "invoice"   # invoice / quote / reminder
+    email_type: str = "invoice"  # invoice / quote / reminder
 
 
 def _get_settings(db: Session) -> CompanySettings:
@@ -31,9 +31,11 @@ def _get_settings(db: Session) -> CompanySettings:
     return s or CompanySettings()
 
 
-def _build_email_body(job: Job, settings: CompanySettings, email_type: str, custom_message: str = "") -> str:
+def _build_email_body(
+    job: Job, settings: CompanySettings, email_type: str, custom_message: str = ""
+) -> str:
     items_html = ""
-    for it in (job.items or []):
+    for it in job.items or []:
         if it.display_type != "product":
             continue
         items_html += (
@@ -57,18 +59,23 @@ def _build_email_body(job: Job, settings: CompanySettings, email_type: str, cust
           Account Name: {settings.bank_account_name or ""}
         </div>"""
 
-    abn_header = f'<div style="font-size:12px;opacity:0.8">ABN: {abn}</div>' if abn else ''
+    abn_header = (
+        f'<div style="font-size:12px;opacity:0.8">ABN: {abn}</div>' if abn else ""
+    )
     invoice_row = (
         f'<tr><td style="color:#666">Invoice #:</td><td>{job.invoice or ""}</td></tr>'
-        if job.invoice else ''
+        if job.invoice
+        else ""
     )
     due_row = (
         f'<tr><td style="color:#666">Due:</td><td>{job.due or ""}</td></tr>'
-        if job.due else ''
+        if job.due
+        else ""
     )
     custom_msg_html = (
         f'<p style="background:#f0f7ff;border-left:4px solid #1e3a5f;padding:12px;margin:16px 0">{custom_message}</p>'
-        if custom_message else ''
+        if custom_message
+        else ""
     )
     balance_row = ""
     if float(job.balance_due or 0) > 0:
@@ -76,12 +83,12 @@ def _build_email_body(job: Job, settings: CompanySettings, email_type: str, cust
             f'<tr style="color:#cc0000">'
             f'<td style="padding:2px 8px">Balance Due:</td>'
             f'<td style="padding:2px 8px;text-align:right">${float(job.balance_due or 0):.2f}</td>'
-            f'</tr>'
+            f"</tr>"
         )
     heading = "Tax Invoice" if email_type == "invoice" else "Quote"
-    phone_part = f' &nbsp;|&nbsp; {settings.phone}' if settings.phone else ''
-    email_part = f' &nbsp;|&nbsp; {settings.email}' if settings.email else ''
-    abn_footer = f' &nbsp;|&nbsp; ABN: {abn}' if abn else ''
+    phone_part = f" &nbsp;|&nbsp; {settings.phone}" if settings.phone else ""
+    email_part = f" &nbsp;|&nbsp; {settings.email}" if settings.email else ""
+    abn_footer = f" &nbsp;|&nbsp; ABN: {abn}" if abn else ""
 
     return f"""
 <html><body style='font-family:Arial,sans-serif;color:#333;max-width:700px;margin:auto;padding:20px'>
@@ -138,7 +145,9 @@ def _send_email_background(
             server = smtplib.SMTP(smtp_config["host"], smtp_config["port"], timeout=15)
             server.starttls()
         else:
-            server = smtplib.SMTP_SSL(smtp_config["host"], smtp_config["port"], timeout=15)
+            server = smtplib.SMTP_SSL(
+                smtp_config["host"], smtp_config["port"], timeout=15
+            )
         server.login(smtp_config["user"], smtp_config["password"])
         server.sendmail(smtp_config["user"], recipients, msg_string)
         server.quit()
@@ -170,9 +179,17 @@ def send_email(
 ):
     settings = _get_settings(db)
     if not settings.smtp_host:
-        raise HTTPException(status_code=400, detail="SMTP not configured. Set SMTP settings in Company Settings.")
+        raise HTTPException(
+            status_code=400,
+            detail="SMTP not configured. Set SMTP settings in Company Settings.",
+        )
 
-    job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == body.job_id).first()
+    job = (
+        db.query(Job)
+        .options(joinedload(Job.items))
+        .filter(Job.id == body.job_id)
+        .first()
+    )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -185,7 +202,9 @@ def send_email(
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"{settings.smtp_from_name or settings.company_name or 'TIG'} <{settings.smtp_user}>"
+    msg["From"] = (
+        f"{settings.smtp_from_name or settings.company_name or 'TIG'} <{settings.smtp_user}>"
+    )
     msg["To"] = body.to_email
     if body.cc:
         msg["Cc"] = body.cc
@@ -197,7 +216,9 @@ def send_email(
     smtp_password = None
     if settings.smtp_password:
         try:
-            smtp_password = decrypt_value(settings.smtp_password, app_settings.SECRET_KEY)
+            smtp_password = decrypt_value(
+                settings.smtp_password, app_settings.SECRET_KEY
+            )
         except ValueError:
             smtp_password = settings.smtp_password
 

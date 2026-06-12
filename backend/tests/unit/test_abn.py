@@ -7,26 +7,25 @@ Reference: https://abr.business.gov.au/Help/AbnFormat
 import pytest
 from app.core.abn import validate_abn, format_abn, clean_abn
 
-
 # ---------------------------------------------------------------------------
 # Valid ABNs (real and test values that pass the ATO checksum)
 # ---------------------------------------------------------------------------
 
 VALID_ABNS = [
-    "51824753556",     # ATO example from their documentation
+    "51824753556",  # ATO example from their documentation
     "51 824 753 556",  # with spaces — same number
     "51-824-753-556",  # with hyphens — same number
-    "83914571673",     # independently verified
+    "83914571673",  # independently verified
 ]
 
 INVALID_ABNS = [
-    "12345678901",   # fails checksum
-    "00000000000",   # all zeros — fails
-    "1234567890",    # only 10 digits
+    "12345678901",  # fails checksum
+    "00000000000",  # all zeros — fails
+    "1234567890",  # only 10 digits
     "123456789012",  # 12 digits
-    "abcdefghijk",   # not digits
-    "",              # empty
-    "   ",           # whitespace only
+    "abcdefghijk",  # not digits
+    "",  # empty
+    "   ",  # whitespace only
 ]
 
 
@@ -62,6 +61,7 @@ def test_validate_abn_rejects_none_equivalent():
 # format_abn
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 def test_format_abn_standard():
     assert format_abn("51824753556") == "51 824 753 556"
@@ -82,6 +82,7 @@ def test_format_abn_non_11_digits_passthrough():
 # ---------------------------------------------------------------------------
 # clean_abn
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 def test_clean_abn_strips_spaces():

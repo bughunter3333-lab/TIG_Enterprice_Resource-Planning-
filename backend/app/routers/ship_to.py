@@ -33,24 +33,45 @@ class ShipToUpdate(BaseModel):
 
 
 @router.get("/{customer_id}/ship-tos")
-def list_ship_tos(customer_id: str, db: Session = Depends(get_db), _=Depends(require_any)):
+def list_ship_tos(
+    customer_id: str, db: Session = Depends(get_db), _=Depends(require_any)
+):
     if not db.query(Customer).filter(Customer.id == customer_id).first():
         raise HTTPException(status_code=404, detail="Customer not found")
-    return db.query(CustomerShipTo).filter(CustomerShipTo.customer_id == customer_id).order_by(CustomerShipTo.code).all()
+    return (
+        db.query(CustomerShipTo)
+        .filter(CustomerShipTo.customer_id == customer_id)
+        .order_by(CustomerShipTo.code)
+        .all()
+    )
 
 
 @router.post("/{customer_id}/ship-tos", status_code=201)
-def create_ship_to(customer_id: str, body: ShipToCreate, db: Session = Depends(get_db), _=Depends(require_staff)):
+def create_ship_to(
+    customer_id: str,
+    body: ShipToCreate,
+    db: Session = Depends(get_db),
+    _=Depends(require_staff),
+):
     if not db.query(Customer).filter(Customer.id == customer_id).first():
         raise HTTPException(status_code=404, detail="Customer not found")
-    existing = db.query(CustomerShipTo).filter(
-        CustomerShipTo.customer_id == customer_id,
-        CustomerShipTo.code == body.code,
-    ).first()
+    existing = (
+        db.query(CustomerShipTo)
+        .filter(
+            CustomerShipTo.customer_id == customer_id,
+            CustomerShipTo.code == body.code,
+        )
+        .first()
+    )
     if existing:
-        raise HTTPException(status_code=409, detail=f"Ship-to code '{body.code}' already exists for this customer")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ship-to code '{body.code}' already exists for this customer",
+        )
     if body.is_default:
-        db.query(CustomerShipTo).filter(CustomerShipTo.customer_id == customer_id).update({"is_default": False})
+        db.query(CustomerShipTo).filter(
+            CustomerShipTo.customer_id == customer_id
+        ).update({"is_default": False})
     ship_to = CustomerShipTo(customer_id=customer_id, **body.model_dump())
     db.add(ship_to)
     db.commit()
@@ -66,14 +87,20 @@ def update_ship_to(
     db: Session = Depends(get_db),
     _=Depends(require_staff),
 ):
-    ship_to = db.query(CustomerShipTo).filter(
-        CustomerShipTo.id == ship_to_id,
-        CustomerShipTo.customer_id == customer_id,
-    ).first()
+    ship_to = (
+        db.query(CustomerShipTo)
+        .filter(
+            CustomerShipTo.id == ship_to_id,
+            CustomerShipTo.customer_id == customer_id,
+        )
+        .first()
+    )
     if not ship_to:
         raise HTTPException(status_code=404, detail="Ship-to address not found")
     if body.is_default:
-        db.query(CustomerShipTo).filter(CustomerShipTo.customer_id == customer_id).update({"is_default": False})
+        db.query(CustomerShipTo).filter(
+            CustomerShipTo.customer_id == customer_id
+        ).update({"is_default": False})
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(ship_to, field, value)
     db.commit()
@@ -88,10 +115,14 @@ def delete_ship_to(
     db: Session = Depends(get_db),
     _=Depends(require_staff),
 ):
-    ship_to = db.query(CustomerShipTo).filter(
-        CustomerShipTo.id == ship_to_id,
-        CustomerShipTo.customer_id == customer_id,
-    ).first()
+    ship_to = (
+        db.query(CustomerShipTo)
+        .filter(
+            CustomerShipTo.id == ship_to_id,
+            CustomerShipTo.customer_id == customer_id,
+        )
+        .first()
+    )
     if not ship_to:
         raise HTTPException(status_code=404, detail="Ship-to address not found")
     db.delete(ship_to)

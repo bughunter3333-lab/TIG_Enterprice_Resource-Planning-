@@ -51,7 +51,11 @@ def _row(p: SupplierPriceList) -> dict:
 
 
 @router.get("/{supplier_id}/price-list")
-def list_price_list(supplier_id: str, db: Session = Depends(get_db), _=Depends(require_role(["admin", "staff"]))):
+def list_price_list(
+    supplier_id: str,
+    db: Session = Depends(get_db),
+    _=Depends(require_role(["admin", "staff"])),
+):
     supplier = db.get(Supplier, supplier_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -59,7 +63,12 @@ def list_price_list(supplier_id: str, db: Session = Depends(get_db), _=Depends(r
 
 
 @router.post("/{supplier_id}/price-list", status_code=201)
-def create_price_list_item(supplier_id: str, body: PriceListItemIn, db: Session = Depends(get_db), _=Depends(require_role(["admin", "staff"]))):
+def create_price_list_item(
+    supplier_id: str,
+    body: PriceListItemIn,
+    db: Session = Depends(get_db),
+    _=Depends(require_role(["admin", "staff"])),
+):
     supplier = db.get(Supplier, supplier_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -71,8 +80,18 @@ def create_price_list_item(supplier_id: str, body: PriceListItemIn, db: Session 
 
 
 @router.patch("/{supplier_id}/price-list/{item_id}")
-def update_price_list_item(supplier_id: str, item_id: int, body: PriceListItemPatch, db: Session = Depends(get_db), _=Depends(require_role(["admin", "staff"]))):
-    item = db.query(SupplierPriceList).filter_by(id=item_id, supplier_id=supplier_id).first()
+def update_price_list_item(
+    supplier_id: str,
+    item_id: int,
+    body: PriceListItemPatch,
+    db: Session = Depends(get_db),
+    _=Depends(require_role(["admin", "staff"])),
+):
+    item = (
+        db.query(SupplierPriceList)
+        .filter_by(id=item_id, supplier_id=supplier_id)
+        .first()
+    )
     if not item:
         raise HTTPException(status_code=404, detail="Price list item not found")
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -83,8 +102,17 @@ def update_price_list_item(supplier_id: str, item_id: int, body: PriceListItemPa
 
 
 @router.delete("/{supplier_id}/price-list/{item_id}", status_code=204)
-def delete_price_list_item(supplier_id: str, item_id: int, db: Session = Depends(get_db), _=Depends(require_role(["admin"]))):
-    item = db.query(SupplierPriceList).filter_by(id=item_id, supplier_id=supplier_id).first()
+def delete_price_list_item(
+    supplier_id: str,
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role(["admin"])),
+):
+    item = (
+        db.query(SupplierPriceList)
+        .filter_by(id=item_id, supplier_id=supplier_id)
+        .first()
+    )
     if not item:
         raise HTTPException(status_code=404, detail="Price list item not found")
     db.delete(item)

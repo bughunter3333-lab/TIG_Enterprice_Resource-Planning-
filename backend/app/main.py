@@ -1,7 +1,6 @@
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -9,8 +8,32 @@ from slowapi import _rate_limit_exceeded_handler
 from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging_config import configure_logging, request_id_var
-from app.routers import auth, users, jobs, inventory, customers, suppliers, purchase_orders, ai, import_data, card_files, open_freight, reports, email_router, settings_router, styles
-from app.routers import health, pdf, ship_to, supplier_price_list, goods_receipt, accounts_payable, analytics
+from app.routers import (
+    auth,
+    users,
+    jobs,
+    inventory,
+    customers,
+    suppliers,
+    purchase_orders,
+    ai,
+    import_data,
+    card_files,
+    open_freight,
+    reports,
+    email_router,
+    settings_router,
+    styles,
+)
+from app.routers import (
+    health,
+    pdf,
+    ship_to,
+    supplier_price_list,
+    goods_receipt,
+    accounts_payable,
+    analytics,
+)
 from app.routers.admin_settings import router as admin_settings_router
 
 configure_logging(json_logs=settings.is_production)
@@ -40,7 +63,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
@@ -53,7 +78,11 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "https://erp.totalimage.com.au"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://erp.totalimage.com.au",
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
@@ -82,4 +111,3 @@ app.include_router(goods_receipt.router)
 app.include_router(accounts_payable.router)
 app.include_router(analytics.router)
 app.include_router(admin_settings_router)
-

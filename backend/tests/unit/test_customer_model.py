@@ -59,12 +59,16 @@ def test_customer_status_filter(test_db_session: Session):
     test_db_session.commit()
 
     # Query active customers
-    active_customers = test_db_session.query(Customer).filter(Customer.status == "Active").all()
+    active_customers = (
+        test_db_session.query(Customer).filter(Customer.status == "Active").all()
+    )
     assert len(active_customers) == 1
     assert active_customers[0].id == "CUST003"
 
     # Query inactive customers
-    inactive_customers = test_db_session.query(Customer).filter(Customer.status == "Inactive").all()
+    inactive_customers = (
+        test_db_session.query(Customer).filter(Customer.status == "Inactive").all()
+    )
     assert len(inactive_customers) == 1
     assert inactive_customers[0].id == "CUST004"
 
