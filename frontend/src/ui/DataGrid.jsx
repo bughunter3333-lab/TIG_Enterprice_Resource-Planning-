@@ -3,6 +3,18 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { T } from './tokens';
 import Button from './Button';
 
+const cellBase = {
+  padding: '0 8px',
+  fontSize: T.fsGrid,
+  height: T.rowHeight,
+  display: 'flex',
+  alignItems: 'center',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  fontVariantNumeric: 'tabular-nums',
+};
+
 export default function DataGrid({
   columns,            // [{ key, label, width?, align?, render?(row) }]
   rows,               // array | null/undefined = loading
@@ -37,18 +49,6 @@ export default function DataGrid({
   const toggleSort = (key) =>
     setSort(s => (s?.key === key ? (s.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' }));
 
-  const cellBase = {
-    padding: '0 8px',
-    fontSize: T.fsGrid,
-    height: T.rowHeight,
-    display: 'flex',
-    alignItems: 'center',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    fontVariantNumeric: 'tabular-nums',
-  };
-
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, fontFamily: T.font, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight }}>
       {error && (
@@ -64,6 +64,7 @@ export default function DataGrid({
               key={c.key}
               role="columnheader"
               onClick={() => toggleSort(c.key)}
+              aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...cellBase,
                 height: 26,
@@ -96,6 +97,7 @@ export default function DataGrid({
           const key = row[rowKey];
           const selected = selectedKey != null && key === selectedKey;
           return (
+            // Hover uses direct style writes to avoid per-row re-renders; a sort re-render clears hover until re-enter (accepted trade-off). No virtualization yet — fine for current data sizes.
             <div
               key={key}
               role="row"
