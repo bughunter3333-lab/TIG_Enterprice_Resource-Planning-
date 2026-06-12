@@ -22,3 +22,18 @@ test('adds a filter via the + Filter menu', () => {
   fireEvent.click(screen.getByText('SM'));
   expect(onAdd).toHaveBeenCalledWith('accMgr', 'SM');
 });
+
+test('closes menu on outside mousedown', () => {
+  render(<FilterBar filters={[]} available={available} onAdd={() => {}} onRemove={() => {}} />);
+  fireEvent.click(screen.getByText('+ Filter'));
+  expect(screen.getByText('Status')).toBeInTheDocument();
+  fireEvent.mouseDown(document.body);
+  expect(screen.queryByText('Status')).not.toBeInTheDocument();
+});
+
+test('already-active filter fields are excluded from the add menu', () => {
+  render(<FilterBar filters={[{ key: 'status', label: 'Status', value: 'FINISH', display: 'Finish' }]} available={available} onAdd={() => {}} onRemove={() => {}} />);
+  fireEvent.click(screen.getByText('+ Filter'));
+  expect(screen.getByText('Acc Mgr')).toBeInTheDocument();
+  expect(screen.queryByText(/^Status$/)).not.toBeInTheDocument(); // chip says "Status: Finish", menu must not list bare "Status"
+});

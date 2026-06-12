@@ -13,8 +13,18 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
         setPickedKey(null);
       }
     };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setPickedKey(null);
+      }
+    };
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const picked = available.find(a => a.key === pickedKey);
@@ -46,7 +56,7 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
           role="button"
           tabIndex={0}
           onClick={() => { setMenuOpen(o => !o); setPickedKey(null); }}
-          onKeyDown={e => { if (e.key === 'Enter') setMenuOpen(o => !o); }}
+          onKeyDown={e => { if (e.key === 'Enter') { setMenuOpen(o => !o); setPickedKey(null); } }}
           style={{ fontSize: T.fsSmall, color: T.accentStrong, fontWeight: 700, cursor: 'pointer', padding: '2px 4px' }}
         >
           + Filter
@@ -68,7 +78,7 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
                 {a.label}
               </div>
             ))}
-            {picked && picked.options.map(o => (
+            {picked && (picked.options ?? []).map(o => (
               <div key={o.value} role="button" tabIndex={0}
                 onClick={() => { onAdd(picked.key, o.value); setMenuOpen(false); setPickedKey(null); }}
                 onKeyDown={e => { if (e.key === 'Enter') { onAdd(picked.key, o.value); setMenuOpen(false); setPickedKey(null); } }}
