@@ -50,6 +50,9 @@ black --check app tests
 - `app/routers/` — FastAPI routers (thin; business logic stays in core/)
 - `app/models/` — SQLAlchemy ORM models
 - `alembic/versions/` — DB migration history; latest head: `i3j4k5l6m7n8`
+- `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)
+- `frontend/src/ui/shell/` — app chrome: ModuleBar (top), LiveTree (left), StatusBar (bottom), AppShell (composition)
+- Frontend tests: `cd frontend && npm test` (vitest + testing-library)
 
 ## Test infrastructure
 
