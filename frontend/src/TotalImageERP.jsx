@@ -1962,6 +1962,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             onViewModeChange={setJobsViewMode}
             currentUser={currentUser}
             onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
+            lockedStatus={activeModule === 'quotes' ? 'QUOTE' : undefined}
           />
         )}
 
@@ -9156,7 +9157,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             ) : (
               <>
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
-                {!loading && activeModule === 'jobs'               && renderJobs()}
+                {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && renderJobs()}
                 {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
                 {!loading && activeModule === 'inventory'          && renderInventory()}
                 {!loading && activeModule === 'customers'          && renderCustomers()}
@@ -9174,7 +9175,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {!loading && activeModule === 'accounts' && (
                   <AccountsPayableModule suppliers={suppliers} />
                 )}
-                {!loading && ['ebusiness','documents','projects','assets','quotes'].includes(activeModule) && (
+                {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
                   <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                       <Settings className="w-8 h-8 text-gray-300" />
