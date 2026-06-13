@@ -51,6 +51,7 @@ Job Detail therefore moves to Phase 2c alongside the job form. Phase 2b is Quote
 **Files:**
 - Modify: `frontend/src/modules/jobs/JobsModule.jsx`
 - Test: append to `frontend/src/modules/jobs/__tests__/JobsModule.test.jsx`
+- Modify: `frontend/src/modules/jobs/JobsList.jsx` — hide the Status column when `lockedStatus` is set (redundant in a single-status view)
 
 When `lockedStatus` is set, JobsModule (a) forces the status filter to that value regardless of `filters.status`, (b) hides the Status chip (it's implied by the module, not removable), and (c) removes Status from the "+ Filter" add menu (can't add a conflicting status). All other filters work normally within the locked subset.
 

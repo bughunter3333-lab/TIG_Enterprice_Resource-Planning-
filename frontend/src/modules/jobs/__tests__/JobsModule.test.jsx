@@ -65,11 +65,23 @@ test('lockedStatus shows only matching jobs regardless of filters.status', () =>
   expect(screen.queryByText('3002')).not.toBeInTheDocument();
 });
 
-test('lockedStatus hides the Status chip and removes Status from the add menu', () => {
+test('lockedStatus hides Status chip, Status column, and Status from the add menu', () => {
+  const { unmount } = render(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS }} />);
+  // Baseline (not locked): the Status column header IS present
+  expect(screen.getByText('Status')).toBeInTheDocument();
+  unmount();
+
   render(<JobsModule {...base} lockedStatus="QUOTE" filters={{ ...EMPTY_JOBS_FILTERS, status: 'QUOTE' }} />);
-  // no removable Status chip
+  // (a) no removable Status chip
   expect(screen.queryByLabelText('Remove Status filter')).not.toBeInTheDocument();
-  // Status not offered in the + Filter menu
-  fireEvent.click(screen.getByText('+ Filter'));
+  // (b) Status column header hidden (redundant when every row is QUOTE)
   expect(screen.queryByText('Status')).not.toBeInTheDocument();
+  // (c) opening the add menu offers other fields but not Status
+  fireEvent.click(screen.getByText('+ Filter'));
+  // After menu opens, verify Priority is offered (shows the menu is working)
+  const priorityOptions = screen.getAllByText('Priority');
+  expect(priorityOptions.length).toBeGreaterThan(1); // column header + menu item
+  // Status is not offered in the menu
+  const statusOptions = screen.queryAllByText('Status');
+  expect(statusOptions.length).toBe(0); // no Status anywhere (column hidden, not in menu)
 });
