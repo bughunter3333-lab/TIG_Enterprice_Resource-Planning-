@@ -65,6 +65,31 @@ class StocktakeRequest(BaseModel):
     items: List[StocktakeItemIn]
 
 
+class LocationCreate(BaseModel):
+    branch: str
+    zone: Optional[str] = None
+    qty_on_hand: int = 0
+    committed_qty: int = 0
+    backorder_qty: int = 0
+    on_po_qty: int = 0
+    primary_bin_1: Optional[str] = None
+    max_qty_bin_1: Optional[int] = None
+    primary_bin_2: Optional[str] = None
+    max_qty_bin_2: Optional[int] = None
+
+
+class LocationUpdate(BaseModel):
+    zone: Optional[str] = None
+    qty_on_hand: Optional[int] = None
+    committed_qty: Optional[int] = None
+    backorder_qty: Optional[int] = None
+    on_po_qty: Optional[int] = None
+    primary_bin_1: Optional[str] = None
+    max_qty_bin_1: Optional[int] = None
+    primary_bin_2: Optional[str] = None
+    max_qty_bin_2: Optional[int] = None
+
+
 @router.get("/")
 def list_inventory(
     search: Optional[str] = Query(None),
@@ -231,6 +256,77 @@ def delete_item(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     db.delete(item)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/{sku}/locations")
+def get_locations(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+    from app.models.stock_location import StockLocation
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    locs = db.query(StockLocation).filter(StockLocation.sku == sku).order_by(StockLocation.branch).all()
+    return [
+        {
+            "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
+            "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
+            "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
+            "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
+            "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+            "max_qty_bin_2": loc.max_qty_bin_2,
+        }
+        for loc in locs
+    ]
+
+
+@router.post("/{sku}/locations")
+def add_location(sku: str, body: LocationCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_location import StockLocation
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    if db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == body.branch).first():
+        raise HTTPException(status_code=409, detail=f"Location '{body.branch}' already exists for this SKU")
+    loc = StockLocation(sku=sku, **body.model_dump())
+    db.add(loc)
+    db.commit()
+    db.refresh(loc)
+    return {
+        "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
+        "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
+        "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
+        "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
+        "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+        "max_qty_bin_2": loc.max_qty_bin_2,
+    }
+
+
+@router.patch("/{sku}/locations/{branch}")
+def update_location(sku: str, branch: str, body: LocationUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_location import StockLocation
+    loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(loc, field, value)
+    db.commit()
+    db.refresh(loc)
+    return {
+        "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
+        "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
+        "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
+        "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
+        "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+        "max_qty_bin_2": loc.max_qty_bin_2,
+    }
+
+
+@router.delete("/{sku}/locations/{branch}")
+def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_location import StockLocation
+    loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    db.delete(loc)
     db.commit()
     return {"ok": True}
 
