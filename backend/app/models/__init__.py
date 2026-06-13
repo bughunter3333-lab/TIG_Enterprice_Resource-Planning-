@@ -13,3 +13,5 @@ from app.models.style import Style, StyleColour, StyleSize
 from app.models.supplier_price_list import SupplierPriceList
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine
 from app.models.supplier_bill import SupplierBill
+from app.models.stock_location import StockLocation
+from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
