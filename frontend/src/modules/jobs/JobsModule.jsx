@@ -21,7 +21,10 @@ export default function JobsModule({
   jobs, filters, onFilterChange, onClearFilters,
   viewMode, onViewModeChange, currentUser, onJobClick, lockedStatus,
 }) {
-  const effectiveFilters = lockedStatus ? { ...filters, status: lockedStatus } : filters;
+  const effectiveFilters = useMemo(
+    () => (lockedStatus ? { ...filters, status: lockedStatus } : filters),
+    [filters, lockedStatus],
+  );
   const filtered = useMemo(() => filterJobs(jobs ?? [], effectiveFilters, currentUser), [jobs, effectiveFilters, currentUser]);
   const options = useMemo(() => buildFilterOptions(jobs ?? []), [jobs]);
 
