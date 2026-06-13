@@ -90,6 +90,35 @@ class LocationUpdate(BaseModel):
     max_qty_bin_2: Optional[int] = None
 
 
+class PriceBreakpointIn(BaseModel):
+    min_qty: int = 0
+    price_ex: float
+    price_inc: float
+    pont_pct: Optional[float] = None
+
+
+class PriceLevelCreate(BaseModel):
+    price_level: str
+    price_calc_method: str = "Fixed Price"
+    base_pl: Optional[str] = None
+    currency: str = "AUD"
+    tax_code: str = "G"
+    breakpoints: List[PriceBreakpointIn] = []
+
+
+class CostUpdate(BaseModel):
+    last_cost: Optional[float] = None
+    last_cog: Optional[float] = None
+    avg_cost: Optional[float] = None
+    avg_cog: Optional[float] = None
+    max_cog: Optional[float] = None
+    last_po_cogs: Optional[float] = None
+    avg_po_cogs: Optional[float] = None
+    last_ex: Optional[float] = None
+    last_effective_date: Optional[str] = None
+    price_template: Optional[str] = None
+
+
 @router.get("/")
 def list_inventory(
     search: Optional[str] = Query(None),
@@ -327,6 +356,135 @@ def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: Use
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     db.delete(loc)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/{sku}/pricing")
+def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+    from app.models.stock_pricing import StockPriceLevel
+    item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    levels = (
+        db.query(StockPriceLevel)
+        .options(joinedload(StockPriceLevel.breakpoints))
+        .filter(StockPriceLevel.sku == sku)
+        .all()
+    )
+    return {
+        "last_cost": float(item.last_cost) if item.last_cost is not None else None,
+        "last_cog": float(item.last_cog) if item.last_cog is not None else None,
+        "avg_cost": float(item.avg_cost) if item.avg_cost is not None else None,
+        "avg_cog": float(item.avg_cog) if item.avg_cog is not None else None,
+        "max_cog": float(item.max_cog) if item.max_cog is not None else None,
+        "last_po_cogs": float(item.last_po_cogs) if item.last_po_cogs is not None else None,
+        "avg_po_cogs": float(item.avg_po_cogs) if item.avg_po_cogs is not None else None,
+        "last_ex": float(item.last_ex) if item.last_ex is not None else None,
+        "last_effective_date": item.last_effective_date,
+        "price_template": item.price_template,
+        "price_levels": [
+            {
+                "id": pl.id,
+                "price_level": pl.price_level,
+                "price_calc_method": pl.price_calc_method,
+                "base_pl": pl.base_pl,
+                "currency": pl.currency,
+                "tax_code": pl.tax_code,
+                "breakpoints": [
+                    {
+                        "id": bp.id,
+                        "min_qty": bp.min_qty,
+                        "price_ex": float(bp.price_ex),
+                        "price_inc": float(bp.price_inc),
+                        "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None,
+                    }
+                    for bp in pl.breakpoints
+                ],
+            }
+            for pl in levels
+        ],
+    }
+
+
+@router.put("/{sku}/pricing/cost")
+def update_cost(sku: str, body: CostUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(item, field, value)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/{sku}/pricing/levels")
+def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    if db.query(StockPriceLevel).filter(StockPriceLevel.sku == sku, StockPriceLevel.price_level == body.price_level).first():
+        raise HTTPException(status_code=409, detail=f"Price level '{body.price_level}' already exists for this SKU")
+    level = StockPriceLevel(
+        sku=sku,
+        price_level=body.price_level,
+        price_calc_method=body.price_calc_method,
+        base_pl=body.base_pl,
+        currency=body.currency,
+        tax_code=body.tax_code,
+    )
+    for bp in body.breakpoints:
+        level.breakpoints.append(StockPriceBreakpoint(**bp.model_dump()))
+    db.add(level)
+    db.commit()
+    db.refresh(level)
+    return {
+        "id": level.id,
+        "price_level": level.price_level,
+        "price_calc_method": level.price_calc_method,
+        "currency": level.currency,
+        "tax_code": level.tax_code,
+        "breakpoints": [
+            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc)}
+            for bp in level.breakpoints
+        ],
+    }
+
+
+@router.put("/{sku}/pricing/levels/{level_id}")
+def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
+    level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
+    if not level:
+        raise HTTPException(status_code=404, detail="Price level not found")
+    level.price_level = body.price_level
+    level.price_calc_method = body.price_calc_method
+    level.base_pl = body.base_pl
+    level.currency = body.currency
+    level.tax_code = body.tax_code
+    for bp in list(level.breakpoints):
+        db.delete(bp)
+    db.flush()
+    level.breakpoints = [StockPriceBreakpoint(**bp.model_dump()) for bp in body.breakpoints]
+    db.commit()
+    db.refresh(level)
+    return {
+        "id": level.id,
+        "price_level": level.price_level,
+        "breakpoints": [
+            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc)}
+            for bp in level.breakpoints
+        ],
+    }
+
+
+@router.delete("/{sku}/pricing/levels/{level_id}")
+def delete_price_level(sku: str, level_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+    from app.models.stock_pricing import StockPriceLevel
+    level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
+    if not level:
+        raise HTTPException(status_code=404, detail="Price level not found")
+    db.delete(level)
     db.commit()
     return {"ok": True}
 
