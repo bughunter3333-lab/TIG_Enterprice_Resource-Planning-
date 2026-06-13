@@ -16,6 +16,7 @@ import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
+import JobsModule from './modules/jobs/JobsModule';
 import AdminPanel from './components/admin/AdminPanel';
 
 
@@ -684,7 +685,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [filterCustomerGroup, setFilterCustomerGroup] = useState('all');
   const [filterOpenFreight, setFilterOpenFreight] = useState(false);
   const [filterQuick, setFilterQuick] = useState(null);
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const [paymentModal, setPaymentModal] = useState({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
@@ -1893,115 +1893,41 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       />
     );
   };
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('all');
+    setFilterPriority('all');
+    setFilterCustomer('all');
+    setFilterAssignedTo('all');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterShipCode('all');
+    setFilterCustomerGroup('all');
+    setFilterOpenFreight(false);
+    setFilterQuick(null);
+  };
+
+  const setJobsFilter = (key, value) => {
+    const setters = {
+      searchTerm: setSearchTerm,
+      status: setFilterStatus,
+      priority: setFilterPriority,
+      customer: setFilterCustomer,
+      assignedTo: setFilterAssignedTo,
+      dateFrom: setFilterDateFrom,
+      dateTo: setFilterDateTo,
+      dateField: setFilterDateField,
+      shipCode: setFilterShipCode,
+      customerGroup: setFilterCustomerGroup,
+      openFreight: setFilterOpenFreight,
+      quick: setFilterQuick,
+      jobList: setActiveJobList,
+    };
+    setters[key]?.(value);
+  };
+
   // Render Jobs Module
   const renderJobs = () => {
-    // Build unique lists for filter dropdowns
-    const uniqueCustomers = [...new Map(jobs.map(j => [j.customerId, { id: j.customerId, name: j.customer }])).values()]
-      .filter(c => c.id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    const uniqueAssignees = [...new Set(jobs.map(j => j.assignedTo).filter(Boolean))].sort();
-    const uniqueShipCodes = [...new Set(jobs.map(j => j.shipTo).filter(Boolean))].sort();
-    const uniqueGroups = [...new Set(jobs.map(j => j.customerId ? j.customerId.split('.')[0] : null).filter(Boolean))].sort();
-
-    const parseJobDate = (str) => {
-      if (!str) return null;
-      const s = str.split(' ')[0];
-      const parts = s.split('/');
-      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-      return new Date(s);
-    };
-
-    const filteredJobs = jobs.filter(job => {
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = !term ||
-        String(job.id).toLowerCase().includes(term) ||
-        (job.customer || '').toLowerCase().includes(term) ||
-        (job.customerId || '').toLowerCase().includes(term) ||
-        (job.invoice || '').toLowerCase().includes(term) ||
-        (job.custRef || '').toLowerCase().includes(term) ||
-        (job.ourRef || '').toLowerCase().includes(term) ||
-        (job.shipTo || '').toLowerCase().includes(term);
-
-      const matchesStatus = filterStatus === 'all' || job.status === filterStatus;
-      const matchesPriority = filterPriority === 'all' || job.priority === filterPriority;
-      const matchesCustomer = filterCustomer === 'all' || job.customerId === filterCustomer;
-      const matchesAssigned = filterAssignedTo === 'all' || job.assignedTo === filterAssignedTo;
-
-      let matchesDate = true;
-      if (filterDateFrom || filterDateTo) {
-        const jobDate = parseJobDate(job[filterDateField]);
-        if (jobDate) {
-          if (filterDateFrom && jobDate < new Date(filterDateFrom)) matchesDate = false;
-          if (filterDateTo && jobDate > new Date(filterDateTo + 'T23:59:59')) matchesDate = false;
-        }
-      }
-
-      const matchesShipCode = filterShipCode === 'all' || job.shipTo === filterShipCode;
-      const jobGroup = job.customerId ? job.customerId.split('.')[0] : '';
-      const matchesGroup = filterCustomerGroup === 'all' || jobGroup === filterCustomerGroup;
-      const matchesOpenFreight = !filterOpenFreight || (
-        job.shipTo && !['PAID', 'CANCEL'].includes(job.status)
-      );
-
-      const matchesJobList = !activeJobList || (
-        (!activeJobList.customerId || job.customerId === activeJobList.customerId) &&
-        (!activeJobList.status || job.status === activeJobList.status) &&
-        (!activeJobList.priority || job.priority === activeJobList.priority)
-      );
-
-      let matchesQuick = true;
-      if (filterQuick) {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const due = parseJobDate(job.due);
-        const finished = ['PAID','CANCEL','FINISH','INVOICE'].includes(job.status);
-        if (filterQuick === 'overdue')     matchesQuick = !!due && due < now && !finished;
-        if (filterQuick === 'dueToday')    matchesQuick = !!due && due.toISOString().split('T')[0] === todayStr && !finished;
-        if (filterQuick === 'thisWeek') {
-          const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
-          matchesQuick = !!due && due >= now && due <= weekEnd && !finished;
-        }
-        if (filterQuick === 'inProduction') matchesQuick = ['In Progress','PROOF','PRINT','Pick/Pack'].includes(job.status);
-        if (filterQuick === 'needsInvoice') matchesQuick = job.invoiceStatus === 'to_invoice' || job.status === 'FINISH';
-        if (filterQuick === 'myJobs')       matchesQuick = job.assignedTo === (currentUser?.full_name || currentUser?.username);
-        if (filterQuick === 'urgent')       matchesQuick = job.priority === 'Urgent';
-      }
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesCustomer && matchesAssigned && matchesDate && matchesShipCode && matchesGroup && matchesOpenFreight && matchesJobList && matchesQuick;
-    });
-
-    const hasActiveFilters = filterStatus !== 'all' || filterPriority !== 'all' || filterCustomer !== 'all' ||
-      filterAssignedTo !== 'all' || filterDateFrom || filterDateTo || searchTerm ||
-      filterShipCode !== 'all' || filterCustomerGroup !== 'all' || filterOpenFreight || filterQuick;
-
-    const clearFilters = () => {
-      setSearchTerm('');
-      setFilterStatus('all');
-      setFilterPriority('all');
-      setFilterCustomer('all');
-      setFilterAssignedTo('all');
-      setFilterDateFrom('');
-      setFilterDateTo('');
-      setFilterShipCode('all');
-      setFilterCustomerGroup('all');
-      setFilterOpenFreight(false);
-      setFilterQuick(null);
-      setShowMoreFilters(false);
-    };
-
-    const statusColors = {
-      QUOTE: 'bg-gray-100 text-gray-700',
-      New: 'bg-blue-100 text-blue-700',
-      ORDER: 'bg-indigo-100 text-indigo-700',
-      'In Progress': 'bg-yellow-100 text-yellow-800',
-      PROOF: 'bg-purple-100 text-purple-700',
-      PRINT: 'bg-orange-100 text-orange-700',
-      'Pick/Pack': 'bg-cyan-100 text-cyan-700',
-      FINISH: 'bg-green-100 text-green-800',
-      INVOICE: 'bg-teal-100 text-teal-700',
-      PAID: 'bg-emerald-100 text-emerald-800',
-      CANCEL: 'bg-red-100 text-red-700',
-    };
-
     const jStatusColors = {
       QUOTE:'bg-gray-100 text-gray-700', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700',
       'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-orange-100 text-orange-700',
@@ -2012,10 +1938,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <div className="space-y-4">
         {!showJobDetail && (
-          <JobsBoard
-            jobs={filteredJobs}
-            onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
+          <JobsModule
+            jobs={jobs}
+            filters={{
+              searchTerm,
+              status: filterStatus,
+              priority: filterPriority,
+              customer: filterCustomer,
+              assignedTo: filterAssignedTo,
+              dateFrom: filterDateFrom,
+              dateTo: filterDateTo,
+              dateField: filterDateField,
+              shipCode: filterShipCode,
+              customerGroup: filterCustomerGroup,
+              openFreight: filterOpenFreight,
+              quick: filterQuick,
+              jobList: activeJobList,
+            }}
+            onFilterChange={setJobsFilter}
+            onClearFilters={clearFilters}
+            viewMode={jobsViewMode === 'board' ? 'board' : 'table'}
+            onViewModeChange={setJobsViewMode}
             currentUser={currentUser}
+            onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
           />
         )}
 
