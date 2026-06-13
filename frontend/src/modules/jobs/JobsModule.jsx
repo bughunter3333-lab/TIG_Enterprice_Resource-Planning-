@@ -3,7 +3,7 @@ import FilterBar from '../../ui/FilterBar';
 import Button from '../../ui/Button';
 import JobsList from './JobsList';
 import JobsBoard from '../../components/jobs/JobsBoard';
-import { filterJobs, buildFilterOptions, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from './jobsFilters';
+import { filterJobs, buildFilterOptions, QUICK_FILTERS } from './jobsFilters';
 import { STATUS_COLORS, T } from '../../ui/tokens';
 
 // Maps controlled-filter keys → FilterBar chip defs. 'all'/empty/null = inactive.
