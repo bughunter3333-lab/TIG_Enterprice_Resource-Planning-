@@ -16,10 +16,14 @@ const COLUMNS = [
   { key: 'due', label: 'Due', width: 90 },
 ];
 
-export default function JobsList({ jobs, onJobClick }) {
+export default function JobsList({ jobs, onJobClick, lockedStatus }) {
+  const columns = lockedStatus
+    ? COLUMNS.filter(col => col.key !== 'status')
+    : COLUMNS;
+
   return (
     <DataGrid
-      columns={COLUMNS}
+      columns={columns}
       rows={jobs}
       rowKey="id"
       onRowClick={onJobClick}

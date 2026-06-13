@@ -54,3 +54,22 @@ test('view toggle fires onViewModeChange', () => {
   fireEvent.click(screen.getByLabelText('Board view'));
   expect(base.onViewModeChange).toHaveBeenCalledWith('board');
 });
+
+test('lockedStatus shows only matching jobs regardless of filters.status', () => {
+  render(<JobsModule {...base} lockedStatus="QUOTE" jobs={[
+    { id: '3001', customer: 'A', customerId: 'A', status: 'QUOTE', priority: 'Normal', assignedTo: 'Emon', due: '12/06/2026', total: 10, items: [], shipTo: 'SYD' },
+    { id: '3002', customer: 'B', customerId: 'B', status: 'PRINT', priority: 'Normal', assignedTo: 'Sam', due: '12/06/2026', total: 20, items: [], shipTo: 'MEL' },
+  ]} filters={{ ...EMPTY_JOBS_FILTERS, status: 'PRINT' }} />);
+  // status:'PRINT' in filters is overridden by lockedStatus:'QUOTE'
+  expect(screen.getByText('3001')).toBeInTheDocument();
+  expect(screen.queryByText('3002')).not.toBeInTheDocument();
+});
+
+test('lockedStatus hides the Status chip and removes Status from the add menu', () => {
+  render(<JobsModule {...base} lockedStatus="QUOTE" filters={{ ...EMPTY_JOBS_FILTERS, status: 'QUOTE' }} />);
+  // no removable Status chip
+  expect(screen.queryByLabelText('Remove Status filter')).not.toBeInTheDocument();
+  // Status not offered in the + Filter menu
+  fireEvent.click(screen.getByText('+ Filter'));
+  expect(screen.queryByText('Status')).not.toBeInTheDocument();
+});

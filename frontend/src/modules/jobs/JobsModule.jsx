@@ -19,12 +19,14 @@ const CHIP_DEFS = [
 
 export default function JobsModule({
   jobs, filters, onFilterChange, onClearFilters,
-  viewMode, onViewModeChange, currentUser, onJobClick,
+  viewMode, onViewModeChange, currentUser, onJobClick, lockedStatus,
 }) {
-  const filtered = useMemo(() => filterJobs(jobs ?? [], filters, currentUser), [jobs, filters, currentUser]);
+  const effectiveFilters = lockedStatus ? { ...filters, status: lockedStatus } : filters;
+  const filtered = useMemo(() => filterJobs(jobs ?? [], effectiveFilters, currentUser), [jobs, effectiveFilters, currentUser]);
   const options = useMemo(() => buildFilterOptions(jobs ?? []), [jobs]);
 
   const chips = CHIP_DEFS
+    .filter(d => !(lockedStatus && d.key === 'status'))
     .filter(d => filters[d.key] !== d.inactive && filters[d.key] != null && filters[d.key] !== '')
     .map(d => ({
       key: d.key,
@@ -47,6 +49,8 @@ export default function JobsModule({
     { key: 'quick', label: 'Quick', options: QUICK_FILTERS.map(q => ({ value: q.id, label: q.label })) },
   ];
 
+  const availableFiltered = lockedStatus ? available.filter(a => a.key !== 'status') : available;
+
   const removeFilter = (key) => {
     const def = CHIP_DEFS.find(d => d.key === key);
     onFilterChange(key, def ? def.inactive : 'all');
@@ -57,7 +61,7 @@ export default function JobsModule({
       <div style={{ marginBottom: 10 }}>
         <FilterBar
           filters={chips}
-          available={available}
+          available={availableFiltered}
           onAdd={onFilterChange}
           onRemove={removeFilter}
           right={
@@ -87,7 +91,7 @@ export default function JobsModule({
       </div>
       {viewMode === 'board'
         ? <JobsBoard jobs={filtered} onJobClick={onJobClick} />
-        : <JobsList jobs={filtered} onJobClick={onJobClick} />}
+        : <JobsList jobs={filtered} onJobClick={onJobClick} lockedStatus={lockedStatus} />}
     </div>
   );
 }
