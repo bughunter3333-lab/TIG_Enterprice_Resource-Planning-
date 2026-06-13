@@ -1905,6 +1905,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setFilterCustomerGroup('all');
     setFilterOpenFreight(false);
     setFilterQuick(null);
+    setActiveJobList(null);
   };
 
   const setJobsFilter = (key, value) => {
