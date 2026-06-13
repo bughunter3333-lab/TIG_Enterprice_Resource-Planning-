@@ -55,3 +55,26 @@ test('buildFilterOptions produces sorted unique lists', () => {
 test('QUICK_FILTERS exposes the seven quick filter ids', () => {
   expect(QUICK_FILTERS.map(q => q.id)).toEqual(['overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs', 'urgent']);
 });
+
+test('time-sensitive quick filters are deterministic with injected now', () => {
+  const FIXED = new Date('2026-06-12T03:00:00Z'); // a stable reference instant
+  const d = (date) => `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()}`;
+  const dayBefore = new Date(FIXED.getTime() - 86400000);
+  const dayAfter = new Date(FIXED.getTime() + 86400000);
+  const within = new Date(FIXED.getTime() + 3 * 86400000);
+
+  const tjobs = [
+    { id: 'A', status: 'PRINT', due: d(dayBefore) },   // overdue
+    { id: 'B', status: 'ORDER', due: d(within) },       // this week
+    { id: 'C', status: 'In Progress', due: d(dayAfter) }, // in production
+    { id: 'D', status: 'FINISH', due: d(dayBefore) },   // needs invoice (and overdue, but finished)
+    { id: 'E', status: 'PAID', due: d(dayBefore) },     // finished — excluded from overdue
+  ];
+
+  const ids = (quick) => filterJobs(tjobs, { ...EMPTY_JOBS_FILTERS, quick }, null, FIXED).map(j => j.id);
+
+  expect(ids('overdue')).toEqual(['A']);                 // D and E finished, excluded
+  expect(ids('thisWeek')).toEqual(['B', 'C']);           // both future within 7 days
+  expect(ids('inProduction')).toEqual(['A', 'C']);       // A is PRINT (in production), C is In Progress
+  expect(ids('needsInvoice')).toEqual(['D']);            // FINISH status
+});

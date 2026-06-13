@@ -35,7 +35,7 @@ export function buildFilterOptions(jobs) {
   return { uniqueCustomers, uniqueAssignees, uniqueShipCodes, uniqueGroups };
 }
 
-export function filterJobs(jobs, f, currentUser) {
+export function filterJobs(jobs, f, currentUser, now = new Date()) {
   return jobs.filter(job => {
     const term = (f.searchTerm || '').toLowerCase();
     const matchesSearch = !term ||
@@ -74,7 +74,6 @@ export function filterJobs(jobs, f, currentUser) {
 
     let matchesQuick = true;
     if (f.quick) {
-      const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
       const due = parseD(job.due);
       const finished = ['PAID', 'CANCEL', 'FINISH', 'INVOICE'].includes(job.status);
