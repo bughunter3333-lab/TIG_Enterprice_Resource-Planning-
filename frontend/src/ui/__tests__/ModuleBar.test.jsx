@@ -44,3 +44,9 @@ test('tree toggle renders only when onToggleTree provided and fires it', () => {
   fireEvent.click(screen.getByLabelText('Collapse tree'));
   expect(onToggleTree).toHaveBeenCalledTimes(1);
 });
+
+test('Ctrl+K focuses the search input', () => {
+  render(<ModuleBar {...base} />);
+  fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+  expect(screen.getByPlaceholderText('Search…')).toHaveFocus();
+});

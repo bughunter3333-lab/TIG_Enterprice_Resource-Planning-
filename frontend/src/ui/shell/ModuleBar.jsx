@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Search, Bell, Plus, Lock, PanelLeft } from 'lucide-react';
 import { T } from '../tokens';
 
@@ -20,6 +21,18 @@ export default function ModuleBar({
   treeOpen, onToggleTree,
 }) {
   const initials = (currentUser?.username ?? 'U').slice(0, 2).toUpperCase();
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div style={{
@@ -95,6 +108,7 @@ export default function ModuleBar({
       }}>
         <Search size={12} color={T.chromeTextMuted} />
         <input
+          ref={searchRef}
           value={searchValue}
           onChange={e => onSearchChange(e.target.value)}
           placeholder="Search…"
