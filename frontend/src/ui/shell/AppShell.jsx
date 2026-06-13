@@ -11,7 +11,7 @@ export default function AppShell({
   activeModule, onNavigate, adminMode, onAdminToggle, currentUser,
   badges, onNewJob, searchValue, onSearchChange, notifCount,
   // New:
-  jobs, pinnedJobs, onOpenJob, onUnpinJob,
+  jobs, pinnedJobs, onOpenJob, onUnpinJob, onSelectList,
   children,
 }) {
   const [treeOpen, setTreeOpen] = useState(() => {
@@ -47,7 +47,7 @@ export default function AppShell({
             currentUser={currentUser}
             onOpenJob={onOpenJob}
             onUnpinJob={onUnpinJob}
-            onSelectList={() => onNavigate('jobs')}
+            onSelectList={onSelectList ?? (() => onNavigate('jobs'))}
           />
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

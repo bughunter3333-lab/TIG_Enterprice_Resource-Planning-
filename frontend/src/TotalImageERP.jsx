@@ -8446,6 +8446,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       pinnedJobs={pinnedJobs}
       onOpenJob={pinJob}
       onUnpinJob={unpinJob}
+      onSelectList={(listId) => {
+        clearFilters();
+        if (listId === 'mine') setFilterQuick('myJobs');
+        else if (listId === 'due-today') setFilterQuick('dueToday');
+        else if (listId === 'overdue') setFilterQuick('overdue');
+        else if (listId === 'pickpack') setFilterStatus('Pick/Pack');
+        setShowJobDetail(false);
+        setActiveModule('jobs');
+      }}
     >
 
       {/* ── Contextual Action Toolbar ── */}
