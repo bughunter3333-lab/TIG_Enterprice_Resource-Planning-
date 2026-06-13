@@ -32,4 +32,11 @@ Thumbs.db
 # Backup / scratch files
 total_image_erp_full_1.jsx
 *.diff.txt
+*_diff.txt
 .superpowers/
+
+# Claude Code local tooling config
+.claude/
+
+# Personal Obsidian vault (not part of the app)
+ERP/
