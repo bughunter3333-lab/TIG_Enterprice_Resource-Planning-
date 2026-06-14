@@ -63,7 +63,9 @@ class Job(Base):
 
     items = relationship("JobItem", back_populates="job", cascade="all, delete-orphan")
     comments = relationship("JobComment", back_populates="job", cascade="all, delete-orphan", order_by="JobComment.id")
-    ship_to = relationship("CustomerShipTo", foreign_keys=[ship_to_id])
+    # ship_to (str, above) is the Jim2 ship-to code; ship_to_address is the linked
+    # CustomerShipTo record via ship_to_id. Distinct names so neither shadows the other.
+    ship_to_address = relationship("CustomerShipTo", foreign_keys=[ship_to_id])
 
 
 class JobItem(Base):
