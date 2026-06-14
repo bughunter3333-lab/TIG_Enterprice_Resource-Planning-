@@ -155,12 +155,22 @@ function normalizeInventory(i) {
     supplier: i.supplier,
     stock: i.stock ?? 0,
     committed_qty: i.committed_qty ?? 0,
+    on_order_qty: i.on_order_qty ?? 0,
     weight_kg: parseFloat(i.weight_kg ?? 0),
     reorderLevel: i.min_stock ?? i.reorderLevel ?? 0,
     unitCost: parseFloat(i.unit_cost ?? i.unitCost ?? 0),
     unitPrice: parseFloat(i.sell_price ?? i.unitPrice ?? 0),
     location: i.location,
     status: i.status,
+    // Jim2 detail fields
+    item_type: i.item_type ?? 'Depleting',
+    gl_group: i.gl_group ?? null,
+    barcode: i.barcode ?? null,
+    buy_unit: i.buy_unit ?? null,
+    sell_unit: i.sell_unit ?? null,
+    buy_tax_pct: i.buy_tax_pct ?? 10,
+    sell_tax_pct: i.sell_tax_pct ?? 10,
+    min_stock: i.min_stock ?? 0,
   };
 }
 
@@ -495,11 +505,18 @@ export const inventory = {
     name: data.name,
     category: data.category,
     supplier: data.supplier,
-    min_stock: data.reorderLevel,
+    min_stock: data.reorderLevel ?? data.min_stock,
     unit_cost: data.unitCost,
     sell_price: data.unitPrice,
     location: data.location,
     status: data.status,
+    item_type: data.item_type,
+    gl_group: data.gl_group,
+    barcode: data.barcode,
+    buy_unit: data.buy_unit,
+    sell_unit: data.sell_unit,
+    buy_tax_pct: data.buy_tax_pct,
+    sell_tax_pct: data.sell_tax_pct,
   }}).then(normalizeInventory),
 
   adjust: (sku, adjustment, reason) =>
@@ -536,6 +553,43 @@ export const inventory = {
   },
 
   delete: (sku) => request(`/inventory/${sku}`, { method: 'DELETE' }),
+};
+
+// ── Stock Module ─────────────────────────────────────────────────────────────
+
+export const stock = {
+  locations: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/locations`),
+
+  addLocation: (sku, data) =>
+    request(`/inventory/${encodeURIComponent(sku)}/locations`, { method: 'POST', body: data }),
+
+  updateLocation: (sku, branch, data) =>
+    request(`/inventory/${encodeURIComponent(sku)}/locations/${encodeURIComponent(branch)}`, { method: 'PATCH', body: data }),
+
+  deleteLocation: (sku, branch) =>
+    request(`/inventory/${encodeURIComponent(sku)}/locations/${encodeURIComponent(branch)}`, { method: 'DELETE' }),
+
+  pricing: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/pricing`),
+
+  updateCost: (sku, data) =>
+    request(`/inventory/${encodeURIComponent(sku)}/pricing/cost`, { method: 'PUT', body: data }),
+
+  addPriceLevel: (sku, data) =>
+    request(`/inventory/${encodeURIComponent(sku)}/pricing/levels`, { method: 'POST', body: data }),
+
+  updatePriceLevel: (sku, id, data) =>
+    request(`/inventory/${encodeURIComponent(sku)}/pricing/levels/${id}`, { method: 'PUT', body: data }),
+
+  deletePriceLevel: (sku, id) =>
+    request(`/inventory/${encodeURIComponent(sku)}/pricing/levels/${id}`, { method: 'DELETE' }),
+
+  transactions: (sku, params = {}) =>
+    request(`/inventory/${encodeURIComponent(sku)}/transactions?limit=${params.limit || 100}&offset=${params.offset || 0}`),
+
+  committed: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/committed`),
 };
 
 // ── AI Assistant ─────────────────────────────────────────────────────────────
