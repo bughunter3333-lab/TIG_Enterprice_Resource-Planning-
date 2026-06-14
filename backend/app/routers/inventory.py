@@ -6,6 +6,11 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
+from app.models.stock_location import StockLocation
+from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
+from app.models.job import Job, JobItem
+from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
+from app.models.supplier import Supplier
 from app.core.dependencies import require_any, require_staff
 from app.models.user import User
 
@@ -189,7 +194,6 @@ def list_movements(
     db: Session = Depends(get_db),
     _: User = Depends(require_any),
 ):
-    from app.models.inventory import StockMovement
     q = db.query(StockMovement)
     if sku:
         q = q.filter(StockMovement.sku == sku)
@@ -299,7 +303,6 @@ def delete_item(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
 
 @router.get("/{sku}/locations")
 def get_locations(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    from app.models.stock_location import StockLocation
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
     locs = db.query(StockLocation).filter(StockLocation.sku == sku).order_by(StockLocation.branch).all()
@@ -318,7 +321,6 @@ def get_locations(sku: str, db: Session = Depends(get_db), _: User = Depends(req
 
 @router.post("/{sku}/locations")
 def add_location(sku: str, body: LocationCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_location import StockLocation
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
     if db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == body.branch).first():
@@ -339,7 +341,6 @@ def add_location(sku: str, body: LocationCreate, db: Session = Depends(get_db), 
 
 @router.patch("/{sku}/locations/{branch}")
 def update_location(sku: str, branch: str, body: LocationUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_location import StockLocation
     loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -359,7 +360,6 @@ def update_location(sku: str, branch: str, body: LocationUpdate, db: Session = D
 
 @router.delete("/{sku}/locations/{branch}")
 def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_location import StockLocation
     loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -370,7 +370,6 @@ def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: Use
 
 @router.get("/{sku}/pricing")
 def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    from app.models.stock_pricing import StockPriceLevel
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -428,7 +427,6 @@ def update_cost(sku: str, body: CostUpdate, db: Session = Depends(get_db), _: Us
 
 @router.post("/{sku}/pricing/levels")
 def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
     if db.query(StockPriceLevel).filter(StockPriceLevel.sku == sku, StockPriceLevel.price_level == body.price_level).first():
@@ -453,7 +451,7 @@ def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_
         "currency": level.currency,
         "tax_code": level.tax_code,
         "breakpoints": [
-            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc)}
+            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc), "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None}
             for bp in level.breakpoints
         ],
     }
@@ -461,7 +459,6 @@ def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_
 
 @router.put("/{sku}/pricing/levels/{level_id}")
 def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
     level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
     if not level:
         raise HTTPException(status_code=404, detail="Price level not found")
@@ -480,7 +477,7 @@ def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Sess
         "id": level.id,
         "price_level": level.price_level,
         "breakpoints": [
-            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc)}
+            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc), "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None}
             for bp in level.breakpoints
         ],
     }
@@ -488,7 +485,6 @@ def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Sess
 
 @router.delete("/{sku}/pricing/levels/{level_id}")
 def delete_price_level(sku: str, level_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    from app.models.stock_pricing import StockPriceLevel
     level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
     if not level:
         raise HTTPException(status_code=404, detail="Price level not found")
@@ -537,7 +533,6 @@ def get_transactions(
 
 @router.get("/{sku}/committed")
 def get_committed(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    from app.models.job import Job, JobItem
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
     rows = (
@@ -652,8 +647,6 @@ def stocktake(body: StocktakeRequest, db: Session = Depends(get_db), _: User = D
 @router.post("/auto-reorder")
 def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Find all low-stock items and create draft purchase orders grouped by supplier."""
-    from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
-    from app.models.supplier import Supplier
     from datetime import date
 
     low_stock = db.query(InventoryItem).filter(
