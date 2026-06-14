@@ -54,6 +54,7 @@ black --check app tests
 - `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)
 - `frontend/src/ui/shell/` — app chrome: ModuleBar (top), LiveTree (left), StatusBar (bottom), AppShell (composition)
 - `frontend/src/modules/jobs/` — Jobs module (JobsModule, JobsList, jobsFilters) — first migrated module; Quotes module reuses JobsModule via `lockedStatus="QUOTE"`
+- `frontend/src/modules/stock/` — Stock module (StockModule master/detail, StockList, 5 tabs) on the Stock API; replaces the old flat inventory table
 - Frontend tests: `cd frontend && npm test` (vitest + testing-library)
 
 ## Test infrastructure
