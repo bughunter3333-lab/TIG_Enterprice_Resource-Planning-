@@ -36,6 +36,14 @@ class InventoryUpdate(BaseModel):
     sell_price: Optional[float] = None
     location: Optional[str] = None
     status: Optional[str] = None
+    # Jim2 detail fields
+    item_type: Optional[str] = None
+    gl_group: Optional[str] = None
+    barcode: Optional[str] = None
+    buy_unit: Optional[str] = None
+    sell_unit: Optional[str] = None
+    buy_tax_pct: Optional[float] = None
+    sell_tax_pct: Optional[float] = None
 
 
 class StockAdjust(BaseModel):
@@ -487,6 +495,77 @@ def delete_price_level(sku: str, level_id: int, db: Session = Depends(get_db), _
     db.delete(level)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{sku}/transactions")
+def get_transactions(
+    sku: str,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    movements = (
+        db.query(StockMovement)
+        .filter(StockMovement.sku == sku)
+        .order_by(StockMovement.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": m.id,
+            "date": m.date,
+            "type": m.type,
+            "reference": m.reference,
+            "location_branch": m.location_branch,
+            "quantity": m.quantity,
+            "qty_bal": m.qty_bal,
+            "po_id": m.po_id,
+            "po_line": m.po_line,
+            "job_id": m.job_id,
+            "pack_num": m.pack_num,
+            "bin": m.bin,
+            "notes": m.notes,
+        }
+        for m in movements
+    ]
+
+
+@router.get("/{sku}/committed")
+def get_committed(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+    from app.models.job import Job, JobItem
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    rows = (
+        db.query(JobItem, Job)
+        .join(Job, JobItem.job_id == Job.id)
+        .filter(
+            JobItem.stock_code == sku,
+            Job.status.notin_(["PAID", "CANCEL"]),
+        )
+        .all()
+    )
+    return [
+        {
+            "card_code": job.customer_id,
+            "customer_name": job.customer_name,
+            "job_id": job.id,
+            "job_ref": job.id,
+            "date": job.date_in,
+            "location_branch": job.branch,
+            "qty": item_.order_qty,
+            "unit": "UNIT",
+            "price_ex": float(item_.price_ex) if item_.price_ex is not None else None,
+            "price_inc": float(item_.price_inc) if item_.price_inc is not None else None,
+            "currency": "AUD",
+            "total_aud": float(item_.total) if item_.total is not None else None,
+        }
+        for item_, job in rows
+    ]
 
 
 @router.post("/transfer")
