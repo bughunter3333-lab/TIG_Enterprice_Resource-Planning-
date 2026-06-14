@@ -32,8 +32,8 @@ export default function StockPricingTab({ sku }) {
       <div style={{ fontSize: T.fsGrid, color: T.textMuted, marginBottom: 12 }}>Price Template: {data.price_template || '—'} · Last Effective: {data.last_effective_date || '—'}</div>
 
       <div style={{ fontSize: T.fsHeader, fontWeight: 700, color: T.headerText, textTransform: 'uppercase', marginBottom: 6 }}>Price Levels</div>
-      {(data.levels || []).length === 0 && <div style={{ fontSize: T.fsGrid, color: T.textFaint }}>No price levels</div>}
-      {(data.levels || []).map(level => (
+      {(data.price_levels || []).length === 0 && <div style={{ fontSize: T.fsGrid, color: T.textFaint }}>No price levels</div>}
+      {(data.price_levels || []).map(level => (
         <div key={level.id} style={{ border: `1px solid ${T.hairline}`, borderRadius: T.radius, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 10, padding: '6px 10px', background: T.hairlineSoft, fontSize: T.fsGrid, fontWeight: 600 }}>
             <span>{level.price_level}</span>

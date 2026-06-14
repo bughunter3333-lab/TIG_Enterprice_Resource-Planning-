@@ -14,8 +14,8 @@ export default function StockCommittedTab({ sku, onNavigateJob }) {
     { key: 'customer_name', label: 'Customer' },
     { key: 'job_ref', label: 'Job#', width: 70, render: (r) => (
         <span role="button" tabIndex={0}
-          onClick={(e) => { e.stopPropagation(); onNavigateJob(r.job_id); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onNavigateJob(r.job_id); } }}
+          onClick={(e) => { e.stopPropagation(); onNavigateJob && onNavigateJob(r.job_id); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onNavigateJob && onNavigateJob(r.job_id); } }}
           style={{ color: T.accentStrong, fontWeight: 600, cursor: 'pointer' }}>{r.job_ref}</span>
       ) },
     { key: 'date', label: 'Date', width: 80 },
@@ -28,8 +28,8 @@ export default function StockCommittedTab({ sku, onNavigateJob }) {
   return (
     <DataGrid
       columns={columns}
-      rows={error ? [] : data}
-      rowKey="job_id"
+      rows={error ? [] : (data || []).map((r, i) => ({ ...r, _rowId: `${r.job_id}-${i}` }))}
+      rowKey="_rowId"
       error={error ? (error.message || 'Failed to load committed') : undefined}
       onRetry={refetch}
       emptyText="No committed stock"

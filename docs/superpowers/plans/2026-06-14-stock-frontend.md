@@ -20,7 +20,7 @@
 - `api.stock` methods (already built, paths verified): `locations(sku)`, `addLocation(sku,data)`, `updateLocation(sku,branch,data)`, `deleteLocation(sku,branch)`, `pricing(sku)`, `updateCost(sku,data)`, `addPriceLevel(sku,data)`, `updatePriceLevel(sku,id,data)`, `deletePriceLevel(sku,id)`, `transactions(sku,{limit,offset})`, `committed(sku)`.
 - Backend response shapes (from the tested endpoints):
   - `locations(sku)` → `[{ id, branch, zone, qty_on_hand, committed_qty, available_qty, backorder_qty, on_po_qty, primary_bin_1, max_qty_bin_1, primary_bin_2, max_qty_bin_2 }]`
-  - `pricing(sku)` → `{ <cost fields: last_cost, last_cog, avg_cost, avg_cog, max_cog, last_po_cogs, avg_po_cogs, last_ex, last_effective_date, price_template>, levels: [{ id, price_level, price_calc_method, base_pl, currency, tax_code, breakpoints: [{ id, min_qty, price_ex, price_inc, pont_pct }] }] }`
+  - `pricing(sku)` → `{ <cost fields: last_cost, last_cog, avg_cost, avg_cog, max_cog, last_po_cogs, avg_po_cogs, last_ex, last_effective_date, price_template>, price_levels: [{ id, price_level, price_calc_method, base_pl, currency, tax_code, breakpoints: [{ id, min_qty, price_ex, price_inc, pont_pct }] }] }`
   - `transactions(sku,...)` → `[{ id, date, type, reference, location_branch, quantity, qty_bal, po_id, po_line, job_id, pack_num, bin, notes }]`
   - `committed(sku)` → `[{ card_code, customer_name, job_id, job_ref, date, location_branch, qty, unit, price_ex, price_inc, currency, total_aud }]`
 - Cross-module navigation pattern in the monolith: `pinJob(job)` then `setActiveModule('jobs')` opens a job; `setActiveModule('purchase-orders')` switches to POs. `jobs` (the normalized array) is in scope to look up a job by id.

@@ -38,7 +38,7 @@ test('StockLocationsTab fetches and renders branch rows', async () => {
 test('StockPricingTab shows cost fields and a price level breakpoint', async () => {
   stock.pricing.mockResolvedValue({
     last_cost: 5.5, avg_cost: 5.0, price_template: 'Std',
-    levels: [{ id: 1, price_level: '1-Price A', currency: 'AUD', tax_code: 'G', breakpoints: [{ id: 9, min_qty: 1, price_ex: 10, price_inc: 11, pont_pct: 50 }] }],
+    price_levels: [{ id: 1, price_level: '1-Price A', currency: 'AUD', tax_code: 'G', breakpoints: [{ id: 9, min_qty: 1, price_ex: 10, price_inc: 11, pont_pct: 50 }] }],
   });
   wrap(<StockPricingTab sku="X" />);
   await waitFor(() => expect(screen.getByText('1-Price A')).toBeInTheDocument());
