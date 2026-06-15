@@ -18,6 +18,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
 import JobsModule from './modules/jobs/JobsModule';
 import StockModule from './modules/stock/StockModule';
+import POModule from './modules/purchase-orders/POModule';
 import AdminPanel from './components/admin/AdminPanel';
 
 
@@ -3265,15 +3266,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       Received:  { cls:'bg-emerald-100 text-emerald-700', dot:'bg-emerald-500' },
       Cancelled: { cls:'bg-red-100 text-red-600',       dot:'bg-red-400'      },
     };
-    const filtered = purchaseOrders.filter(po => {
-      const q = searchTerm.toLowerCase();
-      const matchQ = !q || (po.id||'').toLowerCase().includes(q) || (po.supplier||'').toLowerCase().includes(q);
-      const matchS = poStatusFilter==='all' || po.status===poStatusFilter;
-      return matchQ && matchS;
-    });
-    const totalValue = purchaseOrders.reduce((t,p)=>t+(p.total||0),0);
-    const draftCount = purchaseOrders.filter(p=>p.status==='Draft').length;
-    const pendingCount = purchaseOrders.filter(p=>['Sent','Partial'].includes(p.status)).length;
     const today = new Date();
     const isOverdue = (po) => {
       if (['Received','Cancelled'].includes(po.status)) return false;
@@ -3284,114 +3276,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     };
 
     return (
-      <div className="space-y-4">
-        {/* KPI Strip */}
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { label:'Total POs', value:purchaseOrders.length, sub:`${filtered.length} matching`, icon:ClipboardList, color:'text-indigo-600', bg:'bg-indigo-50', onClick:()=>setPoStatusFilter('all') },
-            { label:'Draft / Pending Send', value:draftCount, sub:'Awaiting dispatch', icon:FileText, color:'text-gray-600', bg:'bg-gray-100', onClick:()=>setPoStatusFilter('Draft') },
-            { label:'Awaiting Receipt', value:pendingCount, sub:'Sent or partially received', icon:Truck, color:'text-amber-600', bg:'bg-amber-50', onClick:()=>setPoStatusFilter('Sent') },
-            { label:'Total Value', value:`$${totalValue.toLocaleString('en-AU',{maximumFractionDigits:0})}`, sub:'All purchase orders', icon:DollarSign, color:'text-emerald-600', bg:'bg-emerald-50' },
-          ].map(k => (
-            <div key={k.label} onClick={k.onClick} className={`bg-white rounded-lg border border-slate-200 p-4 flex items-start gap-3 ${k.onClick?'cursor-pointer hover:shadow-md transition-shadow':''}`}>
-              <div className={`w-9 h-9 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
-                <k.icon style={{width:18,height:18}} className={k.color}/>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">{k.label}</p>
-                <p className={`text-xl font-bold mt-0.5 ${k.color}`}>{k.value}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <>
+        <POModule
+          purchaseOrders={purchaseOrders}
+          filters={{ search: searchTerm, status: poStatusFilter }}
+          onFilterChange={(key, value) => { if (key === 'search') setSearchTerm(value); else setPoStatusFilter(value); }}
+          selectedId={selectedPO?.id ?? null}
+          onSelectPO={(po) => setSelectedPO(cur => (cur?.id === po.id ? null : po))}
+          onNewPO={() => openModal('po')}
+          onExport={() => exportToCSV(purchaseOrders, 'purchase-orders')}
+        />
 
-        {/* Status Pipeline */}
-        <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center gap-2 overflow-x-auto">
-          {['all','Draft','Sent','Partial','Received','Cancelled'].map((s,i,arr) => (
-            <React.Fragment key={s}>
-              <button onClick={()=>setPoStatusFilter(s)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                  poStatusFilter===s
-                    ? 'bg-blue-700 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}>
-                {s!=='all' && <span className={`w-1.5 h-1.5 rounded-full ${statusMeta[s]?.dot||'bg-gray-400'}`}/>}
-                {s==='all' ? `All (${purchaseOrders.length})` : `${s} (${purchaseOrders.filter(p=>p.status===s).length})`}
-              </button>
-              {i < arr.length-1 && s!=='all' && i < arr.length-2 && <span className="text-gray-200 text-xs">›</span>}
-            </React.Fragment>
-          ))}
-          <div className="ml-auto flex gap-2 shrink-0">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-2 text-gray-400"/>
-              <input type="text" placeholder="Search PO, supplier…" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}
-                className="pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"/>
-            </div>
-            <button onClick={()=>exportToCSV(purchaseOrders,'purchase-orders')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50"><Download className="w-3.5 h-3.5"/>Export</button>
-            <button onClick={()=>openModal('po')} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-700 text-white text-xs font-medium hover:bg-blue-800"><Plus className="w-3.5 h-3.5"/>New PO</button>
-          </div>
-        </div>
-
-        {/* Main table + detail split */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* PO List */}
-          <div className={`${selectedPO ? 'col-span-2' : 'col-span-5'} bg-white rounded-xl shadow-sm overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">PO #</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Supplier</th>
-                    {!selectedPO && <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Ordered</th>}
-                    {!selectedPO && <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Expected</th>}
-                    {!selectedPO && <th className="text-left px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Lines</th>}
-                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total</th>
-                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-3"/>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.length===0 && (
-                    <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-400">
-                      <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-30"/>
-                      <p className="text-sm">No purchase orders match your filters</p>
-                    </td></tr>
-                  )}
-                  {filtered.map(po => {
-                    const overdue = isOverdue(po);
-                    const isSel = selectedPO?.id === po.id;
-                    return (
-                      <tr key={po.id} onClick={()=>setSelectedPO(isSel?null:po)}
-                        className={`cursor-pointer hover:bg-indigo-50/30 transition-colors border-l-4 ${isSel?'bg-indigo-50/40 border-l-indigo-500':'border-l-transparent'}`}>
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs font-bold text-indigo-700">{po.id}</span>
-                          {overdue && <span className="ml-1 text-[10px] font-bold text-red-500 bg-red-50 px-1 rounded">OVERDUE</span>}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{po.supplier}</td>
-                        {!selectedPO && <td className="px-4 py-3 text-xs text-gray-500">{po.date||'—'}</td>}
-                        {!selectedPO && <td className="px-4 py-3 text-xs text-gray-500">{po.expectedDate||'—'}</td>}
-                        {!selectedPO && <td className="px-4 py-3 text-xs text-gray-500">{(po.items||[]).length}</td>}
-                        <td className="px-4 py-3 text-right font-semibold text-sm tabular-nums">${(po.total||0).toLocaleString('en-AU',{maximumFractionDigits:0})}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusMeta[po.status]?.cls||'bg-gray-100 text-gray-600'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${statusMeta[po.status]?.dot||'bg-gray-400'}`}/>
-                            {po.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3" onClick={e=>e.stopPropagation()}>
-                          <button onClick={()=>deletePO(po.id)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-3.5 h-3.5 text-red-500"/></button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* PO Detail + Receive Panel */}
-          {selectedPO && (
+        {/* PO Detail + Receive Panel */}
+        {selectedPO && (
             <div className="col-span-3 bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
               {/* Header */}
               <div className="px-5 py-4 border-b border-gray-100 flex items-start gap-3">
@@ -3484,8 +3381,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <POGoodsReceiptsPanel po={selectedPO} />
             </div>
           )}
-        </div>
-      </div>
+      </>
     );
   };
 
