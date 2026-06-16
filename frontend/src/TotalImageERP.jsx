@@ -19,6 +19,7 @@ import JobsBoard from './components/jobs/JobsBoard';
 import JobsModule from './modules/jobs/JobsModule';
 import StockModule from './modules/stock/StockModule';
 import POModule from './modules/purchase-orders/POModule';
+import CustomersModule from './modules/customers/CustomersModule';
 import AdminPanel from './components/admin/AdminPanel';
 
 
@@ -2687,113 +2688,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Render Customers Module
   const renderCustomers = () => {
-    const filteredCustomers = customers.filter(cust =>
-      (cust.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cust.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cust.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cust.contact || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
     const custJobs = (c) => jobs.filter(j => j.customerId === c.id);
     const custOutstanding = (c) => custJobs(c).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
     const custRevenue = (c) => custJobs(c).reduce((s, j) => s + parseFloat(j.total || 0), 0);
     const creditUtil = (c) => c.creditLimit > 0 ? Math.min(100, (custOutstanding(c) / c.creditLimit) * 100) : 0;
 
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">{filteredCustomers.length} of {customers.length} accounts</p>
-          <div className="flex gap-2">
-            <button onClick={() => exportToCSV(customers, 'customers')} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center text-sm font-medium"><Download className="w-4 h-4 mr-2" />Export</button>
-            <button onClick={() => openModal('customer')} className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 flex items-center text-sm"><Plus className="w-4 h-4 mr-2" />New Customer</button>
-          </div>
+      <>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+        <div style={{ flex: '0 0 46%', minWidth: 0 }}>
+          <CustomersModule
+            customers={customers}
+            jobs={jobs}
+            search={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedId={selectedCustomer?.id ?? null}
+            onSelectCustomer={(c) => { setSelectedCustomer(c); setCustDetailTab('overview'); }}
+            onNewCustomer={() => openModal('customer')}
+            onExport={() => exportToCSV(customers, 'customers')}
+          />
         </div>
 
-        {/* KPI strip */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: 'Total Customers', value: customers.length, color: 'text-blue-600', sub: `${customers.filter(c=>c.status==='Active'||!c.status).length} active` },
-            { label: 'Total Revenue', value: `$${customers.reduce((s,c)=>s+custRevenue(c),0).toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-green-600', sub: 'All time' },
-            { label: 'Outstanding AR', value: `$${customers.reduce((s,c)=>s+custOutstanding(c),0).toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-red-600', sub: 'Unpaid balances' },
-            { label: 'Over Credit Limit', value: customers.filter(c=>c.creditLimit>0&&custOutstanding(c)>c.creditLimit).length, color: 'text-orange-600', sub: 'Accounts exceeded' },
-          ].map(k => (
-            <div key={k.label} className="bg-white rounded-lg border border-slate-200 p-4">
-              <p className="text-xs text-gray-500">{k.label}</p>
-              <p className={`text-2xl font-bold mt-1 ${k.color}`}>{k.value}</p>
-              <p className="text-xs text-gray-400 mt-1">{k.sub}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="bg-white rounded-xl shadow-sm p-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-            <input type="text" placeholder="Search by name, ID, email, contact…"
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoComplete="off" />
-          </div>
-        </div>
-
-        {/* Table + Detail */}
-        <div className="grid grid-cols-5 gap-4">
-          {/* Customer Table */}
-          <div className="col-span-2 bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                  <th className="text-right px-3 py-3 text-xs font-semibold text-gray-500 uppercase">Balance</th>
-                  <th className="text-right px-3 py-3 text-xs font-semibold text-gray-500 uppercase">Credit</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredCustomers.length === 0 && (
-                  <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">No customers found</td></tr>
-                )}
-                {filteredCustomers.map(c => {
-                  const outstanding = custOutstanding(c);
-                  const util = creditUtil(c);
-                  const overLimit = c.creditLimit > 0 && outstanding > c.creditLimit;
-                  return (
-                    <tr key={c.id} onClick={() => { setSelectedCustomer(c); setCustDetailTab('overview'); }}
-                      className={`cursor-pointer hover:bg-blue-50 transition-colors ${selectedCustomer?.id === c.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
-                            {(c.name||'?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-800 truncate">{c.name}</p>
-                            <p className="text-xs text-gray-400 font-mono">{c.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <span className={`font-semibold text-sm ${outstanding > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                          {outstanding > 0 ? `$${outstanding.toLocaleString('en-AU',{maximumFractionDigits:0})}` : '—'}
-                        </span>
-                        {overLimit && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold">OVER</span>}
-                      </td>
-                      <td className="px-3 py-3">
-                        {c.creditLimit > 0 ? (
-                          <div>
-                            <div className="w-16 bg-gray-200 rounded-full h-1.5 ml-auto">
-                              <div className={`h-1.5 rounded-full ${util>100?'bg-red-500':util>80?'bg-orange-400':'bg-green-500'}`} style={{width:`${Math.min(100,util)}%`}}/>
-                            </div>
-                            <p className="text-[10px] text-gray-400 text-right mt-0.5">{util.toFixed(0)}%</p>
-                          </div>
-                        ) : <span className="text-xs text-gray-300 block text-right">—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Customer Detail Panel */}
-          <div className="col-span-3">
+        {/* Customer Detail Panel */}
+        <div style={{ flex: 1, minWidth: 0 }}>
             {!selectedCustomer ? (
               <div className="bg-white rounded-lg shadow h-full flex flex-col items-center justify-center py-16 text-gray-400">
                 <Users className="w-12 h-12 mb-3 opacity-30" />
@@ -3073,7 +2990,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </div>
         </DraggableModal>
       )}
-      </div>
+      </>
     );
   };
 
