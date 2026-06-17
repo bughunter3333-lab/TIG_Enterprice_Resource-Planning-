@@ -1,12 +1,7 @@
 import KpiStrip from './KpiStrip';
 import ActivityFeed from './ActivityFeed';
 import DecMixChart from './DecMixChart';
-
-const STATUS_COLORS = {
-  QUOTE: '#f59e0b', ORDER: '#3b82f6', 'In Progress': '#8b5cf6',
-  PROOF: '#06b6d4', PRINT: '#ec4899', FINISH: '#10b981',
-  INVOICE: '#a855f7', PAID: '#64748b',
-};
+import { T, statusColor } from '../../ui/tokens';
 
 const KANBAN_STATUSES = ['QUOTE', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'FINISH', 'INVOICE', 'PAID'];
 
@@ -42,12 +37,12 @@ export default function Dashboard({ jobs, onNewJob, onNavigateJobs }) {
         <DecMixChart jobs={allJobs} />
       </div>
 
-      <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 9, padding: 14 }}>
+      <div style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, padding: 14, fontFamily: T.font }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <h3 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: 0 }}>Job Pipeline</h3>
+          <h3 style={{ fontSize: 12, fontWeight: 700, color: T.text, margin: 0 }}>Job Pipeline</h3>
           <button
             onClick={onNavigateJobs}
-            style={{ fontSize: 10, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{ fontSize: 10, color: T.accentStrong, background: 'none', border: 'none', cursor: 'pointer' }}
           >
             View all →
           </button>
@@ -62,10 +57,10 @@ export default function Dashboard({ jobs, onNewJob, onNavigateJobs }) {
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigateJobs(); } }}
-                style={{ flex: 1, background: '#f8fafc', borderRadius: 7, border: '1px solid #e2e8f0', padding: '8px 10px', cursor: 'pointer' }}
+                style={{ flex: 1, background: T.hairlineSoft, borderRadius: T.radius, border: `1px solid ${T.hairline}`, padding: '8px 10px', cursor: 'pointer' }}
               >
-                <div style={{ fontSize: 7, fontWeight: 700, color: STATUS_COLORS[status] ?? '#64748b', marginBottom: 4 }}>{status}</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{count}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: statusColor(status), marginBottom: 4 }}>{status}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums' }}>{count}</div>
               </div>
             );
           })}
