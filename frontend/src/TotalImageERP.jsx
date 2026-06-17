@@ -20,6 +20,7 @@ import JobsModule from './modules/jobs/JobsModule';
 import StockModule from './modules/stock/StockModule';
 import POModule from './modules/purchase-orders/POModule';
 import CustomersModule from './modules/customers/CustomersModule';
+import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 
 
@@ -6601,24 +6602,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Card Files Module
   const renderCardFiles = () => {
-    const uniqueCfGroups = [...new Set(cardFiles.map(c => c.group).filter(Boolean))].sort();
-
-    const filtered = cardFiles.filter(c => {
-      const term = cardFileSearch.toLowerCase();
-      const matchesSearch = !term ||
-        c.shipCode.toLowerCase().includes(term) ||
-        c.customerCode.toLowerCase().includes(term) ||
-        (c.companyName || '').toLowerCase().includes(term) ||
-        (c.suburb || '').toLowerCase().includes(term);
-      const matchesGroup = cardFileGroup === 'all' || c.group === cardFileGroup;
-      return matchesSearch && matchesGroup;
-    });
-
-    const openCreate = () => {
-      setCardFileForm({ shipCode: '', customerCode: '', companyName: '', contactName: '', address1: '', address2: '', suburb: '', state: '', postcode: '', country: 'AU', phone: '', email: '', notes: '' });
-      setCardFileModal({ open: true, editing: null });
-    };
-
     const openEdit = (card) => {
       setCardFileForm({ ...card });
       setCardFileModal({ open: true, editing: card.shipCode });
@@ -6650,58 +6633,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const relatedJobs = card ? jobs.filter(j => j.shipTo === card.shipCode) : [];
 
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">{filtered.length} of {cardFiles.length} cards</p>
-          <button onClick={openCreate}
-            className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 flex items-center">
-            <Plus className="w-4 h-4 mr-2" />New Card File
-          </button>
-        </div>
-
-        <div className="flex gap-4">
-          {/* Left: list */}
-          <div className="w-72 flex-shrink-0 space-y-3">
-            {/* Search + group filter */}
-            <div className="bg-white rounded-xl shadow-sm p-3 space-y-2">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-                <input type="text" placeholder="Search ship code, company..."
-                  className="w-full pl-9 pr-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={cardFileSearch} onChange={e => setCardFileSearch(e.target.value)} />
-              </div>
-              <select value={cardFileGroup} onChange={e => setCardFileGroup(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="all">All Groups</option>
-                {uniqueCfGroups.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-
-            {/* Card list */}
-            <div className="bg-white rounded-lg shadow divide-y max-h-[70vh] overflow-y-auto">
-              {filtered.length === 0 && (
-                <div className="px-4 py-8 text-center text-gray-400 text-sm">No card files found.</div>
-              )}
-              {filtered.map(c => (
-                <button key={c.shipCode}
-                  onClick={() => setSelectedCardFile(c)}
-                  className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors ${selectedCardFile?.shipCode === c.shipCode ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0">
-                      <p className="font-mono font-semibold text-blue-700 text-sm">{c.shipCode}</p>
-                      <p className="text-xs text-gray-500 truncate">{c.companyName || c.customerCode}</p>
-                      {c.suburb && <p className="text-xs text-gray-400">{c.suburb}{c.state ? `, ${c.state}` : ''}</p>}
-                    </div>
-                    <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono ml-2 flex-shrink-0">{c.group}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+      <>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ flex: '0 0 46%', minWidth: 0 }}>
+            <CardFilesModule
+              cardFiles={cardFiles}
+              search={cardFileSearch}
+              group={cardFileGroup}
+              onSearchChange={setCardFileSearch}
+              onGroupChange={setCardFileGroup}
+              selectedId={selectedCardFile?.shipCode ?? null}
+              onSelectCard={(c) => setSelectedCardFile(c)}
+              onNewCard={() => {
+                setCardFileForm({ shipCode: '', customerCode: '', companyName: '', contactName: '', address1: '', address2: '', suburb: '', state: '', postcode: '', country: 'AU', phone: '', email: '', notes: '' });
+                setCardFileModal({ open: true, editing: null });
+              }}
+            />
           </div>
 
           {/* Right: detail */}
-          <div className="flex-1">
+          <div style={{ flex: 1, minWidth: 0 }}>
             {!card ? (
               <div className="bg-white rounded-lg shadow flex items-center justify-center h-64 text-gray-400">
                 <div className="text-center">
@@ -6932,7 +6883,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   };
 
