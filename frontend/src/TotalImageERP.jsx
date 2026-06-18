@@ -14,7 +14,7 @@ import AccountsPayableModule from './modules/AccountsPayableModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
-import { T, statusColor } from './ui/tokens';
+import { T } from './ui/tokens';
 import StatusBadge from './ui/StatusBadge';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
@@ -2121,6 +2121,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
                         className="mt-2 w-full text-white px-2 py-1.5 rounded text-xs flex items-center justify-center gap-1"
                         style={{ background: T.ok }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
                       >
                         <CreditCard className="w-3 h-3" />Record Payment
                       </button>
