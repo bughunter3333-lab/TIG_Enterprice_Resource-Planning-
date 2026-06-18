@@ -2308,7 +2308,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             )}
 
             {/* ── Secondary tab strip ──────────────────────────────────── */}
-            <div className="mt-3 border-t border-gray-200 pt-1 flex gap-0 text-xs">
+            <div className="mt-3 pt-1 flex gap-0 text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
               {[
                 { id: 'pickpack',  label: 'Pick / Pack', icon: CheckSquare },
                 { id: 'documents', label: 'Documents',   icon: ClipboardList },
@@ -2320,7 +2320,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 return (
                   <button key={tab.id}
                     onClick={() => setJobDetailTab(isActive ? 'job' : tab.id)}
-                    className={`flex items-center gap-1 px-3 py-1.5 border-b-2 transition-colors ${isActive ? 'border-blue-500 text-blue-600 font-medium bg-blue-50' : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
+                    className="flex items-center gap-1 px-3 py-1.5 border-b-2 transition-colors"
+                    style={isActive
+                      ? { borderColor: T.accent, color: T.accentStrong, fontWeight: 500, background: T.accentTint }
+                      : { borderColor: 'transparent', color: T.textMuted }}>
                     <Icon className="w-3 h-3" />{tab.label}
                   </button>
                 );
@@ -2331,7 +2334,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {jobDetailTab === 'pickpack' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Check off items as you pick them from the warehouse.</p>
+                  <p className="text-sm" style={{ color: T.textMuted }}>Check off items as you pick them from the warehouse.</p>
                   <button
                     onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
                     className="text-sm bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 flex items-center"
@@ -2340,18 +2343,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </button>
                 </div>
                 {(activeJob.items || []).length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-6 border rounded">No items on this job.</p>
+                  <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No items on this job.</p>
                 ) : (
-                  <div className="border rounded overflow-hidden">
+                  <div className="border rounded overflow-hidden" style={{ borderColor: T.hairline }}>
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
+                      <thead style={{ background: T.hairlineSoft }}>
                         <tr>
-                          <th className="px-3 py-2 w-10 text-center text-xs font-medium text-gray-500">✓</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Stock Code</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Sizes</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Bin</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
+                          <th className="px-3 py-2 w-10 text-center text-xs font-medium" style={{ color: T.textMuted }}>✓</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Stock Code</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Description</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Sizes</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Bin</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium" style={{ color: T.textMuted }}>Qty</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -2359,7 +2362,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const picked = (pickState[activeJob.id] || {})[idx] || false;
                           const binLoc = inventory.find(i => i.sku === item.stockCode)?.location || '—';
                           return (
-                            <tr key={idx} className={picked ? 'bg-green-50' : 'hover:bg-gray-50'}>
+                            <tr key={idx} style={picked ? { background: T.okTint } : {}} className={picked ? '' : 'hover:bg-gray-50'}>
                               <td className="px-3 py-3 text-center">
                                 <input
                                   type="checkbox"
@@ -2371,10 +2374,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   className="w-4 h-4 rounded cursor-pointer accent-green-600"
                                 />
                               </td>
-                              <td className={`px-3 py-3 font-mono text-xs ${picked ? 'line-through text-gray-400' : ''}`}>{item.stockCode}</td>
-                              <td className={`px-3 py-3 ${picked ? 'line-through text-gray-400' : ''}`}>{item.description}</td>
-                              <td className="px-3 py-3 text-xs text-gray-500">{item.sizes || '—'}</td>
-                              <td className="px-3 py-3 font-mono text-xs text-blue-600 font-medium">{binLoc}</td>
+                              <td className={`px-3 py-3 font-mono text-xs${picked ? ' line-through' : ''}`} style={picked ? { color: T.textFaint } : {}}>{item.stockCode}</td>
+                              <td className={`px-3 py-3${picked ? ' line-through' : ''}`} style={picked ? { color: T.textFaint } : {}}>{item.description}</td>
+                              <td className="px-3 py-3 text-xs" style={{ color: T.textMuted }}>{item.sizes || '—'}</td>
+                              <td className="px-3 py-3 font-mono text-xs font-medium" style={{ color: T.accentStrong }}>{binLoc}</td>
                               <td className="px-3 py-3 text-right font-medium">{item.order || item.qty || 0}</td>
                             </tr>
                           );
@@ -2388,18 +2391,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   const pickedCount = Object.values(pickState[activeJob.id] || {}).filter(Boolean).length;
                   const pct = Math.round((pickedCount / total) * 100);
                   return (
-                    <div className="bg-gray-50 rounded p-3">
+                    <div className="rounded p-3" style={{ background: T.hairlineSoft }}>
                       <div className="flex items-center justify-between text-sm mb-1.5">
-                        <span className="text-gray-600">Pick Progress</span>
+                        <span style={{ color: T.textMuted }}>Pick Progress</span>
                         <span className="font-medium">{pickedCount}/{total} items ({pct}%)</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className={`h-2 rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                      <div className="w-full rounded-full h-2" style={{ background: T.hairline }}>
+                        <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? T.ok : T.accent }} />
                       </div>
                       {pct === 100 && (
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="text-green-600 text-sm font-medium">All items picked!</span>
-                          <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                          <span className="text-sm font-medium" style={{ color: T.ok }}>All items picked!</span>
+                          <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} className="px-3 py-1 rounded text-sm text-white" style={{ background: T.ok }}>
                             Mark Complete
                           </button>
                         </div>
@@ -2413,7 +2416,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {/* ── DOCUMENTS TAB ────────────────────────────────────────── */}
             {jobDetailTab === 'documents' && (
               <div>
-                <p className="text-sm text-gray-500 mb-4">Generate and print documents for Job #{activeJob.id}.</p>
+                <p className="text-sm mb-4" style={{ color: T.textMuted }}>Generate and print documents for Job #{activeJob.id}.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700' },
@@ -2439,7 +2442,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     );
                   })}
                 </div>
-                <div className="mt-4 pt-4 border-t text-xs text-gray-400">
+                <div className="mt-4 pt-4 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textFaint }}>
                   <p>All documents open a print-ready preview. Use your browser's print function (Ctrl+P) to print or save as PDF.</p>
                 </div>
               </div>
@@ -2457,29 +2460,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   return (
                     <div className="grid grid-cols-3 gap-4">
                       {(hasCostData ? [
-                        { label: 'Total Cost', value: totalCost.toFixed(2), color: 'text-gray-700', note: 'From line item costs' },
-                        { label: 'Gross Margin', value: grossMargin.toFixed(2), color: grossMargin >= 0 ? 'text-green-600' : 'text-red-500', note: `${marginPct.toFixed(1)}% of revenue` },
-                        { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, color: marginPct >= 30 ? 'text-green-600' : marginPct >= 15 ? 'text-yellow-600' : 'text-red-500', note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
+                        { label: 'Total Cost', value: totalCost.toFixed(2), tokenColor: T.text, note: 'From line item costs' },
+                        { label: 'Gross Margin', value: grossMargin.toFixed(2), tokenColor: grossMargin >= 0 ? T.ok : T.danger, note: `${marginPct.toFixed(1)}% of revenue` },
+                        { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, tokenColor: marginPct >= 30 ? T.ok : marginPct >= 15 ? 'text-yellow-600' : T.danger, note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
                       ] : [
-                        { label: 'Est. Materials', value: ((activeJob.subtotal || 0) * 0.55).toFixed(2), color: 'text-gray-800', note: '~55% estimate' },
-                        { label: 'Est. Labour', value: ((activeJob.subtotal || 0) * 0.30).toFixed(2), color: 'text-gray-800', note: '~30% estimate' },
-                        { label: 'Est. Margin', value: ((activeJob.subtotal || 0) * 0.15).toFixed(2), color: 'text-green-600', note: '~15% estimate' },
+                        { label: 'Est. Materials', value: ((activeJob.subtotal || 0) * 0.55).toFixed(2), tokenColor: T.text, note: '~55% estimate' },
+                        { label: 'Est. Labour', value: ((activeJob.subtotal || 0) * 0.30).toFixed(2), tokenColor: T.text, note: '~30% estimate' },
+                        { label: 'Est. Margin', value: ((activeJob.subtotal || 0) * 0.15).toFixed(2), tokenColor: T.ok, note: '~15% estimate' },
                       ]).map(row => (
-                        <div key={row.label} className="bg-gray-50 rounded-lg p-4 text-center">
-                          <p className="text-xs text-gray-500 mb-1">{row.label}</p>
-                          <p className={`text-2xl font-bold ${row.color}`}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
-                          <p className="text-xs text-gray-400 mt-1">{row.note}</p>
+                        <div key={row.label} className="rounded-lg p-4 text-center" style={{ background: T.hairlineSoft }}>
+                          <p className="text-xs mb-1" style={{ color: T.textMuted }}>{row.label}</p>
+                          <p className={`text-2xl font-bold${row.tokenColor === 'text-yellow-600' ? ' text-yellow-600' : ''}`} style={row.tokenColor !== 'text-yellow-600' ? { color: row.tokenColor } : {}}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
+                          <p className="text-xs mt-1" style={{ color: T.textFaint }}>{row.note}</p>
                         </div>
                       ))}
                     </div>
                   );
                 })()}
-                <div className="border rounded p-4 text-sm">
-                  <div className="flex justify-between py-1.5 border-b"><span className="text-gray-600">Subtotal (ex GST):</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between py-1.5 border-b"><span className="text-gray-600">GST (10%):</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between py-1.5 border-b font-semibold"><span>Invoice Total:</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between py-1.5 border-b text-green-600"><span>Paid:</span><span>${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
-                  <div className="flex justify-between py-1.5 font-bold text-red-600"><span>Balance Due:</span><span>${(activeJob.balanceDue || 0).toFixed(2)}</span></div>
+                <div className="rounded p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                  <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${T.hairline}` }}><span style={{ color: T.textMuted }}>Subtotal (ex GST):</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${T.hairline}` }}><span style={{ color: T.textMuted }}>GST (10%):</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between py-1.5 font-semibold" style={{ borderBottom: `1px solid ${T.hairline}` }}><span>Invoice Total:</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${T.hairline}`, color: T.ok }}><span>Paid:</span><span>${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between py-1.5 font-bold" style={{ color: T.danger }}><span>Balance Due:</span><span>${(activeJob.balanceDue || 0).toFixed(2)}</span></div>
                 </div>
                 {/* Decoration type breakdown */}
                 {(() => {
@@ -2492,10 +2495,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   const entries = Object.entries(decMap);
                   if (!entries.length) return null;
                   return (
-                    <div className="border rounded p-4 text-sm">
-                      <p className="font-medium text-gray-700 mb-2">Decoration Types</p>
+                    <div className="rounded p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                      <p className="font-medium mb-2" style={{ color: T.text }}>Decoration Types</p>
                       {entries.map(([type, v]) => (
-                        <div key={type} className="flex justify-between py-1 border-b last:border-0 text-xs">
+                        <div key={type} className="flex justify-between py-1 text-xs last:border-0" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                           <span className="text-purple-700 font-medium">{type}</span>
                           <span>{v.count} line{v.count > 1 ? 's' : ''}</span>
                           <span className="font-medium">${v.total.toFixed(2)}</span>
@@ -2509,22 +2512,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
             {jobDetailTab === 'activity' && (
               <div className="space-y-4">
-                <h4 className="font-semibold text-gray-700">Status History & Activity Log</h4>
+                <h4 className="font-semibold" style={{ color: T.text }}>Status History & Activity Log</h4>
                 {/* Status timeline */}
                 {(() => {
                   const statusChanges = (activeJob.comments || []).filter(c => c.comment?.startsWith('Status changed to') || c.isInternal);
-                  if (!statusChanges.length) return <p className="text-gray-400 text-sm text-center py-4">No activity recorded yet.</p>;
+                  if (!statusChanges.length) return <p className="text-sm text-center py-4" style={{ color: T.textFaint }}>No activity recorded yet.</p>;
                   return (
-                    <div className="relative border-l-2 border-gray-200 ml-4 space-y-0">
+                    <div className="relative ml-4 space-y-0" style={{ borderLeft: `2px solid ${T.hairline}` }}>
                       {[...statusChanges].reverse().map((c, i) => (
                         <div key={c.id || i} className="relative pl-6 pb-4">
-                          <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${c.comment?.startsWith('Status changed') ? 'bg-blue-500' : c.comment?.startsWith('Payment') ? 'bg-green-500' : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? 'bg-amber-500' : 'bg-gray-400'}`} />
+                          <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-amber-500' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="text-sm font-medium text-gray-800">{c.comment}</p>
-                              <p className="text-xs text-gray-400">{c.authorName || c.initials} · {c.date} {c.time}</p>
+                              <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>
+                              <p className="text-xs" style={{ color: T.textFaint }}>{c.authorName || c.initials} · {c.date} {c.time}</p>
                             </div>
-                            {c.status && <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded ml-2 shrink-0">{c.status}</span>}
+                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{c.status}</span>}
                           </div>
                         </div>
                       ))}
@@ -2532,8 +2535,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   );
                 })()}
                 {/* Add comment */}
-                <div className="border-t pt-3">
-                  <h4 className="font-semibold text-gray-700 mb-2">Add Comment</h4>
+                <div className="pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
+                  <h4 className="font-semibold mb-2" style={{ color: T.text }}>Add Comment</h4>
                   <div className="flex gap-2">
                     <textarea
                       value={commentInput}
@@ -2545,28 +2548,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     />
                     <div className="flex flex-col gap-1">
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 font-medium">Send</button>
+                        className="px-3 py-1.5 text-white rounded text-xs font-medium" style={{ background: T.accentStrong }}>Send</button>
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                        className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 font-medium">Internal</button>
+                        className="px-3 py-1.5 rounded text-xs font-medium" style={{ background: T.hairline, color: T.text }}>Internal</button>
                     </div>
                   </div>
                 </div>
                 {/* All comments unified */}
-                <h4 className="font-semibold text-gray-700 border-t pt-3">All Comments</h4>
+                <h4 className="font-semibold pt-3" style={{ borderTop: `1px solid ${T.hairline}`, color: T.text }}>All Comments</h4>
                 {[...(activeJob.comments || [])].sort((a, b) => b.id - a.id).map((c, i) => (
-                  <div key={c.id || i} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}`}>
+                  <div key={c.id || i} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'bg-amber-50 border border-amber-200' : ''}`} style={c.isInternal ? {} : { background: T.hairlineSoft }}>
                     <div className="flex items-center justify-between mb-1 gap-2">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0">{(c.initials || '?').slice(0, 2)}</div>
-                        <span className="font-medium text-gray-700 text-xs">{c.authorName || c.initials}</span>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: T.accentTint, color: T.accentStrong }}>{(c.initials || '?').slice(0, 2)}</div>
+                        <span className="font-medium text-xs" style={{ color: T.text }}>{c.authorName || c.initials}</span>
                         {c.isInternal && <span className="text-[10px] bg-amber-200 text-amber-700 px-1 rounded font-medium">Internal</span>}
                       </div>
-                      <span className="text-xs text-gray-400 shrink-0">{c.date} {c.time}</span>
+                      <span className="text-xs shrink-0" style={{ color: T.textFaint }}>{c.date} {c.time}</span>
                     </div>
-                    <p className="text-gray-600 text-xs ml-6">{c.comment}</p>
+                    <p className="text-xs ml-6" style={{ color: T.textMuted }}>{c.comment}</p>
                   </div>
                 ))}
-                {!(activeJob.comments || []).length && <p className="text-gray-400 text-sm text-center py-2">No comments yet.</p>}
+                {!(activeJob.comments || []).length && <p className="text-sm text-center py-2" style={{ color: T.textFaint }}>No comments yet.</p>}
               </div>
             )}
 
