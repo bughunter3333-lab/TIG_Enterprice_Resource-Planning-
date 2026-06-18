@@ -2136,41 +2136,41 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             })()}
 
             {/* ── Jim2-style Comments panel (middle, always visible) ── */}
-            <div className="mb-4 border border-gray-200 rounded bg-gray-50">
-              <div className="flex items-center justify-between px-3 py-1.5 bg-gray-100 border-b border-gray-200 rounded-t">
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Comments & Activity</span>
-                <span className="text-[10px] text-gray-400">{(activeJob.comments || []).length} entries</span>
+            <div className="mb-4 rounded" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-t" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
+                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Comments & Activity</span>
+                <span className="text-[10px]" style={{ color: T.textFaint }}>{(activeJob.comments || []).length} entries</span>
               </div>
               {(activeJob.comments || []).length > 0 && (
                 <div className="overflow-x-auto max-h-44 overflow-y-auto">
                   <table className="w-full text-xs">
-                    <thead className="bg-gray-100 border-b sticky top-0">
+                    <thead className="sticky top-0" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                       <tr>
-                        <th className="px-2 py-1 text-center text-gray-500 font-semibold w-7">#</th>
-                        <th className="px-2 py-1 text-left text-gray-500 font-semibold whitespace-nowrap">Date</th>
-                        <th className="px-2 py-1 text-left text-gray-500 font-semibold whitespace-nowrap">Time</th>
-                        <th className="px-2 py-1 text-left text-gray-500 font-semibold whitespace-nowrap">User</th>
-                        <th className="px-2 py-1 text-left text-gray-500 font-semibold whitespace-nowrap">Status</th>
-                        <th className="px-2 py-1 text-center text-gray-500 font-semibold whitespace-nowrap w-7" title="Include in customer documents">Inc</th>
-                        <th className="px-2 py-1 text-left text-gray-500 font-semibold">Comment</th>
+                        <th className="px-2 py-1 text-center font-semibold w-7" style={{ color: T.textMuted }}>#</th>
+                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Date</th>
+                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Time</th>
+                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>User</th>
+                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
+                        <th className="px-2 py-1 text-center font-semibold whitespace-nowrap w-7" title="Include in customer documents" style={{ color: T.textMuted }}>Inc</th>
+                        <th className="px-2 py-1 text-left font-semibold" style={{ color: T.textMuted }}>Comment</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
                       {[...activeJob.comments].reverse().map((comment, idx) => (
-                        <tr key={idx} className={comment.isInternal ? 'bg-amber-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                          <td className="px-2 py-1 text-center text-gray-400">{activeJob.comments.length - idx}</td>
-                          <td className="px-2 py-1 text-gray-600 whitespace-nowrap">{comment.date}</td>
-                          <td className="px-2 py-1 text-gray-600 whitespace-nowrap">{comment.time}</td>
-                          <td className="px-2 py-1 font-mono font-semibold text-gray-700 whitespace-nowrap" title={comment.authorName}>{comment.initials}</td>
+                        <tr key={idx} style={{ background: comment.isInternal ? '#fffbeb' : idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
+                          <td className="px-2 py-1 text-center" style={{ color: T.textFaint }}>{activeJob.comments.length - idx}</td>
+                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.date}</td>
+                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.time}</td>
+                          <td className="px-2 py-1 font-mono font-semibold whitespace-nowrap" title={comment.authorName} style={{ color: T.text }}>{comment.initials}</td>
                           <td className="px-2 py-1 whitespace-nowrap">
                             {comment.status && (
-                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">{comment.status}</span>
+                              <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: T.accentTint, color: T.accentStrong }}>{comment.status}</span>
                             )}
                           </td>
                           <td className="px-2 py-1 text-center">
-                            {comment.inc ? <span className="text-green-600 font-bold">✓</span> : <span className="text-gray-200">—</span>}
+                            {comment.inc ? <span className="font-bold" style={{ color: T.ok }}>✓</span> : <span style={{ color: T.textFaint }}>—</span>}
                           </td>
-                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-amber-800' : 'text-gray-800'}`}>
+                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-amber-800' : ''}`} style={comment.isInternal ? {} : { color: T.text }}>
                             {comment.isInternal && <span className="mr-1 text-amber-600 font-semibold">[int]</span>}
                             {comment.comment}
                           </td>
@@ -2181,9 +2181,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 </div>
               )}
               {(activeJob.comments || []).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-3">No comments yet</p>
+                <p className="text-xs text-center py-3" style={{ color: T.textFaint }}>No comments yet</p>
               )}
-              <div className="flex gap-2 px-3 py-2 border-t border-gray-200">
+              <div className="flex gap-2 px-3 py-2" style={{ borderTop: `1px solid ${T.hairline}` }}>
                 <input
                   type="text"
                   value={commentInput}
@@ -2195,54 +2195,57 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     }
                   }}
                   placeholder="Add a comment or note… (Enter to submit)"
-                  className="flex-1 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  style={{ border: `1px solid ${T.hairline}` }}
                 />
                 <button
                   onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                  className="text-xs bg-gray-100 text-gray-600 border border-gray-300 px-2 py-1 rounded hover:bg-gray-200 whitespace-nowrap"
+                  className="text-xs px-2 py-1 rounded hover:bg-gray-200 whitespace-nowrap"
+                  style={{ background: T.hairlineSoft, color: T.textMuted, border: `1px solid ${T.hairline}` }}
                   title="Add as internal note (not visible to customer)"
                 >Internal</button>
                 <button
                   onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
-                  className="text-xs bg-[#1e3a8a] text-white px-3 py-1 rounded hover:bg-blue-800 whitespace-nowrap"
+                  className="text-xs text-white px-3 py-1 rounded whitespace-nowrap"
+                  style={{ background: T.accentStrong }}
                 >Add</button>
               </div>
             </div>
 
             {/* ── Jim2-style Line Items panel (bottom) ── */}
             {activeJob.items && activeJob.items.length > 0 && (
-              <div className="border border-gray-200 rounded overflow-hidden">
-                <div className="px-3 py-1.5 bg-gray-100 border-b border-gray-200 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Order Items</span>
-                  <span className="text-[10px] text-gray-400">{activeJob.items.filter(i => !i.displayType).length} lines</span>
+              <div className="rounded overflow-hidden" style={{ border: `1px solid ${T.hairline}` }}>
+                <div className="px-3 py-1.5 flex items-center justify-between" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
+                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Order Items</span>
+                  <span className="text-[10px]" style={{ color: T.textFaint }}>{activeJob.items.filter(i => !i.displayType).length} lines</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs" style={{ minWidth: 860 }}>
-                    <thead className="bg-gray-50 border-b">
+                    <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-600 whitespace-nowrap">Status</th>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-600 whitespace-nowrap">PO #</th>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-600 whitespace-nowrap">PO Due</th>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-600 whitespace-nowrap">Stock Code</th>
-                        <th className="px-2 py-1.5 text-left font-semibold text-gray-600">Description</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Order</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Supply</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">B. Ord</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Qty Pick</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Price Ex</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Price Inc</th>
-                        <th className="px-2 py-1.5 text-center font-semibold text-gray-600 whitespace-nowrap">Tax</th>
-                        <th className="px-2 py-1.5 text-center font-semibold text-gray-600 whitespace-nowrap">Hide</th>
-                        <th className="px-2 py-1.5 text-right font-semibold text-gray-600 whitespace-nowrap">Total</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO #</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO Due</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Stock Code</th>
+                        <th className="px-2 py-1.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Order</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Supply</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>B. Ord</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Qty Pick</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc</th>
+                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Tax</th>
+                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Hide</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
                       {activeJob.items.map((item, idx) => {
                         const isSec = item.displayType === 'section';
                         const isNote = item.displayType === 'note';
                         if (isSec) return (
-                          <tr key={idx} className="bg-blue-50 border-l-4 border-l-blue-400">
-                            <td colSpan={14} className="px-3 py-1.5 font-bold text-blue-800 text-xs">{item.description}</td>
+                          <tr key={idx} style={{ background: T.accentTint, borderLeft: `4px solid ${T.accentStrong}` }}>
+                            <td colSpan={14} className="px-3 py-1.5 font-bold text-xs" style={{ color: T.accentStrong }}>{item.description}</td>
                           </tr>
                         );
                         if (isNote) return (
@@ -2251,48 +2254,48 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           </tr>
                         );
                         return (
-                        <tr key={idx} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'} hover:bg-blue-50 ${item.hide ? 'opacity-50' : ''}`}>
+                        <tr key={idx} className={`hover:bg-blue-50 ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
                           <td className="px-2 py-1.5">
                             {item.itemStatus
-                              ? <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">{item.itemStatus}</span>
-                              : <span className="text-gray-300">—</span>}
+                              ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
+                              : <span style={{ color: T.textFaint }}>—</span>}
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-gray-700">{item.poNo || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-2 py-1.5 text-gray-600 whitespace-nowrap">{item.poDue || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-2 py-1.5 font-mono text-blue-700">{item.stockCode || <span className="text-gray-300">—</span>}</td>
+                          <td className="px-2 py-1.5 font-mono" style={{ color: T.text }}>{item.poNo || <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 whitespace-nowrap" style={{ color: T.text }}>{item.poDue || <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 font-mono" style={{ color: T.accentStrong }}>{item.stockCode || <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5">
-                            <div className="font-medium text-gray-900">{item.description}</div>
-                            {item.sizes && <div className="text-gray-500 whitespace-pre-line mt-0.5">{item.sizes}</div>}
+                            <div className="font-medium" style={{ color: T.text }}>{item.description}</div>
+                            {item.sizes && <div className="whitespace-pre-line mt-0.5" style={{ color: T.textMuted }}>{item.sizes}</div>}
                             {item.embCode && <div className="text-xs text-purple-700 font-mono mt-0.5">🧵 {item.embCode}</div>}
                             {item.trsCode && <div className="text-xs text-orange-700 font-mono mt-0.5">♨️ {item.trsCode}</div>}
                           </td>
-                          <td className="px-2 py-1.5 text-right text-gray-800">{item.order}</td>
+                          <td className="px-2 py-1.5 text-right" style={{ color: T.text }}>{item.order}</td>
                           <td className="px-2 py-1.5 text-right">
-                            <span className={item.supply >= item.order ? 'text-green-600 font-medium' : 'text-red-600'}>
+                            <span style={{ color: item.supply >= item.order ? T.ok : T.danger, fontWeight: item.supply >= item.order ? 500 : undefined }}>
                               {item.supply}
                             </span>
                           </td>
-                          <td className="px-2 py-1.5 text-right text-orange-600 font-medium">{item.bOrd > 0 ? item.bOrd : <span className="text-gray-300">—</span>}</td>
-                          <td className="px-2 py-1.5 text-right text-purple-700 font-medium">{item.qtyPick > 0 ? item.qtyPick : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-2 py-1.5 text-right text-orange-600 font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 text-right text-purple-700 font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceEx || 0).toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceInc || 0).toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-center text-gray-500">{item.taxType || 'G'}</td>
-                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-orange-500 font-bold">✓</span> : <span className="text-gray-200">✗</span>}</td>
+                          <td className="px-2 py-1.5 text-center" style={{ color: T.textMuted }}>{item.taxType || 'G'}</td>
+                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-orange-500 font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
                           <td className="px-2 py-1.5 text-right font-semibold">${(item.total || 0).toFixed(2)}</td>
                         </tr>
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                    <tfoot style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                       <tr>
-                        <td colSpan={13} className="px-3 py-1.5 text-right text-xs text-gray-500">
+                        <td colSpan={13} className="px-3 py-1.5 text-right text-xs" style={{ color: T.textMuted }}>
                           {activeJob.weightTotal > 0 && (
                             <span className="mr-4 text-indigo-600"><strong>Weight: {Number(activeJob.weightTotal).toFixed(2)} kg</strong></span>
                           )}
                           <span className="mr-4">Subtotal: <strong>${(activeJob.subtotal || 0).toFixed(2)}</strong></span>
                           <span className="mr-4">GST: <strong>${(activeJob.tax || 0).toFixed(2)}</strong></span>
-                          <span className="mr-4">Total (Inc): <strong className="text-gray-800">${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</strong></span>
-                          {activeJob.balanceDue > 0 && <span className="text-red-600">Balance: <strong>${(activeJob.balanceDue || 0).toFixed(2)}</strong></span>}
+                          <span className="mr-4">Total (Inc): <strong style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</strong></span>
+                          {activeJob.balanceDue > 0 && <span style={{ color: T.danger }}>Balance: <strong>${(activeJob.balanceDue || 0).toFixed(2)}</strong></span>}
                         </td>
                         <td className="px-2 py-1.5 text-right font-bold text-sm">
                           ${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}
