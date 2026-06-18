@@ -14,6 +14,8 @@ import AccountsPayableModule from './modules/AccountsPayableModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
+import { T, statusColor } from './ui/tokens';
+import StatusBadge from './ui/StatusBadge';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
 import JobsModule from './modules/jobs/JobsModule';
@@ -1974,17 +1976,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         {activeJob && showJobDetail && (
           <div className="space-y-3">
             {/* ── Breadcrumb ─────────────────────────────────────────────── */}
-            <div className="flex items-center gap-1.5 text-sm select-none bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-2.5">
-              <button onClick={() => setShowJobDetail(false)} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium transition-colors shrink-0">
+            <div className="flex items-center gap-1.5 text-sm select-none rounded-xl shadow-sm px-4 py-2.5" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+              <button onClick={() => setShowJobDetail(false)} className="flex items-center gap-1 font-medium transition-colors shrink-0" style={{ color: T.accentStrong }}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
                 Jobs
               </button>
-              <span className="text-gray-300">/</span>
-              <span className="font-mono text-gray-500 text-xs shrink-0">#{activeJob.id}</span>
-              <span className="text-gray-300">/</span>
-              <span className="font-medium text-gray-700 truncate">{activeJob.customer}</span>
-              <span className={`shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full ${jStatusColors[activeJob.status] || 'bg-gray-100 text-gray-600'}`}>{activeJob.status}</span>
-              {activeJob.locked && <span className="shrink-0 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">🔒 Locked</span>}
+              <span style={{ color: T.hairline }}>/</span>
+              <span className="font-mono text-xs shrink-0" style={{ color: T.accentStrong }}>#{activeJob.id}</span>
+              <span style={{ color: T.hairline }}>/</span>
+              <span className="font-medium truncate" style={{ color: T.text }}>{activeJob.customer}</span>
+              <span className="shrink-0"><StatusBadge status={activeJob.status} size="sm" /></span>
+              {activeJob.locked && <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</span>}
               {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
               <div className="flex-1" />
               {activeJob.status === 'QUOTE' && (
@@ -2036,23 +2038,23 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <div className="flex-1 min-w-0">
 
             {/* ── Detail card ────────────────────────────────────────────── */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+            <div className="rounded-xl shadow-sm p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             {/* Jim2-style compact header grid */}
             {(() => {
               const F = ({ label, value, badge, mono, red, green }) => (
-                <div className="flex items-baseline gap-1 min-w-0 py-0.5 border-b border-gray-100">
-                  <span className="text-gray-400 text-xs whitespace-nowrap shrink-0 w-20">{label}</span>
+                <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                  <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>{label}</span>
                   {badge
                     ? <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${badge}`}>{value || '—'}</span>
-                    : <span className={`text-xs font-medium truncate ${mono ? 'font-mono text-blue-700' : red ? 'text-red-600' : green ? 'text-green-600' : 'text-gray-800'}`}>{value || <span className="text-gray-300">—</span>}</span>}
+                    : <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: mono ? T.accentStrong : red ? T.danger : green ? T.ok : T.text }}>{value || <span style={{ color: T.textFaint }}>—</span>}</span>}
                 </div>
               );
               const isOverdue = (d) => d && new Date(d.split('/').reverse().join('-')) < new Date() && !['FINISH','PAID','CANCEL'].includes(activeJob.status);
               return (
-                <div className="grid grid-cols-4 gap-x-6 mb-5 pb-4 border-b text-xs">
+                <div className="grid grid-cols-4 gap-x-6 mb-5 pb-4 text-xs" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   {/* Col 1 – job identity */}
                   <div>
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Job</div>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Job</div>
                     <F label="Job #" value={activeJob.id} mono />
                     <F label="Cust Ref#" value={activeJob.custRef} />
                     <F label="Invoice#" value={activeJob.invoice} mono />
@@ -2064,7 +2066,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
                   {/* Col 2 – customer & shipping */}
                   <div>
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Customer</div>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer</div>
                     <F label="Cust#" value={activeJob.customerId} mono />
                     <F label="Name" value={activeJob.customer} />
                     <F label="Contact" value={activeJob.nameContact} />
@@ -2072,14 +2074,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <F label="Our Ref#" value={activeJob.ourRef} />
                     <F label="Assigned" value={activeJob.assignedTo} />
                     {activeJob.shippingAddress && (
-                      <div className="mt-1 text-xs text-gray-500 bg-gray-50 rounded px-1.5 py-1 leading-relaxed">{activeJob.shippingAddress}</div>
+                      <div className="mt-1 text-xs rounded px-1.5 py-1 leading-relaxed" style={{ color: T.textMuted, background: T.hairlineSoft }}>{activeJob.shippingAddress}</div>
                     )}
                   </div>
                   {/* Col 3 – status & dates */}
                   <div>
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Status & Dates</div>
-                    <F label="Status" value={activeJob.status}
-                      badge={`${jStatusColors[activeJob.status] || 'bg-gray-100 text-gray-600'}`} />
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Status & Dates</div>
+                    <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                      <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>Status</span>
+                      <StatusBadge status={activeJob.status} size="sm" />
+                    </div>
                     <F label="Priority" value={activeJob.priority}
                       red={['High','Urgent'].includes(activeJob.priority)} />
                     <F label="Type" value={activeJob.type} />
@@ -2093,7 +2097,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
                   {/* Col 4 – financial */}
                   <div>
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Financial</div>
+                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Financial</div>
                     <F label="Payment" value={activeJob.paymentMethod} />
                     <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
                       badge={activeJob.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : activeJob.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-50 text-red-600'} />
@@ -2103,25 +2107,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <F label="Proof" value={activeJob.proofStatus}
                         badge={activeJob.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : activeJob.proofStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'} />
                     )}
-                    <div className="mt-2 pt-2 border-t space-y-0.5">
-                      <div className="flex justify-between text-xs"><span className="text-gray-400">Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-gray-400">GST</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1"><span>Total</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-gray-400">Paid</span><span className="text-green-600 font-medium">${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-gray-400">Balance</span>
-                        <span className={`font-semibold ${activeJob.balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>${(activeJob.balanceDue || 0).toFixed(2)}</span>
+                    <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-sm font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span>Total</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Balance</span>
+                        <span className="font-semibold" style={{ color: activeJob.balanceDue > 0 ? T.danger : T.ok }}>${(activeJob.balanceDue || 0).toFixed(2)}</span>
                       </div>
                     </div>
                     {activeJob.balanceDue > 0 && (
                       <button
                         onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                        className="mt-2 w-full bg-green-600 text-white px-2 py-1.5 rounded hover:bg-green-700 text-xs flex items-center justify-center gap-1"
+                        className="mt-2 w-full text-white px-2 py-1.5 rounded text-xs flex items-center justify-center gap-1"
+                        style={{ background: T.ok }}
                       >
                         <CreditCard className="w-3 h-3" />Record Payment
                       </button>
                     )}
                     {activeJob.locked && (
-                      <div className="mt-1 text-center text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-700">🔒 Locked</div>
+                      <div className="mt-1 text-center text-xs font-semibold px-2 py-1 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</div>
                     )}
                   </div>
                 </div>
