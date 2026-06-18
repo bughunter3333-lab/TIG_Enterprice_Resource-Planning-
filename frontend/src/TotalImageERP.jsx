@@ -2587,38 +2587,38 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <div className="w-72 shrink-0 space-y-3">
 
                     {/* Customer Card */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
                       <div className="flex items-center justify-between mb-2.5">
-                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Customer</h4>
-                        {fbCust.id && <button onClick={() => setActiveModule('customers')} className="text-[11px] text-blue-600 hover:text-blue-800">View →</button>}
+                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: T.textMuted }}>Customer</h4>
+                        {fbCust.id && <button onClick={() => setActiveModule('customers')} className="text-[11px]" style={{ color: T.accentStrong }}>View →</button>}
                       </div>
-                      <p className="font-semibold text-gray-800 text-sm leading-tight">{activeJob.customer}</p>
-                      {fbCust.contact && <p className="text-xs text-gray-500 mt-0.5">{fbCust.contact}</p>}
+                      <p className="font-semibold text-sm leading-tight" style={{ color: T.text }}>{activeJob.customer}</p>
+                      {fbCust.contact && <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>{fbCust.contact}</p>}
                       <div className="mt-2 space-y-1">
-                        {fbCust.phone && <div className="flex items-center gap-1.5 text-xs text-gray-600"><Phone className="w-3 h-3 text-gray-400 shrink-0" />{fbCust.phone}</div>}
-                        {fbCust.mobile && fbCust.mobile !== fbCust.phone && <div className="flex items-center gap-1.5 text-xs text-gray-600"><Phone className="w-3 h-3 text-gray-400 shrink-0" />{fbCust.mobile}</div>}
-                        {fbCust.email && <div className="flex items-center gap-1.5 text-xs text-gray-600"><Mail className="w-3 h-3 text-gray-400 shrink-0" /><span className="truncate">{fbCust.email}</span></div>}
-                        {(activeJob.shipTo || fbCust.address) && <div className="flex items-start gap-1.5 text-xs text-gray-600 mt-1"><MapPin className="w-3 h-3 text-gray-400 shrink-0 mt-0.5" /><span className="leading-tight">{activeJob.shipTo || fbCust.address}</span></div>}
+                        {fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.phone}</div>}
+                        {fbCust.mobile && fbCust.mobile !== fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.mobile}</div>}
+                        {fbCust.email && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Mail className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} /><span className="truncate">{fbCust.email}</span></div>}
+                        {(activeJob.shipTo || fbCust.address) && <div className="flex items-start gap-1.5 text-xs mt-1" style={{ color: T.text }}><MapPin className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.textFaint }} /><span className="leading-tight">{activeJob.shipTo || fbCust.address}</span></div>}
                       </div>
-                      {fbCust.paymentTerms && <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">Terms: <span className="font-medium text-gray-700">{fbCust.paymentTerms}</span></div>}
+                      {fbCust.paymentTerms && <div className="mt-2 pt-2 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textMuted }}>Terms: <span className="font-medium" style={{ color: T.text }}>{fbCust.paymentTerms}</span></div>}
                     </div>
 
                     {/* Financial Summary */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2.5">Financials</h4>
+                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Financials</h4>
                       <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span className="font-medium text-gray-700">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">GST</span><span className="font-medium text-gray-700">${(activeJob.tax || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between border-t pt-1 mt-1"><span className="font-semibold text-gray-700">Total (inc. GST)</span><span className="font-bold text-gray-800">${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Paid</span><span className="font-medium text-green-600">${paid.toFixed(2)}</span></div>
-                        {activeJob.balanceDue > 0 && <div className="flex justify-between"><span className="font-semibold text-red-600">Balance Due</span><span className="font-bold text-red-600">${Number(activeJob.balanceDue).toFixed(2)}</span></div>}
+                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.subtotal || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.tax || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span className="font-semibold" style={{ color: T.text }}>Total (inc. GST)</span><span className="font-bold" style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${paid.toFixed(2)}</span></div>
+                        {activeJob.balanceDue > 0 && <div className="flex justify-between"><span className="font-semibold" style={{ color: T.danger }}>Balance Due</span><span className="font-bold" style={{ color: T.danger }}>${Number(activeJob.balanceDue).toFixed(2)}</span></div>}
                       </div>
                       {activeJob.total > 0 && (
                         <div className="mt-2.5">
-                          <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className="w-full rounded-full h-1.5" style={{ background: T.hairlineSoft }}>
                             <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${balPct}%` }} />
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5 text-right">{balPct.toFixed(0)}% paid</p>
+                          <p className="text-[10px] mt-0.5 text-right" style={{ color: T.textFaint }}>{balPct.toFixed(0)}% paid</p>
                         </div>
                       )}
                       {activeJob.balanceDue > 0 && (
@@ -2630,8 +2630,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2.5">Quick Actions</h4>
+                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
                           { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-blue-50 hover:bg-blue-100 text-blue-700' },
@@ -2660,29 +2660,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     />
 
                     {/* Related */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2.5">Related</h4>
+                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Related</h4>
                       <div className="space-y-1.5">
                         <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(activeJob.customerId || ''); }}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 text-xs font-medium text-gray-700">
-                          <span className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-gray-400" />Other Jobs</span>
-                          <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${openCustJobs.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>{openCustJobs.length}</span>
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium" style={{ background: T.hairlineSoft, color: T.text }}>
+                          <span className="flex items-center gap-2"><FileText className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Other Jobs</span>
+                          <span className="px-2 py-0.5 rounded-full font-bold text-[11px]" style={openCustJobs.length > 0 ? { background: T.accentTint, color: T.accentStrong } : { background: T.hairlineSoft, color: T.textMuted }}>{openCustJobs.length}</span>
                         </button>
                         {activeJob.poNumber && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 text-xs text-gray-600">
-                            <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5 text-gray-400" />Customer PO</span>
-                            <span className="font-mono font-medium text-gray-700">{activeJob.poNumber}</span>
+                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
+                            <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Customer PO</span>
+                            <span className="font-mono font-medium" style={{ color: T.text }}>{activeJob.poNumber}</span>
                           </div>
                         )}
                         {activeJob.assignedTo && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 text-xs text-gray-600">
-                            <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5 text-gray-400" />Assigned To</span>
-                            <span className="font-medium text-gray-700">{activeJob.assignedTo}</span>
+                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
+                            <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Assigned To</span>
+                            <span className="font-medium" style={{ color: T.text }}>{activeJob.assignedTo}</span>
                           </div>
                         )}
                         {activeJob.status === 'QUOTE' && (
                           <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-xs font-semibold text-white mt-1">
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white mt-1" style={{ background: T.accentStrong }}>
                             Convert to Order →
                           </button>
                         )}
