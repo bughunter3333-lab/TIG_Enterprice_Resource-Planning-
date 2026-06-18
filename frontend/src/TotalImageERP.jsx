@@ -4318,11 +4318,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <DraggableModal onClose={closeModal} cardClass="overflow-auto" cardStyle={{ resize: 'both', width: '90vw', maxWidth: '1400px', minWidth: '520px', height: '90vh', minHeight: '400px', maxHeight: '96vh' }}>
           <div className="flex flex-col h-full">
             {/* Modal title bar */}
-            <div className="flex items-center justify-between px-5 py-3 bg-[#1e3a8a] cursor-move select-none shrink-0">
-              <h2 className="text-sm font-semibold text-white tracking-wide">
+            <div className="flex items-center justify-between px-5 py-3 cursor-move select-none shrink-0" style={{ background: T.chrome, borderBottom: `2px solid ${T.accent}` }}>
+              <h2 className="text-sm font-semibold tracking-wide" style={{ color: T.chromeText }}>
                 {editingItem ? 'Edit' : 'New'} {modalType.charAt(0).toUpperCase() + modalType.slice(1)}
               </h2>
-              <button onClick={closeModal} className="text-blue-300 hover:text-white transition-colors">
+              <button onClick={closeModal} className="transition-colors" style={{ color: T.chromeTextMuted }}>
                 <X className="w-4 h-4" />
               </button>
             </div>
