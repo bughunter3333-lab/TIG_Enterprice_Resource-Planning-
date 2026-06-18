@@ -4331,18 +4331,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {modalType === 'job' && (
               <div className="space-y-2 text-sm">
                 {/* ── Jim2-style compact header grid ── */}
-                <div className="border rounded-lg overflow-visible text-xs bg-white shadow-sm">
+                <div className="border rounded-lg overflow-visible text-xs shadow-sm" style={{background: T.panel, borderColor: T.hairline}}>
 
                   {/* Row 1: Primary identifiers */}
-                  <div className="flex divide-x border-b bg-gray-50/60">
+                  <div className="flex divide-x border-b" style={{background: T.hairlineSoft, borderColor: T.hairline}}>
                     {/* Job # */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:72}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Job #</span>
-                      <span className="font-mono font-bold text-blue-700 text-sm">{editingItem?.id || 'NEW'}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Job #</span>
+                      <span className="font-mono font-bold text-sm" style={{color: T.accentStrong}}>{editingItem?.id || 'NEW'}</span>
                     </div>
                     {/* Customer name */}
                     <div className="flex flex-col px-2.5 py-1.5 flex-1 relative" style={{minWidth:200}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Customer *</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Customer *</span>
                       <input type="text"
                         value={custDropdown.open ? custDropdown.query : jobForm.customer}
                         onChange={(e) => { setCustDropdown({ open: true, query: e.target.value, highlighted: 0 }); setJobForm({ ...jobForm, customer: e.target.value }); }}
@@ -4355,20 +4355,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[custDropdown.highlighted]) { e.preventDefault(); setJobForm(f => ({ ...f, ...applyCustomerToJobForm(hits[custDropdown.highlighted]) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none font-medium text-gray-800 w-full text-xs placeholder-gray-300"
+                        className="bg-transparent border-0 p-0 focus:outline-none font-medium w-full text-xs placeholder-gray-300"
+                        style={{color: T.text}}
                         placeholder="Type to search…" autoComplete="off" required />
                       {custDropdown.open && (() => {
                         const q = custDropdown.query.toLowerCase();
                         const hits = customers.filter(c => !q || c.name.toLowerCase().includes(q) || (c.id||'').toLowerCase().includes(q)).slice(0, 8);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{fontSize:12,minWidth:280}}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50 flex items-center gap-1"><Search className="w-3 h-3" />{q ? `"${custDropdown.query}"` : 'All customers'}</div>
+                          <div className="absolute left-0 top-full mt-1 rounded-xl shadow-2xl z-50 overflow-hidden" style={{fontSize:12,minWidth:280,background:T.panel,border:`1px solid ${T.hairline}`}}>
+                            <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />{q ? `"${custDropdown.query}"` : 'All customers'}</div>
                             {hits.map((c, i) => (
                               <div key={c.id||c.name} onMouseDown={() => { setJobForm(f => ({ ...f, ...applyCustomerToJobForm(c) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0">{c.name.charAt(0).toUpperCase()}</div>
-                                <div className="flex-1 min-w-0"><div className="font-medium text-gray-800 truncate text-xs">{c.name}</div>{c.id && <div className="text-xs text-gray-400 font-mono">{c.id}</div>}</div>
+                                <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{c.name}</div>{c.id && <div className="text-xs font-mono" style={{color:T.textFaint}}>{c.id}</div>}</div>
                               </div>
                             ))}
                           </div>
@@ -4377,38 +4378,38 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </div>
                     {/* Cust ID */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:140}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Cust #</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Cust #</span>
                       <select value={jobForm.customerId} onChange={(e) => { const c = customers.find(c => c.id === e.target.value); setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value }); }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full">
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
                         <option value="">— select —</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.id} — {c.name}</option>)}
                       </select>
                     </div>
                     {/* Invoice # */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:110}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Invoice #</span>
-                      <input value={jobForm.invoice || ''} onChange={e => setJobForm({...jobForm, invoice: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full font-mono" placeholder="INV-XXXX" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Invoice #</span>
+                      <input value={jobForm.invoice || ''} onChange={e => setJobForm({...jobForm, invoice: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full font-mono" style={{color: T.text}} placeholder="INV-XXXX" />
                     </div>
                     {/* Quote Ref */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:90}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Quote Ref</span>
-                      <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="QT-XXXX" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Quote Ref</span>
+                      <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="QT-XXXX" />
                     </div>
                   </div>
 
                   {/* Row 2: References */}
-                  <div className="flex divide-x border-b">
+                  <div className="flex divide-x border-b" style={{borderColor: T.hairline}}>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Cust Ref #</span>
-                      <input value={jobForm.custRef || ''} onChange={e => setJobForm({...jobForm, custRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="Customer's ref" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Cust Ref #</span>
+                      <input value={jobForm.custRef || ''} onChange={e => setJobForm({...jobForm, custRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Customer's ref" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Our Ref #</span>
-                      <input value={jobForm.ourRef || ''} onChange={e => setJobForm({...jobForm, ourRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="Internal contact" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Our Ref #</span>
+                      <input value={jobForm.ourRef || ''} onChange={e => setJobForm({...jobForm, ourRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Internal contact" />
                     </div>
                     {/* Ship To */}
                     <div className="flex flex-col px-2.5 py-1.5 relative" style={{minWidth:130}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Ship To</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Ship To</span>
                       <input type="text"
                         value={shipDropdown.open ? shipDropdown.query : (jobForm.shipTo || '')}
                         onChange={(e) => { setShipDropdown({ open: true, query: e.target.value, highlighted: 0 }); setJobForm({ ...jobForm, shipTo: e.target.value }); }}
@@ -4422,19 +4423,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[shipDropdown.highlighted]) { e.preventDefault(); const cf = hits[shipDropdown.highlighted]; const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="Code or address" autoComplete="off" />
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Code or address" autoComplete="off" />
                       {shipDropdown.open && (() => {
                         const q = shipDropdown.query.toLowerCase();
                         const hits = cardFiles.filter(cf => !q || (cf.shipCode||'').toLowerCase().includes(q) || (cf.companyName||'').toLowerCase().includes(q)).slice(0, 8);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{fontSize:12,minWidth:260}}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50 flex items-center gap-1"><Search className="w-3 h-3" />Card files</div>
+                          <div className="absolute left-0 top-full mt-1 rounded-xl shadow-2xl z-50 overflow-hidden" style={{fontSize:12,minWidth:260,background:T.panel,border:`1px solid ${T.hairline}`}}>
+                            <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />Card files</div>
                             {hits.map((cf, i) => { const addr = [cf.suburb, cf.state, cf.postcode].filter(Boolean).join(' '); return (
                               <div key={cf.shipCode} onMouseDown={() => { const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                 <div className="shrink-0 bg-green-100 text-green-700 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">{cf.shipCode}</div>
-                                <div className="flex-1 min-w-0"><div className="font-medium text-gray-800 truncate text-xs">{cf.companyName||cf.shipCode}</div>{addr && <div className="text-xs text-gray-400 truncate">{addr}</div>}</div>
+                                <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{cf.companyName||cf.shipCode}</div>{addr && <div className="text-xs truncate" style={{color:T.textFaint}}>{addr}</div>}</div>
                               </div>
                             ); })}
                           </div>
@@ -4442,22 +4443,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       })()}
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5 flex-1" style={{minWidth:160}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Description</span>
-                      <input value={jobForm.description || ''} onChange={e => setJobForm({...jobForm, description: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="e.g. Ad-Hoc Sale" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Description</span>
+                      <input value={jobForm.description || ''} onChange={e => setJobForm({...jobForm, description: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:100}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Project #</span>
-                      <input value={jobForm.projectNo || ''} onChange={e => setJobForm({...jobForm, projectNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Project #</span>
+                      <input value={jobForm.projectNo || ''} onChange={e => setJobForm({...jobForm, projectNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:90}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Branch</span>
-                      <select value={jobForm.branch || 'HQ'} onChange={e => setJobForm({...jobForm, branch: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full">
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Branch</span>
+                      <select value={jobForm.branch || 'HQ'} onChange={e => setJobForm({...jobForm, branch: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
                         {['HQ','Warehouse','Melbourne','Sydney','Brisbane','Perth'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                     {/* Assigned To */}
                     <div className="flex flex-col px-2.5 py-1.5 relative" style={{minWidth:130}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Assigned To</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Assigned To</span>
                       <input type="text"
                         value={assignedDropdown.open ? assignedDropdown.query : jobForm.assignedTo}
                         onChange={(e) => { setAssignedDropdown({ open: true, query: e.target.value, highlighted: 0 }); setJobForm({...jobForm, assignedTo: e.target.value}); }}
@@ -4472,20 +4473,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" placeholder="Type or pick…" autoComplete="off" />
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Type or pick…" autoComplete="off" />
                       {assignedDropdown.open && (() => {
                         const q = (assignedDropdown.query || '').toLowerCase();
                         const names = [...new Set(jobs.map(j => j.assignedTo).filter(Boolean))];
                         const hits = names.filter(n => !q || n.toLowerCase().includes(q)).slice(0, 7);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{fontSize:12,minWidth:200}}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50">Previous assignees</div>
+                          <div className="absolute left-0 top-full mt-1 rounded-xl shadow-2xl z-50 overflow-hidden" style={{fontSize:12,minWidth:200,background:T.panel,border:`1px solid ${T.hairline}`}}>
+                            <div className="px-3 py-1.5 text-xs border-b" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}>Previous assignees</div>
                             {hits.map((name, i) => (
                               <div key={name} onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                 <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">{name.charAt(0).toUpperCase()}</div>
-                                <span className="text-xs text-gray-800">{name}</span>
+                                <span className="text-xs" style={{color:T.text}}>{name}</span>
                               </div>
                             ))}
                           </div>
@@ -4493,13 +4494,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       })()}
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:100}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Serial #</span>
-                      <input value={jobForm.serialNo || ''} onChange={e => setJobForm({...jobForm, serialNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Serial #</span>
+                      <input value={jobForm.serialNo || ''} onChange={e => setJobForm({...jobForm, serialNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
                     </div>
                   </div>
 
                   {/* Row 3: Dates */}
-                  <div className="flex divide-x border-b bg-gray-50/40">
+                  <div className="flex divide-x border-b" style={{background: T.hairlineSoft, borderColor: T.hairline}}>
                     {[
                       { label: 'Date In', key: 'dateIn' },
                       { label: 'Due Date', key: 'due' },
@@ -4508,89 +4509,93 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { label: 'Valid Until', key: 'validityDate' },
                     ].map(({ label, key }) => (
                       <div key={key} className="flex flex-col px-2.5 py-1.5 flex-1">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{label}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>{label}</span>
                         <input type="date" value={jobForm[key] || ''} onChange={e => setJobForm({...jobForm, [key]: e.target.value})}
-                          className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full" />
+                          className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
                       </div>
                     ))}
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Pay Method</span>
-                      <select value={jobForm.paymentMethod} onChange={e => setJobForm({...jobForm, paymentMethod: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full">
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Pay Method</span>
+                      <select value={jobForm.paymentMethod} onChange={e => setJobForm({...jobForm, paymentMethod: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
                         <option>Account</option><option>Credit Card</option><option>Cash</option><option>Bank Transfer</option>
                       </select>
                     </div>
                   </div>
 
                   {/* Row 4: Status flags */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 border-b bg-white">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 border-b" style={{background: T.panel, borderColor: T.hairline}}>
                     {/* Status */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Status</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
-                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-semibold bg-white text-xs">
+                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
-                    <div className="w-px h-4 bg-gray-200" />
-                    {/* Priority */}
+                    <div className="w-px h-4" style={{background: T.hairline}} />
+                    {/* Priority — semantic colours kept (red=Urgent, orange=High) */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Priority</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Priority</span>
                       <select value={jobForm.priority} onChange={e => setJobForm({...jobForm, priority: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-white text-gray-700'}`}>
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
+                        style={jobForm.priority === 'Urgent' || jobForm.priority === 'High' ? {} : {background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Low</option><option>Normal</option><option>High</option><option>Urgent</option>
                       </select>
                     </div>
                     {/* Type */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Type</span>
-                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white text-xs">
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Type</span>
+                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Standard</option><option>Custom</option><option>Rush</option>
                       </select>
                     </div>
-                    <div className="w-px h-4 bg-gray-200" />
-                    {/* Paid */}
+                    <div className="w-px h-4" style={{background: T.hairline}} />
+                    {/* Paid — semantic colours kept */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Paid</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
                       <select value={jobForm.paymentStatus || 'unpaid'} onChange={e => setJobForm({...jobForm, paymentStatus: e.target.value})}
                         className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-300' : jobForm.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-red-50 text-red-600 border-red-200'}`}>
                         <option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option>
                       </select>
                     </div>
-                    {/* Invoice status */}
+                    {/* Invoice status — semantic colours kept */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Invoice</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
                       <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
+                        style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
                       </select>
                     </div>
-                    {/* Proof */}
+                    {/* Proof — semantic colours kept */}
                     <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Proof</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
+                        style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
                     </div>
-                    <div className="w-px h-4 bg-gray-200" />
-                    {/* Lock */}
+                    <div className="w-px h-4" style={{background: T.hairline}} />
+                    {/* Lock — amber kept as identity colour */}
                     <button type="button" onClick={() => setJobForm(f => ({ ...f, locked: !f.locked }))}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' : 'bg-white text-gray-400 border-gray-300 hover:bg-gray-50'}`}>
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' : ''}`}
+                      style={jobForm.locked ? {} : {background: T.panel, color: T.textMuted, borderColor: T.hairline}}>
                       {jobForm.locked ? '🔒 Locked' : '🔓 Unlocked'}
                     </button>
                   </div>
 
                   {/* Row 5: Notes + Shipping address + Credit warning */}
-                  <div className="flex divide-x">
+                  <div className="flex divide-x" style={{borderColor: T.hairline}}>
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Job Notes</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Job Notes</span>
                       <textarea value={jobForm.notes || ''} onChange={e => setJobForm({...jobForm, notes: e.target.value})}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full resize-none leading-relaxed" rows={2} placeholder="Special instructions, artwork notes…" />
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} placeholder="Special instructions, artwork notes…" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:220}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Shipping Address</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Shipping Address</span>
                       <textarea value={jobForm.shippingAddress || ''} onChange={e => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full resize-none leading-relaxed" rows={2} />
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} />
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
@@ -4612,53 +4617,53 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   {/* Row 6: Jim2 Sprint-2 fields */}
-                  <div className="flex divide-x border-t">
+                  <div className="flex divide-x border-t" style={{borderColor: T.hairline}}>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:120}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Price Level</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Price Level</span>
                       <select
                         value={jobForm.priceLevel || ''}
                         onChange={e => setJobForm(f => ({ ...f, priceLevel: e.target.value }))}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
                       >
                         <option value="">— select —</option>
                         {['Retail', 'Trade', 'Wholesale', 'VIP', 'Cost'].map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:110}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Acc Mgr</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Acc Mgr</span>
                       <input
                         value={jobForm.accMgr || ''}
                         onChange={e => setJobForm(f => ({ ...f, accMgr: e.target.value }))}
                         placeholder="Initials or name"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Ex Job Ref</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Ex Job Ref</span>
                       <input
                         value={jobForm.exJobRef || ''}
                         onChange={e => setJobForm(f => ({ ...f, exJobRef: e.target.value }))}
                         placeholder="Customer PO or ref"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:140}}>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Requested By</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Requested By</span>
                       <input
                         value={jobForm.requestedBy || ''}
                         onChange={e => setJobForm(f => ({ ...f, requestedBy: e.target.value }))}
                         placeholder="Person who placed order"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Invoice Description</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Invoice Description</span>
                       <textarea
                         value={jobForm.invoiceDesc || ''}
                         onChange={e => setJobForm(f => ({ ...f, invoiceDesc: e.target.value }))}
                         rows={2}
                         placeholder="Description to print on invoice"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs text-gray-700 w-full resize-none leading-relaxed"
+                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex items-center px-2.5 py-1.5 gap-1.5">
@@ -4669,7 +4674,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         onChange={e => setJobForm(f => ({ ...f, lockRate: e.target.checked }))}
                         className="rounded"
                       />
-                      <label htmlFor="lockRate" className="text-[9px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">Lock Rate</label>
+                      <label htmlFor="lockRate" className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap" style={{color: T.textFaint}}>Lock Rate</label>
                     </div>
                   </div>
 
@@ -4681,7 +4686,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Column 1: Customer & Dates */}
                   <div className="space-y-2">
                     <div className="relative">
-                      <label className="block font-medium text-gray-500 mb-0.5">Customer Name</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Customer Name</label>
                       <input
                         type="text"
                         value={custDropdown.open ? custDropdown.query : jobForm.customer}
@@ -4706,7 +4711,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type to search customers…"
                         autoComplete="off"
                         required
@@ -4716,8 +4721,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         const hits = customers.filter(c => !q || c.name.toLowerCase().includes(q) || (c.id || '').toLowerCase().includes(q)).slice(0, 8);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 280 }}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50 flex items-center gap-1">
+                          <div className="absolute left-0 top-full mt-1 w-full rounded-xl shadow-2xl z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 280, background: T.panel, border: `1px solid ${T.hairline}` }}>
+                            <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color: T.textFaint, background: T.hairlineSoft, borderColor: T.hairline}}>
                               <Search className="w-3 h-3" />{q ? `Customers matching "${custDropdown.query}"` : 'All customers'}
                             </div>
                             {hits.map((c, i) => (
@@ -4734,8 +4739,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   {c.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-800 truncate text-xs">{c.name}</div>
-                                  {c.id && <div className="text-xs text-gray-400 font-mono">{c.id}</div>}
+                                  <div className="font-medium truncate text-xs" style={{color: T.text}}>{c.name}</div>
+                                  {c.id && <div className="text-xs font-mono" style={{color: T.textFaint}}>{c.id}</div>}
                                 </div>
                               </div>
                             ))}
@@ -4744,14 +4749,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       })()}
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Customer ID</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Customer ID</label>
                       <select
                         value={jobForm.customerId}
                         onChange={(e) => {
                           const c = customers.find(c => c.id === e.target.value);
                           setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                       >
                         <option value="">Select Customer</option>
                         {customers.map(c => (
@@ -4778,26 +4783,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     })()}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Date In</label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Date In</label>
                         <input type="date" value={jobForm.dateIn} onChange={(e) => setJobForm({...jobForm, dateIn: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Due Date <span className="text-gray-400 font-normal text-xs">(auto from terms)</span></label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Due Date <span className="font-normal text-xs" style={{color: T.textFaint}}>(auto from terms)</span></label>
                         <input type="date" value={jobForm.due} onChange={(e) => setJobForm({...jobForm, due: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Out Date</label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Out Date</label>
                         <input type="date" value={jobForm.out || ''} onChange={(e) => setJobForm({...jobForm, out: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Commitment Date</label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Commitment Date</label>
                         <input type="date" value={jobForm.commitmentDate || ''} onChange={(e) => setJobForm({...jobForm, commitmentDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" title="Promised delivery date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
                       </div>
                     </div>
                   </div>
@@ -4805,39 +4810,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Column 2: References & Assignment */}
                   <div className="space-y-2">
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Cust Ref #</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Cust Ref #</label>
                       <input type="text" value={jobForm.custRef || ''} onChange={(e) => setJobForm({...jobForm, custRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Customer's own reference" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Our Ref #</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Our Ref #</label>
                       <input type="text" value={jobForm.ourRef || ''} onChange={(e) => setJobForm({...jobForm, ourRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Internal contact" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Quote Ref</label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Quote Ref</label>
                         <input type="text" value={jobForm.quote} onChange={(e) => setJobForm({...jobForm, quote: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
-                        <label className="block font-medium text-gray-500 mb-0.5">Valid Until</label>
+                        <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Valid Until</label>
                         <input type="date" value={jobForm.validityDate || ''} onChange={(e) => setJobForm({...jobForm, validityDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" title="Quote expiry date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
                       </div>
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Description</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Description</label>
                       <input type="text" value={jobForm.description || ''} onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="e.g. Ad-Hoc Sale" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Project #</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Project #</label>
                       <input type="text" value={jobForm.projectNo || ''} onChange={(e) => setJobForm({...jobForm, projectNo: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
                     </div>
                     <div className="relative">
-                      <label className="block font-medium text-gray-500 mb-0.5">Assigned To</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Assigned To</label>
                       <input
                         type="text"
                         value={assignedDropdown.open ? assignedDropdown.query : jobForm.assignedTo}
@@ -4853,7 +4858,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type or pick…"
                         autoComplete="off"
                       />
@@ -4863,15 +4868,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         const hits = names.filter(n => !q || n.toLowerCase().includes(q)).slice(0, 7);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 200 }}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50">Previous assignees</div>
+                          <div className="absolute left-0 top-full mt-1 w-full rounded-xl shadow-2xl z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 200, background: T.panel, border: `1px solid ${T.hairline}` }}>
+                            <div className="px-3 py-1.5 text-xs border-b" style={{color: T.textFaint, background: T.hairlineSoft, borderColor: T.hairline}}>Previous assignees</div>
                             {hits.map((name, i) => (
                               <div key={name}
                                 onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                 <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">{name.charAt(0).toUpperCase()}</div>
-                                <span className="text-gray-800 text-xs">{name}</span>
+                                <span className="text-xs" style={{color: T.text}}>{name}</span>
                               </div>
                             ))}
                           </div>
@@ -4883,7 +4888,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Column 3: Shipping & Notes */}
                   <div className="space-y-2">
                     <div className="relative">
-                      <label className="block font-medium text-gray-500 mb-0.5">Ship To</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Ship To</label>
                       <input
                         type="text"
                         value={shipDropdown.open ? shipDropdown.query : (jobForm.shipTo || '')}
@@ -4907,7 +4912,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Ship-to code or address"
                         autoComplete="off"
                       />
@@ -4916,8 +4921,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         const hits = cardFiles.filter(cf => !q || (cf.shipCode || '').toLowerCase().includes(q) || (cf.companyName || '').toLowerCase().includes(q)).slice(0, 8);
                         if (!hits.length) return null;
                         return (
-                          <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 280 }}>
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50 flex items-center gap-1">
+                          <div className="absolute left-0 top-full mt-1 w-full rounded-xl shadow-2xl z-50 overflow-hidden" style={{ fontSize: '13px', minWidth: 280, background: T.panel, border: `1px solid ${T.hairline}` }}>
+                            <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color: T.textFaint, background: T.hairlineSoft, borderColor: T.hairline}}>
                               <Search className="w-3 h-3" />{q ? `Ship codes matching "${shipDropdown.query}"` : 'Card file addresses'}
                             </div>
                             {hits.map((cf, i) => {
@@ -4937,8 +4942,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {cf.shipCode}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-gray-800 truncate text-xs">{cf.companyName || cf.shipCode}</div>
-                                    {addr && <div className="text-xs text-gray-400 truncate">{addr}</div>}
+                                    <div className="font-medium truncate text-xs" style={{color: T.text}}>{cf.companyName || cf.shipCode}</div>
+                                    {addr && <div className="text-xs truncate" style={{color: T.textFaint}}>{addr}</div>}
                                   </div>
                                 </div>
                               );
@@ -4948,20 +4953,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       })()}
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Shipping Address</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Shipping Address</label>
                       <textarea
                         value={jobForm.shippingAddress}
                         onChange={(e) => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                       />
                     </div>
                     <div>
-                      <label className="block font-medium text-gray-500 mb-0.5">Job Notes</label>
+                      <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Job Notes</label>
                       <textarea
                         value={jobForm.notes || ''}
                         onChange={(e) => setJobForm({...jobForm, notes: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                         placeholder="Special instructions, artwork notes..."
                       />
