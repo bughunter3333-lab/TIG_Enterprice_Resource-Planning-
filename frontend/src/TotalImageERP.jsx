@@ -4977,30 +4977,30 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
 
               {/* Line Items */}
-              <div className="border rounded-lg bg-gray-50 flex flex-col" style={{ height: lineItemsHeight, minHeight: 120 }}>
+              <div className="rounded-lg flex flex-col" style={{ height: lineItemsHeight, minHeight: 120, background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
                 <div className="px-3 py-2 flex-1" style={{ minHeight: 0, overflowY: 'visible', overflowX: 'auto' }}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <h3 className="font-semibold text-gray-700 text-sm">Line Items <span className="text-xs text-gray-400 font-normal">(right-click for options)</span></h3>
+                    <h3 className="font-semibold text-sm" style={{ color: T.text }}>Line Items <span className="text-xs font-normal" style={{ color: T.textFaint }}>(right-click for options)</span></h3>
                     <div className="flex items-center gap-1 flex-wrap">
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateModalOpen(true)}
-                          className="text-xs bg-white text-slate-600 border border-slate-300 px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1">
+                          className="text-xs px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <BookOpen className="w-3 h-3" />Load
                         </button>
                         {templateModalOpen && (
-                          <div className="absolute left-0 top-full mt-1 w-72 bg-white rounded-lg shadow-xl border z-50 p-3" onClick={e => e.stopPropagation()}>
+                          <div className="absolute left-0 top-full mt-1 w-72 rounded-lg shadow-xl z-50 p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }} onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-semibold text-gray-700">Job Templates</span>
-                              <button onClick={() => setTemplateModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                              <span className="text-sm font-semibold" style={{ color: T.text }}>Job Templates</span>
+                              <button onClick={() => setTemplateModalOpen(false)} style={{ color: T.textMuted }}><X className="w-4 h-4" /></button>
                             </div>
                             {jobTemplates.length === 0 ? (
-                              <p className="text-xs text-gray-400 text-center py-3">No templates saved yet.</p>
+                              <p className="text-xs text-center py-3" style={{ color: T.textFaint }}>No templates saved yet.</p>
                             ) : (
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {jobTemplates.map(tpl => (
                                   <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 group">
-                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm text-gray-700 hover:text-blue-600 font-medium truncate">
-                                      {tpl.name} <span className="text-xs text-gray-400 font-normal">({tpl.items?.length || 0} items)</span>
+                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-blue-600" style={{ color: T.text }}>
+                                      {tpl.name} <span className="text-xs font-normal" style={{ color: T.textFaint }}>({tpl.items?.length || 0} items)</span>
                                     </button>
                                     <button type="button" onMouseDown={() => deleteJobTemplate(tpl.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -5014,12 +5014,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </div>
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateSaveOpen(o => !o)}
-                          className="text-xs bg-white text-slate-600 border border-slate-300 px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1">
+                          className="text-xs px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <Save className="w-3 h-3" />Save
                         </button>
                         {templateSaveOpen && (
-                          <div className="absolute left-0 top-full mt-1 w-60 bg-white rounded-lg shadow-xl border z-50 p-3" onClick={e => e.stopPropagation()}>
-                            <p className="text-xs font-semibold text-gray-600 mb-1.5">Template name</p>
+                          <div className="absolute left-0 top-full mt-1 w-60 rounded-lg shadow-xl z-50 p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }} onClick={e => e.stopPropagation()}>
+                            <p className="text-xs font-semibold mb-1.5" style={{ color: T.textMuted }}>Template name</p>
                             <input autoFocus type="text" value={templateSaveName}
                               onChange={e => setTemplateSaveName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); if (e.key === 'Escape') setTemplateSaveOpen(false); }}
@@ -5033,14 +5033,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         )}
                       </div>
                       <button type="button" onClick={() => setJobForm(f => ({ ...f, items: [...f.items, { ...blankItem(), displayType: 'note' }] }))}
-                        className="text-xs bg-white text-slate-600 border border-slate-300 px-2 py-1 rounded hover:bg-slate-50">+ Note</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Note</button>
                       <button type="button" onClick={addJobItem}
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 flex items-center gap-0.5">
+                        className="text-xs px-3 py-1 rounded flex items-center gap-0.5" style={{ background: T.accentStrong, color: T.panel }}>
                         <Plus className="w-3 h-3" />Add Item
                       </button>
                       <button type="button"
                         onClick={() => setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Freight', stockCode: 'FREIGHT', priceEx: 0, priceInc: 0, qty: 1, order: 1 }] }))}
-                        className="text-xs bg-white text-slate-600 border border-slate-300 px-2 py-1 rounded hover:bg-slate-50">+ Freight</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Freight</button>
                       <button type="button"
                         onClick={() => {
                           const freightItem = jobForm.items.find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
@@ -5048,18 +5048,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const levy = freightAmt > 0 ? Math.round(freightAmt * 0.13 * 100) / 100 : 0;
                           setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Fuel Levy', stockCode: 'FUEL-LEVY', priceEx: levy, priceInc: levy * 1.1, qty: 1, order: 1 }] }));
                         }}
-                        className="text-xs bg-white text-slate-600 border border-slate-300 px-2 py-1 rounded hover:bg-slate-50">+ Fuel Levy</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Fuel Levy</button>
                     </div>
                   </div>
 
                   {jobForm.items.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-4">No items yet. Click "Add Item" to begin.</p>
+                    <p className="text-sm text-center py-4" style={{ color: T.textFaint }}>No items yet. Click "Add Item" to begin.</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="line-items-table border-collapse" style={{ tableLayout: 'fixed', width: '100%', minWidth: 820, fontSize: 12 }}>
                         <thead>
-                          <tr className="bg-gray-100 border-b-2 border-gray-300 text-gray-500 select-none">
-                            <th className="px-1 py-1 text-center text-[11px] font-semibold border-r border-gray-200" style={{ width: 26 }}>#</th>
+                          <tr className="select-none" style={{ background: T.hairlineSoft, borderBottom: `2px solid ${T.hairline}`, color: T.textMuted }}>
+                            <th className="px-1 py-1 text-center text-[11px] font-semibold" style={{ width: 26, borderRight: `1px solid ${T.hairline}` }}>#</th>
                             {[
                               { key: 'stock', label: 'Stock Code', align: 'left' },
                               { key: 'desc', label: 'Description', align: 'left' },
@@ -5072,7 +5072,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               { key: 'total', label: 'Total', align: 'right', color: 'text-gray-700' },
                               { key: 'hide', label: 'H', align: 'center' },
                             ].map(col => (
-                              <th key={col.key} className={`text-${col.align} px-1 py-1 text-[11px] font-semibold relative border-r border-gray-200 ${col.color || 'text-gray-500'}`} style={{ width: colWidths[col.key] }}>
+                              <th key={col.key} className={`text-${col.align} px-1 py-1 text-[11px] font-semibold relative ${col.color || ''}`} style={{ width: colWidths[col.key], borderRight: `1px solid ${T.hairline}`, color: col.color ? undefined : T.textMuted }}>
                                 {col.label}
                                 <div onMouseDown={(e) => startColResize(col.key, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10" />
                               </th>
@@ -5147,10 +5147,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             return (
                               <React.Fragment key={idx}>
                                 <tr
-                                  className={`border-b border-gray-100 hover:bg-blue-50/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-blue-300' : ''}`}
+                                  className={`hover:bg-blue-50/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-blue-300' : ''}`}
+                                  style={{ borderBottom: `1px solid ${T.hairline}` }}
                                   onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, rowIdx: idx }); }}
                                 >
-                                  <td className="px-1 py-0.5 text-center text-[10px] text-gray-400 select-none border-r border-gray-100" style={{ width: 26 }}>
+                                  <td className="px-1 py-0.5 text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>
                                     <span className={isSec ? 'text-blue-500 font-bold' : isNote ? 'text-yellow-600' : ''}>{isSec ? '§' : isNote ? '¶' : idx + 1}</span>
                                   </td>
 
@@ -5162,7 +5163,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     </td>
                                   ) : (<>
                                     {/* Stock Code */}
-                                    <td className="px-0.5 py-0.5 relative border-r border-gray-100" style={{ width: colWidths.stock }}>
+                                    <td className="px-0.5 py-0.5 relative" style={{ width: colWidths.stock, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={skuQ}
                                         onChange={e => { setSkuDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0 })); updateJobItem(idx, 'stockCode', e.target.value); }}
                                         onFocus={(e) => { const r = e.target.getBoundingClientRect(); setSkuDropdown({ idx, query: item.stockCode || '', highlighted: 0, rect: r }); }}
@@ -5176,15 +5177,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         }}
                                         className={ci + ' font-mono'} placeholder="SKU…" autoComplete="off" />
                                       {skuIsOpen && skuDropdown.rect && (
-                                        <div className="bg-white rounded-xl shadow-2xl border border-gray-200" style={{ position: 'fixed', zIndex: 99999, minWidth: 380, left: skuDropdown.rect.left, top: skuDropdown.rect.top - 4, transform: 'translateY(-100%)' }}>
-                                          <div className="px-3 py-1.5 text-xs text-gray-500 border-b bg-gray-50 flex items-center gap-1.5"><Search className="w-3 h-3" />{skuQ ? `SKU: "${skuQ}"` : 'Browse by SKU'}</div>
-                                          {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-gray-400 text-center">No matches</div>
+                                        <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 380, left: skuDropdown.rect.left, top: skuDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
+                                          <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{skuQ ? `SKU: "${skuQ}"` : 'Browse by SKU'}</div>
+                                          {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-center" style={{ color: T.textFaint }}>No matches</div>
                                             : skuScored.map(({ inv }, i) => (
                                               <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setSkuDropdown(s => ({ ...s, highlighted: i }))}
-                                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === skuDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50`}
+                                                style={{ borderBottom: `1px solid ${T.hairline}`, background: i === skuDropdown.highlighted ? T.accentTint : undefined }}>
                                                 <div className="flex-1 min-w-0">
-                                                  <div className="font-mono font-bold text-blue-700 text-xs">{hl(inv.sku, skuQ)}</div>
-                                                  <div className="text-gray-500 text-xs truncate">{inv.name}</div>
+                                                  <div className="font-mono font-bold text-xs" style={{ color: T.accentStrong }}>{hl(inv.sku, skuQ)}</div>
+                                                  <div className="text-xs truncate" style={{ color: T.textMuted }}>{inv.name}</div>
                                                 </div>
                                                 <div className="text-right shrink-0">
                                                   <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-red-500' : 'text-green-600'}`}>{(inv.stock || 0) === 0 ? 'Out' : inv.stock}</div>
@@ -5197,7 +5199,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     </td>
 
                                     {/* Description + Sizes */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.desc }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.desc, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={dq}
                                         onChange={e => { setDescDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0 })); updateJobItem(idx, 'description', e.target.value); }}
                                         onFocus={(e) => { const r = e.target.getBoundingClientRect(); setDescDropdown({ idx, query: item.description || '', highlighted: 0, rect: r }); }}
@@ -5211,18 +5213,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         }}
                                         className={ci} placeholder="Description…" autoComplete="off" />
                                       {dIsOpen && descDropdown.rect && dScored.length > 0 && (
-                                        <div className="bg-white rounded-xl shadow-2xl border border-gray-200" style={{ position: 'fixed', zIndex: 99999, minWidth: 420, left: descDropdown.rect.left, top: descDropdown.rect.top - 4, transform: 'translateY(-100%)' }}>
-                                          <div className="px-3 py-1.5 text-xs text-gray-500 border-b bg-gray-50 flex items-center gap-1.5"><Search className="w-3 h-3" />{dq ? `"${dq}"` : 'All items'}</div>
+                                        <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 420, left: descDropdown.rect.left, top: descDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
+                                          <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{dq ? `"${dq}"` : 'All items'}</div>
                                           {dScored.map(({ inv }, i) => (
                                             <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setDescDropdown(s => ({ ...s, highlighted: i }))}
-                                              className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === descDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                                              style={{ borderBottom: `1px solid ${T.hairline}`, background: i === descDropdown.highlighted ? T.accentTint : undefined }}>
                                               <div className="flex-1 min-w-0">
-                                                <div className="font-semibold text-gray-900 text-xs">{hl(inv.name || '', dq)}</div>
-                                                <div className="font-mono text-blue-600 text-xs">{inv.sku}{inv.category && <span className="text-gray-400 ml-1.5">· {inv.category}</span>}</div>
+                                                <div className="font-semibold text-xs" style={{ color: T.text }}>{hl(inv.name || '', dq)}</div>
+                                                <div className="font-mono text-xs" style={{ color: T.accentStrong }}>{inv.sku}{inv.category && <span className="ml-1.5" style={{ color: T.textFaint }}>· {inv.category}</span>}</div>
                                               </div>
                                               <div className="text-right shrink-0">
                                                 <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-red-500' : 'text-green-600'}`}>{(inv.stock || 0) === 0 ? 'Out' : `${inv.stock}`}</div>
-                                                {inv.unitPrice > 0 && <div className="text-gray-400 text-xs">${inv.unitPrice.toFixed(2)}</div>}
+                                                {inv.unitPrice > 0 && <div className="text-xs" style={{ color: T.textFaint }}>${inv.unitPrice.toFixed(2)}</div>}
                                               </div>
                                             </div>
                                           ))}
@@ -5238,49 +5241,50 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     </td>
 
                                     {/* Order */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.order }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.order, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={item.order || ''} onChange={e => updateJobItem(idx, 'order', e.target.value)} className={ciR} min="0" />
                                     </td>
 
                                     {/* Supply */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.supply }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.supply, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={isOutOfStock ? 0 : (item.supply || '')} onChange={e => updateJobItem(idx, 'supply', e.target.value)}
                                         className={`${ciR} ${isOutOfStock ? 'bg-gray-100 text-gray-400 pointer-events-none' : ''}`}
                                         min="0" readOnly={isOutOfStock} title={invItem != null ? `${invItem.stock} on hand` : ''} />
                                     </td>
 
                                     {/* B.Ord */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.bord }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.bord, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={item.bOrd || ''} onChange={e => updateJobItem(idx, 'bOrd', e.target.value)}
                                         className={`${ciR} ${item.bOrd > 0 ? 'text-orange-600 font-semibold border-orange-300 bg-orange-50' : ''}`}
                                         min="0" placeholder="0" />
                                     </td>
 
                                     {/* Price Ex */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.priceEx }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceEx, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" step="0.01" value={item.priceEx || ''} onChange={e => updateJobItem(idx, 'priceEx', e.target.value)} className={`${ciR} font-medium`} min="0" />
                                     </td>
 
                                     {/* Price Inc */}
-                                    <td className="px-0.5 py-0.5 border-r border-gray-100" style={{ width: colWidths.priceInc }}>
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceInc, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" step="0.01" value={item.priceInc || ''} onChange={e => updateJobItem(idx, 'priceInc', e.target.value)} className={ciR} min="0" />
                                     </td>
 
                                     {/* Margin % */}
-                                    <td className="px-1 py-0.5 text-right border-r border-gray-100" style={{ width: colWidths.margin }}
+                                    <td className="px-1 py-0.5 text-right" style={{ width: colWidths.margin, borderRight: `1px solid ${T.hairline}` }}
                                       title={isLowMargin ? `Low margin: ${(item.marginPercent || 0).toFixed(1)}% < 15%` : ''}>
-                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-red-600' : item.marginPercent > 0 ? 'text-green-600' : item.marginPercent < 0 ? 'text-red-500' : 'text-gray-300'}`}>
+                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-red-600' : item.marginPercent > 0 ? 'text-green-600' : item.marginPercent < 0 ? 'text-red-500' : ''}`}
+                                        style={!isLowMargin && item.marginPercent === 0 ? { color: T.textFaint } : undefined}>
                                         {item.priceEx > 0 && item.purchasePrice > 0 ? `${isLowMargin ? '⚠' : ''}${(item.marginPercent || 0).toFixed(0)}%` : '—'}
                                       </span>
                                     </td>
 
                                     {/* Total */}
-                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] text-gray-800 border-r border-gray-100 tabular-nums" style={{ width: colWidths.total }}>
+                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] tabular-nums" style={{ width: colWidths.total, borderRight: `1px solid ${T.hairline}`, color: T.text }}>
                                       ${(parseFloat(item.total) || 0).toFixed(2)}
                                     </td>
 
                                     {/* Hide */}
-                                    <td className="px-0.5 py-0.5 text-center border-r border-gray-100" style={{ width: colWidths.hide }}>
+                                    <td className="px-0.5 py-0.5 text-center" style={{ width: colWidths.hide, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="checkbox" className="w-3 h-3 accent-blue-600 cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
                                     </td>
                                   </>)}
@@ -5294,8 +5298,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                                 {/* Decoration sub-row */}
                                 {hasDecoration && (
-                                  <tr className={`border-b border-gray-100 ${decOpt.v === 'EMB' ? 'bg-purple-50/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-orange-50/50' : decOpt.v === 'DTF' ? 'bg-cyan-50/50' : decOpt.v === 'SCR' ? 'bg-rose-50/50' : 'bg-gray-50/50'}`}>
-                                    <td className="text-center text-[10px] text-gray-300 select-none border-r border-gray-100" style={{ width: 26 }}>↳</td>
+                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-purple-50/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-orange-50/50' : decOpt.v === 'DTF' ? 'bg-cyan-50/50' : decOpt.v === 'SCR' ? 'bg-rose-50/50' : 'bg-gray-50/50'}`}
+                                    style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                                    <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
                                     <td colSpan={10} className="px-2 py-0.5">
                                       <div className="flex items-center gap-2 relative">
                                         <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
@@ -5388,19 +5393,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           </div>
                         )}
                         <div className="w-56 space-y-0.5 text-xs flex-shrink-0">
-                          {totalCost > 0 && <div className="flex justify-between text-gray-400"><span>Total Cost:</span><span>${totalCost.toFixed(2)}</span></div>}
+                          {totalCost > 0 && <div className="flex justify-between" style={{ color: T.textFaint }}><span>Total Cost:</span><span>${totalCost.toFixed(2)}</span></div>}
                           {totalCost > 0 && (
                             <div className={`flex justify-between font-medium ${grossMargin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                               <span>Gross Margin:</span><span>${grossMargin.toFixed(2)} ({marginPct.toFixed(1)}%)</span>
                             </div>
                           )}
-                          <div className="flex justify-between text-gray-600 border-t pt-0.5">
+                          <div className="flex justify-between pt-0.5" style={{ color: T.textMuted, borderTop: `1px solid ${T.hairline}` }}>
                             <span>Subtotal (ex GST):</span><span>${(jobForm.subtotal || 0).toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-gray-600">
+                          <div className="flex justify-between" style={{ color: T.textMuted }}>
                             <span>GST (10%):</span><span>${(jobForm.tax || 0).toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between font-bold text-sm border-t pt-0.5">
+                          <div className="flex justify-between font-bold text-sm pt-0.5" style={{ color: T.text, borderTop: `1px solid ${T.hairline}` }}>
                             <span>Total (inc GST):</span><span>${(jobForm.total || 0).toFixed(2)}</span>
                           </div>
                         </div>
@@ -5411,10 +5416,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* Drag handle */}
                 <div
                   onMouseDown={startLineItemsResize}
-                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg bg-gray-100 hover:bg-blue-100 group border-t border-gray-200 flex-shrink-0"
+                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-blue-100 group flex-shrink-0"
+                  style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}
                   title="Drag to resize"
                 >
-                  <div className="w-8 h-0.5 bg-gray-300 group-hover:bg-blue-400 rounded-full" />
+                  <div className="w-8 h-0.5 rounded-full group-hover:bg-blue-400" style={{ background: T.hairline }} />
                 </div>
               </div>
 
@@ -8986,39 +8992,40 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       {/* Right-click context menu for line items */}
       {ctxMenu.visible && (
         <div
-          className="fixed bg-white border border-gray-200 rounded-lg shadow-2xl z-[99999] py-1 min-w-[200px] text-sm"
-          style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          className="fixed rounded-lg shadow-2xl z-[99999] py-1 min-w-[200px] text-sm"
+          style={{ left: ctxMenu.x, top: ctxMenu.y, background: T.panel, border: `1px solid ${T.hairline}` }}
           onMouseLeave={closeCtx}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest border-b mb-1">Row {ctxMenu.rowIdx + 1}</div>
-          <button onMouseDown={() => { ctxAddAbove(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-gray-700">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: T.textFaint, borderBottom: `1px solid ${T.hairline}` }}>Row {ctxMenu.rowIdx + 1}</div>
+          <button onMouseDown={() => { ctxAddAbove(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
             <Plus className="w-3.5 h-3.5 text-blue-500" /> Add Row Above
           </button>
-          <button onMouseDown={() => { ctxAddBelow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-gray-700">
+          <button onMouseDown={() => { ctxAddBelow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
             <Plus className="w-3.5 h-3.5 text-blue-500" /> Add Row Below
           </button>
-          <button onMouseDown={() => { ctxDuplicate(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-gray-700">
+          <button onMouseDown={() => { ctxDuplicate(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
             <span className="text-blue-500 font-bold text-xs">⧉</span> Duplicate Row
           </button>
-          <div className="border-t my-1" />
+          <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
           <button onMouseDown={() => { ctxMoveUp(ctxMenu.rowIdx); closeCtx(); }} disabled={ctxMenu.rowIdx === 0}
-            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
-            <span className="text-gray-500">↑</span> Move Up
+            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
+            <span style={{ color: T.textMuted }}>↑</span> Move Up
           </button>
           <button onMouseDown={() => { ctxMoveDown(ctxMenu.rowIdx); closeCtx(); }} disabled={ctxMenu.rowIdx >= jobForm.items.length - 1}
-            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">
-            <span className="text-gray-500">↓</span> Move Down
+            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
+            <span style={{ color: T.textMuted }}>↓</span> Move Down
           </button>
-          <div className="border-t my-1" />
-          <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Row Type</div>
+          <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
+          <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: T.textFaint }}>Row Type</div>
           {[['product','📦 Product Line'],['section','§ Section Header'],['note','¶ Note / Instruction']].map(([t, label]) => (
             <button key={t} onMouseDown={() => { setJobForm(f => { const items = [...f.items]; items[ctxMenu.rowIdx] = { ...items[ctxMenu.rowIdx], displayType: t }; return { ...f, items }; }); closeCtx(); }}
-              className={`w-full text-left px-4 py-1.5 hover:bg-blue-50 flex items-center gap-2 text-xs ${jobForm.items[ctxMenu.rowIdx]?.displayType === t ? 'font-bold text-blue-700' : 'text-gray-600'}`}>
+              className={`w-full text-left px-4 py-1.5 hover:bg-blue-50 flex items-center gap-2 text-xs ${jobForm.items[ctxMenu.rowIdx]?.displayType === t ? 'font-bold text-blue-700' : ''}`}
+              style={jobForm.items[ctxMenu.rowIdx]?.displayType === t ? undefined : { color: T.textMuted }}>
               {label} {jobForm.items[ctxMenu.rowIdx]?.displayType === t ? '✓' : ''}
             </button>
           ))}
-          <div className="border-t my-1" />
+          <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
           <button onMouseDown={() => { ctxClearRow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-amber-50 flex items-center gap-2 text-amber-700">
             <span className="text-amber-500">⊘</span> Clear Row
           </button>
