@@ -6066,19 +6066,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={() => setConfirmModal({ show: false, message: '', onConfirm: null })} cardClass="max-w-sm w-full p-6">
           <div className="flex items-start space-x-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-gray-800">{confirmModal.message}</p>
+            <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: T.danger }} />
+            <p style={{ color: T.text }}>{confirmModal.message}</p>
           </div>
           <div className="flex justify-end space-x-2">
             <button
               onClick={() => setConfirmModal({ show: false, message: '', onConfirm: null })}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
+              className="px-4 py-2 rounded"
+              style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}
             >
               Cancel
             </button>
             <button
               onClick={confirmModal.onConfirm}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="px-4 py-2 text-white rounded"
+              style={{ background: T.danger }}
             >
               Delete
             </button>
@@ -6147,27 +6149,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={closeModal} cardClass="max-w-sm w-full p-6">
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold">Record Payment</h3>
-          <button onClick={closeModal}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold" style={{ color: T.text }}>Record Payment</h3>
+          <button onClick={closeModal}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: T.textMuted }}>Amount ($)</label>
             <input
               type="number" step="0.01" min="0.01" max={paymentModal.maxAmount}
               value={paymentModal.amount}
               onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
-              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ border: `1px solid ${T.hairline}` }}
               autoFocus disabled={paymentModal.tyroProcessing}
             />
-            <p className="text-xs text-gray-500 mt-1">Balance due: ${paymentModal.maxAmount.toFixed(2)}</p>
+            <p className="text-xs mt-1" style={{ color: T.textMuted }}>Balance due: ${paymentModal.maxAmount.toFixed(2)}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: T.textMuted }}>Payment Method</label>
             <select
               value={paymentModal.method}
               onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value, tyroStatus: null })}
-              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ border: `1px solid ${T.hairline}` }}
               disabled={paymentModal.tyroProcessing}
             >
               <option>Tyro EFTPOS</option>
@@ -6179,35 +6183,37 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </div>
 
           {/* Tyro status panel */}
-          {isTyro && (
-            <div className={`rounded-lg border px-4 py-3 text-sm ${
-              paymentModal.tyroStatus?.startsWith('Declined') || paymentModal.tyroStatus?.startsWith('Failed') || paymentModal.tyroStatus?.startsWith('Error')
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : paymentModal.tyroStatus?.startsWith('Cancelled')
-                ? 'bg-amber-50 border-amber-200 text-amber-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-            }`}>
-              {paymentModal.tyroProcessing && (
-                <div className="flex items-center gap-2 mb-1">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
-                  <span className="font-medium">Processing…</span>
-                </div>
-              )}
-              <p>{paymentModal.tyroStatus || 'Click "Charge via Tyro" to send to the EFTPOS terminal.'}</p>
-            </div>
-          )}
+          {isTyro && (() => {
+            const isErr = paymentModal.tyroStatus?.startsWith('Declined') || paymentModal.tyroStatus?.startsWith('Failed') || paymentModal.tyroStatus?.startsWith('Error');
+            const isCancelled = paymentModal.tyroStatus?.startsWith('Cancelled');
+            return (
+              <div className="rounded-lg px-4 py-3 text-sm"
+                style={isErr
+                  ? { border: `1px solid ${T.danger}`, color: T.danger }
+                  : isCancelled
+                  ? { border: '1px solid #d97706', color: '#b45309' }
+                  : { border: `1px solid ${T.hairline}`, color: T.text }}>
+                {paymentModal.tyroProcessing && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span className="font-medium">Processing…</span>
+                  </div>
+                )}
+                <p>{paymentModal.tyroStatus || 'Click "Charge via Tyro" to send to the EFTPOS terminal.'}</p>
+              </div>
+            );
+          })()}
         </div>
 
-        <div className="flex justify-end space-x-2 mt-4 pt-4 border-t">
-          <button onClick={closeModal} className="px-4 py-2 border rounded hover:bg-gray-50" disabled={paymentModal.tyroProcessing}>
+        <div className="flex justify-end space-x-2 mt-4 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
+          <button onClick={closeModal} className="px-4 py-2 rounded" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }} disabled={paymentModal.tyroProcessing}>
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={paymentModal.tyroProcessing || !parseFloat(paymentModal.amount)}
-            className={`px-4 py-2 text-white rounded flex items-center gap-2 disabled:opacity-50 ${
-              isTyro ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-            }`}
+            className="px-4 py-2 text-white rounded flex items-center gap-2 disabled:opacity-50"
+            style={{ background: isTyro ? T.accentStrong : T.ok }}
           >
             <CreditCard className="w-4 h-4" />
             {isTyro ? 'Charge via Tyro' : 'Confirm Payment'}
@@ -6224,42 +6230,45 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={() => setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' })} cardClass="max-w-sm w-full p-6">
           <div className="flex items-center justify-between mb-4 cursor-move select-none">
-            <h3 className="text-lg font-bold">Adjust Stock</h3>
+            <h3 className="text-lg font-bold" style={{ color: T.text }}>Adjust Stock</h3>
             <button onClick={() => setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' })}>
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5" style={{ color: T.textMuted }} />
             </button>
           </div>
-          <p className="text-sm text-gray-600 mb-4">{stockAdjustModal.name}</p>
+          <p className="text-sm mb-4" style={{ color: T.textMuted }}>{stockAdjustModal.name}</p>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment (+/-)</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: T.textMuted }}>Adjustment (+/-)</label>
               <input
                 type="number"
                 value={stockAdjustModal.adjustment}
                 onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, adjustment: e.target.value })}
                 placeholder="e.g. +10 or -5"
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ border: `1px solid ${T.hairline}` }}
                 autoFocus
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Current: {stockAdjustModal.currentStock} → New: <span className={newStock < stockAdjustModal.currentStock ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{newStock}</span>
+              <p className="text-xs mt-1" style={{ color: T.textFaint }}>
+                Current: {stockAdjustModal.currentStock} → New: <span style={{ color: newStock < stockAdjustModal.currentStock ? T.danger : T.ok, fontWeight: 500 }}>{newStock}</span>
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: T.textMuted }}>Reason</label>
               <input
                 type="text"
                 value={stockAdjustModal.reason}
                 onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, reason: e.target.value })}
                 placeholder="e.g. Stocktake, Damaged goods..."
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ border: `1px solid ${T.hairline}` }}
               />
             </div>
           </div>
-          <div className="flex justify-end space-x-2 mt-4 pt-4 border-t">
+          <div className="flex justify-end space-x-2 mt-4 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
             <button
               onClick={() => setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' })}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
+              className="px-4 py-2 rounded"
+              style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}
             >
               Cancel
             </button>
@@ -6269,7 +6278,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' });
               }}
               disabled={adj === 0}
-              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="px-4 py-2 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              style={{ background: T.accentStrong }}
             >
               <Box className="w-4 h-4 mr-2" />
               Apply Adjustment
@@ -6296,39 +6306,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[480px] p-6">
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><Box className="w-5 h-5 text-blue-600" />Dispatch Job #{dispatchModal.job?.id}</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Box className="w-5 h-5" style={{ color: T.accentStrong }} />Dispatch Job #{dispatchModal.job?.id}</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
-        {dispatchModal.error && <p className="text-sm text-red-600 mb-3 bg-red-50 px-3 py-2 rounded">{dispatchModal.error}</p>}
+        {dispatchModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, border: `1px solid ${T.danger}` }}>{dispatchModal.error}</p>}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Ship Via *</label>
-              <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" autoFocus />
+              <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Via *</label>
+              <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Ship Reference *</label>
-              <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Reference *</label>
+              <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">No. of Cartons</label>
-            <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>No. of Cartons</label>
+            <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
-            <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Notes</label>
+            <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
           {dispatchModal.job?.status === 'FINISH' && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: T.text }}>
               <input type="checkbox" checked={dispatchModal.advanceStatus} onChange={e => setDispatchModal(m => ({ ...m, advanceStatus: e.target.checked }))} />
               Advance status to INVOICE after dispatch
             </label>
           )}
         </div>
-        <div className="flex justify-end gap-2 mt-5 pt-4 border-t">
-          <button onClick={close} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Cancel</button>
-          <button onClick={submit} disabled={dispatchModal.loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50 flex items-center gap-2">
+        <div className="flex justify-end gap-2 mt-5 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
+          <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+          <button onClick={submit} disabled={dispatchModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
             <Truck className="w-4 h-4" />{dispatchModal.loading ? 'Dispatching...' : 'Confirm Dispatch'}
           </button>
         </div>
