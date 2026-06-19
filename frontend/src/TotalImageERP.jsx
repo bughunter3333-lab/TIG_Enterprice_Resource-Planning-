@@ -6362,15 +6362,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[420px] p-6">
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><Printer className="w-5 h-5 text-orange-600" />Unprint Job #{unprintModal.job?.id}</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Printer className="w-5 h-5 text-orange-600" />Unprint Job #{unprintModal.job?.id}</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
-        <p className="text-sm text-gray-700 mb-2">This will revert the job from <span className="font-semibold text-orange-600">{unprintModal.job?.status}</span> back to <span className="font-semibold text-blue-600">FINISH</span>.</p>
-        <p className="text-xs text-gray-500 mb-4">An internal comment will be added recording this action. Use this to recall and re-issue an invoice.</p>
-        {unprintModal.error && <p className="text-sm text-red-600 mb-3 bg-red-50 px-3 py-2 rounded">{unprintModal.error}</p>}
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <button onClick={close} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Cancel</button>
-          <button onClick={confirm} disabled={unprintModal.loading} className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm disabled:opacity-50 flex items-center gap-2">
+        <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-orange-600">{unprintModal.job?.status}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>FINISH</span>.</p>
+        <p className="text-xs mb-4" style={{ color: T.textMuted }}>An internal comment will be added recording this action. Use this to recall and re-issue an invoice.</p>
+        {unprintModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, background: T.dangerTint }}>{unprintModal.error}</p>}
+        <div className="flex justify-end gap-2 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
+          <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+          <button onClick={confirm} disabled={unprintModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
             <Printer className="w-4 h-4" />{unprintModal.loading ? 'Reverting...' : 'Confirm Unprint'}
           </button>
         </div>
@@ -6405,41 +6405,41 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[900px] p-6" cardStyle={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><DollarSign className="w-5 h-5 text-green-600" />Sales Register</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><DollarSign className="w-5 h-5 text-green-600" />Sales Register</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
         <div className="flex items-end gap-3 mb-4">
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Date From</label><input type="date" value={salesRegModal.dateFrom} onChange={e => setSalesRegModal(m => ({ ...m, dateFrom: e.target.value, data: null }))} className="border rounded px-3 py-1.5 text-sm" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Date To</label><input type="date" value={salesRegModal.dateTo} onChange={e => setSalesRegModal(m => ({ ...m, dateTo: e.target.value, data: null }))} className="border rounded px-3 py-1.5 text-sm" /></div>
-          <button onClick={load} disabled={salesRegModal.loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50">{salesRegModal.loading ? 'Loading...' : 'Load'}</button>
-          {salesRegModal.data && <button onClick={exportCSV} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm flex items-center gap-1"><FileSpreadsheet className="w-4 h-4" />Export CSV</button>}
+          <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date From</label><input type="date" value={salesRegModal.dateFrom} onChange={e => setSalesRegModal(m => ({ ...m, dateFrom: e.target.value, data: null }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
+          <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date To</label><input type="date" value={salesRegModal.dateTo} onChange={e => setSalesRegModal(m => ({ ...m, dateTo: e.target.value, data: null }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
+          <button onClick={load} disabled={salesRegModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50" style={{ background: T.accentStrong }}>{salesRegModal.loading ? 'Loading...' : 'Load'}</button>
+          {salesRegModal.data && <button onClick={exportCSV} className="px-4 py-2 rounded text-sm flex items-center gap-1" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}><FileSpreadsheet className="w-4 h-4" />Export CSV</button>}
         </div>
-        {salesRegModal.error && <p className="text-sm text-red-600 mb-3">{salesRegModal.error}</p>}
+        {salesRegModal.error && <p className="text-sm mb-3" style={{ color: T.danger }}>{salesRegModal.error}</p>}
         {salesRegModal.data && (
           <>
-            <div className="flex gap-4 mb-3 text-sm">
+            <div className="flex gap-4 mb-3 text-sm" style={{ color: T.text }}>
               <span className="font-medium">{salesRegModal.data.summary.count} jobs</span>
-              <span>Ex: <span className="font-semibold text-gray-800">${salesRegModal.data.summary.total_ex.toFixed(2)}</span></span>
-              <span>Tax: <span className="font-semibold text-gray-800">${salesRegModal.data.summary.total_tax.toFixed(2)}</span></span>
-              <span>Inc: <span className="font-semibold text-green-700 text-base">${salesRegModal.data.summary.total_inc.toFixed(2)}</span></span>
+              <span>Ex: <span className="font-semibold" style={{ color: T.text }}>${salesRegModal.data.summary.total_ex.toFixed(2)}</span></span>
+              <span>Tax: <span className="font-semibold" style={{ color: T.text }}>${salesRegModal.data.summary.total_tax.toFixed(2)}</span></span>
+              <span>Inc: <span className="font-semibold text-base" style={{ color: T.ok }}>${salesRegModal.data.summary.total_inc.toFixed(2)}</span></span>
             </div>
-            <div className="overflow-auto flex-1 border rounded">
+            <div className="overflow-auto flex-1 rounded" style={{ border: `1px solid ${T.hairline}` }}>
               <table className="w-full text-xs">
-                <thead className="bg-gray-100 sticky top-0">
-                  <tr>{['Job','Customer','Status','Date In','Invoice','Ex GST','GST','Inc GST','Balance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-gray-600">{h}</th>)}</tr>
+                <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
+                  <tr>{['Job','Customer','Status','Date In','Invoice','Ex GST','GST','Inc GST','Balance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {salesRegModal.data.jobs.map(j => (
-                    <tr key={j.id} className="border-t hover:bg-gray-50">
-                      <td className="px-3 py-1.5 font-mono font-medium text-blue-700">{j.id}</td>
-                      <td className="px-3 py-1.5">{j.customer}</td>
+                    <tr key={j.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <td className="px-3 py-1.5 font-mono font-medium" style={{ color: T.accentStrong }}>{j.id}</td>
+                      <td className="px-3 py-1.5" style={{ color: T.text }}>{j.customer}</td>
                       <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{j.status}</span></td>
-                      <td className="px-3 py-1.5 text-gray-500">{j.dateIn}</td>
-                      <td className="px-3 py-1.5 text-gray-500">{j.invoice || '—'}</td>
-                      <td className="px-3 py-1.5 text-right">${(j.subtotal||0).toFixed(2)}</td>
-                      <td className="px-3 py-1.5 text-right text-gray-500">${(j.tax||0).toFixed(2)}</td>
-                      <td className="px-3 py-1.5 text-right font-medium">${(j.total||0).toFixed(2)}</td>
-                      <td className={`px-3 py-1.5 text-right ${(j.balanceDue||0) > 0 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>${(j.balanceDue||0).toFixed(2)}</td>
+                      <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.dateIn}</td>
+                      <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.invoice || '—'}</td>
+                      <td className="px-3 py-1.5 text-right" style={{ color: T.text }}>${(j.subtotal||0).toFixed(2)}</td>
+                      <td className="px-3 py-1.5 text-right" style={{ color: T.textMuted }}>${(j.tax||0).toFixed(2)}</td>
+                      <td className="px-3 py-1.5 text-right font-medium" style={{ color: T.text }}>${(j.total||0).toFixed(2)}</td>
+                      <td className="px-3 py-1.5 text-right" style={{ color: (j.balanceDue||0) > 0 ? T.danger : T.textFaint, fontWeight: (j.balanceDue||0) > 0 ? 600 : 400 }}>${(j.balanceDue||0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -6447,7 +6447,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             </div>
           </>
         )}
-        {!salesRegModal.data && !salesRegModal.loading && <p className="text-sm text-gray-400 text-center py-12">Select a date range and click Load to view the Sales Register.</p>}
+        {!salesRegModal.data && !salesRegModal.loading && <p className="text-sm text-center py-12" style={{ color: T.textFaint }}>Select a date range and click Load to view the Sales Register.</p>}
       </DraggableModal>
     );
   };
@@ -6471,53 +6471,53 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[500px] p-6">
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><RefreshCw className="w-5 h-5 text-blue-600" />Transfer Stock</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><RefreshCw className="w-5 h-5" style={{ color: T.accentStrong }} />Transfer Stock</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
-        {transferModal.error && <p className="text-sm text-red-600 mb-3 bg-red-50 px-3 py-2 rounded">{transferModal.error}</p>}
+        {transferModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, background: T.dangerTint }}>{transferModal.error}</p>}
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Source SKU *</label>
-            <select value={transferModal.fromSku} onChange={e => setTransferModal(m => ({ ...m, fromSku: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
+            <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Source SKU *</label>
+            <select value={transferModal.fromSku} onChange={e => setTransferModal(m => ({ ...m, fromSku: e.target.value }))} className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
               <option value="">— Select source item —</option>
               {inventory.map(i => <option key={i.sku} value={i.sku}>{i.sku} — {i.name} (Stock: {i.stock})</option>)}
             </select>
-            {fromItem && <p className="text-xs text-gray-500 mt-1">Available: {fromItem.stock} | Location: {fromItem.location || 'N/A'}</p>}
+            {fromItem && <p className="text-xs mt-1" style={{ color: T.textMuted }}>Available: {fromItem.stock} | Location: {fromItem.location || 'N/A'}</p>}
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Quantity *</label>
-            <input type="number" min="1" max={fromItem?.stock || 9999} value={transferModal.quantity} onChange={e => setTransferModal(m => ({ ...m, quantity: parseInt(e.target.value) || 1 }))} className="w-32 border rounded px-3 py-2 text-sm" />
+            <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Quantity *</label>
+            <input type="number" min="1" max={fromItem?.stock || 9999} value={transferModal.quantity} onChange={e => setTransferModal(m => ({ ...m, quantity: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
-          <div className="border-t pt-3">
-            <p className="text-xs text-gray-500 mb-2 font-medium">DESTINATION — fill one:</p>
+          <div className="pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
+            <p className="text-xs mb-2 font-medium" style={{ color: T.textMuted }}>DESTINATION — fill one:</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Destination SKU</label>
-                <select value={transferModal.toSku} onChange={e => setTransferModal(m => ({ ...m, toSku: e.target.value, toLocation: '' }))} className="w-full border rounded px-3 py-2 text-sm">
+                <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Destination SKU</label>
+                <select value={transferModal.toSku} onChange={e => setTransferModal(m => ({ ...m, toSku: e.target.value, toLocation: '' }))} className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                   <option value="">— Same item —</option>
                   {inventory.filter(i => i.sku !== transferModal.fromSku).map(i => <option key={i.sku} value={i.sku}>{i.sku} — {i.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New Location</label>
-                <input value={transferModal.toLocation} onChange={e => setTransferModal(m => ({ ...m, toLocation: e.target.value, toSku: '' }))} placeholder="e.g. Bin A3" className="w-full border rounded px-3 py-2 text-sm" />
+                <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>New Location</label>
+                <input value={transferModal.toLocation} onChange={e => setTransferModal(m => ({ ...m, toLocation: e.target.value, toSku: '' }))} placeholder="e.g. Bin A3" className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
               </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Reference</label>
-              <input value={transferModal.reference} onChange={e => setTransferModal(m => ({ ...m, reference: e.target.value }))} placeholder="XFER-001" className="w-full border rounded px-3 py-2 text-sm" />
+              <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Reference</label>
+              <input value={transferModal.reference} onChange={e => setTransferModal(m => ({ ...m, reference: e.target.value }))} placeholder="XFER-001" className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
-              <input value={transferModal.notes} onChange={e => setTransferModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional" className="w-full border rounded px-3 py-2 text-sm" />
+              <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Notes</label>
+              <input value={transferModal.notes} onChange={e => setTransferModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional" className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-5 pt-4 border-t">
-          <button onClick={close} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Cancel</button>
-          <button onClick={submit} disabled={transferModal.loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-50 flex items-center gap-2">
+        <div className="flex justify-end gap-2 mt-5 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
+          <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+          <button onClick={submit} disabled={transferModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.ok }}>
             <RefreshCw className="w-4 h-4" />{transferModal.loading ? 'Transferring...' : 'Transfer'}
           </button>
         </div>
@@ -6542,62 +6542,62 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[700px] p-6" cardStyle={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><CheckSquare className="w-5 h-5 text-green-600" />Stocktake</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><CheckSquare className="w-5 h-5" style={{ color: T.ok }} />Stocktake</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
         {stocktakeModal.results ? (
           <>
-            <p className="text-sm text-green-700 font-medium mb-3">Stocktake complete — {stocktakeModal.results.reference}</p>
-            <div className="overflow-auto flex-1 border rounded">
+            <p className="text-sm font-medium mb-3" style={{ color: T.ok }}>Stocktake complete — {stocktakeModal.results.reference}</p>
+            <div className="overflow-auto flex-1 rounded" style={{ border: `1px solid ${T.hairline}` }}>
               <table className="w-full text-xs">
-                <thead className="bg-gray-100 sticky top-0"><tr>{['SKU','Previous','Counted','Variance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>)}</tr></thead>
+                <thead className="sticky top-0" style={{ background: T.hairlineSoft }}><tr>{['SKU','Previous','Counted','Variance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {stocktakeModal.results.results.map(r => (
-                    <tr key={r.sku} className="border-t">
-                      <td className="px-3 py-1.5 font-mono">{r.sku}</td>
-                      <td className="px-3 py-1.5">{r.previous}</td>
-                      <td className="px-3 py-1.5">{r.counted}</td>
-                      <td className={`px-3 py-1.5 font-medium ${r.variance > 0 ? 'text-green-600' : r.variance < 0 ? 'text-red-600' : 'text-gray-400'}`}>{r.variance > 0 ? '+' : ''}{r.variance}</td>
+                    <tr key={r.sku} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <td className="px-3 py-1.5 font-mono" style={{ color: T.text }}>{r.sku}</td>
+                      <td className="px-3 py-1.5" style={{ color: T.text }}>{r.previous}</td>
+                      <td className="px-3 py-1.5" style={{ color: T.text }}>{r.counted}</td>
+                      <td className="px-3 py-1.5 font-medium" style={{ color: r.variance > 0 ? T.ok : r.variance < 0 ? T.danger : T.textFaint }}>{r.variance > 0 ? '+' : ''}{r.variance}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end pt-3"><button onClick={close} className="px-4 py-2 bg-gray-600 text-white rounded text-sm">Close</button></div>
+            <div className="flex justify-end pt-3"><button onClick={close} className="px-4 py-2 text-white rounded text-sm" style={{ background: T.textMuted }}>Close</button></div>
           </>
         ) : (
           <>
             <div className="flex items-center gap-4 mb-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Method</label>
-                <select value={stocktakeModal.method} onChange={e => setStocktakeModal(m => ({ ...m, method: e.target.value }))} className="border rounded px-3 py-1.5 text-sm">
+                <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Method</label>
+                <select value={stocktakeModal.method} onChange={e => setStocktakeModal(m => ({ ...m, method: e.target.value }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                   <option>Informed</option><option>Blind</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reference</label>
-                <input value={stocktakeModal.reference} onChange={e => setStocktakeModal(m => ({ ...m, reference: e.target.value }))} placeholder="auto-generated if blank" className="border rounded px-3 py-1.5 text-sm w-44" />
+                <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Reference</label>
+                <input value={stocktakeModal.reference} onChange={e => setStocktakeModal(m => ({ ...m, reference: e.target.value }))} placeholder="auto-generated if blank" className="rounded px-3 py-1.5 text-sm w-44" style={{ border: `1px solid ${T.hairline}` }} />
               </div>
             </div>
-            {stocktakeModal.error && <p className="text-sm text-red-600 mb-3">{stocktakeModal.error}</p>}
-            <div className="overflow-auto flex-1 border rounded mb-4">
+            {stocktakeModal.error && <p className="text-sm mb-3" style={{ color: T.danger }}>{stocktakeModal.error}</p>}
+            <div className="overflow-auto flex-1 rounded mb-4" style={{ border: `1px solid ${T.hairline}` }}>
               <table className="w-full text-xs">
-                <thead className="bg-gray-100 sticky top-0"><tr>{['SKU','Name','System Qty',stocktakeModal.method === 'Blind' ? 'Counted Qty' : 'Counted Qty'].map(h => <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>)}</tr></thead>
+                <thead className="sticky top-0" style={{ background: T.hairlineSoft }}><tr>{['SKU','Name','System Qty',stocktakeModal.method === 'Blind' ? 'Counted Qty' : 'Counted Qty'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr></thead>
                 <tbody>
                   {stocktakeModal.items.map(item => (
-                    <tr key={item.sku} className="border-t">
-                      <td className="px-3 py-1 font-mono">{item.sku}</td>
-                      <td className="px-3 py-1">{item.name}</td>
-                      <td className="px-3 py-1 text-gray-500">{stocktakeModal.method === 'Blind' ? '—' : item.currentStock}</td>
+                    <tr key={item.sku} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <td className="px-3 py-1 font-mono" style={{ color: T.text }}>{item.sku}</td>
+                      <td className="px-3 py-1" style={{ color: T.text }}>{item.name}</td>
+                      <td className="px-3 py-1" style={{ color: T.textMuted }}>{stocktakeModal.method === 'Blind' ? '—' : item.currentStock}</td>
                       <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-orange-400 bg-orange-50' : ''}`} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t">
-              <button onClick={close} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Cancel</button>
-              <button onClick={submit} disabled={stocktakeModal.loading} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50 flex items-center gap-2">
+            <div className="flex justify-end gap-2 pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
+              <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+              <button onClick={submit} disabled={stocktakeModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.ok }}>
                 <CheckSquare className="w-4 h-4" />{stocktakeModal.loading ? 'Saving...' : 'Commit Stocktake'}
               </button>
             </div>
@@ -6615,23 +6615,23 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[900px] p-6" cardStyle={{ maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600" />Stock Flow</h3>
-          <button onClick={close}><X className="w-5 h-5 text-gray-500" /></button>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><TrendingUp className="w-5 h-5" style={{ color: T.accentStrong }} />Stock Flow</h3>
+          <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
-        <input value={stockFlowModal.search} onChange={e => setStockFlowModal(m => ({ ...m, search: e.target.value }))} placeholder="Search SKU or name..." className="border rounded px-3 py-2 text-sm mb-3 w-64" />
-        {stockFlowModal.loading && <p className="text-sm text-gray-500 py-8 text-center">Loading stock flow data...</p>}
+        <input value={stockFlowModal.search} onChange={e => setStockFlowModal(m => ({ ...m, search: e.target.value }))} placeholder="Search SKU or name..." className="rounded px-3 py-2 text-sm mb-3 w-64" style={{ border: `1px solid ${T.hairline}` }} />
+        {stockFlowModal.loading && <p className="text-sm py-8 text-center" style={{ color: T.textMuted }}>Loading stock flow data...</p>}
         {!stockFlowModal.loading && (
           <div className="overflow-auto flex-1 space-y-3">
             {filtered.map(item => (
-              <div key={item.sku} className="border rounded p-3">
+              <div key={item.sku} className="rounded p-3" style={{ border: `1px solid ${T.hairline}` }}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <span className="font-mono font-medium text-sm text-blue-700">{item.sku}</span>
-                    <span className="ml-2 text-sm text-gray-700">{item.name}</span>
-                    {item.location && <span className="ml-2 text-xs text-gray-400">@ {item.location}</span>}
+                    <span className="font-mono font-medium text-sm" style={{ color: T.accentStrong }}>{item.sku}</span>
+                    <span className="ml-2 text-sm" style={{ color: T.text }}>{item.name}</span>
+                    {item.location && <span className="ml-2 text-xs" style={{ color: T.textFaint }}>@ {item.location}</span>}
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-600">
-                    <span>Stock: <span className={`font-semibold ${item.stock <= item.min_stock ? 'text-red-600' : 'text-gray-800'}`}>{item.stock}</span></span>
+                  <div className="flex items-center gap-4 text-xs" style={{ color: T.textMuted }}>
+                    <span>Stock: <span className="font-semibold" style={{ color: item.stock <= item.min_stock ? T.danger : T.text }}>{item.stock}</span></span>
                     <span>Min: {item.min_stock}</span>
                     <span>Cost: ${item.unit_cost.toFixed(2)}</span>
                     <span>Price: ${item.sell_price.toFixed(2)}</span>
@@ -6639,25 +6639,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 </div>
                 {item.movements.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-t">
-                      <thead className="text-gray-500"><tr><th className="text-left py-1 pr-3">Date</th><th className="text-left py-1 pr-3">Type</th><th className="text-right py-1 pr-3">Qty</th><th className="text-left py-1 pr-3">Reference</th><th className="text-left py-1">Notes</th></tr></thead>
+                    <table className="w-full text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <thead style={{ color: T.textMuted }}><tr><th className="text-left py-1 pr-3">Date</th><th className="text-left py-1 pr-3">Type</th><th className="text-right py-1 pr-3">Qty</th><th className="text-left py-1 pr-3">Reference</th><th className="text-left py-1">Notes</th></tr></thead>
                       <tbody>
                         {item.movements.map(m => (
-                          <tr key={m.id} className="border-t">
-                            <td className="py-1 pr-3 text-gray-500">{m.date}</td>
-                            <td className="py-1 pr-3">{m.type}</td>
-                            <td className={`py-1 pr-3 text-right font-medium ${m.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>{m.quantity > 0 ? '+' : ''}{m.quantity}</td>
-                            <td className="py-1 pr-3 text-gray-500">{m.reference || '—'}</td>
-                            <td className="py-1 text-gray-500">{m.notes || ''}</td>
+                          <tr key={m.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                            <td className="py-1 pr-3" style={{ color: T.textMuted }}>{m.date}</td>
+                            <td className="py-1 pr-3" style={{ color: T.text }}>{m.type}</td>
+                            <td className="py-1 pr-3 text-right font-medium" style={{ color: m.quantity > 0 ? T.ok : T.danger }}>{m.quantity > 0 ? '+' : ''}{m.quantity}</td>
+                            <td className="py-1 pr-3" style={{ color: T.textMuted }}>{m.reference || '—'}</td>
+                            <td className="py-1" style={{ color: T.textMuted }}>{m.notes || ''}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                ) : <p className="text-xs text-gray-400 pt-1">No movement history</p>}
+                ) : <p className="text-xs pt-1" style={{ color: T.textFaint }}>No movement history</p>}
               </div>
             ))}
-            {filtered.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No items match.</p>}
+            {filtered.length === 0 && <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No items match.</p>}
           </div>
         )}
       </DraggableModal>
