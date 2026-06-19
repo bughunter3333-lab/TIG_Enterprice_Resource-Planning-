@@ -5453,19 +5453,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>SKU</label>
                     <input
                       type="text"
                       value={inventoryForm.sku}
                       onChange={(e) => setInventoryForm({...inventoryForm, sku: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       disabled={editingItem !== null}
                       required
                     />
                   </div>
 
                   <div className="relative">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Category</label>
                     <input
                       type="text"
                       value={categoryDropdown.open ? categoryDropdown.query : inventoryForm.category}
@@ -5481,7 +5482,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         if (e.key === 'Enter' && hits[categoryDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, category: hits[categoryDropdown.highlighted]}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }
                         if (e.key === 'Escape') setCategoryDropdown({ open: false, query: '', highlighted: 0 });
                       }}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       placeholder="e.g. Apparel, Accessories…"
                       autoComplete="off"
                     />
@@ -5491,8 +5493,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       const hits = cats.filter(c => !q || c.toLowerCase().includes(q)).slice(0, 8);
                       if (!hits.length) return null;
                       return (
-                        <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{ fontSize: '13px' }}>
-                          <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50">Existing categories</div>
+                        <div className="absolute left-0 top-full mt-1 w-full rounded-xl shadow-2xl z-50 overflow-hidden" style={{ fontSize: '13px', background: T.panel, border: `1px solid ${T.hairline}` }}>
+                          <div className="px-3 py-1.5 text-xs border-b" style={{color: T.textFaint, background: T.hairlineSoft, borderColor: T.hairline}}>Existing categories</div>
                           {hits.map((cat, i) => {
                             const count = inventory.filter(inv => inv.category === cat).length;
                             return (
@@ -5500,8 +5502,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                 onMouseDown={() => { setInventoryForm({...inventoryForm, category: cat}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setCategoryDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === categoryDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <span className="text-gray-800 font-medium">{cat}</span>
-                                <span className="text-xs text-gray-400">{count} item{count !== 1 ? 's' : ''}</span>
+                                <span className="font-medium" style={{color: T.text}}>{cat}</span>
+                                <span className="text-xs" style={{color: T.textFaint}}>{count} item{count !== 1 ? 's' : ''}</span>
                               </div>
                             );
                           })}
@@ -5511,40 +5513,43 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Item Name</label>
                     <input
                       type="text"
                       value={inventoryForm.name}
                       onChange={(e) => setInventoryForm({...inventoryForm, name: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Stock Quantity</label>
                     <input
                       type="number"
                       value={inventoryForm.stock}
                       onChange={(e) => setInventoryForm({...inventoryForm, stock: parseInt(e.target.value) || 0})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Reorder Level</label>
                     <input
                       type="number"
                       value={inventoryForm.reorderLevel}
                       onChange={(e) => setInventoryForm({...inventoryForm, reorderLevel: parseInt(e.target.value) || 0})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
                   </div>
 
                   <div className="relative">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Location</label>
                     <input
                       type="text"
                       value={locationDropdown.open ? locationDropdown.query : inventoryForm.location}
@@ -5560,7 +5565,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         if (e.key === 'Enter' && hits[locationDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, location: hits[locationDropdown.highlighted]}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }
                         if (e.key === 'Escape') setLocationDropdown({ open: false, query: '', highlighted: 0 });
                       }}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       placeholder="e.g., A-15-3"
                       autoComplete="off"
                     />
@@ -5570,8 +5576,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       const hits = locs.filter(l => !q || l.toLowerCase().includes(q)).slice(0, 8);
                       if (!hits.length) return null;
                       return (
-                        <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden" style={{ fontSize: '13px' }}>
-                          <div className="px-3 py-1.5 text-xs text-gray-400 border-b bg-gray-50">Existing bin locations</div>
+                        <div className="absolute left-0 top-full mt-1 w-full rounded-xl shadow-2xl z-50 overflow-hidden" style={{ fontSize: '13px', background: T.panel, border: `1px solid ${T.hairline}` }}>
+                          <div className="px-3 py-1.5 text-xs border-b" style={{color: T.textFaint, background: T.hairlineSoft, borderColor: T.hairline}}>Existing bin locations</div>
                           {hits.map((loc, i) => {
                             const occupant = inventory.find(inv => inv.location === loc);
                             return (
@@ -5579,8 +5585,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                 onMouseDown={() => { setInventoryForm({...inventoryForm, location: loc}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setLocationDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === locationDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <span className="font-mono font-bold text-gray-700">{loc}</span>
-                                {occupant && <span className="text-xs text-gray-400 truncate max-w-[140px]">{occupant.name}</span>}
+                                <span className="font-mono font-bold" style={{color: T.text}}>{loc}</span>
+                                {occupant && <span className="text-xs truncate max-w-[140px]" style={{color: T.textFaint}}>{occupant.name}</span>}
                               </div>
                             );
                           })}
@@ -5590,18 +5596,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Supplier</label>
                     <select
                       value={inventoryForm.supplierCode}
                       onChange={(e) => {
                         const selectedSupplier = suppliers.find(s => s.code === e.target.value);
                         setInventoryForm({
-                          ...inventoryForm, 
+                          ...inventoryForm,
                           supplierCode: e.target.value,
                           supplier: selectedSupplier?.name || ''
                         });
                       }}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="">Select Supplier</option>
                       {suppliers.map(s => (
@@ -5611,62 +5618,68 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit Cost ($)</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Unit Cost ($)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={inventoryForm.unitCost}
                       onChange={(e) => setInventoryForm({...inventoryForm, unitCost: parseFloat(e.target.value) || 0})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price ($)</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Unit Price ($)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={inventoryForm.unitPrice}
                       onChange={(e) => setInventoryForm({...inventoryForm, unitPrice: parseFloat(e.target.value) || 0})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order Qty</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Minimum Order Qty</label>
                     <input
                       type="number"
                       value={inventoryForm.minOrder}
                       onChange={(e) => setInventoryForm({...inventoryForm, minOrder: parseInt(e.target.value) || 1})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="1"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Lead Time (days)</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Lead Time (days)</label>
                     <input
                       type="number"
                       value={inventoryForm.leadTime}
                       onChange={(e) => setInventoryForm({...inventoryForm, leadTime: parseInt(e.target.value) || 7})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="1"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-4 border-t">
+                <div className="flex justify-end space-x-2 pt-4" style={{borderTop: `1px solid ${T.hairline}`}}>
                   <button
                     onClick={closeModal}
-                    className="px-4 py-2 border rounded hover:bg-gray-50"
+                    className="px-4 py-2 rounded hover:bg-gray-50"
+                    style={{border: `1px solid ${T.hairline}`, color: T.textMuted}}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveInventoryItem}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    className="px-4 py-2 text-white rounded flex items-center"
+                    style={{background: T.accentStrong}}
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save Item
@@ -5679,22 +5692,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Customer Name</label>
                     <input
                       type="text"
                       value={customerForm.name}
                       onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Account Type</label>
                     <select
                       value={customerForm.accountType || 'Account'}
                       onChange={(e) => setCustomerForm({...customerForm, accountType: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="Account">Account</option>
                       <option value="Cash">Cash</option>
@@ -5703,72 +5718,79 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Contact Person</label>
                     <input
                       type="text"
                       value={customerForm.contact}
                       onChange={(e) => setCustomerForm({...customerForm, contact: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Email</label>
                     <input
                       type="email"
                       value={customerForm.email}
                       onChange={(e) => setCustomerForm({...customerForm, email: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Phone</label>
                     <input
                       type="tel"
                       value={customerForm.phone}
                       onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Mobile</label>
                     <input
                       type="tel"
                       value={customerForm.mobile}
                       onChange={(e) => setCustomerForm({...customerForm, mobile: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Address</label>
                     <textarea
                       value={customerForm.address}
                       onChange={(e) => setCustomerForm({...customerForm, address: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       rows="2"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ABN</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>ABN</label>
                     <input
                       type="text"
                       value={customerForm.abn}
                       onChange={(e) => setCustomerForm({...customerForm, abn: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Payment Terms</label>
                     <select
                       value={customerForm.paymentTerms}
                       onChange={(e) => setCustomerForm({...customerForm, paymentTerms: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="Net 7">Net 7</option>
                       <option value="Net 14">Net 14</option>
@@ -5779,38 +5801,42 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit ($)</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Credit Limit ($)</label>
                     <input
                       type="number"
                       step="1000"
                       value={customerForm.creditLimit}
                       onChange={(e) => setCustomerForm({...customerForm, creditLimit: parseFloat(e.target.value) || 0})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Account Manager</label>
+                    <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Account Manager</label>
                     <input
                       type="text"
                       value={customerForm.accountManager}
                       onChange={(e) => setCustomerForm({...customerForm, accountManager: e.target.value})}
-                      className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-4 border-t">
+                <div className="flex justify-end space-x-2 pt-4" style={{borderTop: `1px solid ${T.hairline}`}}>
                   <button
                     onClick={closeModal}
-                    className="px-4 py-2 border rounded hover:bg-gray-50"
+                    className="px-4 py-2 rounded hover:bg-gray-50"
+                    style={{border: `1px solid ${T.hairline}`, color: T.textMuted}}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveCustomer}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                    className="px-4 py-2 text-white rounded flex items-center"
+                    style={{background: T.accentStrong}}
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Save Customer
