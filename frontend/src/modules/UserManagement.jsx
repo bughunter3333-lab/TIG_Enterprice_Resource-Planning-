@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Plus, Edit, Trash2, Shield, CheckCircle, XCircle, RefreshCw, Key, AlertCircle, Search } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
+import { T } from '../ui/tokens';
 
 const ROLES = ['admin', 'staff', 'overseas_staff'];
 const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', overseas_staff: 'Overseas Staff' };
@@ -13,10 +14,10 @@ const EMPTY_FORM = { username: '', email: '', full_name: '', password: '', role:
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+      <div className="rounded-lg shadow-xl w-full max-w-md p-6 space-y-4" style={{ background: T.panel }}>
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <h3 className="font-semibold" style={{ color: T.text }}>{title}</h3>
+          <button onClick={onClose} className="text-xl leading-none" style={{ color: T.textMuted }}>&times;</button>
         </div>
         {children}
       </div>
