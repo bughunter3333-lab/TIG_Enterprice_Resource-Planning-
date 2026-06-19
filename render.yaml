@@ -1,0 +1,39 @@
+# Render Blueprint — deploys the FastAPI backend + a managed Postgres database.
+# Usage: Render dashboard → New → Blueprint → connect this repo. Render reads this file,
+# provisions the database, wires DATABASE_URL, generates SECRET_KEY, runs migrations on
+# every start, and serves uvicorn on $PORT behind HTTPS.
+#
+# After the first deploy:
+#   1. Open the web service → Shell tab → run `python seed_admin.py` to create the first admin user.
+#   2. Copy the service URL (https://<name>.onrender.com) into frontend/vercel.json (replace REPLACE_ME).
+# See DEPLOY.md for the full runbook.
+
+databases:
+  - name: tig-erp-db
+    databaseName: tig_erp
+    plan: free          # bump to `starter` for production durability (free DBs expire after 90 days)
+
+services:
+  - type: web
+    name: tig-erp-api
+    runtime: python
+    rootDir: backend
+    plan: free          # bump to `starter` to avoid cold-start sleeps in production
+    buildCommand: pip install -r requirements.txt
+    # Run pending migrations, then start the API. Alembic upgrade is idempotent.
+    startCommand: python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tig-erp-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true        # Render generates a strong value once and keeps it
+      - key: ENVIRONMENT
+        value: production           # enables JSON logs + Secure cookies
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      # Optional — only needed for the AI assistant features:
+      # - key: ANTHROPIC_API_KEY
+      #   sync: false               # set manually in the dashboard (kept out of git)

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_comment": "Same-origin /api proxy: the browser only ever talks to this Vercel domain, so the backend's SameSite=Lax auth cookies keep working (no cross-site cookie/CORS changes needed). After deploying the backend, replace REPLACE_ME with the real backend host (e.g. tig-erp-api.onrender.com) and redeploy. The backend routes live at root (/auth/login, /health, ...) so /api/auth/login proxies to https://<host>/auth/login.",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://REPLACE_ME.onrender.com/:path*" }
+  ]
+}
