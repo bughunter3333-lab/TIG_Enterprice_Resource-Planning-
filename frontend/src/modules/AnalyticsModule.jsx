@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  TrendingUp, BarChart3, Clock, AlertTriangle, Users, 
-  Package, DollarSign, RefreshCw, LayoutGrid, HelpCircle, 
+import {
+  TrendingUp, BarChart3, Clock, AlertTriangle, Users,
+  Package, DollarSign, RefreshCw, LayoutGrid, HelpCircle,
   Calendar, Percent, ArrowUpRight, ArrowDownRight, ShieldAlert,
   ChevronRight, Activity
 } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
+import { T } from '../ui/tokens';
 import {
   ResponsiveContainer, AreaChart, Area, LineChart, Line, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -59,17 +60,18 @@ export default function AnalyticsModule() {
   return (
     <div className="space-y-5">
       {/* ── Title and Refresh ── */}
-      <div className="flex items-center justify-between border-b pb-3">
+      <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: T.hairline }}>
         <div>
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-blue-600" />
+          <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: T.text }}>
+            <Activity className="w-5 h-5" style={{ color: T.accentStrong }} />
             Operations &amp; Predictive Analytics
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">Advanced forecasting models and operational efficiency audits</p>
+          <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Advanced forecasting models and operational efficiency audits</p>
         </div>
-        <button 
+        <button
           onClick={refetchAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg bg-white hover:bg-gray-50 text-xs text-gray-600 hover:text-gray-800 font-medium transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-sm"
+          style={{ border: `1px solid ${T.hairline}`, background: T.panel, color: T.textMuted }}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isAnyLoading ? 'animate-spin' : ''}`} />
           Refresh Models
@@ -77,16 +79,16 @@ export default function AnalyticsModule() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <div className="flex border-b overflow-x-auto scrollbar-none gap-1 bg-white p-1 rounded-lg border">
+      <div className="flex overflow-x-auto scrollbar-none gap-1 p-1 rounded-lg" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         {[
-          { id: 'overview',     label: 'Overview',      icon: LayoutGrid },
-          { id: 'forecast',     label: 'Revenue Forecast', icon: TrendingUp },
+          { id: 'overview',     label: 'Overview',         icon: LayoutGrid },
+          { id: 'forecast',     label: 'Revenue Forecast',  icon: TrendingUp },
           { id: 'dso',          label: 'DSO & Collections', icon: DollarSign },
-          { id: 'turnaround',    label: 'Turnaround Time',  icon: Clock },
-          { id: 'abc',          label: 'ABC Inventory',   icon: Package },
+          { id: 'turnaround',   label: 'Turnaround Time',   icon: Clock },
+          { id: 'abc',          label: 'ABC Inventory',     icon: Package },
           { id: 'churn',        label: 'Retention & Churn', icon: Users },
           { id: 'margins',      label: 'Pricing & Margins', icon: Percent },
-          { id: 'anomalies',    label: 'Anomaly Reports',  icon: ShieldAlert }
+          { id: 'anomalies',    label: 'Anomaly Reports',   icon: ShieldAlert }
         ].map(tab => {
           const TabIcon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -94,11 +96,10 @@ export default function AnalyticsModule() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-md whitespace-nowrap transition-all ${
-                isActive 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-md whitespace-nowrap transition-all"
+              style={isActive
+                ? { background: T.accentStrong, color: '#fff' }
+                : { color: T.textMuted }}
             >
               <TabIcon className="w-4 h-4 shrink-0" />
               {tab.label}
@@ -124,8 +125,8 @@ export default function AnalyticsModule() {
 
 // ── 1. Overview Tab ─────────────────────────────────────────────────────────
 function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery, anomaliesQuery, setActiveTab }) {
-  if (overviewQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Loading overview...</div>;
-  if (overviewQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {overviewQuery.error.message}</div>;
+  if (overviewQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Loading overview...</div>;
+  if (overviewQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {overviewQuery.error.message}</div>;
 
   const data = overviewQuery.data;
   const forecast = forecastQuery.data;
@@ -183,16 +184,16 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
       {/* ── Key Cards Grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Outstanding Receivables */}
-        <div className="bg-white border rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div className="rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <div className="flex items-center justify-between text-gray-500">
+            <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Outstanding A/R</span>
               <DollarSign className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{fmt$(data.outstanding_receivables)}</p>
+            <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{fmt$(data.outstanding_receivables)}</p>
           </div>
-          <div className="border-t pt-2 mt-4 flex justify-between items-center text-[11px]">
-            <span className="text-gray-500">
+          <div className="pt-2 mt-4 flex justify-between items-center text-[11px]" style={{ borderTop: `1px solid ${T.hairline}` }}>
+            <span style={{ color: T.textMuted }}>
               {dso ? `Collection DSO: ${dso.dso_days} days` : 'Calculating DSO...'}
             </span>
             {dso && (
@@ -206,22 +207,22 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
         </div>
 
         {/* Forecasted Sales */}
-        <div className="bg-white border rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div className="rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <div className="flex items-center justify-between text-gray-500">
+            <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Next Month Forecast</span>
-              <TrendingUp className="w-4 h-4 text-blue-600" />
+              <TrendingUp className="w-4 h-4" style={{ color: T.accentStrong }} />
             </div>
-            <p className="text-2xl font-bold text-gray-800 mt-2">
+            <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>
               {forecast ? fmt$(forecast.ensemble_forecast) : 'Calculating...'}
             </p>
           </div>
-          <div className="border-t pt-2 mt-4 flex justify-between items-center text-[11px]">
-            <span className="text-gray-500">
+          <div className="pt-2 mt-4 flex justify-between items-center text-[11px]" style={{ borderTop: `1px solid ${T.hairline}` }}>
+            <span style={{ color: T.textMuted }}>
               {forecast ? `Month: ${forecast.forecast_month}` : 'Forecast month...'}
             </span>
             {forecast && (
-              <span className="flex items-center gap-0.5 font-bold text-green-600">
+              <span className="flex items-center gap-0.5 font-bold" style={{ color: T.ok }}>
                 <ArrowUpRight className="w-3.5 h-3.5" />
                 {forecast.confidence} Fit
               </span>
@@ -230,16 +231,16 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
         </div>
 
         {/* Active Backlog */}
-        <div className="bg-white border rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div className="rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <div className="flex items-center justify-between text-gray-500">
+            <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Active Backlog</span>
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{data.active_jobs_count} Jobs</p>
+            <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{data.active_jobs_count} Jobs</p>
           </div>
-          <div className="border-t pt-2 mt-4 flex justify-between items-center text-[11px]">
-            <span className="text-gray-500">
+          <div className="pt-2 mt-4 flex justify-between items-center text-[11px]" style={{ borderTop: `1px solid ${T.hairline}` }}>
+            <span style={{ color: T.textMuted }}>
               {data.stagnant_jobs_count} stagnant (&gt;30d)
             </span>
             {data.overdue_jobs_count > 0 ? (
@@ -255,16 +256,16 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
         </div>
 
         {/* Customer Churn Risk */}
-        <div className="bg-white border rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div className="rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <div className="flex items-center justify-between text-gray-500">
+            <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Churn Risk Accounts</span>
               <Users className="w-4 h-4 text-purple-600" />
             </div>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{data.high_risk_churn_count} Clients</p>
+            <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{data.high_risk_churn_count} Clients</p>
           </div>
-          <div className="border-t pt-2 mt-4 flex justify-between items-center text-[11px]">
-            <span className="text-gray-500">Inactive &gt;120 days</span>
+          <div className="pt-2 mt-4 flex justify-between items-center text-[11px]" style={{ borderTop: `1px solid ${T.hairline}` }}>
+            <span style={{ color: T.textMuted }}>Inactive &gt;120 days</span>
             <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 font-bold rounded-full">
               Follow-up Needed
             </span>
@@ -276,30 +277,31 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         {/* Action Items List */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4">
+        <div className="rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Automated Operational Audits</h3>
-            <p className="text-[11px] text-gray-500">Rule-based triggers identifying anomalies and bottlenecks</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Automated Operational Audits</h3>
+            <p className="text-[11px]" style={{ color: T.textMuted }}>Rule-based triggers identifying anomalies and bottlenecks</p>
           </div>
-          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto pr-1">
+          <div className="max-h-80 overflow-y-auto pr-1" style={{ borderTop: `1px solid ${T.hairline}` }}>
             {actionItems.length === 0 ? (
-              <p className="text-xs text-gray-400 py-10 text-center">No compliance issues or bottlenecks flagged in this cycle.</p>
+              <p className="text-xs py-10 text-center" style={{ color: T.textFaint }}>No compliance issues or bottlenecks flagged in this cycle.</p>
             ) : (
               actionItems.map((item, idx) => (
-                <div key={idx} className="py-3.5 flex items-start justify-between gap-3 text-xs last:pb-0">
+                <div key={idx} className="py-3.5 flex items-start justify-between gap-3 text-xs" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   <div className="flex gap-2.5 items-start">
                     {item.type === 'critical' ? (
                       <AlertTriangle className="w-4.5 h-4.5 text-red-500 shrink-0 mt-0.5" />
                     ) : item.type === 'warning' ? (
                       <AlertTriangle className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
                     ) : (
-                      <HelpCircle className="w-4.5 h-4.5 text-blue-500 shrink-0 mt-0.5" />
+                      <HelpCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" style={{ color: T.accentStrong }} />
                     )}
-                    <span className="text-gray-600 leading-relaxed">{item.msg}</span>
+                    <span className="leading-relaxed" style={{ color: T.textMuted }}>{item.msg}</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setActiveTab(item.tab)}
-                    className="flex items-center gap-0.5 font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0"
+                    className="flex items-center gap-0.5 font-bold hover:underline shrink-0"
+                    style={{ color: T.accentStrong }}
                   >
                     Resolve <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -310,10 +312,10 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
         </div>
 
         {/* Small Receivables Aging chart */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl p-5 shadow-sm flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Receivables Aging</h3>
-            <p className="text-[11px] text-gray-500 mb-3">Accounts Receivable Buckets</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Receivables Aging</h3>
+            <p className="text-[11px] mb-3" style={{ color: T.textMuted }}>Accounts Receivable Buckets</p>
           </div>
           {dso && dso.total_outstanding > 0 ? (
             <div className="h-44">
@@ -329,7 +331,7 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-xs text-gray-400 py-10 text-center">No outstanding debts.</p>
+            <p className="text-xs py-10 text-center" style={{ color: T.textFaint }}>No outstanding debts.</p>
           )}
         </div>
       </div>
@@ -339,8 +341,8 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
 
 // ── 2. Revenue Forecast Tab ──────────────────────────────────────────────────
 function renderForecastTab({ forecastQuery, seasonalityQuery }) {
-  if (forecastQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Running smoothing &amp; OLS regressions...</div>;
-  if (forecastQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error loading forecast: {forecastQuery.error.message}</div>;
+  if (forecastQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Running smoothing &amp; OLS regressions...</div>;
+  if (forecastQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error loading forecast: {forecastQuery.error.message}</div>;
 
   const data = forecastQuery.data;
   const seasonality = seasonalityQuery.data;
@@ -349,10 +351,10 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
   return (
     <div className="space-y-6">
       {/* Historical + Predict Chart */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div>
-          <h3 className="font-bold text-gray-800 text-sm">Ensemble Revenue Projection</h3>
-          <p className="text-[11px] text-gray-500">Holt's Double Exponential Smoothing (EWMA) &amp; OLS Linear Regression</p>
+          <h3 className="font-bold text-sm" style={{ color: T.text }}>Ensemble Revenue Projection</h3>
+          <p className="text-[11px]" style={{ color: T.textMuted }}>Holt's Double Exponential Smoothing (EWMA) &amp; OLS Linear Regression</p>
         </div>
         {months.length > 0 ? (
           <div className="h-80">
@@ -379,42 +381,42 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-xs text-gray-400 py-20 text-center">Insufficient months to compute chart.</p>
+          <p className="text-xs py-20 text-center" style={{ color: T.textFaint }}>Insufficient months to compute chart.</p>
         )}
       </div>
 
       {/* Stats and Seasonality */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Model Metrics */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
-          <h4 className="font-bold text-gray-800 text-xs uppercase tracking-wider">Regression Coefficients</h4>
+        <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <h4 className="font-bold text-xs uppercase tracking-wider" style={{ color: T.text }}>Regression Coefficients</h4>
           <div className="space-y-3.5">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Holt Level Prediction</span>
-              <span className="font-semibold text-gray-800">{fmt$(data.holt_prediction)}</span>
+              <span style={{ color: T.textMuted }}>Holt Level Prediction</span>
+              <span className="font-semibold" style={{ color: T.text }}>{fmt$(data.holt_prediction)}</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Linear OLS Slope Prediction</span>
-              <span className="font-semibold text-gray-800">{fmt$(data.ols_prediction)}</span>
+              <span style={{ color: T.textMuted }}>Linear OLS Slope Prediction</span>
+              <span className="font-semibold" style={{ color: T.text }}>{fmt$(data.ols_prediction)}</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Blended Ensemble Forecast</span>
+              <span style={{ color: T.textMuted }}>Blended Ensemble Forecast</span>
               <span className="font-bold text-indigo-700">{fmt$(data.ensemble_forecast)}</span>
             </div>
-            <div className="border-t pt-3">
+            <div className="pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">Monthly Trend Slope</span>
+                <span style={{ color: T.textMuted }}>Monthly Trend Slope</span>
                 <span className={`font-semibold ${data.trend_slope >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {data.trend_slope >= 0 ? '+' : ''}{fmt$(data.trend_slope)} / mo
                 </span>
               </div>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Model Fit (R² Coefficient)</span>
-              <span className="font-semibold text-gray-800">{Math.round(data.model_fit_r2 * 100)}%</span>
+              <span style={{ color: T.textMuted }}>Model Fit (R² Coefficient)</span>
+              <span className="font-semibold" style={{ color: T.text }}>{Math.round(data.model_fit_r2 * 100)}%</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500">Confidence Interval</span>
+              <span style={{ color: T.textMuted }}>Confidence Interval</span>
               <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                 data.confidence === 'High' ? 'bg-green-50 text-green-700' : data.confidence === 'Moderate' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
               }`}>{data.confidence}</span>
@@ -423,15 +425,15 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
         </div>
 
         {/* Seasonality Chart */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4">
+        <div className="rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <h4 className="font-bold text-gray-800 text-xs uppercase tracking-wider">Seasonal Index Coefficients</h4>
-            <p className="text-[10px] text-gray-500 mt-0.5">Deviation factor from average baseline (1.0 = average monthly sales)</p>
+            <h4 className="font-bold text-xs uppercase tracking-wider" style={{ color: T.text }}>Seasonal Index Coefficients</h4>
+            <p className="text-[10px] mt-0.5" style={{ color: T.textMuted }}>Deviation factor from average baseline (1.0 = average monthly sales)</p>
           </div>
           {seasonalityQuery.isLoading ? (
-            <div className="text-center py-10 text-xs text-gray-400">Loading seasonality indexes...</div>
+            <div className="text-center py-10 text-xs" style={{ color: T.textFaint }}>Loading seasonality indexes...</div>
           ) : seasonalityQuery.isError ? (
-            <div className="text-xs text-red-600">Error: {seasonalityQuery.error.message}</div>
+            <div className="text-xs" style={{ color: T.danger }}>Error: {seasonalityQuery.error.message}</div>
           ) : (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -457,8 +459,8 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
 
 // ── 3. DSO & Collections Tab ─────────────────────────────────────────────────
 function renderDsoTab({ dsoQuery }) {
-  if (dsoQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Calculating aged balances...</div>;
-  if (dsoQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error loading DSO: {dsoQuery.error.message}</div>;
+  if (dsoQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Calculating aged balances...</div>;
+  if (dsoQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error loading DSO: {dsoQuery.error.message}</div>;
 
   const data = dsoQuery.data;
 
@@ -478,17 +480,17 @@ function renderDsoTab({ dsoQuery }) {
           <p className="text-[10px] opacity-75 mt-4">Industry target is &lt;30 days. Collection health is {data.collection_health_rating}.</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl p-5 shadow-sm flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Total Outstanding A/R</span>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{fmt$(data.total_outstanding)}</p>
+            <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: T.textMuted }}>Total Outstanding A/R</span>
+            <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{fmt$(data.total_outstanding)}</p>
           </div>
-          <p className="text-[10px] text-gray-400 mt-4">90-day billed volume: {fmt$(data.revenue_last_90_days)}</p>
+          <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>90-day billed volume: {fmt$(data.revenue_last_90_days)}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl p-5 shadow-sm flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Accounts Status</span>
+            <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: T.textMuted }}>Accounts Status</span>
             <div className="grid grid-cols-3 gap-1 mt-3 text-center">
               <div className="bg-green-50 p-1.5 rounded">
                 <p className="text-[10px] text-green-700 font-bold">Paid</p>
@@ -508,30 +510,30 @@ function renderDsoTab({ dsoQuery }) {
       </div>
 
       {/* Top Receivables Customers */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div>
-          <h3 className="font-bold text-gray-800 text-sm">Largest Outstanding Balances</h3>
-          <p className="text-[11px] text-gray-500">Top customer accounts with unpaid invoices</p>
+          <h3 className="font-bold text-sm" style={{ color: T.text }}>Largest Outstanding Balances</h3>
+          <p className="text-[11px]" style={{ color: T.textMuted }}>Top customer accounts with unpaid invoices</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
               <tr>
                 <th className="px-4 py-2.5">Customer ID</th>
                 <th className="px-4 py-2.5">Company Name</th>
                 <th className="px-4 py-2.5 text-right">Outstanding Balance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {data.top_receivables.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="text-center py-6 text-gray-400">No active accounts receivable.</td>
+                  <td colSpan={3} className="text-center py-6" style={{ color: T.textFaint }}>No active accounts receivable.</td>
                 </tr>
               ) : (
                 data.top_receivables.map((r, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-semibold text-blue-700">{r.customer_id}</td>
-                    <td className="px-4 py-2.5 text-gray-700 font-medium">{r.customer_name}</td>
+                  <tr key={idx} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                    <td className="px-4 py-2.5 font-semibold" style={{ color: T.accentStrong }}>{r.customer_id}</td>
+                    <td className="px-4 py-2.5 font-medium" style={{ color: T.text }}>{r.customer_name}</td>
                     <td className="px-4 py-2.5 text-right font-bold text-red-600">{fmt$(r.balance_due)}</td>
                   </tr>
                 ))
@@ -546,8 +548,8 @@ function renderDsoTab({ dsoQuery }) {
 
 // ── 4. Turnaround Time Tab ───────────────────────────────────────────────────
 function renderTurnaroundTab({ turnaroundQuery }) {
-  if (turnaroundQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Analyzing job completion logs...</div>;
-  if (turnaroundQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {turnaroundQuery.error.message}</div>;
+  if (turnaroundQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Analyzing job completion logs...</div>;
+  if (turnaroundQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {turnaroundQuery.error.message}</div>;
 
   const data = turnaroundQuery.data;
 
@@ -555,50 +557,50 @@ function renderTurnaroundTab({ turnaroundQuery }) {
     <div className="space-y-6">
       {/* Turnaround Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Average Turnaround</span>
-          <p className="text-3xl font-extrabold text-blue-700 mt-2">{data.average_turnaround_days} Days</p>
-          <span className="text-[9px] text-gray-400 block mt-1">Creation to completion</span>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Average Turnaround</span>
+          <p className="text-3xl font-extrabold mt-2" style={{ color: T.accentStrong }}>{data.average_turnaround_days} Days</p>
+          <span className="text-[9px] block mt-1" style={{ color: T.textFaint }}>Creation to completion</span>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Median Turnaround</span>
-          <p className="text-3xl font-extrabold text-gray-800 mt-2">{data.median_turnaround_days} Days</p>
-          <span className="text-[9px] text-gray-400 block mt-1">50th percentile</span>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Median Turnaround</span>
+          <p className="text-3xl font-extrabold mt-2" style={{ color: T.text }}>{data.median_turnaround_days} Days</p>
+          <span className="text-[9px] block mt-1" style={{ color: T.textFaint }}>50th percentile</span>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">90th Percentile</span>
-          <p className="text-3xl font-extrabold text-gray-800 mt-2">{data.p90_turnaround_days} Days</p>
-          <span className="text-[9px] text-gray-400 block mt-1">SLA failure threshold</span>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>90th Percentile</span>
+          <p className="text-3xl font-extrabold mt-2" style={{ color: T.text }}>{data.p90_turnaround_days} Days</p>
+          <span className="text-[9px] block mt-1" style={{ color: T.textFaint }}>SLA failure threshold</span>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Throughput Class</span>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Throughput Class</span>
           <p className={`text-2xl font-extrabold mt-2 ${
             data.throughput_rating === 'Fast' ? 'text-green-600' : data.throughput_rating === 'Moderate' ? 'text-amber-600' : 'text-red-600'
           }`}>{data.throughput_rating}</p>
-          <span className="text-[9px] text-gray-400 block mt-1">Relative performance index</span>
+          <span className="text-[9px] block mt-1" style={{ color: T.textFaint }}>Relative performance index</span>
         </div>
       </div>
 
       {/* Visual Charts and Backlog */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Speed Breakdown Pie */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl p-5 shadow-sm flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Delivery Speeds</h3>
-            <p className="text-[11px] text-gray-500 mb-3">Completed jobs breakdown</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Delivery Speeds</h3>
+            <p className="text-[11px] mb-3" style={{ color: T.textMuted }}>Completed jobs breakdown</p>
           </div>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsPie>
-                <Pie 
-                  data={data.speed_breakdown} 
-                  dataKey="count" 
-                  nameKey="category" 
-                  cx="50%" cy="50%" 
-                  outerRadius={65} 
+                <Pie
+                  data={data.speed_breakdown}
+                  dataKey="count"
+                  nameKey="category"
+                  cx="50%" cy="50%"
+                  outerRadius={65}
                   label={({ category, percent }) => `${category.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {data.speed_breakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
@@ -610,20 +612,20 @@ function renderTurnaroundTab({ turnaroundQuery }) {
         </div>
 
         {/* Backlog age and at risk */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4">
+        <div className="rounded-xl p-5 shadow-sm lg:col-span-2 space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="font-bold text-gray-800 text-sm">Stagnant Backlog Alert Log</h3>
-              <p className="text-[11px] text-gray-500">Active jobs exceeding 1.5x average turnaround ({Math.round(data.average_turnaround_days * 1.5)} days)</p>
+              <h3 className="font-bold text-sm" style={{ color: T.text }}>Stagnant Backlog Alert Log</h3>
+              <p className="text-[11px]" style={{ color: T.textMuted }}>Active jobs exceeding 1.5x average turnaround ({Math.round(data.average_turnaround_days * 1.5)} days)</p>
             </div>
             <div className="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-bold">
               {data.backlog.at_risk_count} At-Risk
             </div>
           </div>
-          
+
           <div className="overflow-x-auto max-h-52 overflow-y-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
                 <tr>
                   <th className="px-3 py-2">Job ID</th>
                   <th className="px-3 py-2">Customer</th>
@@ -631,16 +633,16 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                   <th className="px-3 py-2 text-right">Days Open</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {data.backlog.at_risk_jobs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-gray-400">All active jobs are within standard SLA.</td>
+                    <td colSpan={4} className="text-center py-6" style={{ color: T.textFaint }}>All active jobs are within standard SLA.</td>
                   </tr>
                 ) : (
                   data.backlog.at_risk_jobs.map((j) => (
-                    <tr key={j.job_id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-mono font-bold text-blue-600">#{j.job_id}</td>
-                      <td className="px-3 py-2 text-gray-700 font-medium truncate max-w-[150px]" title={j.customer_name}>{j.customer_name}</td>
+                    <tr key={j.job_id} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                      <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
+                      <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
                         <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
                       </td>
@@ -659,8 +661,8 @@ function renderTurnaroundTab({ turnaroundQuery }) {
 
 // ── 5. ABC Inventory Tab ─────────────────────────────────────────────────────
 function renderAbcTab({ abcQuery }) {
-  if (abcQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Running Pareto capitalization analysis...</div>;
-  if (abcQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {abcQuery.error.message}</div>;
+  if (abcQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Running Pareto capitalization analysis...</div>;
+  if (abcQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {abcQuery.error.message}</div>;
 
   const data = abcQuery.data;
   const sum = data.summary;
@@ -670,51 +672,51 @@ function renderAbcTab({ abcQuery }) {
       {/* Pareto summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Category A Card */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm border-l-4 border-l-blue-500">
+        <div className="rounded-xl p-5 shadow-sm border-l-4 border-l-blue-500" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
           <div className="flex justify-between items-start">
             <div>
               <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">A Items (Top 80% Capital)</span>
-              <p className="text-2xl font-extrabold text-gray-800 mt-2">{fmt$(sum.a_value)}</p>
+              <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.a_value)}</p>
             </div>
             <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-4">{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
+          <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
         </div>
 
         {/* Category B Card */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm border-l-4 border-l-green-500">
+        <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#22c55e' }}>
           <div className="flex justify-between items-start">
             <div>
               <span className="text-[11px] font-bold text-green-600 uppercase tracking-wider">B Items (Next 15% Capital)</span>
-              <p className="text-2xl font-extrabold text-gray-800 mt-2">{fmt$(sum.b_value)}</p>
+              <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.b_value)}</p>
             </div>
             <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded font-bold">{sum.b_skus_percentage}% of SKUs</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-4">{sum.b_skus_count} SKUs. Mid-priority stock buffers.</p>
+          <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.b_skus_count} SKUs. Mid-priority stock buffers.</p>
         </div>
 
         {/* Category C Card */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm border-l-4 border-l-amber-500">
+        <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
           <div className="flex justify-between items-start">
             <div>
               <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
-              <p className="text-2xl font-extrabold text-gray-800 mt-2">{fmt$(sum.c_value)}</p>
+              <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.c_value)}</p>
             </div>
             <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-4">{sum.c_skus_count} SKUs. Low-priority stock units.</p>
+          <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.c_skus_count} SKUs. Low-priority stock units.</p>
         </div>
       </div>
 
       {/* Top Value SKUs Table */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div>
-          <h3 className="font-bold text-gray-800 text-sm">Category A SKUs (Capital Concentrations)</h3>
-          <p className="text-[11px] text-gray-500">Highly capitalized items requiring precise inventory counts and prompt reorders</p>
+          <h3 className="font-bold text-sm" style={{ color: T.text }}>Category A SKUs (Capital Concentrations)</h3>
+          <p className="text-[11px]" style={{ color: T.textMuted }}>Highly capitalized items requiring precise inventory counts and prompt reorders</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
               <tr>
                 <th className="px-4 py-2.5">SKU</th>
                 <th className="px-4 py-2.5">Item Name</th>
@@ -723,13 +725,13 @@ function renderAbcTab({ abcQuery }) {
                 <th className="px-4 py-2.5 text-right">Total Valuation</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {data.top_a_items.map((item) => (
-                <tr key={item.sku} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-mono font-bold text-blue-700">{item.sku}</td>
-                  <td className="px-4 py-2.5 text-gray-700 font-medium truncate max-w-xs">{item.name}</td>
-                  <td className="px-4 py-2.5 text-center text-gray-600 font-semibold">{item.stock}</td>
-                  <td className="px-4 py-2.5 text-right text-gray-500">{fmt$(item.unit_cost)}</td>
+                <tr key={item.sku} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                  <td className="px-4 py-2.5 font-mono font-bold" style={{ color: T.accentStrong }}>{item.sku}</td>
+                  <td className="px-4 py-2.5 font-medium truncate max-w-xs" style={{ color: T.text }}>{item.name}</td>
+                  <td className="px-4 py-2.5 text-center font-semibold" style={{ color: T.textMuted }}>{item.stock}</td>
+                  <td className="px-4 py-2.5 text-right" style={{ color: T.textMuted }}>{fmt$(item.unit_cost)}</td>
                   <td className="px-4 py-2.5 text-right font-bold text-indigo-700">{fmt$(item.stock_value)}</td>
                 </tr>
               ))}
@@ -743,8 +745,8 @@ function renderAbcTab({ abcQuery }) {
 
 // ── 6. Customer Churn Tab ────────────────────────────────────────────────────
 function renderChurnTab({ churnQuery }) {
-  if (churnQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Loading churn logs...</div>;
-  if (churnQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {churnQuery.error.message}</div>;
+  if (churnQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Loading churn logs...</div>;
+  if (churnQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {churnQuery.error.message}</div>;
 
   const data = churnQuery.data;
   const sum = data.summary;
@@ -753,36 +755,36 @@ function renderChurnTab({ churnQuery }) {
     <div className="space-y-6">
       {/* Customer retention metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Analysed Accounts</span>
-          <p className="text-3xl font-extrabold text-gray-800 mt-2">{sum.total_active_customers}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Analysed Accounts</span>
+          <p className="text-3xl font-extrabold mt-2" style={{ color: T.text }}>{sum.total_active_customers}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center border-l-4 border-l-red-500">
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#ef4444' }}>
           <span className="text-[10px] text-red-600 font-bold uppercase tracking-wider">High Risk Churn (&gt;120d)</span>
           <p className="text-3xl font-extrabold text-red-700 mt-2">{sum.high_risk_count}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center border-l-4 border-l-amber-500">
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
           <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">At Risk Inactive (60-120d)</span>
           <p className="text-3xl font-extrabold text-amber-700 mt-2">{sum.at_risk_count}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Never Ordered</span>
-          <p className="text-3xl font-extrabold text-gray-500 mt-2">{sum.never_ordered_count}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Never Ordered</span>
+          <p className="text-3xl font-extrabold mt-2" style={{ color: T.textMuted }}>{sum.never_ordered_count}</p>
         </div>
       </div>
 
       {/* Customer Risk Details */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div>
-          <h3 className="font-bold text-gray-800 text-sm">High Risk Accounts (Requires Immediate Follow-up)</h3>
-          <p className="text-[11px] text-gray-500">Active accounts exceeding 120 days since last order date</p>
+          <h3 className="font-bold text-sm" style={{ color: T.text }}>High Risk Accounts (Requires Immediate Follow-up)</h3>
+          <p className="text-[11px]" style={{ color: T.textMuted }}>Active accounts exceeding 120 days since last order date</p>
         </div>
         <div className="overflow-x-auto max-h-96">
           <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
               <tr>
                 <th className="px-4 py-2.5">Client ID</th>
                 <th className="px-4 py-2.5">Client Name</th>
@@ -791,19 +793,19 @@ function renderChurnTab({ churnQuery }) {
                 <th className="px-4 py-2.5 text-right">LTV Sales</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {data.high_risk_customers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-6 text-gray-400">All active clients have ordered recently.</td>
+                  <td colSpan={5} className="text-center py-6" style={{ color: T.textFaint }}>All active clients have ordered recently.</td>
                 </tr>
               ) : (
                 data.high_risk_customers.map((c) => (
-                  <tr key={c.customer_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-mono font-bold text-blue-700">{c.customer_id}</td>
-                    <td className="px-4 py-2.5 text-gray-700 font-medium">{c.customer_name}</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{c.last_order_date || '—'}</td>
+                  <tr key={c.customer_id} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                    <td className="px-4 py-2.5 font-mono font-bold" style={{ color: T.accentStrong }}>{c.customer_id}</td>
+                    <td className="px-4 py-2.5 font-medium" style={{ color: T.text }}>{c.customer_name}</td>
+                    <td className="px-4 py-2.5 text-center" style={{ color: T.textMuted }}>{c.last_order_date || '—'}</td>
                     <td className="px-4 py-2.5 text-center font-bold text-red-600">{c.days_inactive} days</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">{fmt$(c.ltv_spend)}</td>
+                    <td className="px-4 py-2.5 text-right font-bold" style={{ color: T.text }}>{fmt$(c.ltv_spend)}</td>
                   </tr>
                 ))
               )}
@@ -817,8 +819,8 @@ function renderChurnTab({ churnQuery }) {
 
 // ── 7. Pricing & Margins Tab ─────────────────────────────────────────────────
 function renderMarginsTab({ marginsQuery }) {
-  if (marginsQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Loading margin analyses...</div>;
-  if (marginsQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {marginsQuery.error.message}</div>;
+  if (marginsQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Loading margin analyses...</div>;
+  if (marginsQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {marginsQuery.error.message}</div>;
 
   const data = marginsQuery.data;
   const sum = data.summary;
@@ -827,32 +829,32 @@ function renderMarginsTab({ marginsQuery }) {
     <div className="space-y-6">
       {/* Summary figures */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Billed Revenue ex GST</span>
-          <p className="text-2xl font-bold text-blue-700 mt-2">{fmt$(sum.total_ex_gst)}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Billed Revenue ex GST</span>
+          <p className="text-2xl font-bold mt-2" style={{ color: T.accentStrong }}>{fmt$(sum.total_ex_gst)}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Median Order Value</span>
-          <p className="text-2xl font-bold text-gray-800 mt-2">{fmt$(sum.median_job_value)}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Median Order Value</span>
+          <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{fmt$(sum.median_job_value)}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Average Order Value</span>
-          <p className="text-2xl font-bold text-gray-800 mt-2">{fmt$(sum.avg_job_value)}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Average Order Value</span>
+          <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{fmt$(sum.avg_job_value)}</p>
         </div>
 
-        <div className="bg-white border rounded-xl p-4 shadow-sm text-center">
-          <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Max Order Billed</span>
-          <p className="text-2xl font-bold text-green-700 mt-2">{fmt$(sum.max_job_value)}</p>
+        <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Max Order Billed</span>
+          <p className="text-2xl font-bold mt-2" style={{ color: T.ok }}>{fmt$(sum.max_job_value)}</p>
         </div>
       </div>
 
       {/* Grid of charts and tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Price Distribution Bracket chart */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-800 text-sm">Order Value Distribution Bins</h3>
+        <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <h3 className="font-bold text-sm" style={{ color: T.text }}>Order Value Distribution Bins</h3>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.price_distribution}>
@@ -867,20 +869,20 @@ function renderMarginsTab({ marginsQuery }) {
         </div>
 
         {/* Customer Revenue Concentration */}
-        <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
+        <div className="rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Top Customer Billed Concentration</h3>
-            <p className="text-[11px] text-gray-500">Revenue contribution percentage by account manager/client</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Top Customer Billed Concentration</h3>
+            <p className="text-[11px]" style={{ color: T.textMuted }}>Revenue contribution percentage by account manager/client</p>
           </div>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsPie>
-                <Pie 
-                  data={data.top_customers.slice(0, 5)} 
-                  dataKey="revenue" 
-                  nameKey="customer_name" 
-                  cx="50%" cy="50%" 
-                  outerRadius={70} 
+                <Pie
+                  data={data.top_customers.slice(0, 5)}
+                  dataKey="revenue"
+                  nameKey="customer_name"
+                  cx="50%" cy="50%"
+                  outerRadius={70}
                   label={({ customer_name, revenue_share_percentage }) => `${customer_name.substring(0, 10)}: ${revenue_share_percentage}%`}
                 >
                   {data.top_customers.slice(0, 5).map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
@@ -897,8 +899,8 @@ function renderMarginsTab({ marginsQuery }) {
 
 // ── 8. Anomaly Reports Tab ───────────────────────────────────────────────────
 function renderAnomaliesTab({ anomaliesQuery }) {
-  if (anomaliesQuery.isLoading) return <div className="text-center py-20 text-sm text-gray-400">Processing stock movement and revenue histories...</div>;
-  if (anomaliesQuery.isError) return <div className="bg-red-50 text-red-600 p-4 rounded-lg">Error: {anomaliesQuery.error.message}</div>;
+  if (anomaliesQuery.isLoading) return <div className="text-center py-20 text-sm" style={{ color: T.textFaint }}>Processing stock movement and revenue histories...</div>;
+  if (anomaliesQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error: {anomaliesQuery.error.message}</div>;
 
   const data = anomaliesQuery.data;
   const stock = data.stock_consumption_anomalies || [];
@@ -908,20 +910,20 @@ function renderAnomaliesTab({ anomaliesQuery }) {
   return (
     <div className="space-y-6">
       {/* Stock Anomalies */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Stock Consumption Spikes (Z-Score &gt; 2.0σ)</h3>
-            <p className="text-[11px] text-gray-500">Consumption outflows that deviate significantly from historical standard deviation levels</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Stock Consumption Spikes (Z-Score &gt; 2.0σ)</h3>
+            <p className="text-[11px]" style={{ color: T.textMuted }}>Consumption outflows that deviate significantly from historical standard deviation levels</p>
           </div>
           <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
             {stock.length} Spikes
           </span>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
               <tr>
                 <th className="px-4 py-2.5">SKU</th>
                 <th className="px-4 py-2.5">Item Name</th>
@@ -930,18 +932,18 @@ function renderAnomaliesTab({ anomaliesQuery }) {
                 <th className="px-4 py-2.5 text-right">Z-Score Deviation</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {stock.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-6 text-gray-400">No stock anomalies detected.</td>
+                  <td colSpan={5} className="text-center py-6" style={{ color: T.textFaint }}>No stock anomalies detected.</td>
                 </tr>
               ) : (
                 stock.map((item) => (
-                  <tr key={item.sku} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-mono font-bold text-blue-700">{item.sku}</td>
-                    <td className="px-4 py-2.5 text-gray-700 font-medium truncate max-w-xs">{item.name}</td>
-                    <td className="px-4 py-2.5 text-center text-red-600 font-bold">{item.recent_outflow} pcs</td>
-                    <td className="px-4 py-2.5 text-center text-gray-500">{item.avg_outflow} pcs</td>
+                  <tr key={item.sku} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                    <td className="px-4 py-2.5 font-mono font-bold" style={{ color: T.accentStrong }}>{item.sku}</td>
+                    <td className="px-4 py-2.5 font-medium truncate max-w-xs" style={{ color: T.text }}>{item.name}</td>
+                    <td className="px-4 py-2.5 text-center font-bold text-red-600">{item.recent_outflow} pcs</td>
+                    <td className="px-4 py-2.5 text-center" style={{ color: T.textMuted }}>{item.avg_outflow} pcs</td>
                     <td className="px-4 py-2.5 text-right font-extrabold text-red-600">+{item.z_score} σ</td>
                   </tr>
                 ))
@@ -952,11 +954,11 @@ function renderAnomaliesTab({ anomaliesQuery }) {
       </div>
 
       {/* Revenue Anomalies */}
-      <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+      <div className="rounded-xl p-5 shadow-sm space-y-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-gray-800 text-sm">Monthly Revenue Outliers (Z-Score &gt; 2.0σ)</h3>
-            <p className="text-[11px] text-gray-500">Monthly invoice aggregates that deviate significantly from baseline standard deviation</p>
+            <h3 className="font-bold text-sm" style={{ color: T.text }}>Monthly Revenue Outliers (Z-Score &gt; 2.0σ)</h3>
+            <p className="text-[11px]" style={{ color: T.textMuted }}>Monthly invoice aggregates that deviate significantly from baseline standard deviation</p>
           </div>
           <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
             {revenue.length} Outliers
@@ -965,7 +967,7 @@ function renderAnomaliesTab({ anomaliesQuery }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase tracking-wider text-[10px]">
+            <thead className="font-semibold uppercase tracking-wider text-[10px]" style={{ background: T.hairlineSoft, color: T.textMuted }}>
               <tr>
                 <th className="px-4 py-2.5">Month</th>
                 <th className="px-4 py-2.5">Aggregate Revenue</th>
@@ -973,16 +975,16 @@ function renderAnomaliesTab({ anomaliesQuery }) {
                 <th className="px-4 py-2.5 text-right">Z-Score Deviation</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {revenue.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-6 text-gray-400">All historical monthly revenues are within normal variance.</td>
+                  <td colSpan={4} className="text-center py-6" style={{ color: T.textFaint }}>All historical monthly revenues are within normal variance.</td>
                 </tr>
               ) : (
                 revenue.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-bold text-gray-700">{item.month}</td>
-                    <td className="px-4 py-2.5 font-mono font-semibold text-gray-800">{fmt$(item.revenue)}</td>
+                  <tr key={idx} style={{ borderTop: `1px solid ${T.hairline}` }}>
+                    <td className="px-4 py-2.5 font-bold" style={{ color: T.text }}>{item.month}</td>
+                    <td className="px-4 py-2.5 font-mono font-semibold" style={{ color: T.text }}>{fmt$(item.revenue)}</td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                         item.type === 'spike' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
