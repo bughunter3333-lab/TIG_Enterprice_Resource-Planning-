@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { T } from '../../ui/tokens';
 
 const ALL_FIELDS = [
   { key: 'price_level',  label: 'Price Level' },
@@ -38,15 +39,15 @@ export default function FieldConfig({ config, onChange }) {
 
   return (
     <div>
-      <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+      <p style={{ fontSize: 11, color: T.chromeTextMuted, marginBottom: 12 }}>
         Toggle fields visible on the job form header. Use ↑↓ to reorder.
       </p>
       {fields.map((f, idx) => (
-        <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: '#1e293b', borderRadius: 6, marginBottom: 4 }}>
+        <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: T.chromeRaised, borderRadius: 6, marginBottom: 4 }}>
           <input type="checkbox" checked={f.enabled} onChange={() => toggle(f.key)} />
-          <span style={{ flex: 1, fontSize: 12, color: f.enabled ? '#e2e8f0' : '#475569' }}>{f.label}</span>
-          <button onClick={() => moveUp(idx)} style={{ fontSize: 11, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>↑</button>
-          <button onClick={() => moveDown(idx)} style={{ fontSize: 11, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>↓</button>
+          <span style={{ flex: 1, fontSize: 12, color: f.enabled ? T.chromeText : T.chromeTextMuted }}>{f.label}</span>
+          <button onClick={() => moveUp(idx)} style={{ fontSize: 11, background: 'none', border: 'none', color: T.chromeTextMuted, cursor: 'pointer' }}>↑</button>
+          <button onClick={() => moveDown(idx)} style={{ fontSize: 11, background: 'none', border: 'none', color: T.chromeTextMuted, cursor: 'pointer' }}>↓</button>
         </div>
       ))}
     </div>

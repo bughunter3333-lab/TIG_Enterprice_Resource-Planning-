@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { T } from '../../ui/tokens';
 
 const DEFAULT_STATUSES = [
   { name: 'QUOTE',       color: '#f59e0b' },
@@ -32,13 +33,13 @@ export default function StatusWorkflow({ config, onChange }) {
 
   return (
     <div>
-      <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>Production workflow statuses in order.</p>
+      <p style={{ fontSize: 11, color: T.chromeTextMuted, marginBottom: 12 }}>Production workflow statuses in order.</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
         {statuses.map(s => (
-          <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#1e293b', border: `1px solid ${s.color}40`, borderRadius: 20, padding: '4px 10px' }}>
+          <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 5, background: T.chromeRaised, border: `1px solid ${s.color}40`, borderRadius: 20, padding: '4px 10px' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: s.color }} />
-            <span style={{ fontSize: 11, color: '#e2e8f0' }}>{s.name}</span>
-            <button onClick={() => remove(s.name)} style={{ fontSize: 11, background: 'none', border: 'none', color: '#475569', cursor: 'pointer', lineHeight: 1 }}>×</button>
+            <span style={{ fontSize: 11, color: T.chromeText }}>{s.name}</span>
+            <button onClick={() => remove(s.name)} style={{ fontSize: 11, background: 'none', border: 'none', color: T.chromeTextMuted, cursor: 'pointer', lineHeight: 1 }}>×</button>
           </div>
         ))}
       </div>
@@ -48,9 +49,9 @@ export default function StatusWorkflow({ config, onChange }) {
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && add()}
           placeholder="Add status…"
-          style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 6, padding: '5px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }}
+          style={{ flex: 1, background: T.chromeRaised, border: `1px solid ${T.chromeHover}`, borderRadius: 6, padding: '5px 10px', color: T.chromeText, fontSize: 11, outline: 'none' }}
         />
-        <button onClick={add} style={{ background: '#f59e0b', color: '#1c1404', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+        <button onClick={add} style={{ background: T.accentStrong, color: '#1c1404', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Add</button>
       </div>
     </div>
   );

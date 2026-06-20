@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as api from '../../api';
+import { T } from '../../ui/tokens';
 
 const STEPS = [
   {
@@ -73,28 +74,28 @@ export default function MigrationWizard() {
             <div style={{
               width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, flexShrink: 0,
-              background: step > s.id ? '#10b981' : step === s.id ? '#f59e0b' : '#1e293b',
-              color: step > s.id ? 'white' : step === s.id ? '#1c1404' : '#64748b',
-              border: `1px solid ${step >= s.id ? 'transparent' : '#334155'}`,
+              background: step > s.id ? T.ok : step === s.id ? T.accentStrong : T.chromeRaised,
+              color: step > s.id ? 'white' : step === s.id ? '#1c1404' : T.chromeTextMuted,
+              border: `1px solid ${step >= s.id ? 'transparent' : T.chromeHover}`,
             }}>
               {step > s.id ? '✓' : s.id}
             </div>
             {idx < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 1, background: step > s.id ? '#10b981' : '#334155', margin: '0 6px' }} />
+              <div style={{ flex: 1, height: 1, background: step > s.id ? T.ok : T.chromeHover, margin: '0 6px' }} />
             )}
           </div>
         ))}
       </div>
 
       {/* Step content */}
-      <div style={{ background: '#1e293b', borderRadius: 8, padding: 18, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24', marginBottom: 6 }}>{currentStep.title}</div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>{currentStep.description}</div>
+      <div style={{ background: T.chromeRaised, borderRadius: 8, padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.accent, marginBottom: 6 }}>{currentStep.title}</div>
+        <div style={{ fontSize: 11, color: T.chromeTextMuted, marginBottom: 12 }}>{currentStep.description}</div>
 
         {currentStep.instructions && (
-          <div style={{ background: '#0f172a', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+          <div style={{ background: T.chrome, borderRadius: 6, padding: 12, marginBottom: 12 }}>
             {currentStep.instructions.map((line, i) => (
-              <div key={i} style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{line}</div>
+              <div key={i} style={{ fontSize: 11, color: T.chromeTextMuted, marginBottom: 4 }}>{line}</div>
             ))}
           </div>
         )}
@@ -111,8 +112,8 @@ export default function MigrationWizard() {
               />
               <div style={{
                 padding: '8px 18px',
-                background: uploading ? '#334155' : '#f59e0b',
-                color: uploading ? '#64748b' : '#1c1404',
+                background: uploading ? T.chromeHover : T.accentStrong,
+                color: uploading ? T.chromeTextMuted : '#1c1404',
                 borderRadius: 7, fontSize: 12, fontWeight: 600,
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 cursor: uploading ? 'not-allowed' : 'pointer',
@@ -122,10 +123,10 @@ export default function MigrationWizard() {
             </label>
 
             {results[currentStep.upload.key] && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#10b981' }}>
+              <div style={{ marginTop: 8, fontSize: 11, color: T.ok }}>
                 ✓ Imported: {results[currentStep.upload.key].imported ?? '?'} rows
                 {(results[currentStep.upload.key].errors?.length ?? 0) > 0 && (
-                  <span style={{ color: '#f59e0b', marginLeft: 8 }}>
+                  <span style={{ color: T.accent, marginLeft: 8 }}>
                     {results[currentStep.upload.key].errors.length} warnings
                   </span>
                 )}
@@ -138,10 +139,10 @@ export default function MigrationWizard() {
         {step === 5 && (
           <div>
             {['customers', 'inventory', 'jobs'].map(key => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #334155' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: results[key] ? '#10b981' : '#334155' }} />
-                <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, textTransform: 'capitalize' }}>{key}</span>
-                <span style={{ fontSize: 11, color: results[key] ? '#10b981' : '#64748b' }}>
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: `1px solid ${T.chromeHover}` }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: results[key] ? T.ok : T.chromeHover }} />
+                <span style={{ fontSize: 12, color: T.chromeText, flex: 1, textTransform: 'capitalize' }}>{key}</span>
+                <span style={{ fontSize: 11, color: results[key] ? T.ok : T.chromeTextMuted }}>
                   {results[key] ? `${results[key].imported ?? 0} rows imported` : 'Not imported'}
                 </span>
               </div>
@@ -150,7 +151,7 @@ export default function MigrationWizard() {
         )}
 
         {error && (
-          <div style={{ marginTop: 8, fontSize: 11, color: '#ef4444' }}>⚠ {error}</div>
+          <div style={{ marginTop: 8, fontSize: 11, color: T.danger }}>⚠ {error}</div>
         )}
       </div>
 
@@ -160,8 +161,8 @@ export default function MigrationWizard() {
           onClick={() => setStep(s => Math.max(1, s - 1))}
           disabled={step === 1}
           style={{
-            padding: '6px 16px', borderRadius: 6, border: '1px solid #334155',
-            background: 'transparent', color: step === 1 ? '#334155' : '#94a3b8',
+            padding: '6px 16px', borderRadius: 6, border: `1px solid ${T.chromeHover}`,
+            background: 'transparent', color: step === 1 ? T.chromeHover : T.chromeTextMuted,
             fontSize: 11, cursor: step === 1 ? 'not-allowed' : 'pointer',
           }}
         >
@@ -172,8 +173,8 @@ export default function MigrationWizard() {
           disabled={step === 5}
           style={{
             padding: '6px 16px', borderRadius: 6, border: 'none',
-            background: step === 5 ? '#334155' : '#f59e0b',
-            color: step === 5 ? '#64748b' : '#1c1404',
+            background: step === 5 ? T.chromeHover : T.accentStrong,
+            color: step === 5 ? T.chromeTextMuted : '#1c1404',
             fontSize: 11, fontWeight: 600, cursor: step === 5 ? 'not-allowed' : 'pointer',
           }}
         >

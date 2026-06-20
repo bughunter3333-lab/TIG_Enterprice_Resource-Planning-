@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { T } from '../../ui/tokens';
 
 const DEFAULTS = [
   { name: 'Retail',     discount: 0,  isDefault: true },
@@ -35,34 +36,34 @@ export default function PriceLevels({ config, onChange }) {
 
   return (
     <div>
-      <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>Set customer price tiers and their discount from Retail.</p>
+      <p style={{ fontSize: 11, color: T.chromeTextMuted, marginBottom: 12 }}>Set customer price tiers and their discount from Retail.</p>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
-          <tr style={{ borderBottom: '1px solid #334155' }}>
+          <tr style={{ borderBottom: `1px solid ${T.chromeHover}` }}>
             {['Level', 'Discount %', 'Default', ''].map(h => (
-              <th key={h} style={{ textAlign: 'left', padding: '5px 8px', fontSize: 10, color: '#64748b', fontWeight: 600 }}>{h}</th>
+              <th key={h} style={{ textAlign: 'left', padding: '5px 8px', fontSize: 10, color: T.chromeTextMuted, fontWeight: 600 }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {levels.map(l => (
-            <tr key={l.name} style={{ borderBottom: '1px solid #1e293b' }}>
-              <td style={{ padding: '7px 8px', color: '#e2e8f0' }}>{l.name}</td>
-              <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{l.discount}%</td>
+            <tr key={l.name} style={{ borderBottom: `1px solid ${T.chromeRaised}` }}>
+              <td style={{ padding: '7px 8px', color: T.chromeText }}>{l.name}</td>
+              <td style={{ padding: '7px 8px', color: T.chromeTextMuted }}>{l.discount}%</td>
               <td style={{ padding: '7px 8px' }}>
                 <input type="radio" checked={l.isDefault} onChange={() => setDefault(l.name)} />
               </td>
               <td style={{ padding: '7px 8px' }}>
-                <button onClick={() => remove(l.name)} style={{ fontSize: 10, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
+                <button onClick={() => remove(l.name)} style={{ fontSize: 10, color: T.danger, background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Level name" style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 6, padding: '5px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
-        <input value={newDiscount} onChange={e => setNewDiscount(e.target.value)} placeholder="%" style={{ width: 60, background: '#1e293b', border: '1px solid #334155', borderRadius: 6, padding: '5px 10px', color: '#e2e8f0', fontSize: 11, outline: 'none' }} />
-        <button onClick={add} style={{ background: '#f59e0b', color: '#1c1404', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Level name" style={{ flex: 1, background: T.chromeRaised, border: `1px solid ${T.chromeHover}`, borderRadius: 6, padding: '5px 10px', color: T.chromeText, fontSize: 11, outline: 'none' }} />
+        <input value={newDiscount} onChange={e => setNewDiscount(e.target.value)} placeholder="%" style={{ width: 60, background: T.chromeRaised, border: `1px solid ${T.chromeHover}`, borderRadius: 6, padding: '5px 10px', color: T.chromeText, fontSize: 11, outline: 'none' }} />
+        <button onClick={add} style={{ background: T.accentStrong, color: '#1c1404', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Add</button>
       </div>
     </div>
   );

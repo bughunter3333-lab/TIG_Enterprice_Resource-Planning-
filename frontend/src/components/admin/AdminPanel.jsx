@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../../api';
+import { T } from '../../ui/tokens';
 import FieldConfig from './FieldConfig';
 import StatusWorkflow from './StatusWorkflow';
 import PriceLevels from './PriceLevels';
@@ -48,21 +49,21 @@ export default function AdminPanel() {
   }
 
   return (
-    <div style={{ background: '#0f172a', minHeight: '100%', borderRadius: 12, padding: 20 }}>
+    <div style={{ background: T.chrome, minHeight: '100%', borderRadius: 12, padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>Admin Tools</div>
-        <div style={{ fontSize: 11, color: '#475569' }}>System configuration · Admin only</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.accent }}>Admin Tools</div>
+        <div style={{ fontSize: 11, color: T.chromeTextMuted }}>System configuration · Admin only</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #1e293b', marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 2, borderBottom: `1px solid ${T.chromeRaised}`, marginBottom: 20 }}>
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '7px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #f59e0b' : '2px solid transparent',
-              background: 'transparent', color: activeTab === tab.id ? '#fbbf24' : '#64748b',
+              borderBottom: activeTab === tab.id ? `2px solid ${T.accentStrong}` : '2px solid transparent',
+              background: 'transparent', color: activeTab === tab.id ? T.accent : T.chromeTextMuted,
               borderRadius: '4px 4px 0 0',
             }}
           >
