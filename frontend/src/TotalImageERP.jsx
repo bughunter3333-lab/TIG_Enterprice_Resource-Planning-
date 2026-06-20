@@ -5119,7 +5119,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const rowBg = isSec ? 'bg-amber-50' : isNote ? 'bg-yellow-50'
                               : isOutOfStock ? 'bg-orange-50' : isLowMargin ? 'bg-red-50'
                               : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
-                            const borderLeft = isSec ? 'border-l-2 border-l-blue-400' : isNote ? 'border-l-2 border-l-yellow-300'
+                            const borderLeft = isSec ? 'border-l-2 border-l-amber-400' : isNote ? 'border-l-2 border-l-yellow-300'
                               : isOutOfStock ? 'border-l-2 border-l-orange-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
 
                             const ci = 'w-full h-6 border border-gray-200 rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white';
@@ -5311,7 +5311,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                                     {/* Hide */}
                                     <td className="px-0.5 py-0.5 text-center" style={{ width: colWidths.hide, borderRight: `1px solid ${T.hairline}` }}>
-                                      <input type="checkbox" className="w-3 h-3 accent-blue-600 cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
+                                      <input type="checkbox" className="w-3 h-3 accent-amber-600 cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
                                     </td>
                                   </>)}
 
