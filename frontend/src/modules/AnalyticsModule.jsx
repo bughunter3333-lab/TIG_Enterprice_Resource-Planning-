@@ -672,7 +672,7 @@ function renderAbcTab({ abcQuery }) {
       {/* Pareto summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Category A Card */}
-        <div className="rounded-xl p-5 shadow-sm border-l-4 border-l-blue-500" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
+        <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
           <div className="flex justify-between items-start">
             <div>
               <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">A Items (Top 80% Capital)</span>
