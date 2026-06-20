@@ -60,7 +60,7 @@ function addDays(d, n) {
   return dt;
 }
 
-function JobCard({ job, onPin, onDrop, isDragOver }) {
+function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
   const due = parseDate(job.due);
   const now = new Date();
   const isOverdue = due && due < now && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
@@ -170,7 +170,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
           </div>
         ) : (
           displayed.map(job => (
-            <JobCard key={job.id} job={job} onPin={onPin} />
+            <ScheduleJobCard key={job.id} job={job} onPin={onPin} />
           ))
         )}
         {dragOver && displayed.length > 0 && (
@@ -344,7 +344,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {overdueFromPrev.map(job => (
-                  <JobCard key={job.id} job={job} onPin={onPinJob} />
+                  <ScheduleJobCard key={job.id} job={job} onPin={onPinJob} />
                 ))}
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
               <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: T.textMuted }}>No Due Date ({noDateJobs.length})</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {noDateJobs.map(job => (
-                  <JobCard key={job.id} job={job} onPin={onPinJob} />
+                  <ScheduleJobCard key={job.id} job={job} onPin={onPinJob} />
                 ))}
               </div>
             </div>
