@@ -3029,58 +3029,60 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             { label: 'Total PO Spend', value: `$${totalSpend.toLocaleString('en-AU',{maximumFractionDigits:0})}`, sub: 'All purchase orders', icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'Linked SKUs', value: inventory.filter(i=>i.supplier).length, sub: 'Items with supplier', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
           ].map(k => (
-            <div key={k.label} className="bg-white rounded-lg border border-slate-200 p-4 flex items-start gap-3">
+            <div key={k.label} className="rounded-lg p-4 flex items-start gap-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
               <div className={`w-9 h-9 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
                 <k.icon style={{width:18,height:18}} className={k.color} />
               </div>
               <div>
-                <p className="text-xs text-gray-500">{k.label}</p>
+                <p className="text-xs" style={{ color: T.textMuted }}>{k.label}</p>
                 <p className={`text-xl font-bold mt-0.5 ${k.color}`}>{k.value}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">{k.sub}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: T.textFaint }}>{k.sub}</p>
               </div>
             </div>
           ))}
         </div>
         {/* Toolbar */}
-        <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center gap-3">
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="relative flex-1 min-w-48">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5" style={{ color: T.textFaint }} />
             <input type="text" placeholder="Search by name, code, contact…"
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{ border: `1px solid ${T.hairline}`, color: T.text }}
               value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoComplete="off" />
           </div>
           <div className="ml-auto flex gap-2">
-            <button onClick={() => exportToCSV(suppliers,'suppliers')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50"><Download className="w-3.5 h-3.5"/>Export</button>
-            <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-700 text-white text-sm font-medium hover:bg-blue-800"><Plus className="w-3.5 h-3.5"/>Add Supplier</button>
+            <button onClick={() => exportToCSV(suppliers,'suppliers')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium" style={{ border: `1px solid ${T.hairline}`, color: T.text }}><Download className="w-3.5 h-3.5"/>Export</button>
+            <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium" style={{ background: T.accentStrong, color: '#fff' }}><Plus className="w-3.5 h-3.5"/>Add Supplier</button>
           </div>
         </div>
         {/* Split layout */}
         <div className="grid grid-cols-5 gap-4">
           {/* List */}
-          <div className="col-span-2 bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-100">
-              <span className="text-xs text-gray-500 font-medium">{filtered.length} supplier{filtered.length!==1?'s':''}</span>
+          <div className="col-span-2 rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+            <div className="px-4 py-2.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+              <span className="text-xs font-medium" style={{ color: T.textMuted }}>{filtered.length} supplier{filtered.length!==1?'s':''}</span>
             </div>
-            <div className="divide-y divide-gray-50 max-h-[580px] overflow-y-auto">
-              {filtered.length===0 && <div className="py-12 text-center text-gray-400"><Truck className="w-8 h-8 mx-auto mb-2 opacity-30"/><p className="text-sm">No suppliers found</p></div>}
+            <div className="max-h-[580px] overflow-y-auto" style={{ borderTop: 'none' }}>
+              {filtered.length===0 && <div className="py-12 text-center" style={{ color: T.textFaint }}><Truck className="w-8 h-8 mx-auto mb-2 opacity-30"/><p className="text-sm">No suppliers found</p></div>}
               {filtered.map(sup => {
                 const spend = suppSpend(sup);
                 const poCount = suppPOs(sup).length;
                 const isSel = sel?.code === sup.code;
                 return (
                   <div key={sup.code} onClick={() => { setSelectedSupplier(sup); setSuppTab('details'); }}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-l-4 ${isSel ? 'bg-blue-50 border-l-indigo-500' : 'border-l-transparent'}`}>
+                    className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-4"
+                    style={{ background: isSel ? T.hairlineSoft : T.panel, borderLeftColor: isSel ? T.accentStrong : 'transparent', borderBottom: `1px solid ${T.hairline}` }}>
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 text-white font-black text-sm flex items-center justify-center shrink-0">
                       {(sup.name||'?').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-800 text-sm truncate">{sup.name}</p>
+                        <p className="font-semibold text-sm truncate" style={{ color: T.text }}>{sup.name}</p>
                         <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sup.status==='Active'?'bg-emerald-100 text-emerald-700':'bg-gray-100 text-gray-500'}`}>{sup.status}</span>
                       </div>
-                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">{sup.code}</p>
+                      <p className="text-[11px] font-mono mt-0.5" style={{ color: T.textFaint }}>{sup.code}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[11px] text-gray-500">{poCount} PO{poCount!==1?'s':''}</span>
+                        <span className="text-[11px]" style={{ color: T.textMuted }}>{poCount} PO{poCount!==1?'s':''}</span>
                         {spend>0 && <span className="text-[11px] font-semibold text-orange-600">${spend.toLocaleString('en-AU',{maximumFractionDigits:0})}</span>}
                       </div>
                     </div>
@@ -3092,45 +3094,46 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* Detail */}
           <div className="col-span-3">
             {!sel ? (
-              <div className="bg-white rounded-xl shadow-sm h-full flex flex-col items-center justify-center py-20 text-gray-400">
+              <div className="rounded-xl h-full flex flex-col items-center justify-center py-20" style={{ background: T.panel, border: `1px solid ${T.hairline}`, color: T.textFaint }}>
                 <Truck className="w-12 h-12 mb-3 opacity-20"/>
                 <p className="font-medium">Select a supplier to view details</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-start gap-4">
+              <div className="rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                <div className="px-6 py-4 flex items-start gap-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white font-black text-lg flex items-center justify-center shrink-0">
                     {(sel.name||'?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-lg font-bold text-gray-900 leading-tight">{sel.name}</h2>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">{sel.code} · {sel.currency||'AUD'}</p>
+                    <h2 className="text-lg font-bold leading-tight" style={{ color: T.text }}>{sel.name}</h2>
+                    <p className="text-xs font-mono mt-0.5" style={{ color: T.textFaint }}>{sel.code} · {sel.currency||'AUD'}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => { setActiveModule('purchase-orders'); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 text-xs font-semibold hover:bg-orange-100 border border-orange-200">
                       <Plus className="w-3 h-3"/>New PO
                     </button>
-                    <button onClick={() => openModal('supplier',sel)} className="p-1.5 hover:bg-gray-100 rounded-lg"><Edit className="w-4 h-4 text-blue-600"/></button>
-                    <button onClick={() => deleteSupplier(sel.code)} className="p-1.5 hover:bg-gray-100 rounded-lg"><Trash2 className="w-4 h-4 text-red-500"/></button>
+                    <button onClick={() => openModal('supplier',sel)} className="p-1.5 rounded-lg" style={{ color: T.accentStrong }}><Edit className="w-4 h-4"/></button>
+                    <button onClick={() => deleteSupplier(sel.code)} className="p-1.5 rounded-lg"><Trash2 className="w-4 h-4 text-red-500"/></button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                <div className="grid grid-cols-3" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   {[
                     {label:'Total Spend', value:`$${suppSpend(sel).toLocaleString('en-AU',{maximumFractionDigits:0})}`},
                     {label:'Purchase Orders', value:suppPOs(sel).length},
                     {label:'Stocked Items', value:suppItems(sel).length},
-                  ].map(k => (
-                    <div key={k.label} className="px-5 py-3 text-center">
-                      <p className="text-lg font-bold text-gray-800">{k.value}</p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">{k.label}</p>
+                  ].map((k, idx) => (
+                    <div key={k.label} className="px-5 py-3 text-center" style={idx > 0 ? { borderLeft: `1px solid ${T.hairline}` } : {}}>
+                      <p className="text-lg font-bold" style={{ color: T.text }}>{k.value}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: T.textFaint }}>{k.label}</p>
                     </div>
                   ))}
                 </div>
-                <div className="flex border-b border-gray-100 px-4">
+                <div className="flex px-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   {[['details','Details'],['pos','Purchase Orders'],['items','Stock Items'],['pricelist','Price List']].map(([id,label]) => (
                     <button key={id} onClick={() => setSuppTab(id)}
-                      className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${suppTab===id?'border-indigo-600 text-indigo-700':'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                      className="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors"
+                      style={{ borderBottomColor: suppTab===id ? T.accentStrong : 'transparent', color: suppTab===id ? T.accentStrong : T.textMuted }}>
                       {label}
                     </button>
                   ))}
@@ -3140,28 +3143,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                       {[['Contact',sel.contact||'—'],['Email',sel.email||'—'],['Phone',sel.phone||'—'],['Payment Terms',sel.paymentTerms||'—'],['Currency',sel.currency||'AUD'],['Status',sel.status||'Active']].map(([label,val]) => (
                         <div key={label}>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
-                          <p className="text-gray-800 font-medium">{val}</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: T.textFaint }}>{label}</p>
+                          <p className="font-medium" style={{ color: T.text }}>{val}</p>
                         </div>
                       ))}
-                      {sel.address && <div className="col-span-2"><p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Address</p><p className="text-gray-800 whitespace-pre-line">{sel.address}</p></div>}
+                      {sel.address && <div className="col-span-2"><p className="text-[11px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: T.textFaint }}>Address</p><p className="whitespace-pre-line" style={{ color: T.text }}>{sel.address}</p></div>}
                     </div>
                   )}
                   {suppTab==='pos' && (
                     <div className="space-y-2">
-                      {suppPOs(sel).length===0 ? <p className="text-sm text-gray-400 text-center py-8">No purchase orders for this supplier</p>
+                      {suppPOs(sel).length===0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No purchase orders for this supplier</p>
                       : suppPOs(sel).map(po => {
                         const cls = {Draft:'bg-gray-100 text-gray-600',Sent:'bg-blue-100 text-blue-700',Partial:'bg-amber-100 text-amber-700',Received:'bg-emerald-100 text-emerald-700',Cancelled:'bg-red-100 text-red-600'}[po.status]||'bg-gray-100 text-gray-600';
                         return (
-                          <div key={po.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors">
+                          <div key={po.id} className="flex items-center gap-3 p-3 rounded-lg transition-colors" style={{ border: `1px solid ${T.hairline}` }}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-bold text-indigo-700">{po.id}</span>
+                                <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>{po.id}</span>
                                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${cls}`}>{po.status}</span>
                               </div>
-                              <p className="text-xs text-gray-500 mt-0.5">{po.date} · {(po.items||[]).length} line{(po.items||[]).length!==1?'s':''}</p>
+                              <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>{po.date} · {(po.items||[]).length} line{(po.items||[]).length!==1?'s':''}</p>
                             </div>
-                            <span className="font-semibold text-sm text-gray-800">${(po.total||0).toLocaleString('en-AU',{maximumFractionDigits:0})}</span>
+                            <span className="font-semibold text-sm" style={{ color: T.text }}>${(po.total||0).toLocaleString('en-AU',{maximumFractionDigits:0})}</span>
                           </div>
                         );
                       })}
@@ -3169,11 +3172,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   )}
                   {suppTab==='items' && (
                     <div className="space-y-2">
-                      {suppItems(sel).length===0 ? <p className="text-sm text-gray-400 text-center py-8">No inventory items linked to this supplier</p>
+                      {suppItems(sel).length===0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No inventory items linked to this supplier</p>
                       : suppItems(sel).map(item => (
-                        <div key={item.sku} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
-                          <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded w-24 shrink-0">{item.sku}</span>
-                          <span className="flex-1 text-sm text-gray-700 truncate">{item.name}</span>
+                        <div key={item.sku} className="flex items-center gap-3 p-3 rounded-lg" style={{ border: `1px solid ${T.hairline}` }}>
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded w-24 shrink-0" style={{ color: T.accentStrong, background: T.hairlineSoft }}>{item.sku}</span>
+                          <span className="flex-1 text-sm truncate" style={{ color: T.text }}>{item.name}</span>
                           <span className={`text-xs font-semibold ${item.stock<=0?'text-red-600':item.stock<item.reorderLevel?'text-amber-600':'text-emerald-600'}`}>{item.stock} on hand</span>
                         </div>
                       ))}
@@ -3379,18 +3382,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <div className="space-y-4">
         {/* Header */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
+        <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-gray-800">Order Requirements</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Items needed to fulfil active jobs — create purchase orders directly from here</p>
+              <h2 className="text-base font-semibold" style={{ color: T.text }}>Order Requirements</h2>
+              <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Items needed to fulfil active jobs — create purchase orders directly from here</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => refetch()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+              <button onClick={() => refetch()} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>
                 <RefreshCw className="w-3.5 h-3.5" /> Refresh
               </button>
               {orderReqSelected.size > 0 && (
-                <button onClick={openPoCreation} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-700 text-white text-xs font-semibold hover:bg-blue-800 shadow-sm">
+                <button onClick={openPoCreation} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm" style={{ background: T.accentStrong, color: '#fff' }}>
                   <ShoppingCart className="w-3.5 h-3.5" />
                   Create PO ({selectedTotalQty} units{selectedEstCost > 0 ? ` · $${selectedEstCost.toLocaleString('en-AU', { maximumFractionDigits: 0 })}` : ''})
                 </button>
@@ -3398,78 +3401,83 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             </div>
           </div>
           {/* Tabs */}
-          <div className="flex gap-1 mt-3 border-b border-gray-100">
+          <div className="flex gap-1 mt-3" style={{ borderBottom: `1px solid ${T.hairline}` }}>
             {[
               { key: 'garment', label: 'Garment Requirements', count: garmentReqs.reduce((t, r) => t + r.total_b_ord, 0) },
               { key: 'decoration', label: 'Decoration Work', count: decorationReqs.length },
             ].map(tab => (
               <button key={tab.key} onClick={() => { setOrderReqTab(tab.key); setOrderReqSelected(new Set()); }}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${orderReqTab === tab.key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-colors"
+                style={{ borderBottomColor: orderReqTab === tab.key ? T.accentStrong : 'transparent', color: orderReqTab === tab.key ? T.accentStrong : T.textMuted }}>
                 {tab.label}
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${orderReqTab === tab.key ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>{tab.count}</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: orderReqTab === tab.key ? T.accentTint : T.hairlineSoft, color: orderReqTab === tab.key ? T.accentStrong : T.textMuted }}>{tab.count}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           {reqs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <CheckSquare className="w-10 h-10 mb-3 text-gray-200" />
-              <p className="text-sm font-medium text-gray-500">No outstanding {orderReqTab === 'garment' ? 'garment' : 'decoration'} requirements</p>
+            <div className="flex flex-col items-center justify-center py-16" style={{ color: T.textFaint }}>
+              <CheckSquare className="w-10 h-10 mb-3" style={{ color: T.hairline }} />
+              <p className="text-sm font-medium" style={{ color: T.textMuted }}>No outstanding {orderReqTab === 'garment' ? 'garment' : 'decoration'} requirements</p>
               <p className="text-xs mt-1">All active jobs are {orderReqTab === 'garment' ? 'fully stocked' : 'decorated or have linked POs'}</p>
             </div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                 <tr>
                   <th className="w-8 px-3 py-2.5">
                     <input type="checkbox" className="rounded" checked={orderReqSelected.size === reqs.length && reqs.length > 0} onChange={toggleAll} />
                   </th>
                   {orderReqTab === 'garment' ? (
                     <>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Stock Code</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Description</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Supplier</th>
-                      <th className="px-3 py-2.5 text-right text-gray-500 font-semibold">B. Ord</th>
-                      <th className="px-3 py-2.5 text-right text-gray-500 font-semibold">Unit Cost</th>
-                      <th className="px-3 py-2.5 text-right text-gray-500 font-semibold">Est. Total</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Affected Jobs</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Stock Code</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Supplier</th>
+                      <th className="px-3 py-2.5 text-right font-semibold" style={{ color: T.textMuted }}>B. Ord</th>
+                      <th className="px-3 py-2.5 text-right font-semibold" style={{ color: T.textMuted }}>Unit Cost</th>
+                      <th className="px-3 py-2.5 text-right font-semibold" style={{ color: T.textMuted }}>Est. Total</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Affected Jobs</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Type</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Code</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Description</th>
-                      <th className="px-3 py-2.5 text-right text-gray-500 font-semibold">Total Qty</th>
-                      <th className="px-3 py-2.5 text-left text-gray-500 font-semibold">Affected Jobs</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Type</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Code</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
+                      <th className="px-3 py-2.5 text-right font-semibold" style={{ color: T.textMuted }}>Total Qty</th>
+                      <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Affected Jobs</th>
                     </>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {reqs.map(req => {
                   const key = groupKey(req);
                   const checked = orderReqSelected.has(key);
                   return (
-                    <tr key={key} className={`hover:bg-indigo-50/30 cursor-pointer transition-colors ${checked ? 'bg-indigo-50' : ''}`} onClick={() => toggleGroup(key)}>
+                    <tr key={key} className="cursor-pointer transition-colors"
+                      style={{ background: checked ? T.hairlineSoft : T.panel, borderBottom: `1px solid ${T.hairline}` }}
+                      onClick={() => toggleGroup(key)}>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" className="rounded" checked={checked} onChange={() => toggleGroup(key)} />
                       </td>
                       {orderReqTab === 'garment' ? (
                         <>
-                          <td className="px-3 py-2.5 font-mono text-blue-700 font-semibold">{req.sku || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-3 py-2.5 text-gray-800">{req.description}</td>
-                          <td className="px-3 py-2.5 text-gray-600">{req.supplier || <span className="text-gray-300">—</span>}</td>
+                          <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
+                          <td className="px-3 py-2.5" style={{ color: T.textMuted }}>{req.supplier || <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-3 py-2.5 text-right font-bold text-orange-600">{req.total_b_ord}</td>
-                          <td className="px-3 py-2.5 text-right text-gray-600">{req.unit_cost > 0 ? `$${req.unit_cost.toFixed(2)}` : <span className="text-gray-300">—</span>}</td>
-                          <td className="px-3 py-2.5 text-right font-semibold text-gray-700">{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toLocaleString('en-AU', { maximumFractionDigits: 2 })}` : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-3 py-2.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${req.unit_cost.toFixed(2)}` : <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold" style={{ color: T.text }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toLocaleString('en-AU', { maximumFractionDigits: 2 })}` : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1">
                               {req.jobs.map(j => (
                                 <button key={j.item_id} onClick={e => { e.stopPropagation(); const job = jobs.find(jb => jb.id === j.job_id); if (job) { pinJob(job); setActiveModule('jobs'); } }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 font-mono text-[10px] transition-colors"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
+                                  style={{ background: T.hairlineSoft, color: T.textMuted }}
                                   title={`${j.customer_name} — ${j.b_ord} units`}>
                                   #{j.job_id} <span className="text-orange-500 font-bold">×{j.b_ord}</span>
                                 </button>
@@ -3482,14 +3490,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           <td className="px-3 py-2.5">
                             {(() => { const d = DEC_OPTIONS.find(o => o.v === req.decoration_type); return d ? <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold ${d.pill}`}>{d.emoji} {d.l}</span> : req.decoration_type; })()}
                           </td>
-                          <td className="px-3 py-2.5 font-mono text-blue-700 font-semibold">{req.sku || <span className="text-gray-300">—</span>}</td>
-                          <td className="px-3 py-2.5 text-gray-800">{req.description}</td>
+                          <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
                           <td className="px-3 py-2.5 text-right font-bold text-indigo-600">{req.total_qty}</td>
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1">
                               {req.jobs.map(j => (
                                 <button key={j.item_id} onClick={e => { e.stopPropagation(); const job = jobs.find(jb => jb.id === j.job_id); if (job) { pinJob(job); setActiveModule('jobs'); } }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 font-mono text-[10px] transition-colors"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
+                                  style={{ background: T.hairlineSoft, color: T.textMuted }}
                                   title={`${j.customer_name} — ${j.qty} units`}>
                                   #{j.job_id} <span className="text-indigo-500 font-bold">×{j.qty}</span>
                                 </button>
@@ -3502,16 +3511,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   );
                 })}
               </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
+              <tfoot style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}>
                 <tr>
-                  <td colSpan={orderReqTab === 'garment' ? 4 : 4} className="px-3 py-2 text-xs font-semibold text-gray-500">
+                  <td colSpan={orderReqTab === 'garment' ? 4 : 4} className="px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>
                     {orderReqSelected.size > 0 ? `${orderReqSelected.size} of ${reqs.length} groups selected` : `${reqs.length} group${reqs.length !== 1 ? 's' : ''} total`}
                   </td>
                   {orderReqTab === 'garment' ? (
                     <>
                       <td className="px-3 py-2 text-right text-xs font-bold text-orange-600">{reqs.reduce((t, r) => t + r.total_b_ord, 0)}</td>
                       <td className="px-3 py-2" />
-                      <td className="px-3 py-2 text-right text-xs font-bold text-gray-700">${reqs.reduce((t, r) => t + r.total_b_ord * (r.unit_cost || 0), 0).toLocaleString('en-AU', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold" style={{ color: T.text }}>${reqs.reduce((t, r) => t + r.total_b_ord * (r.unit_cost || 0), 0).toLocaleString('en-AU', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2" />
                     </>
                   ) : (
@@ -3529,22 +3538,23 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         {/* PO creation modal */}
         {orderReqPoModal.open && (
           <DraggableModal onClose={() => setOrderReqPoModal(m => ({ ...m, open: false }))} cardClass="w-full max-w-lg">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.hairline}` }}>
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-semibold text-gray-800">Create Purchase Order</h3>
+                <ShoppingCart className="w-4 h-4" style={{ color: T.accentStrong }} />
+                <h3 className="text-sm font-semibold" style={{ color: T.text }}>Create Purchase Order</h3>
               </div>
-              <button onClick={() => setOrderReqPoModal(m => ({ ...m, open: false }))} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
+              <button onClick={() => setOrderReqPoModal(m => ({ ...m, open: false }))} className="p-1 rounded-lg" style={{ color: T.textFaint }}><X className="w-4 h-4" /></button>
             </div>
             <div className="px-6 py-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 block mb-1">PO Number *</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>PO Number *</label>
                   <input value={orderReqPoModal.poId} onChange={e => setOrderReqPoModal(m => ({ ...m, poId: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="PO-20260429" />
+                    className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="PO-20260429" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 block mb-1">Expected Date</label>
+                  <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Expected Date</label>
                   <input type="date"
                     value={orderReqPoModal.expectedDate ? (() => { const p = orderReqPoModal.expectedDate.split('/'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : orderReqPoModal.expectedDate; })() : ''}
                     onChange={e => {
@@ -3552,23 +3562,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       const d = new Date(e.target.value + 'T00:00:00');
                       setOrderReqPoModal(m => ({ ...m, expectedDate: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` }));
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Supplier</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Supplier</label>
                 <input value={orderReqPoModal.supplierName} onChange={e => setOrderReqPoModal(m => ({ ...m, supplierName: e.target.value, supplierId: '' }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Supplier name…" list="req-supp-list" />
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Supplier name…" list="req-supp-list" />
                 <datalist id="req-supp-list">{suppliers.map(s => <option key={s.code} value={s.name} />)}</datalist>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Notes</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Notes</label>
                 <textarea value={orderReqPoModal.notes} onChange={e => setOrderReqPoModal(m => ({ ...m, notes: e.target.value }))} rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Optional notes…" />
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                  style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Optional notes…" />
               </div>
               {/* Preview */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 border-b border-gray-200">
+              <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${T.hairline}` }}>
+                <div className="px-3 py-2 text-xs font-semibold" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}`, color: T.textMuted }}>
                   {selectedReqs.length} group{selectedReqs.length !== 1 ? 's' : ''} · {selectedItemCount} job item{selectedItemCount !== 1 ? 's' : ''} will be linked
                 </div>
                 <div className="max-h-44 overflow-y-auto">
@@ -3577,20 +3590,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       {selectedReqs.map(req => {
                         const key = groupKey(req);
                         return (
-                          <tr key={key} className="border-b border-gray-100 last:border-0">
-                            <td className="px-3 py-1.5 font-mono text-blue-700 font-semibold">{req.sku || req.decoration_type}</td>
-                            <td className="px-3 py-1.5 text-gray-600 truncate max-w-[160px]">{req.description}</td>
+                          <tr key={key} style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                            <td className="px-3 py-1.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || req.decoration_type}</td>
+                            <td className="px-3 py-1.5 truncate max-w-[160px]" style={{ color: T.textMuted }}>{req.description}</td>
                             <td className="px-3 py-1.5 text-right font-bold text-orange-600">×{req.total_b_ord || req.total_qty}</td>
-                            {orderReqTab === 'garment' && <td className="px-3 py-1.5 text-right text-gray-500">{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toFixed(2)}` : ''}</td>}
+                            {orderReqTab === 'garment' && <td className="px-3 py-1.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toFixed(2)}` : ''}</td>}
                           </tr>
                         );
                       })}
                     </tbody>
                     {orderReqTab === 'garment' && selectedEstCost > 0 && (
                       <tfoot>
-                        <tr className="bg-gray-50">
-                          <td colSpan={3} className="px-3 py-1.5 text-xs font-semibold text-right text-gray-500">Estimated Total:</td>
-                          <td className="px-3 py-1.5 text-right font-bold text-gray-800">${selectedEstCost.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <tr style={{ background: T.hairlineSoft }}>
+                          <td colSpan={3} className="px-3 py-1.5 text-xs font-semibold text-right" style={{ color: T.textMuted }}>Estimated Total:</td>
+                          <td className="px-3 py-1.5 text-right font-bold" style={{ color: T.text }}>${selectedEstCost.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       </tfoot>
                     )}
@@ -3599,10 +3612,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
               {orderReqPoModal.error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{orderReqPoModal.error}</p>}
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
-              <button onClick={() => setOrderReqPoModal(m => ({ ...m, open: false }))} className="px-4 py-2 text-xs text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+            <div className="px-6 py-4 flex justify-end gap-2" style={{ borderTop: `1px solid ${T.hairline}` }}>
+              <button onClick={() => setOrderReqPoModal(m => ({ ...m, open: false }))} className="px-4 py-2 text-xs rounded-lg" style={{ color: T.textMuted, background: T.hairlineSoft }}>Cancel</button>
               <button onClick={submitPO} disabled={orderReqPoModal.saving}
-                className="px-5 py-2 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1.5">
+                className="px-5 py-2 text-xs font-semibold rounded-lg disabled:opacity-50 flex items-center gap-1.5"
+                style={{ background: T.accentStrong, color: '#fff' }}>
                 {orderReqPoModal.saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5" />}
                 {orderReqPoModal.saving ? 'Creating…' : 'Create PO & Link Jobs'}
               </button>
@@ -4099,14 +4113,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold flex items-center">
-          <Warehouse className="w-6 h-6 mr-2 text-blue-600" />
+        <h2 className="text-2xl font-bold flex items-center" style={{ color: T.text }}>
+          <Warehouse className="w-6 h-6 mr-2" style={{ color: T.accentStrong }} />
           Live Warehouse — Bin Location Map
         </h2>
         <div className="flex space-x-2">
           <button
             onClick={() => exportToCSV(zoneItems, `warehouse-zone-${selectedWarehouseZone}`)}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center text-sm font-medium"
+            className="px-4 py-2 rounded-lg flex items-center text-sm font-medium"
+            style={{ background: T.hairlineSoft, color: T.text, border: `1px solid ${T.hairline}` }}
           >
             <Download className="w-4 h-4 mr-2" />Export Zone {selectedWarehouseZone}
           </button>
@@ -4119,34 +4134,40 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           <button
             key={z.zone}
             onClick={() => { setSelectedWarehouseZone(z.zone); setSelectedBin(null); }}
-            className={`bg-white rounded-lg border border-slate-200 p-4 text-left transition-all hover:shadow-md ${selectedWarehouseZone === z.zone ? 'ring-2 ring-blue-500' : ''}`}
+            className="rounded-lg p-4 text-left transition-all hover:shadow-md"
+            style={{
+              background: T.panel,
+              border: `1px solid ${T.hairline}`,
+              outline: selectedWarehouseZone === z.zone ? `2px solid ${T.accentStrong}` : 'none',
+              outlineOffset: 2,
+            }}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xl font-bold text-gray-700">Zone {z.zone}</span>
+              <span className="text-xl font-bold" style={{ color: T.text }}>Zone {z.zone}</span>
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${z.utilization > 80 ? 'bg-red-100 text-red-700' : z.utilization > 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
                 {z.utilization}%
               </span>
             </div>
-            <p className="text-xs text-gray-500 mb-2">{z.description}</p>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <p className="text-xs mb-2" style={{ color: T.textMuted }}>{z.description}</p>
+            <div className="w-full rounded-full h-1.5" style={{ background: T.hairline }}>
               <div className={`h-1.5 rounded-full ${z.utilization > 80 ? 'bg-red-500' : z.utilization > 60 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${z.utilization}%` }} />
             </div>
-            <p className="text-xs text-gray-400 mt-1">{z.rows}×{z.bays} grid • {z.items} items</p>
+            <p className="text-xs mt-1" style={{ color: T.textFaint }}>{z.rows}×{z.bays} grid • {z.items} items</p>
           </button>
         ))}
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         {/* Rack bin map */}
-        <div className="col-span-2 bg-white rounded-lg border border-slate-200 p-4">
+        <div className="col-span-2 rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold flex items-center text-sm">
-              <Layers className="w-4 h-4 mr-2 text-blue-600" />
+            <h3 className="font-semibold flex items-center text-sm" style={{ color: T.text }}>
+              <Layers className="w-4 h-4 mr-2" style={{ color: T.accentStrong }} />
               Zone {selectedWarehouseZone} — {zone.description}
-              <span className="ml-2 text-xs text-gray-400 font-normal">{zone.bays} bays × {zone.rows} levels</span>
+              <span className="ml-2 text-xs font-normal" style={{ color: T.textFaint }}>{zone.bays} bays × {zone.rows} levels</span>
             </h3>
-            <div className="flex items-center space-x-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-300 inline-block"></span>Empty</span>
+            <div className="flex items-center space-x-3 text-xs" style={{ color: T.textMuted }}>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}></span>Empty</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block"></span>Occupied</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block"></span>Low Stock</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-100 border border-green-400 inline-block ring-2 ring-green-400"></span>Selected</span>
@@ -4154,13 +4175,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </div>
 
           {/* Visual rack grid — levels top to bottom, bays left to right */}
-          <div className="overflow-auto border rounded-lg bg-gray-50 p-3" style={{ maxHeight: '520px' }}>
+          <div className="overflow-auto rounded-lg p-3" style={{ maxHeight: '520px', background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
             <table className="border-collapse mx-auto">
               <thead>
                 <tr>
-                  <th className="w-7 text-right pr-2 text-xs text-gray-400 font-normal pb-1">Lvl</th>
+                  <th className="w-7 text-right pr-2 text-xs font-normal pb-1" style={{ color: T.textFaint }}>Lvl</th>
                   {bays.map(bay => (
-                    <th key={bay} className="text-center text-xs text-gray-500 font-normal pb-1 px-0.5" style={{ minWidth: '72px' }}>
+                    <th key={bay} className="text-center text-xs font-normal pb-1 px-0.5" style={{ minWidth: '72px', color: T.textMuted }}>
                       Bay {bay}
                     </th>
                   ))}
@@ -4169,7 +4190,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <tbody>
                 {levels.map(level => (
                   <tr key={level}>
-                    <td className="text-right pr-2 text-xs text-gray-400 font-mono align-middle py-0.5">{level}</td>
+                    <td className="text-right pr-2 text-xs font-mono align-middle py-0.5" style={{ color: T.textFaint }}>{level}</td>
                     {bays.map(bay => {
                       const binCode = getBinCode(bay, level);
                       const items = binMap[binCode] || [];
@@ -4215,25 +4236,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
           {/* Selected bin detail */}
           {selectedBin && (
-            <div className="mt-3 border-t pt-3">
+            <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-sm flex items-center">
-                  <Tag className="w-4 h-4 mr-1.5 text-blue-500" />
-                  Bin: <span className="font-mono ml-1 text-blue-700">{selectedBin}</span>
+                <h4 className="font-semibold text-sm flex items-center" style={{ color: T.text }}>
+                  <Tag className="w-4 h-4 mr-1.5" style={{ color: T.accentStrong }} />
+                  Bin: <span className="font-mono ml-1" style={{ color: T.accentStrong }}>{selectedBin}</span>
                 </h4>
-                <button onClick={() => setSelectedBin(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                <button onClick={() => setSelectedBin(null)} style={{ color: T.textFaint }}><X className="w-4 h-4" /></button>
               </div>
               {(binMap[selectedBin] || []).length === 0 ? (
-                <div className="bg-gray-50 rounded p-3 text-center">
-                  <p className="text-sm text-gray-400">Empty bin — available for stock</p>
+                <div className="rounded p-3 text-center" style={{ background: T.hairlineSoft }}>
+                  <p className="text-sm" style={{ color: T.textFaint }}>Empty bin — available for stock</p>
                 </div>
               ) : (
                 <div className="space-y-1">
                   {(binMap[selectedBin] || []).map(item => (
-                    <div key={item.sku} className="flex items-center justify-between bg-gray-50 rounded p-2">
+                    <div key={item.sku} className="flex items-center justify-between rounded p-2" style={{ background: T.hairlineSoft }}>
                       <div>
-                        <span className="font-mono text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{item.sku}</span>
-                        <span className="text-sm ml-2">{item.name}</span>
+                        <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ color: T.textMuted, background: T.hairline }}>{item.sku}</span>
+                        <span className="text-sm ml-2" style={{ color: T.text }}>{item.name}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm">
                         <span className={`font-semibold ${item.stock < item.reorderLevel ? 'text-red-600' : 'text-green-600'}`}>
@@ -4251,27 +4272,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           )}
 
           {/* Occupancy summary */}
-          <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-gray-500">
+          <div className="mt-3 pt-3 flex items-center justify-between text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textMuted }}>
             <span>Zone {selectedWarehouseZone}: {totalOccupied} of {bays.length * levels.length} bins occupied</span>
             <span>{zoneItems.filter(i => i.stock < i.reorderLevel).length} items low stock in this zone</span>
           </div>
         </div>
 
         {/* Zone inventory sidebar */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col">
-          <h3 className="font-semibold mb-3 text-sm flex items-center">
-            <Package className="w-4 h-4 mr-2 text-gray-500" />
+        <div className="rounded-lg p-4 flex flex-col" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <h3 className="font-semibold mb-3 text-sm flex items-center" style={{ color: T.text }}>
+            <Package className="w-4 h-4 mr-2" style={{ color: T.textMuted }} />
             Zone {selectedWarehouseZone} Stock
-            <span className="ml-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs">{zoneItems.length} SKUs</span>
+            <span className="ml-1 px-1.5 py-0.5 rounded text-xs" style={{ background: T.accentTint, color: T.accentStrong }}>{zoneItems.length} SKUs</span>
           </h3>
           <div className="relative mb-3">
-            <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-2.5 top-2.5" style={{ color: T.textFaint }} />
             <input
               type="text"
               placeholder="Find item..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-8 pr-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{ border: `1px solid ${T.hairline}`, color: T.text }}
             />
           </div>
           <div className="flex-1 space-y-1 overflow-y-auto" style={{ maxHeight: '560px' }}>
@@ -4282,24 +4304,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div
                   key={item.sku}
                   onClick={() => setSelectedBin(item.location)}
-                  className={`p-2 rounded border cursor-pointer transition-colors ${selectedBin === item.location ? 'bg-green-50 border-green-300' : 'border-transparent hover:bg-blue-50 hover:border-blue-200'}`}
+                  className="p-2 rounded cursor-pointer transition-colors"
+                  style={{
+                    border: `1px solid ${selectedBin === item.location ? '#86efac' : 'transparent'}`,
+                    background: selectedBin === item.location ? '#f0fdf4' : T.panel,
+                  }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{item.location}</span>
+                    <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>{item.location}</span>
                     <span className={`text-xs font-semibold ${item.stock < item.reorderLevel ? 'text-red-600' : 'text-green-600'}`}>
                       {item.stock} {item.stock < item.reorderLevel ? '⚠' : ''}
                     </span>
                   </div>
-                  <p className="text-xs font-medium text-gray-800 truncate mt-1">{item.name}</p>
-                  <p className="text-xs text-gray-400">{item.sku} • {item.category}</p>
+                  <p className="text-xs font-medium truncate mt-1" style={{ color: T.text }}>{item.name}</p>
+                  <p className="text-xs" style={{ color: T.textFaint }}>{item.sku} • {item.category}</p>
                 </div>
               ))}
             {zoneItems.length === 0 && (
-              <div className="text-center py-10 text-gray-400">
+              <div className="text-center py-10" style={{ color: T.textFaint }}>
                 <Warehouse className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No items in Zone {selectedWarehouseZone}.</p>
                 <p className="text-xs mt-1">Set inventory location to "{selectedWarehouseZone}-bay-level"</p>
-                <p className="text-xs mt-0.5 text-blue-500">e.g. "{selectedWarehouseZone}-01-1"</p>
+                <p className="text-xs mt-0.5" style={{ color: T.accentStrong }}>e.g. "{selectedWarehouseZone}-01-1"</p>
               </div>
             )}
           </div>
@@ -7050,11 +7076,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold flex items-center">
-              <FileSpreadsheet className="w-6 h-6 mr-2 text-blue-600" />
+            <h2 className="text-2xl font-bold flex items-center" style={{ color: T.text }}>
+              <FileSpreadsheet className="w-6 h-6 mr-2" style={{ color: T.accentStrong }} />
               Import Data
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Upload CSV files from your previous ERP to migrate data into this system.</p>
+            <p className="text-sm mt-1" style={{ color: T.textMuted }}>Upload CSV files from your previous ERP to migrate data into this system.</p>
           </div>
         </div>
 
@@ -7079,14 +7105,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             const file = importFiles[entity.key];
 
             return (
-              <div key={entity.key} className={`bg-white rounded-xl shadow border-2 ${result?.ok ? 'border-green-300' : 'border-gray-100'} overflow-hidden`}>
-                {/* Card header */}
+              <div key={entity.key} className="rounded-xl overflow-hidden"
+                style={{ background: T.panel, border: `2px solid ${result?.ok ? '#86efac' : T.hairline}` }}>
+                {/* Card header — specialty colour kept per entity identity */}
                 <div className={`px-5 py-4 border-b flex items-center justify-between ${c.card}`}>
                   <div className="flex items-center space-x-3">
                     <Icon className={`w-5 h-5 ${c.icon}`} />
                     <div>
-                      <h3 className="font-semibold text-gray-800">{entity.label}</h3>
-                      <p className="text-xs text-gray-500">{entity.description}</p>
+                      <h3 className="font-semibold" style={{ color: T.text }}>{entity.label}</h3>
+                      <p className="text-xs" style={{ color: T.textMuted }}>{entity.description}</p>
                     </div>
                   </div>
                   <a
@@ -7101,10 +7128,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div className="p-5 space-y-4">
                   {/* Column info */}
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Recognised columns (Jim2 names auto-mapped)</p>
-                    <p className="text-xs text-gray-400 font-mono leading-relaxed">{entity.fields}</p>
+                    <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Recognised columns (Jim2 names auto-mapped)</p>
+                    <p className="text-xs font-mono leading-relaxed" style={{ color: T.textFaint }}>{entity.fields}</p>
                     {entity.jim2hint && (
-                      <p className="text-xs mt-1.5 text-blue-600 bg-blue-50 rounded px-2 py-1">
+                      <p className="text-xs mt-1.5 rounded px-2 py-1" style={{ color: T.accentStrong, background: T.accentTint }}>
                         💡 {entity.jim2hint}
                       </p>
                     )}
@@ -7131,9 +7158,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </div>
                     ) : (
                       <div className="text-center">
-                        <FileSpreadsheet className="w-8 h-8 text-gray-300 mx-auto mb-1" />
-                        <p className="text-sm text-gray-500">Click to select CSV file</p>
-                        <p className="text-xs text-gray-400">or drag and drop</p>
+                        <FileSpreadsheet className="w-8 h-8 mx-auto mb-1" style={{ color: T.hairline }} />
+                        <p className="text-sm" style={{ color: T.textMuted }}>Click to select CSV file</p>
+                        <p className="text-xs" style={{ color: T.textFaint }}>or drag and drop</p>
                       </div>
                     )}
                   </label>
@@ -7141,24 +7168,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Preview table */}
                   {preview && preview.preview.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Preview (first {Math.min(preview.preview.length, 3)} rows)</p>
-                      <div className="overflow-x-auto border rounded text-xs">
+                      <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Preview (first {Math.min(preview.preview.length, 3)} rows)</p>
+                      <div className="overflow-x-auto rounded text-xs" style={{ border: `1px solid ${T.hairline}` }}>
                         <table className="w-full">
-                          <thead className="bg-gray-50">
+                          <thead style={{ background: T.hairlineSoft }}>
                             <tr>
                               {preview.columns.slice(0, 6).map(col => (
-                                <th key={col} className="px-2 py-1.5 text-left text-gray-500 font-medium whitespace-nowrap">{col}</th>
+                                <th key={col} className="px-2 py-1.5 text-left font-medium whitespace-nowrap" style={{ color: T.textMuted }}>{col}</th>
                               ))}
-                              {preview.columns.length > 6 && <th className="px-2 py-1.5 text-gray-400">+{preview.columns.length - 6} more</th>}
+                              {preview.columns.length > 6 && <th className="px-2 py-1.5" style={{ color: T.textFaint }}>+{preview.columns.length - 6} more</th>}
                             </tr>
                           </thead>
-                          <tbody className="divide-y">
+                          <tbody>
                             {preview.preview.slice(0, 3).map((row, i) => (
-                              <tr key={i} className="hover:bg-gray-50">
+                              <tr key={i} style={{ borderTop: `1px solid ${T.hairline}` }}>
                                 {preview.columns.slice(0, 6).map(col => (
-                                  <td key={col} className="px-2 py-1.5 text-gray-700 whitespace-nowrap max-w-[120px] truncate">{row[col] || '—'}</td>
+                                  <td key={col} className="px-2 py-1.5 whitespace-nowrap max-w-[120px] truncate" style={{ color: T.text }}>{row[col] || '—'}</td>
                                 ))}
-                                {preview.columns.length > 6 && <td className="px-2 py-1.5 text-gray-400">…</td>}
+                                {preview.columns.length > 6 && <td className="px-2 py-1.5" style={{ color: T.textFaint }}>…</td>}
                               </tr>
                             ))}
                           </tbody>
@@ -7172,17 +7199,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
                       <p className="font-semibold text-green-800 mb-1">Import complete</p>
                       <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-white rounded p-2">
+                        <div className="rounded p-2" style={{ background: T.panel }}>
                           <p className="text-lg font-bold text-green-600">{result.inserted}</p>
-                          <p className="text-xs text-gray-500">Inserted</p>
+                          <p className="text-xs" style={{ color: T.textMuted }}>Inserted</p>
                         </div>
-                        <div className="bg-white rounded p-2">
-                          <p className="text-lg font-bold text-blue-600">{result.updated}</p>
-                          <p className="text-xs text-gray-500">Updated</p>
+                        <div className="rounded p-2" style={{ background: T.panel }}>
+                          <p className="text-lg font-bold" style={{ color: T.accentStrong }}>{result.updated}</p>
+                          <p className="text-xs" style={{ color: T.textMuted }}>Updated</p>
                         </div>
-                        <div className="bg-white rounded p-2">
-                          <p className="text-lg font-bold text-gray-500">{result.skipped}</p>
-                          <p className="text-xs text-gray-500">Skipped</p>
+                        <div className="rounded p-2" style={{ background: T.panel }}>
+                          <p className="text-lg font-bold" style={{ color: T.textMuted }}>{result.skipped}</p>
+                          <p className="text-xs" style={{ color: T.textMuted }}>Skipped</p>
                         </div>
                       </div>
                       {result.errors && result.errors.length > 0 && (
@@ -7204,7 +7231,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </div>
                   )}
 
-                  {/* Import button */}
+                  {/* Import button — specialty colour kept per entity identity */}
                   <button
                     onClick={() => handleImport(entity.key)}
                     disabled={!file || isLoading}
@@ -7223,14 +7250,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         </div>
 
         {/* Tips */}
-        <div className="bg-gray-50 border rounded-lg p-4 text-sm text-gray-600">
-          <p className="font-semibold text-gray-700 mb-2">Tips for a successful import</p>
-          <ul className="space-y-1 list-disc list-inside text-gray-500">
-            <li>Column names are matched flexibly — <code className="bg-gray-200 px-1 rounded text-xs">Customer Name</code>, <code className="bg-gray-200 px-1 rounded text-xs">customer_name</code>, and <code className="bg-gray-200 px-1 rounded text-xs">Company</code> all map to the name field.</li>
+        <div className="rounded-lg p-4 text-sm" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}`, color: T.textMuted }}>
+          <p className="font-semibold mb-2" style={{ color: T.text }}>Tips for a successful import</p>
+          <ul className="space-y-1 list-disc list-inside" style={{ color: T.textMuted }}>
+            <li>Column names are matched flexibly — <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>Customer Name</code>, <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>customer_name</code>, and <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>Company</code> all map to the name field.</li>
             <li>Import <strong>Customers</strong> and <strong>Suppliers</strong> first, then <strong>Inventory</strong>, then <strong>Jobs</strong>.</li>
             <li>Existing records (matched by ID) are <em>updated</em>, not duplicated. Safe to re-run after corrections.</li>
             <li>CSV files must be UTF-8 encoded. Excel users: File → Save As → CSV UTF-8.</li>
-            <li>Dates can be in <code className="bg-gray-200 px-1 rounded text-xs">DD/MM/YYYY</code> or <code className="bg-gray-200 px-1 rounded text-xs">YYYY-MM-DD</code> format.</li>
+            <li>Dates can be in <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>DD/MM/YYYY</code> or <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>YYYY-MM-DD</code> format.</li>
           </ul>
         </div>
       </div>
