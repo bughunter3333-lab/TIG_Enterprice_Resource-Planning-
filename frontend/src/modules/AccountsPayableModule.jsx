@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, DollarSign, AlertCircle, Clock, CheckCircle, X, Download } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
+import { T } from '../ui/tokens';
 
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -88,78 +89,79 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
     } catch (e) { setErr(e.message); } finally { setSaving(false); }
   };
 
-  const input = 'w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
+  const inputStyle = { border: `1px solid ${T.hairline}`, color: T.text };
+  const inputCls = 'w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none';
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+      <div className="rounded-lg shadow-xl w-full max-w-lg p-6" style={{ background: T.panel }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-800">{bill ? 'Edit Bill' : 'New Supplier Bill'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <h2 className="font-bold" style={{ color: T.text }}>{bill ? 'Edit Bill' : 'New Supplier Bill'}</h2>
+          <button onClick={onClose} style={{ color: T.textFaint }}><X className="w-5 h-5" /></button>
         </div>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Supplier *</label>
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Supplier *</label>
               {suppliers.length > 0 ? (
-                <select value={form.supplierId} onChange={e => handleSupplier(e.target.value)} className={input}>
+                <select value={form.supplierId} onChange={e => handleSupplier(e.target.value)} className={inputCls} style={inputStyle}>
                   <option value="">— Select —</option>
                   {suppliers.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
                 </select>
               ) : (
-                <input value={form.supplierName} onChange={e => set('supplierName', e.target.value)} placeholder="Supplier name" className={input} />
+                <input value={form.supplierName} onChange={e => set('supplierName', e.target.value)} placeholder="Supplier name" className={inputCls} style={inputStyle} />
               )}
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Bill / Invoice #</label>
-              <input value={form.billNumber} onChange={e => set('billNumber', e.target.value)} placeholder="INV-12345" className={input} />
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Bill / Invoice #</label>
+              <input value={form.billNumber} onChange={e => set('billNumber', e.target.value)} placeholder="INV-12345" className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Bill Date</label>
-              <input type="date" value={form.billDate} onChange={e => set('billDate', e.target.value)} className={input} />
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Bill Date</label>
+              <input type="date" value={form.billDate} onChange={e => set('billDate', e.target.value)} className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Due Date</label>
-              <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} className={input} />
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Due Date</label>
+              <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Description</label>
-            <input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Brief description…" className={input} />
+            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Description</label>
+            <input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Brief description…" className={inputCls} style={inputStyle} />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Amount (ex GST)</label>
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Amount (ex GST)</label>
               <input type="number" step="0.01" value={form.amountEx}
-                onChange={e => recalc('amountEx', e.target.value)} className={input} />
+                onChange={e => recalc('amountEx', e.target.value)} className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">GST (10%)</label>
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>GST (10%)</label>
               <input type="number" step="0.01" value={form.tax}
-                onChange={e => recalc('tax', e.target.value)} className={input} />
+                onChange={e => recalc('tax', e.target.value)} className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Total (inc GST)</label>
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Total (inc GST)</label>
               <input type="number" step="0.01" value={form.amountInc}
                 onChange={e => recalc('amountInc', e.target.value)}
-                className={`${input} font-semibold`} />
+                className={`${inputCls} font-semibold`} style={inputStyle} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">PO Reference</label>
-              <input value={form.poId} onChange={e => set('poId', e.target.value)} placeholder="PO-001 (optional)" className={input} />
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>PO Reference</label>
+              <input value={form.poId} onChange={e => set('poId', e.target.value)} placeholder="PO-001 (optional)" className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Status</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)} className={input}>
+              <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Status</label>
+              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls} style={inputStyle}>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="paid">Paid</option>
@@ -168,17 +170,18 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Notes</label>
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className={`${input} resize-none`} />
+            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Notes</label>
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} className={`${inputCls} resize-none`} style={inputStyle} />
           </div>
         </div>
 
-        {err && <p className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
+        {err && <p className="mt-3 text-sm px-3 py-2 rounded-lg" style={{ color: T.danger, background: T.dangerTint }}>{err}</p>}
 
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            style={{ background: T.accentStrong, color: '#fff' }}>
             {saving ? 'Saving…' : bill ? 'Save Changes' : 'Create Bill'}
           </button>
         </div>
@@ -203,32 +206,35 @@ function PayModal({ bill, onPay, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-80 p-5" onClick={e => e.stopPropagation()}>
+      <div className="rounded-lg shadow-xl w-80 p-5" style={{ background: T.panel }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-800">Record Payment</h3>
-          <button onClick={onClose}><X className="w-4 h-4 text-gray-400" /></button>
+          <h3 className="font-semibold" style={{ color: T.text }}>Record Payment</h3>
+          <button onClick={onClose}><X className="w-4 h-4" style={{ color: T.textFaint }} /></button>
         </div>
-        <p className="text-sm text-gray-600 mb-3">
-          Bill: <span className="font-medium">{bill.billNumber || `#${bill.id}`}</span><br />
-          Outstanding: <span className="font-semibold text-red-600">{fmt$(bill.amountInc - bill.paidAmount)}</span>
+        <p className="text-sm mb-3" style={{ color: T.textMuted }}>
+          Bill: <span className="font-medium" style={{ color: T.text }}>{bill.billNumber || `#${bill.id}`}</span><br />
+          Outstanding: <span className="font-semibold" style={{ color: T.danger }}>{fmt$(bill.amountInc - bill.paidAmount)}</span>
         </p>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Amount Paid</label>
+            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Amount Paid</label>
             <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Payment Date</label>
+            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Payment Date</label>
             <input type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
         </div>
-        {err && <p className="mt-2 text-xs text-red-600">{err}</p>}
+        {err && <p className="mt-2 text-xs" style={{ color: T.danger }}>{err}</p>}
         <div className="flex gap-2 mt-4">
-          <button onClick={onClose} className="flex-1 px-3 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button onClick={onClose} className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
           <button onClick={handlePay} disabled={saving}
-            className="flex-1 px-3 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
+            className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            style={{ background: T.accentStrong, color: '#fff' }}>
             {saving ? '…' : 'Mark Paid'}
           </button>
         </div>
@@ -300,39 +306,39 @@ export default function AccountsPayableModule({ suppliers = [] }) {
       {/* Summary cards */}
       {summary && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-4.5 h-4.5 text-amber-600" />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: T.accentTint }}>
+                <Clock className="w-4.5 h-4.5" style={{ color: T.accentStrong }} />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Total Open</p>
-                <p className="text-lg font-bold text-gray-800">{fmt$(summary.total_open_amount)}</p>
-                <p className="text-xs text-gray-400">{summary.total_open_count} bill{summary.total_open_count !== 1 ? 's' : ''}</p>
+                <p className="text-xs" style={{ color: T.textMuted }}>Total Open</p>
+                <p className="text-lg font-bold" style={{ color: T.text }}>{fmt$(summary.total_open_amount)}</p>
+                <p className="text-xs" style={{ color: T.textFaint }}>{summary.total_open_count} bill{summary.total_open_count !== 1 ? 's' : ''}</p>
               </div>
             </div>
           </div>
-          <div className={`bg-white rounded-xl shadow-sm p-4 border ${summary.overdue_count > 0 ? 'border-red-200' : 'border-gray-100'}`}>
+          <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${summary.overdue_count > 0 ? T.danger : T.hairline}` }}>
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${summary.overdue_count > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
-                <AlertCircle className={`w-4.5 h-4.5 ${summary.overdue_count > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: summary.overdue_count > 0 ? T.dangerTint : T.hairlineSoft }}>
+                <AlertCircle className="w-4.5 h-4.5" style={{ color: summary.overdue_count > 0 ? T.danger : T.textFaint }} />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Overdue</p>
-                <p className={`text-lg font-bold ${summary.overdue_count > 0 ? 'text-red-600' : 'text-gray-400'}`}>{fmt$(summary.overdue_amount)}</p>
-                <p className="text-xs text-gray-400">{summary.overdue_count} bill{summary.overdue_count !== 1 ? 's' : ''}</p>
+                <p className="text-xs" style={{ color: T.textMuted }}>Overdue</p>
+                <p className="text-lg font-bold" style={{ color: summary.overdue_count > 0 ? T.danger : T.textFaint }}>{fmt$(summary.overdue_amount)}</p>
+                <p className="text-xs" style={{ color: T.textFaint }}>{summary.overdue_count} bill{summary.overdue_count !== 1 ? 's' : ''}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center">
                 <DollarSign className="w-4.5 h-4.5 text-orange-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Due This Week</p>
-                <p className="text-lg font-bold text-gray-800">{fmt$(summary.due_this_week_amount)}</p>
-                <p className="text-xs text-gray-400">{summary.due_this_week_count} bill{summary.due_this_week_count !== 1 ? 's' : ''}</p>
+                <p className="text-xs" style={{ color: T.textMuted }}>Due This Week</p>
+                <p className="text-lg font-bold" style={{ color: T.text }}>{fmt$(summary.due_this_week_amount)}</p>
+                <p className="text-xs" style={{ color: T.textFaint }}>{summary.due_this_week_count} bill{summary.due_this_week_count !== 1 ? 's' : ''}</p>
               </div>
             </div>
           </div>
@@ -345,46 +351,51 @@ export default function AccountsPayableModule({ suppliers = [] }) {
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           placeholder="Search supplier, bill#, description…"
-          className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="flex-1 min-w-48 rounded-lg px-3 py-2 text-sm focus:outline-none"
+          style={{ border: `1px solid ${T.hairline}`, color: T.text }}
         />
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+        <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: `1px solid ${T.hairline}` }}>
           {[['', 'All'], ['pending', 'Pending'], ['approved', 'Approved'], ['paid', 'Paid']].map(([v, l]) => (
             <button key={v} onClick={() => setStatusFilter(v)}
-              className={`px-3 py-2 font-medium ${statusFilter === v ? 'bg-blue-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              className="px-3 py-2 font-medium"
+              style={statusFilter === v
+                ? { background: T.accentStrong, color: '#fff' }
+                : { background: T.panel, color: T.textMuted }}>
               {l}
             </button>
           ))}
         </div>
-        <button onClick={() => exportCSV(filtered)} className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <button onClick={() => exportCSV(filtered)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>
           <Download className="w-3.5 h-3.5" />CSV
         </button>
         <button onClick={() => setBillForm({})}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-blue-800">
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold"
+          style={{ background: T.accentStrong, color: '#fff' }}>
           <Plus className="w-4 h-4" />New Bill
         </button>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        {isFetching && <div className="h-1 bg-blue-200 animate-pulse" />}
+      <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+        {isFetching && <div className="h-1 animate-pulse" style={{ background: T.hairline }} />}
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Supplier</th>
-              <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Bill #</th>
-              <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Bill Date</th>
-              <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Due Date</th>
-              <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ex GST</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Inc GST</th>
-              <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-3 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Outstanding</th>
-              <th className="px-3 py-2.5 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            <tr style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
+              <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Supplier</th>
+              <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Bill #</th>
+              <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Bill Date</th>
+              <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Due Date</th>
+              <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Description</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Ex GST</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Inc GST</th>
+              <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Status</th>
+              <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Outstanding</th>
+              <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y" style={{ borderColor: T.hairline }}>
             {filtered.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-12 text-center text-gray-400 text-sm">
+              <tr><td colSpan={10} className="px-3 py-12 text-center text-sm" style={{ color: T.textFaint }}>
                 {statusFilter ? `No ${statusFilter} bills` : 'No bills yet — click New Bill to add one'}
               </td></tr>
             )}
@@ -392,38 +403,39 @@ export default function AccountsPayableModule({ suppliers = [] }) {
               const over = isOverdue(bill);
               const outstanding = bill.amountInc - bill.paidAmount;
               return (
-                <tr key={bill.id} className={`hover:bg-gray-50 ${over ? 'bg-red-50' : ''}`}>
-                  <td className="px-3 py-2.5 font-medium text-gray-800">{bill.supplierName || '—'}</td>
-                  <td className="px-3 py-2.5 font-mono text-xs text-blue-600">{bill.billNumber || `#${bill.id}`}</td>
-                  <td className="px-3 py-2.5 text-gray-600 text-xs">{bill.billDate || '—'}</td>
-                  <td className={`px-3 py-2.5 text-xs font-medium ${over ? 'text-red-600' : 'text-gray-600'}`}>
+                <tr key={bill.id} style={over ? { background: T.dangerTint } : {}}>
+                  <td className="px-3 py-2.5 font-medium" style={{ color: T.text }}>{bill.supplierName || '—'}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: T.accentStrong }}>{bill.billNumber || `#${bill.id}`}</td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: T.textMuted }}>{bill.billDate || '—'}</td>
+                  <td className="px-3 py-2.5 text-xs font-medium" style={{ color: over ? T.danger : T.textMuted }}>
                     {bill.dueDate || '—'}{over ? ' ⚠' : ''}
                   </td>
-                  <td className="px-3 py-2.5 text-gray-600 text-xs max-w-48 truncate">{bill.description || '—'}</td>
-                  <td className="px-3 py-2.5 text-right text-gray-700">{fmt$(bill.amountEx)}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold text-gray-800">{fmt$(bill.amountInc)}</td>
+                  <td className="px-3 py-2.5 text-xs max-w-48 truncate" style={{ color: T.textMuted }}>{bill.description || '—'}</td>
+                  <td className="px-3 py-2.5 text-right" style={{ color: T.textMuted }}>{fmt$(bill.amountEx)}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold" style={{ color: T.text }}>{fmt$(bill.amountInc)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${STATUS_STYLES[bill.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                       {bill.status}
                     </span>
                   </td>
-                  <td className={`px-3 py-2.5 text-right font-semibold text-sm ${outstanding > 0 && bill.status !== 'paid' ? 'text-red-600' : 'text-emerald-600'}`}>
+                  <td className="px-3 py-2.5 text-right font-semibold text-sm" style={{ color: outstanding > 0 && bill.status !== 'paid' ? T.danger : T.ok }}>
                     {bill.status === 'paid' ? fmt$(0) : fmt$(outstanding)}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
                       {bill.status !== 'paid' && (
                         <button onClick={() => setPayModal(bill)}
-                          className="flex items-center gap-0.5 text-[11px] px-2 py-1 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+                          className="flex items-center gap-0.5 text-[11px] px-2 py-1 rounded-lg font-medium"
+                          style={{ background: T.accentStrong, color: '#fff' }}>
                           <CheckCircle className="w-3 h-3" />Pay
                         </button>
                       )}
                       <button onClick={() => setBillForm(bill)}
-                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                        className="p-1 rounded" style={{ color: T.textFaint }}>
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setDelConfirm(bill.id)}
-                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded">
+                        className="p-1 rounded" style={{ color: T.textFaint }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -434,12 +446,12 @@ export default function AccountsPayableModule({ suppliers = [] }) {
           </tbody>
           {filtered.length > 0 && (
             <tfoot>
-              <tr className="bg-gray-50 border-t-2 border-gray-200 font-semibold">
-                <td colSpan={5} className="px-3 py-2 text-xs text-gray-600">{filtered.length} bill{filtered.length !== 1 ? 's' : ''}</td>
-                <td className="px-3 py-2 text-right text-xs text-gray-700">{fmt$(filtered.reduce((s, b) => s + b.amountEx, 0))}</td>
-                <td className="px-3 py-2 text-right text-sm text-gray-800">{fmt$(filtered.reduce((s, b) => s + b.amountInc, 0))}</td>
+              <tr className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
+                <td colSpan={5} className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{filtered.length} bill{filtered.length !== 1 ? 's' : ''}</td>
+                <td className="px-3 py-2 text-right text-xs" style={{ color: T.textMuted }}>{fmt$(filtered.reduce((s, b) => s + b.amountEx, 0))}</td>
+                <td className="px-3 py-2 text-right text-sm" style={{ color: T.text }}>{fmt$(filtered.reduce((s, b) => s + b.amountInc, 0))}</td>
                 <td />
-                <td className="px-3 py-2 text-right text-sm text-red-600">
+                <td className="px-3 py-2 text-right text-sm" style={{ color: T.danger }}>
                   {fmt$(filtered.filter(b => b.status !== 'paid').reduce((s, b) => s + (b.amountInc - b.paidAmount), 0))}
                 </td>
                 <td />
@@ -467,12 +479,12 @@ export default function AccountsPayableModule({ suppliers = [] }) {
       {/* Delete confirm */}
       {delConfirm !== null && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-80">
-            <p className="font-semibold text-gray-800 mb-2">Delete this bill?</p>
-            <p className="text-sm text-gray-500 mb-5">This cannot be undone.</p>
+          <div className="rounded-lg shadow-xl p-6 w-80" style={{ background: T.panel }}>
+            <p className="font-semibold mb-2" style={{ color: T.text }}>Delete this bill?</p>
+            <p className="text-sm mb-5" style={{ color: T.textMuted }}>This cannot be undone.</p>
             <div className="flex gap-2">
-              <button onClick={() => setDelConfirm(null)} className="flex-1 px-3 py-2 border rounded-lg text-sm">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700">Delete</button>
+              <button onClick={() => setDelConfirm(null)} className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+              <button onClick={handleDelete} className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: T.danger, color: '#fff' }}>Delete</button>
             </div>
           </div>
         </div>

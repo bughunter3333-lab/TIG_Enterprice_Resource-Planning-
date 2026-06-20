@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Filter, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { T } from '../ui/tokens';
 
 const STATUS_COLORS = {
   QUOTE: 'bg-gray-100 text-gray-700 border-gray-300',
@@ -73,19 +74,20 @@ function JobCard({ job, onPin, onDrop, isDragOver }) {
       draggable
       onDragStart={e => { e.dataTransfer.setData('jobId', job.id); e.dataTransfer.setData('jobData', JSON.stringify(job)); }}
       onClick={() => onPin(job)}
-      className={`group p-2.5 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all select-none ${
-        isOverdue ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white hover:border-blue-300'
-      }`}
+      className="group p-2.5 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all select-none"
+      style={isOverdue
+        ? { borderColor: T.danger, background: T.dangerTint }
+        : { borderColor: T.hairline, background: T.panel }}
     >
       <div className="flex items-start justify-between gap-1 mb-1.5">
-        <span className="font-mono text-xs font-bold text-blue-600">#{job.id}</span>
+        <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>#{job.id}</span>
         <div className="flex items-center gap-1 shrink-0">
-          {job.priority === 'Urgent' && <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded font-bold leading-4">URG</span>}
+          {job.priority === 'Urgent' && <span className="text-[10px] px-1 rounded font-bold leading-4" style={{ background: T.dangerTint, color: T.danger }}>URG</span>}
           {job.priority === 'High' && <span className="text-[10px] bg-orange-100 text-orange-700 px-1 rounded font-bold leading-4">HIGH</span>}
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
         </div>
       </div>
-      <p className="text-xs font-semibold text-gray-800 truncate leading-tight">{job.customer}</p>
+      <p className="text-xs font-semibold truncate leading-tight" style={{ color: T.text }}>{job.customer}</p>
       {decs.length > 0 && (
         <div className="flex gap-1 flex-wrap mt-1.5">
           {decs.slice(0, 2).map(d => (
@@ -94,19 +96,19 @@ function JobCard({ job, onPin, onDrop, isDragOver }) {
               {DEC_COLORS[d]?.label || d}
             </span>
           ))}
-          {decs.length > 2 && <span className="text-[10px] text-gray-400">+{decs.length - 2}</span>}
+          {decs.length > 2 && <span className="text-[10px]" style={{ color: T.textFaint }}>+{decs.length - 2}</span>}
         </div>
       )}
-      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+      <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
         {due ? (
-          <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-600' : daysLeft <= 1 ? 'text-orange-600' : 'text-gray-400'}`}>
+          <span className="text-[10px] font-medium" style={{ color: isOverdue ? T.danger : daysLeft <= 1 ? '#c2410c' : T.textFaint }}>
             {isOverdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
           </span>
-        ) : <span className="text-[10px] text-gray-300">No due date</span>}
-        <span className="text-[10px] font-semibold text-gray-700">${(job.total || 0).toFixed(0)}</span>
+        ) : <span className="text-[10px]" style={{ color: T.textFaint }}>No due date</span>}
+        <span className="text-[10px] font-semibold" style={{ color: T.textMuted }}>${(job.total || 0).toFixed(0)}</span>
       </div>
       {job.assignedTo && (
-        <p className="text-[10px] text-gray-400 mt-0.5 truncate">👤 {job.assignedTo}</p>
+        <p className="text-[10px] mt-0.5 truncate" style={{ color: T.textFaint }}>👤 {job.assignedTo}</p>
       )}
     </div>
   );
@@ -127,9 +129,12 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
 
   return (
     <div
-      className={`flex-1 min-w-0 rounded-xl border-t-4 transition-colors ${
-        isToday ? 'border-t-blue-500 bg-blue-50/50' : isWeekend ? 'border-t-gray-200 bg-gray-50/50' : 'border-t-gray-300 bg-white'
-      } ${dragOver ? 'ring-2 ring-blue-400 ring-inset' : ''}`}
+      className={`flex-1 min-w-0 rounded-xl border-t-4 transition-colors ${dragOver ? 'ring-2 ring-inset' : ''}`}
+      style={{
+        borderTopColor: isToday ? T.accentStrong : T.hairline,
+        background: isToday ? '#fefce8' : isWeekend ? T.hairlineSoft : T.panel,
+        ...(dragOver ? { outlineColor: T.accentStrong } : {}),
+      }}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={e => {
@@ -140,22 +145,27 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
       }}
     >
       {/* Header */}
-      <div className={`px-2 py-2 text-center border-b ${isToday ? 'border-blue-200' : 'border-gray-100'}`}>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{dayName}</p>
-        <div className={`text-lg font-bold mx-auto w-8 h-8 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
+      <div className="px-2 py-2 text-center" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: T.textMuted }}>{dayName}</p>
+        <div
+          className="text-lg font-bold mx-auto w-8 h-8 flex items-center justify-center rounded-full"
+          style={isToday
+            ? { background: T.accentStrong, color: '#fff' }
+            : { color: isWeekend ? T.textFaint : T.text }}
+        >
           {dayNum}
         </div>
-        <p className="text-[10px] text-gray-400">{monthShort}</p>
+        <p className="text-[10px]" style={{ color: T.textFaint }}>{monthShort}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
-          <span className="text-[10px] text-gray-500 font-medium">{displayed.length} job{displayed.length !== 1 ? 's' : ''}</span>
-          {overdueCount > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded font-bold">{overdueCount} late</span>}
+          <span className="text-[10px] font-medium" style={{ color: T.textMuted }}>{displayed.length} job{displayed.length !== 1 ? 's' : ''}</span>
+          {overdueCount > 0 && <span className="text-[10px] px-1 rounded font-bold" style={{ background: T.dangerTint, color: T.danger }}>{overdueCount} late</span>}
         </div>
       </div>
 
       {/* Cards */}
       <div className="p-2 space-y-2 min-h-32 max-h-[55vh] overflow-y-auto">
         {displayed.length === 0 ? (
-          <div className={`text-center py-6 text-xs ${dragOver ? 'text-blue-400' : 'text-gray-300'}`}>
+          <div className="text-center py-6 text-xs" style={{ color: dragOver ? T.accentStrong : T.textFaint }}>
             {dragOver ? 'Drop to reschedule' : isWeekend ? 'Weekend' : '—'}
           </div>
         ) : (
@@ -164,7 +174,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
           ))
         )}
         {dragOver && displayed.length > 0 && (
-          <div className="border-2 border-dashed border-blue-300 rounded-lg py-2 text-center text-xs text-blue-400">Drop here</div>
+          <div className="border-2 border-dashed rounded-lg py-2 text-center text-xs" style={{ borderColor: T.accentStrong, color: T.accentStrong }}>Drop here</div>
         )}
       </div>
     </div>
@@ -248,26 +258,27 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-gray-800">Production Schedule</h2>
-          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{totalThisWeek} jobs this week</span>
+          <Calendar className="w-5 h-5" style={{ color: T.accentStrong }} />
+          <h2 className="text-lg font-bold" style={{ color: T.text }}>Production Schedule</h2>
+          <span className="text-sm px-2 py-0.5 rounded-full" style={{ color: T.textMuted, background: T.hairlineSoft }}>{totalThisWeek} jobs this week</span>
         </div>
 
         {/* Week navigation */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setWeekStart(getWeekStart(today))}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 font-medium transition-colors"
+            className="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+            style={{ borderColor: T.hairline, background: T.panel, color: T.textMuted }}
           >
             Today
           </button>
-          <div className="flex items-center border rounded-lg overflow-hidden bg-white shadow-sm">
-            <button onClick={() => setWeekStart(w => addDays(w, -7))} className="p-2 hover:bg-gray-50 transition-colors">
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
+          <div className="flex items-center rounded-lg overflow-hidden shadow-sm" style={{ border: `1px solid ${T.hairline}`, background: T.panel }}>
+            <button onClick={() => setWeekStart(w => addDays(w, -7))} className="p-2 transition-colors hover:bg-gray-50">
+              <ChevronLeft className="w-4 h-4" style={{ color: T.textMuted }} />
             </button>
-            <span className="px-3 text-sm font-semibold text-gray-700 min-w-48 text-center">{weekLabel}</span>
-            <button onClick={() => setWeekStart(w => addDays(w, 7))} className="p-2 hover:bg-gray-50 transition-colors">
-              <ChevronRight className="w-4 h-4 text-gray-600" />
+            <span className="px-3 text-sm font-semibold min-w-48 text-center" style={{ color: T.text }}>{weekLabel}</span>
+            <button onClick={() => setWeekStart(w => addDays(w, 7))} className="p-2 transition-colors hover:bg-gray-50">
+              <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
             </button>
           </div>
         </div>
@@ -275,23 +286,29 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterDec} onChange={e => setFilterDec(e.target.value)}
-            className="border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700">
+            className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+            style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
             <option value="all">All Decoration</option>
             {allDecs.map(d => <option key={d} value={d}>{DEC_COLORS[d]?.label || d}</option>)}
           </select>
           <select value={filterStaff} onChange={e => setFilterStaff(e.target.value)}
-            className="border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700">
+            className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+            style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
             <option value="all">All Staff</option>
             {allStaff.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-700">
+            className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+            style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
             <option value="all">All Statuses</option>
             {PROD_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <button
             onClick={() => setShowWeekend(v => !v)}
-            className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${showWeekend ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+            className="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors"
+            style={showWeekend
+              ? { background: T.accentTint, color: T.accentStrong, borderColor: T.accent }
+              : { background: T.panel, color: T.textMuted, borderColor: T.hairline }}
           >
             Weekend
           </button>
@@ -305,8 +322,9 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             key={key}
             onClick={() => setFilterDec(f => f === key ? 'all' : key)}
             className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-colors ${
-              filterDec === key ? val.pill + ' border-current font-semibold' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+              filterDec === key ? val.pill + ' border-current font-semibold' : ''
             }`}
+            style={filterDec === key ? {} : { background: T.panel, color: T.textMuted, borderColor: T.hairline }}
           >
             <span className={`w-2 h-2 rounded-full ${val.dot}`} />
             {val.label}
@@ -319,10 +337,10 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
         <div className="flex-1 min-w-0">
           {/* Overdue carry-over */}
           {overdueFromPrev.length > 0 && (
-            <div className="mb-3 bg-red-50 border border-red-200 rounded-xl p-3">
+            <div className="mb-3 rounded-xl p-3" style={{ background: T.dangerTint, border: `1px solid ${T.danger}` }}>
               <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                <span className="text-sm font-semibold text-red-700">Overdue from previous weeks ({overdueFromPrev.length})</span>
+                <AlertCircle className="w-4 h-4 shrink-0" style={{ color: T.danger }} />
+                <span className="text-sm font-semibold" style={{ color: T.danger }}>Overdue from previous weeks ({overdueFromPrev.length})</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {overdueFromPrev.map(job => (
@@ -354,8 +372,8 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
 
           {/* Unscheduled */}
           {noDateJobs.length > 0 && (
-            <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">No Due Date ({noDateJobs.length})</p>
+            <div className="mt-3 rounded-xl p-3" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
+              <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: T.textMuted }}>No Due Date ({noDateJobs.length})</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {noDateJobs.map(job => (
                   <JobCard key={job.id} job={job} onPin={onPinJob} />
@@ -367,13 +385,13 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
 
         {/* Sidebar: staff workload */}
         <div className="w-48 shrink-0 space-y-3">
-          <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className="flex items-center gap-2 mb-3">
-              <Users className="w-4 h-4 text-blue-500" />
-              <h3 className="text-sm font-semibold text-gray-700">Staff This Week</h3>
+              <Users className="w-4 h-4" style={{ color: T.accentStrong }} />
+              <h3 className="text-sm font-semibold" style={{ color: T.text }}>Staff This Week</h3>
             </div>
             {Object.keys(staffWorkload).length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">No jobs assigned</p>
+              <p className="text-xs text-center py-4" style={{ color: T.textFaint }}>No jobs assigned</p>
             ) : (
               <div className="space-y-2">
                 {Object.entries(staffWorkload)
@@ -386,14 +404,15 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
                       <button
                         key={name}
                         onClick={() => setFilterStaff(f => f === name ? 'all' : name)}
-                        className={`w-full text-left transition-colors rounded-lg p-1.5 ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                        className="w-full text-left transition-colors rounded-lg p-1.5"
+                        style={{ background: isSelected ? T.accentTint : 'transparent' }}
                       >
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-xs font-medium truncate ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>{name}</span>
-                          <span className="text-xs text-gray-500 shrink-0 ml-1">{count}</span>
+                          <span className="text-xs font-medium truncate" style={{ color: isSelected ? T.accentStrong : T.text }}>{name}</span>
+                          <span className="text-xs shrink-0 ml-1" style={{ color: T.textMuted }}>{count}</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1">
-                          <div className="bg-blue-400 h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        <div className="w-full rounded-full h-1" style={{ background: T.hairline }}>
+                          <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, background: T.accentStrong }} />
                         </div>
                       </button>
                     );
@@ -417,10 +436,10 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             const total = Object.values(decMix).reduce((s, v) => s + v, 0);
             if (!total) return null;
             return (
-              <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-4 h-4 text-purple-500" />
-                  <h3 className="text-sm font-semibold text-gray-700">Dec. Mix</h3>
+                  <h3 className="text-sm font-semibold" style={{ color: T.text }}>Dec. Mix</h3>
                 </div>
                 <div className="space-y-1.5">
                   {Object.entries(decMix).sort((a, b) => b[1] - a[1]).map(([dec, count]) => {
@@ -429,8 +448,8 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
                     return (
                       <div key={dec} className="flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${info.dot}`} />
-                        <span className="text-[10px] text-gray-600 truncate flex-1">{info.label}</span>
-                        <span className="text-[10px] text-gray-400 shrink-0">{pct}%</span>
+                        <span className="text-[10px] truncate flex-1" style={{ color: T.textMuted }}>{info.label}</span>
+                        <span className="text-[10px] shrink-0" style={{ color: T.textFaint }}>{pct}%</span>
                       </div>
                     );
                   })}
@@ -441,8 +460,8 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
 
           {/* Later this schedule */}
           {laterJobs.length > 0 && (
-            <div className="bg-white rounded-lg border border-slate-200 p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Coming Up ({laterJobs.length})</p>
+            <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: T.textMuted }}>Coming Up ({laterJobs.length})</p>
               <div className="space-y-1.5">
                 {laterJobs.slice(0, 6).map(job => {
                   const d = parseDate(job.due);
@@ -450,20 +469,20 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
                     <button
                       key={job.id}
                       onClick={() => onPinJob && onPinJob(job)}
-                      className="w-full text-left p-1.5 rounded hover:bg-gray-50 transition-colors"
+                      className="w-full text-left p-1.5 rounded transition-colors hover:bg-gray-50"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-blue-600 font-bold">#{job.id}</span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>#{job.id}</span>
+                        <span className="text-[10px]" style={{ color: T.textFaint }}>
                           {d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-500 truncate">{job.customer}</p>
+                      <p className="text-[10px] truncate" style={{ color: T.textMuted }}>{job.customer}</p>
                     </button>
                   );
                 })}
                 {laterJobs.length > 6 && (
-                  <p className="text-[10px] text-gray-400 text-center">+{laterJobs.length - 6} more</p>
+                  <p className="text-[10px] text-center" style={{ color: T.textFaint }}>+{laterJobs.length - 6} more</p>
                 )}
               </div>
             </div>
@@ -471,7 +490,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 text-center">
+      <p className="text-xs text-center" style={{ color: T.textFaint }}>
         Drag job cards between day columns to reschedule · Click any card to open the job · Decoration filters apply globally
       </p>
     </div>
