@@ -1,3 +1,5 @@
+import { T } from '../../ui/tokens';
+
 const STATUS_COLORS = {
   QUOTE: '#f59e0b', ORDER: '#3b82f6', 'In Progress': '#8b5cf6',
   'Pick/Pack': '#0ea5e9',
@@ -32,28 +34,28 @@ export default function JobCard({ job, onClick }) {
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
       style={{
-        background: 'white', borderRadius: 7, border: '1px solid #e2e8f0',
+        background: T.panel, borderRadius: 7, border: `1px solid ${T.hairline}`,
         borderLeft: `3px solid ${color}`, padding: '8px 10px', cursor: 'pointer',
         marginBottom: 6, boxShadow: '0 1px 2px rgba(0,0,0,.04)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-        <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 700 }}>#{job.id}</span>
-        <span style={{ fontSize: 11, color: '#0f172a', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{job.customer}</span>
+        <span style={{ fontSize: 11, color: T.accentStrong, fontWeight: 700 }}>#{job.id}</span>
+        <span style={{ fontSize: 11, color: T.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{job.customer}</span>
       </div>
       {job.description && (
-        <div style={{ fontSize: 10, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{job.description}</div>
+        <div style={{ fontSize: 10, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{job.description}</div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
         {decTypes.slice(0, 2).map(d => (
-          <span key={d} style={{ fontSize: 8, background: DEC_PILL_COLORS[d] ?? '#f1f5f9', color: '#475569', padding: '1px 5px', borderRadius: 4 }}>{d}</span>
+          <span key={d} style={{ fontSize: 8, background: DEC_PILL_COLORS[d] ?? T.hairlineSoft, color: T.textMuted, padding: '1px 5px', borderRadius: 4 }}>{d}</span>
         ))}
         {job.due && (
-          <span style={{ fontSize: 8, color: overdue ? '#ef4444' : '#94a3b8', marginLeft: 'auto' }}>{overdue ? '⚠ ' : ''}{job.due}</span>
+          <span style={{ fontSize: 8, color: overdue ? T.danger : T.textFaint, marginLeft: 'auto' }}>{overdue ? '⚠ ' : ''}{job.due}</span>
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>${(job.total ?? 0).toLocaleString('en-AU', { maximumFractionDigits: 0 })}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>${(job.total ?? 0).toLocaleString('en-AU', { maximumFractionDigits: 0 })}</span>
       </div>
     </div>
   );
