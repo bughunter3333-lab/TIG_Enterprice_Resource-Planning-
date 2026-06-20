@@ -32,7 +32,7 @@ export default function JobCard({ job, onClick }) {
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
       style={{
         background: T.panel, borderRadius: 7, border: `1px solid ${T.hairline}`,
         borderLeft: `3px solid ${color}`, padding: '8px 10px', cursor: 'pointer',
