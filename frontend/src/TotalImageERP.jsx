@@ -32,11 +32,11 @@ const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
   { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300', hasStitch: true },
   { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700 border-orange-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-orange-400 text-orange-700 border-orange-300' },
-  { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-blue-500',    pill: 'bg-blue-50 text-blue-700 border-blue-200', hasColors: true },
+  { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-amber-500',    pill: 'bg-amber-50 text-amber-700 border-amber-200', hasColors: true },
   { v: 'DTF',    l: 'DTF Print',     emoji: '🎨', dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700 border-teal-200', hasColors: true },
   { v: 'DTG',    l: 'DTG Print',     emoji: '👕', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', hasColors: true },
   { v: 'Sub',    l: 'Sublimation',   emoji: '🌈', dot: 'bg-pink-500',    pill: 'bg-pink-50 text-pink-700 border-pink-200', hasColors: true },
-  { v: 'Pad',    l: 'Pad Print',     emoji: '🔵', dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-700 border-blue-200', hasColors: true },
+  { v: 'Pad',    l: 'Pad Print',     emoji: '🔵', dot: 'bg-amber-600',    pill: 'bg-amber-50 text-amber-700 border-amber-200', hasColors: true },
   { v: 'Laser',  l: 'Laser Engrave', emoji: '⚡',  dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700 border-red-200' },
   { v: 'Vinyl',  l: 'Vinyl Cut',     emoji: '✂️',  dot: 'bg-green-500',   pill: 'bg-green-50 text-green-700 border-green-200' },
 ];
@@ -150,14 +150,14 @@ function POGoodsReceiptsPanel({ po }) {
     queryClient.invalidateQueries(['goods-receipts', po.id]);
   }
 
-  const statusCls = { Pending: 'bg-amber-100 text-amber-700', Accepted: 'bg-emerald-100 text-emerald-700', Rejected: 'bg-red-100 text-red-600', Inspecting: 'bg-blue-100 text-blue-700' };
+  const statusCls = { Pending: 'bg-amber-100 text-amber-700', Accepted: 'bg-emerald-100 text-emerald-700', Rejected: 'bg-red-100 text-red-600', Inspecting: 'bg-amber-100 text-amber-700' };
 
   return (
     <div className="px-5 py-4 border-t border-gray-100 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Goods Receipts</h4>
         <div className="flex gap-2">
-          <button onClick={() => refetch()} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+          <button onClick={() => refetch()} className="text-xs text-amber-700 hover:text-amber-800 flex items-center gap-1">
             <RefreshCw className={`w-3 h-3 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
           {!['Received', 'Cancelled'].includes(po.status) && !showForm && (
@@ -294,11 +294,11 @@ function SupplierPriceListPanel({ supplierId }) {
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">Contracted prices &amp; lead times from this supplier</p>
         <div className="flex gap-2">
-          <button onClick={() => refetch()} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+          <button onClick={() => refetch()} className="text-xs text-amber-700 hover:text-amber-800 flex items-center gap-1">
             <RefreshCw className={`w-3 h-3 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
           <button onClick={() => { setForm({ ...emptyForm }); setEditId(null); setErr(''); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-700 text-white text-xs font-semibold rounded-lg hover:bg-blue-800">
+            className="flex items-center gap-1 px-3 py-1.5 bg-amber-700 text-white text-xs font-semibold rounded-lg hover:bg-amber-700">
             <Plus className="w-3 h-3" />Add Price
           </button>
         </div>
@@ -333,7 +333,7 @@ function SupplierPriceListPanel({ supplierId }) {
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => { setForm(null); setEditId(null); }} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800">Cancel</button>
-            <button onClick={save} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-60 flex items-center gap-1">
+            <button onClick={save} disabled={saving} className="px-3 py-1.5 text-xs bg-amber-700 text-white rounded-lg hover:bg-amber-700 disabled:opacity-60 flex items-center gap-1">
               {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}Save
             </button>
           </div>
@@ -426,7 +426,7 @@ function EmailJobModal({ job, customers, onClose }) {
         <div className="px-6 py-10 text-center">
           <div className="text-5xl mb-3 text-green-500">✓</div>
           <p className="text-gray-700 font-medium">Email sent to {form.to_email}</p>
-          <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800">Close</button>
+          <button onClick={onClose} className="mt-4 px-4 py-2 bg-amber-700 text-white rounded-lg text-sm hover:bg-amber-700">Close</button>
         </div>
       ) : (
         <div className="px-5 py-4 space-y-3">
@@ -464,7 +464,7 @@ function EmailJobModal({ job, customers, onClose }) {
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
             <button onClick={send} disabled={sending}
-              className="px-4 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1.5">
+              className="px-4 py-2 text-sm bg-amber-700 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : 'Send Email'}
             </button>
           </div>
@@ -477,7 +477,7 @@ function EmailJobModal({ job, customers, onClose }) {
 function ProofPanel({ job, onUpdate }) {
   const PROOF_STYLES = {
     none:     'bg-gray-100 text-gray-500',
-    sent:     'bg-blue-100 text-blue-700',
+    sent:     'bg-amber-100 text-amber-700',
     approved: 'bg-emerald-100 text-emerald-700',
     rejected: 'bg-red-100 text-red-700',
   };
@@ -501,7 +501,7 @@ function ProofPanel({ job, onUpdate }) {
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-1">
           <button onClick={() => update('sent')} disabled={saving}
-            className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${job.proofStatus === 'sent' ? 'bg-blue-600 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-700'}`}>
+            className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${job.proofStatus === 'sent' ? 'bg-amber-600 text-white' : 'bg-amber-50 hover:bg-amber-100 text-amber-700'}`}>
             <Send className="w-3 h-3" />Sent to Client
           </button>
           <button onClick={() => update('approved')} disabled={saving}
@@ -523,7 +523,7 @@ function ProofPanel({ job, onUpdate }) {
           onBlur={() => { if (proofNotes !== job.proofNotes) update(job.proofStatus || 'none', proofNotes); }}
           rows={2}
           placeholder="Proof notes (revision requests, approval notes…)"
-          className="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none text-gray-600"
+          className="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none text-gray-600"
         />
       </div>
     </div>
@@ -659,7 +659,7 @@ function SizeColourMatrixPopup({ current, onApply, onClose }) {
           <span className="text-sm text-gray-600">Grand total: <span className="font-bold text-gray-900 text-base">{grandTotal} pcs</span></span>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleApply} className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-semibold hover:bg-blue-800">
+            <button onClick={handleApply} className="px-5 py-2 bg-amber-700 text-white rounded-lg text-sm font-semibold hover:bg-amber-700">
               Apply{grandTotal > 0 ? ` (${grandTotal} pcs)` : ''}
             </button>
           </div>
@@ -1936,7 +1936,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Render Jobs Module
   const renderJobs = () => {
     const jStatusColors = {
-      QUOTE:'bg-gray-100 text-gray-700', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700',
+      QUOTE:'bg-gray-100 text-gray-700', New:'bg-amber-100 text-amber-700', ORDER:'bg-indigo-100 text-indigo-700',
       'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-orange-100 text-orange-700',
       'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700',
       PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700',
@@ -1990,11 +1990,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
               <div className="flex-1" />
               {activeJob.status === 'QUOTE' && (
-                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-700 text-white rounded-lg hover:bg-amber-700 font-medium">
                   Convert to Order →
                 </button>
               )}
-              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium">
                 <Edit className="w-3.5 h-3.5" />Edit
               </button>
               <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
@@ -2102,10 +2102,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
                       badge={activeJob.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : activeJob.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-50 text-red-600'} />
                     <F label="Inv. Status" value={(activeJob.invoiceStatus || 'not_invoiced').replace(/_/g, ' ')}
-                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-700' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'} />
+                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'} />
                     {activeJob.proofStatus && activeJob.proofStatus !== 'none' && (
                       <F label="Proof" value={activeJob.proofStatus}
-                        badge={activeJob.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : activeJob.proofStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'} />
+                        badge={activeJob.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : activeJob.proofStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} />
                     )}
                     <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
                       <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
@@ -2195,7 +2195,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     }
                   }}
                   placeholder="Add a comment or note… (Enter to submit)"
-                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
                   style={{ border: `1px solid ${T.hairline}` }}
                 />
                 <button
@@ -2254,7 +2254,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           </tr>
                         );
                         return (
-                        <tr key={idx} className={`hover:bg-blue-50 ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
+                        <tr key={idx} className={`hover:bg-amber-50 ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
                           <td className="px-2 py-1.5">
                             {item.itemStatus
                               ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
@@ -2419,7 +2419,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <p className="text-sm mb-4" style={{ color: T.textMuted }}>Generate and print documents for Job #{activeJob.id}.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700' },
+                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700' },
                     { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700' },
                     { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700' },
                     { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700' },
@@ -2544,7 +2544,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); e.preventDefault(); } }}
                       placeholder="Add a note or comment… (Enter to submit, Shift+Enter for new line)"
                       rows={2}
-                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
                     />
                     <div className="flex flex-col gap-1">
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
@@ -2634,7 +2634,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-blue-50 hover:bg-blue-100 text-blue-700' },
+                          { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-amber-50 hover:bg-amber-100 text-amber-700' },
                           { label: 'Clone',     icon: Copy,          action: () => cloneJob(activeJob),                                        color: 'bg-gray-50 hover:bg-gray-100 text-gray-700' },
                           { label: 'Job Sheet', icon: Printer,       action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }),      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
                           { label: 'Invoice',   icon: FileText,      action: () => setInvoiceJob(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
@@ -2760,7 +2760,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Customer header */}
                   <div className="p-5 border-b flex items-start justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-md">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-indigo-700 text-white font-black text-2xl flex items-center justify-center shadow-md">
                         {(c.name||'?').charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -2774,7 +2774,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => openModal('customer', c)} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 flex items-center gap-1 text-sm font-medium">
+                      <button onClick={() => openModal('customer', c)} className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 flex items-center gap-1 text-sm font-medium">
                         <Edit className="w-3.5 h-3.5" />Edit
                       </button>
                       <button onClick={() => { setSelectedCustomer(null); deleteCustomer(c.id); }} className="px-3 py-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 flex items-center gap-1 text-sm">
@@ -2789,7 +2789,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   {/* Account KPIs */}
                   <div className="grid grid-cols-4 gap-0 border-b">
                     {[
-                      { label: 'Total Jobs', value: cJobs.length, color: 'text-blue-600' },
+                      { label: 'Total Jobs', value: cJobs.length, color: 'text-amber-700' },
                       { label: 'Lifetime Revenue', value: `$${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-green-600' },
                       { label: 'Outstanding', value: `$${outstanding.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: outstanding > 0 ? 'text-red-600' : 'text-gray-400' },
                       { label: 'Credit Used', value: c.creditLimit > 0 ? `${util.toFixed(0)}%` : 'Unlimited', color: util > 80 ? 'text-orange-600' : 'text-gray-600' },
@@ -2816,7 +2816,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <div className="flex border-b px-4 gap-1 bg-gray-50">
                     {['overview','jobs','aging','statement'].map(tab => (
                       <button key={tab} onClick={() => setCustDetailTab(tab)}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 capitalize transition-colors ${custDetailTab===tab?'border-blue-600 text-blue-600':'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                        className={`px-4 py-2.5 text-sm font-medium border-b-2 capitalize transition-colors ${custDetailTab===tab?'border-amber-600 text-amber-700':'border-transparent text-gray-500 hover:text-gray-700'}`}>
                         {tab === 'aging' ? 'Aged AR' : tab}
                       </button>
                     ))}
@@ -2847,7 +2847,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <p className="text-sm text-gray-500">{cJobs.length} jobs · ${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})} total</p>
-                          <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(c.id); }} className="text-xs text-blue-600 hover:underline">View in Jobs →</button>
+                          <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(c.id); }} className="text-xs text-amber-700 hover:underline">View in Jobs →</button>
                         </div>
                         <div className="max-h-72 overflow-y-auto">
                           <table className="w-full text-xs">
@@ -2856,8 +2856,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                               {cJobs.sort((a,b)=>b.id.localeCompare(a.id)).map(j => (
-                                <tr key={j.id} className="hover:bg-blue-50 cursor-pointer" onClick={() => { pinJob(j); setActiveModule('jobs'); }}>
-                                  <td className="px-3 py-2 font-mono font-bold text-blue-600">#{j.id}</td>
+                                <tr key={j.id} className="hover:bg-amber-50 cursor-pointer" onClick={() => { pinJob(j); setActiveModule('jobs'); }}>
+                                  <td className="px-3 py-2 font-mono font-bold text-amber-700">#{j.id}</td>
                                   <td className="px-3 py-2"><span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 font-medium">{j.status}</span></td>
                                   <td className="px-3 py-2 text-gray-500">{j.dateIn}</td>
                                   <td className="px-3 py-2 text-right font-medium">${(j.total||0).toFixed(2)}</td>
@@ -2899,7 +2899,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               target="_blank" rel="noopener noreferrer"
                               className="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 flex items-center gap-1"
                             ><Download className="w-3 h-3"/>Download PDF</a>
-                            <button onClick={() => window.print()} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
+                            <button onClick={() => window.print()} className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded hover:bg-amber-700 flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
                           </div>
                         </div>
                         <table className="w-full text-xs border-collapse">
@@ -2921,7 +2921,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                 return (
                                   <tr key={j.id} className="border-b hover:bg-gray-50">
                                     <td className="px-3 py-2 text-gray-500">{j.dateIn}</td>
-                                    <td className="px-3 py-2 font-mono font-bold text-blue-600">#{j.id}</td>
+                                    <td className="px-3 py-2 font-mono font-bold text-amber-700">#{j.id}</td>
                                     <td className="px-3 py-2">{j.status} {j.custRef?`· Ref: ${j.custRef}`:''}</td>
                                     <td className="px-3 py-2 text-right">${(j.total||0).toFixed(2)}</td>
                                     <td className="px-3 py-2 text-right text-green-600">{paid > 0 ? `-$${paid.toFixed(2)}` : '—'}</td>
@@ -2957,13 +2957,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             <div>
               <label className="text-xs font-medium text-gray-500 block mb-1">List Name</label>
               <input value={jobListModal.name} onChange={e => setJobListModal(m => ({ ...m, name: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 placeholder="e.g. Arcare Active Jobs" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 block mb-1">Customer</label>
               <select value={jobListModal.customerId} onChange={e => setJobListModal(m => ({ ...m, customerId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                 <option value="">All Customers</option>
                 {uniqueCustomers.map(c => <option key={c.id} value={c.id}>{c.id} — {c.name}</option>)}
               </select>
@@ -2972,7 +2972,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Status</label>
                 <select value={jobListModal.status} onChange={e => setJobListModal(m => ({ ...m, status: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                   <option value="">All Statuses</option>
                   {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -2980,7 +2980,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <div>
                 <label className="text-xs font-medium text-gray-500 block mb-1">Priority</label>
                 <select value={jobListModal.priority} onChange={e => setJobListModal(m => ({ ...m, priority: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                   <option value="">All Priorities</option>
                   {['Low','Normal','High','Urgent'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -2998,7 +2998,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 setActiveJobList(hasFilter || jobListModal.name ? { name: label, customerId: jobListModal.customerId, status: jobListModal.status, priority: jobListModal.priority } : null);
                 setJobListModal(m => ({ ...m, open: false }));
               }}
-              className="px-5 py-2 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 flex items-center gap-1.5">
+              className="px-5 py-2 text-xs font-semibold text-white bg-amber-700 rounded-lg hover:bg-amber-700 flex items-center gap-1.5">
               <ClipboardList className="w-3.5 h-3.5" />Run List
             </button>
           </div>
@@ -3027,7 +3027,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             { label: 'Total Suppliers', value: suppliers.length, sub: `${suppActive} active`, icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50' },
             { label: 'Active', value: suppActive, sub: `${suppliers.length - suppActive} inactive`, icon: CheckSquare, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Total PO Spend', value: `$${totalSpend.toLocaleString('en-AU',{maximumFractionDigits:0})}`, sub: 'All purchase orders', icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Linked SKUs', value: inventory.filter(i=>i.supplier).length, sub: 'Items with supplier', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Linked SKUs', value: inventory.filter(i=>i.supplier).length, sub: 'Items with supplier', icon: Package, color: 'text-amber-700', bg: 'bg-amber-50' },
           ].map(k => (
             <div key={k.label} className="rounded-lg p-4 flex items-start gap-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
               <div className={`w-9 h-9 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
@@ -3154,7 +3154,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="space-y-2">
                       {suppPOs(sel).length===0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No purchase orders for this supplier</p>
                       : suppPOs(sel).map(po => {
-                        const cls = {Draft:'bg-gray-100 text-gray-600',Sent:'bg-blue-100 text-blue-700',Partial:'bg-amber-100 text-amber-700',Received:'bg-emerald-100 text-emerald-700',Cancelled:'bg-red-100 text-red-600'}[po.status]||'bg-gray-100 text-gray-600';
+                        const cls = {Draft:'bg-gray-100 text-gray-600',Sent:'bg-amber-100 text-amber-700',Partial:'bg-amber-100 text-amber-700',Received:'bg-emerald-100 text-emerald-700',Cancelled:'bg-red-100 text-red-600'}[po.status]||'bg-gray-100 text-gray-600';
                         return (
                           <div key={po.id} className="flex items-center gap-3 p-3 rounded-lg transition-colors" style={{ border: `1px solid ${T.hairline}` }}>
                             <div className="flex-1 min-w-0">
@@ -3195,7 +3195,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const renderPurchaseOrders = () => {
     const statusMeta = {
       Draft:     { cls:'bg-gray-100 text-gray-700',     dot:'bg-gray-400'     },
-      Sent:      { cls:'bg-blue-100 text-blue-700',     dot:'bg-blue-500'     },
+      Sent:      { cls:'bg-amber-100 text-amber-700',     dot:'bg-amber-500'     },
       Partial:   { cls:'bg-amber-100 text-amber-700',   dot:'bg-amber-400'    },
       Received:  { cls:'bg-emerald-100 text-emerald-700', dot:'bg-emerald-500' },
       Cancelled: { cls:'bg-red-100 text-red-600',       dot:'bg-red-400'      },
@@ -3237,7 +3237,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <select value={selectedPO.status} onChange={e=>{ updatePOStatus(selectedPO.id,e.target.value); setSelectedPO(p=>({...p,status:e.target.value})); }}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                     {['Draft','Sent','Partial','Received','Cancelled'].map(s=><option key={s} value={s}>{s}</option>)}
                   </select>
                   <button onClick={()=>setSelectedPO(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-400"/></button>
@@ -3664,7 +3664,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* Screen-only toolbar */}
           <div className="flex items-center justify-between px-6 py-3 border-b bg-gray-50 print:hidden rounded-t-lg">
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold px-2 py-1 rounded ${isQuote ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{docTitle}</span>
+              <span className={`text-xs font-bold px-2 py-1 rounded ${isQuote ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>{docTitle}</span>
               <span className="text-sm text-gray-600 font-mono">#{j.invoice || j.id}</span>
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${balance <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{balance <= 0 ? 'PAID' : `Balance $${balance.toFixed(2)}`}</span>
             </div>
@@ -3677,7 +3677,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               >
                 <Download className="w-3.5 h-3.5" />Download PDF
               </a>
-              <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 flex items-center gap-1">
+              <button onClick={() => window.print()} className="bg-amber-600 text-white px-4 py-1.5 rounded text-sm hover:bg-amber-700 flex items-center gap-1">
                 <Printer className="w-3.5 h-3.5" />Print
               </button>
               <button onClick={() => setInvoiceJob(null)} className="p-1.5 hover:bg-gray-200 rounded"><X className="w-4 h-4" /></button>
@@ -3944,7 +3944,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <>
         <button
           onClick={() => setAiOpen(o => !o)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-blue-700 hover:bg-blue-800 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-amber-700 hover:bg-amber-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
           title="AI Assistant"
         >
           <Bot className="w-6 h-6" />
@@ -4015,7 +4015,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <div className="flex flex-col gap-0.5" style={{ maxWidth: '82%' }}>
                     <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${
                       msg.role === 'user'
-                        ? 'bg-blue-700 text-white rounded-br-sm'
+                        ? 'bg-amber-700 text-white rounded-br-sm'
                         : 'bg-gray-100 text-gray-800 rounded-bl-sm'
                     }`}>
                       {msg.role === 'assistant' ? parseMarkdown(msg.text) : msg.text}
@@ -4034,7 +4034,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </div>
                   </div>
                   {msg.role === 'user' && (
-                    <div className="w-6 h-6 rounded-full bg-blue-700 flex items-center justify-center flex-shrink-0 mb-0.5">
+                    <div className="w-6 h-6 rounded-full bg-amber-700 flex items-center justify-center flex-shrink-0 mb-0.5">
                       <User className="w-3.5 h-3.5 text-white" />
                     </div>
                   )}
@@ -4071,7 +4071,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <button
                   onClick={sendAiMessage}
                   disabled={aiLoading || !aiInput.trim()}
-                  className="w-8 h-8 flex-shrink-0 bg-blue-700 text-white rounded-xl flex items-center justify-center hover:bg-blue-800 disabled:opacity-40 transition-colors"
+                  className="w-8 h-8 flex-shrink-0 bg-amber-700 text-white rounded-xl flex items-center justify-center hover:bg-amber-700 disabled:opacity-40 transition-colors"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -4168,7 +4168,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             </h3>
             <div className="flex items-center space-x-3 text-xs" style={{ color: T.textMuted }}>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}></span>Empty</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block"></span>Occupied</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-300 inline-block"></span>Occupied</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block"></span>Low Stock</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-100 border border-green-400 inline-block ring-2 ring-green-400"></span>Selected</span>
             </div>
@@ -4204,15 +4204,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             className={`w-full rounded border text-center transition-all hover:scale-105 flex flex-col items-center justify-center px-1 py-1.5 ${
                               isSelected ? 'ring-2 ring-green-400 bg-green-50 border-green-400' :
                               status === 'low' ? 'bg-red-50 border-red-300 hover:bg-red-100' :
-                              status === 'occupied' ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' :
+                              status === 'occupied' ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' :
                               'bg-gray-100 border-gray-200 hover:bg-white'
                             }`}
                           >
-                            <span className={`font-mono leading-none ${isSelected ? 'text-green-700' : status === 'low' ? 'text-red-600' : status === 'occupied' ? 'text-blue-600' : 'text-gray-400'}`} style={{ fontSize: '9px' }}>
+                            <span className={`font-mono leading-none ${isSelected ? 'text-green-700' : status === 'low' ? 'text-red-600' : status === 'occupied' ? 'text-amber-700' : 'text-gray-400'}`} style={{ fontSize: '9px' }}>
                               {binCode}
                             </span>
                             {items.length > 0 && (
-                              <span className={`font-semibold mt-0.5 ${status === 'low' ? 'text-red-700' : 'text-blue-700'}`} style={{ fontSize: '10px' }}>
+                              <span className={`font-semibold mt-0.5 ${status === 'low' ? 'text-red-700' : 'text-amber-700'}`} style={{ fontSize: '10px' }}>
                                 {items.reduce((s, i) => s + i.stock, 0)} pcs
                               </span>
                             )}
@@ -4393,8 +4393,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />{q ? `"${custDropdown.query}"` : 'All customers'}</div>
                             {hits.map((c, i) => (
                               <div key={c.id||c.name} onMouseDown={() => { setJobForm(f => ({ ...f, ...applyCustomerToJobForm(c) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0">{c.name.charAt(0).toUpperCase()}</div>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
+                                <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-bold text-[10px] flex items-center justify-center shrink-0">{c.name.charAt(0).toUpperCase()}</div>
                                 <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{c.name}</div>{c.id && <div className="text-xs font-mono" style={{color:T.textFaint}}>{c.id}</div>}</div>
                               </div>
                             ))}
@@ -4459,7 +4459,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />Card files</div>
                             {hits.map((cf, i) => { const addr = [cf.suburb, cf.state, cf.postcode].filter(Boolean).join(' '); return (
                               <div key={cf.shipCode} onMouseDown={() => { const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                                 <div className="shrink-0 bg-green-100 text-green-700 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">{cf.shipCode}</div>
                                 <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{cf.companyName||cf.shipCode}</div>{addr && <div className="text-xs truncate" style={{color:T.textFaint}}>{addr}</div>}</div>
                               </div>
@@ -4510,7 +4510,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}>Previous assignees</div>
                             {hits.map((name, i) => (
                               <div key={name} onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                                 <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">{name.charAt(0).toUpperCase()}</div>
                                 <span className="text-xs" style={{color:T.text}}>{name}</span>
                               </div>
@@ -4588,7 +4588,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
                       <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
                         style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
                       </select>
@@ -4597,7 +4597,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-blue-100 text-blue-700 border-blue-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
@@ -4737,7 +4737,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type to search customers…"
                         autoComplete="off"
                         required
@@ -4759,9 +4759,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   setCustDropdown({ open: false, query: '', highlighted: 0 });
                                 }}
                                 onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}
                               >
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
                                   {c.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -4782,7 +4782,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const c = customers.find(c => c.id === e.target.value);
                           setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                       >
                         <option value="">Select Customer</option>
                         {customers.map(c => (
@@ -4811,24 +4811,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Date In</label>
                         <input type="date" value={jobForm.dateIn} onChange={(e) => setJobForm({...jobForm, dateIn: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Due Date <span className="font-normal text-xs" style={{color: T.textFaint}}>(auto from terms)</span></label>
                         <input type="date" value={jobForm.due} onChange={(e) => setJobForm({...jobForm, due: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Out Date</label>
                         <input type="date" value={jobForm.out || ''} onChange={(e) => setJobForm({...jobForm, out: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Commitment Date</label>
                         <input type="date" value={jobForm.commitmentDate || ''} onChange={(e) => setJobForm({...jobForm, commitmentDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
                       </div>
                     </div>
                   </div>
@@ -4838,34 +4838,34 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Cust Ref #</label>
                       <input type="text" value={jobForm.custRef || ''} onChange={(e) => setJobForm({...jobForm, custRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Our Ref #</label>
                       <input type="text" value={jobForm.ourRef || ''} onChange={(e) => setJobForm({...jobForm, ourRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Quote Ref</label>
                         <input type="text" value={jobForm.quote} onChange={(e) => setJobForm({...jobForm, quote: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Valid Until</label>
                         <input type="date" value={jobForm.validityDate || ''} onChange={(e) => setJobForm({...jobForm, validityDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
                       </div>
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Description</label>
                       <input type="text" value={jobForm.description || ''} onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Project #</label>
                       <input type="text" value={jobForm.projectNo || ''} onChange={(e) => setJobForm({...jobForm, projectNo: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}} />
                     </div>
                     <div className="relative">
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Assigned To</label>
@@ -4884,7 +4884,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type or pick…"
                         autoComplete="off"
                       />
@@ -4900,7 +4900,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <div key={name}
                                 onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                                 <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">{name.charAt(0).toUpperCase()}</div>
                                 <span className="text-xs" style={{color: T.text}}>{name}</span>
                               </div>
@@ -4938,7 +4938,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Ship-to code or address"
                         autoComplete="off"
                       />
@@ -4962,7 +4962,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     setShipDropdown({ open: false, query: '', highlighted: 0 });
                                   }}
                                   onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
-                                  className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                  className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}
                                 >
                                   <div className="flex-shrink-0 bg-green-100 text-green-700 text-xs font-bold font-mono px-2 py-0.5 rounded">
                                     {cf.shipCode}
@@ -4983,7 +4983,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <textarea
                         value={jobForm.shippingAddress}
                         onChange={(e) => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                       />
                     </div>
@@ -4992,7 +4992,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <textarea
                         value={jobForm.notes || ''}
                         onChange={(e) => setJobForm({...jobForm, notes: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                         placeholder="Special instructions, artwork notes..."
                       />
@@ -5025,7 +5025,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {jobTemplates.map(tpl => (
                                   <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 group">
-                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-blue-600" style={{ color: T.text }}>
+                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-amber-700" style={{ color: T.text }}>
                                       {tpl.name} <span className="text-xs font-normal" style={{ color: T.textFaint }}>({tpl.items?.length || 0} items)</span>
                                     </button>
                                     <button type="button" onMouseDown={() => deleteJobTemplate(tpl.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -5116,13 +5116,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const decOpt = DEC_OPTIONS.find(o => o.v === (item.decorationType || 'None')) || DEC_OPTIONS[0];
                             const hasDecoration = !isSec && !isNote && item.decorationType && item.decorationType !== 'None';
 
-                            const rowBg = isSec ? 'bg-blue-50' : isNote ? 'bg-yellow-50'
+                            const rowBg = isSec ? 'bg-amber-50' : isNote ? 'bg-yellow-50'
                               : isOutOfStock ? 'bg-orange-50' : isLowMargin ? 'bg-red-50'
                               : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
                             const borderLeft = isSec ? 'border-l-2 border-l-blue-400' : isNote ? 'border-l-2 border-l-yellow-300'
                               : isOutOfStock ? 'border-l-2 border-l-orange-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
 
-                            const ci = 'w-full h-6 border border-gray-200 rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white';
+                            const ci = 'w-full h-6 border border-gray-200 rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white';
                             const ciR = ci + ' text-right tabular-nums';
 
                             const dIsOpen = descDropdown.idx === idx;
@@ -5173,18 +5173,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             return (
                               <React.Fragment key={idx}>
                                 <tr
-                                  className={`hover:bg-blue-50/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-blue-300' : ''}`}
+                                  className={`hover:bg-amber-50/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-amber-300' : ''}`}
                                   style={{ borderBottom: `1px solid ${T.hairline}` }}
                                   onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, rowIdx: idx }); }}
                                 >
                                   <td className="px-1 py-0.5 text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>
-                                    <span className={isSec ? 'text-blue-500 font-bold' : isNote ? 'text-yellow-600' : ''}>{isSec ? '§' : isNote ? '¶' : idx + 1}</span>
+                                    <span className={isSec ? 'text-amber-700 font-bold' : isNote ? 'text-yellow-600' : ''}>{isSec ? '§' : isNote ? '¶' : idx + 1}</span>
                                   </td>
 
                                   {isSec || isNote ? (
                                     <td colSpan={11} className="px-2 py-0.5">
                                       <input type="text" value={item.description || ''} onChange={e => updateJobItem(idx, 'description', e.target.value)}
-                                        className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-blue-800' : 'italic text-yellow-700'}`}
+                                        className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-amber-800' : 'italic text-yellow-700'}`}
                                         placeholder={isSec ? 'Section heading…' : 'Note or instruction…'} />
                                     </td>
                                   ) : (<>
@@ -5259,7 +5259,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                       )}
                                       <div className="flex items-center gap-0.5 mt-0.5">
                                         <input type="text" value={item.sizes || ''} onChange={e => updateJobItem(idx, 'sizes', e.target.value)}
-                                          className="flex-1 h-5 border border-gray-100 rounded px-1 text-[10px] text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300 bg-white"
+                                          className="flex-1 h-5 border border-gray-100 rounded px-1 text-[10px] text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-amber-300 bg-white"
                                           placeholder="Sizes…" />
                                         <button type="button" onClick={() => setMatrixPopup({ idx })} title="Size/colour matrix"
                                           className="shrink-0 h-5 w-5 flex items-center justify-center border border-indigo-200 text-indigo-500 rounded hover:bg-indigo-50 text-[10px] font-bold leading-none">⊞</button>
@@ -5366,13 +5366,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         {decOpt.hasColors && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="1" max="16" value={item.colorCount || ''} onChange={e => updateJobItem(idx, 'colorCount', e.target.value)}
-                                              className="h-5 w-12 border border-gray-200 rounded px-1.5 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" placeholder="#" />
+                                              className="h-5 w-12 border border-gray-200 rounded px-1.5 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white" placeholder="#" />
                                             <span className="text-[10px] text-gray-400 shrink-0">col</span>
                                           </div>
                                         )}
                                         {/* Position for all decoration types */}
                                         <select value={item.decPosition || ''} onChange={e => updateJobItem(idx, 'decPosition', e.target.value)}
-                                          className="h-5 border border-gray-200 rounded px-1 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
+                                          className="h-5 border border-gray-200 rounded px-1 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white">
                                           <option value="">Position…</option>
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
@@ -5442,11 +5442,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* Drag handle */}
                 <div
                   onMouseDown={startLineItemsResize}
-                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-blue-100 group flex-shrink-0"
+                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-amber-100 group flex-shrink-0"
                   style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}
                   title="Drag to resize"
                 >
-                  <div className="w-8 h-0.5 rounded-full group-hover:bg-blue-400" style={{ background: T.hairline }} />
+                  <div className="w-8 h-0.5 rounded-full group-hover:bg-amber-500" style={{ background: T.hairline }} />
                 </div>
               </div>
 
@@ -5466,7 +5466,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <button
                   onClick={saveJob}
                   disabled={!jobForm.customerId}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Job
@@ -5484,7 +5484,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={inventoryForm.sku}
                       onChange={(e) => setInventoryForm({...inventoryForm, sku: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       disabled={editingItem !== null}
                       required
@@ -5508,7 +5508,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         if (e.key === 'Enter' && hits[categoryDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, category: hits[categoryDropdown.highlighted]}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }
                         if (e.key === 'Escape') setCategoryDropdown({ open: false, query: '', highlighted: 0 });
                       }}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       placeholder="e.g. Apparel, Accessories…"
                       autoComplete="off"
@@ -5527,7 +5527,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <div key={cat}
                                 onMouseDown={() => { setInventoryForm({...inventoryForm, category: cat}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setCategoryDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === categoryDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === categoryDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                                 <span className="font-medium" style={{color: T.text}}>{cat}</span>
                                 <span className="text-xs" style={{color: T.textFaint}}>{count} item{count !== 1 ? 's' : ''}</span>
                               </div>
@@ -5544,7 +5544,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={inventoryForm.name}
                       onChange={(e) => setInventoryForm({...inventoryForm, name: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
@@ -5556,7 +5556,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="number"
                       value={inventoryForm.stock}
                       onChange={(e) => setInventoryForm({...inventoryForm, stock: parseInt(e.target.value) || 0})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
@@ -5568,7 +5568,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="number"
                       value={inventoryForm.reorderLevel}
                       onChange={(e) => setInventoryForm({...inventoryForm, reorderLevel: parseInt(e.target.value) || 0})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
@@ -5591,7 +5591,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         if (e.key === 'Enter' && hits[locationDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, location: hits[locationDropdown.highlighted]}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }
                         if (e.key === 'Escape') setLocationDropdown({ open: false, query: '', highlighted: 0 });
                       }}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       placeholder="e.g., A-15-3"
                       autoComplete="off"
@@ -5610,7 +5610,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <div key={loc}
                                 onMouseDown={() => { setInventoryForm({...inventoryForm, location: loc}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setLocationDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === locationDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === locationDropdown.highlighted ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
                                 <span className="font-mono font-bold" style={{color: T.text}}>{loc}</span>
                                 {occupant && <span className="text-xs truncate max-w-[140px]" style={{color: T.textFaint}}>{occupant.name}</span>}
                               </div>
@@ -5633,7 +5633,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           supplier: selectedSupplier?.name || ''
                         });
                       }}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="">Select Supplier</option>
@@ -5650,7 +5650,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       step="0.01"
                       value={inventoryForm.unitCost}
                       onChange={(e) => setInventoryForm({...inventoryForm, unitCost: parseFloat(e.target.value) || 0})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
@@ -5663,7 +5663,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       step="0.01"
                       value={inventoryForm.unitPrice}
                       onChange={(e) => setInventoryForm({...inventoryForm, unitPrice: parseFloat(e.target.value) || 0})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
@@ -5675,7 +5675,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="number"
                       value={inventoryForm.minOrder}
                       onChange={(e) => setInventoryForm({...inventoryForm, minOrder: parseInt(e.target.value) || 1})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="1"
                     />
@@ -5687,7 +5687,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="number"
                       value={inventoryForm.leadTime}
                       onChange={(e) => setInventoryForm({...inventoryForm, leadTime: parseInt(e.target.value) || 7})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="1"
                     />
@@ -5723,7 +5723,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={customerForm.name}
                       onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
@@ -5734,7 +5734,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <select
                       value={customerForm.accountType || 'Account'}
                       onChange={(e) => setCustomerForm({...customerForm, accountType: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="Account">Account</option>
@@ -5749,7 +5749,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={customerForm.contact}
                       onChange={(e) => setCustomerForm({...customerForm, contact: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
@@ -5760,7 +5760,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="email"
                       value={customerForm.email}
                       onChange={(e) => setCustomerForm({...customerForm, email: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       required
                     />
@@ -5772,7 +5772,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="tel"
                       value={customerForm.phone}
                       onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
@@ -5783,7 +5783,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="tel"
                       value={customerForm.mobile}
                       onChange={(e) => setCustomerForm({...customerForm, mobile: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
@@ -5793,7 +5793,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <textarea
                       value={customerForm.address}
                       onChange={(e) => setCustomerForm({...customerForm, address: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       rows="2"
                     />
@@ -5805,7 +5805,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={customerForm.abn}
                       onChange={(e) => setCustomerForm({...customerForm, abn: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
@@ -5815,7 +5815,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <select
                       value={customerForm.paymentTerms}
                       onChange={(e) => setCustomerForm({...customerForm, paymentTerms: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     >
                       <option value="Net 7">Net 7</option>
@@ -5833,7 +5833,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       step="1000"
                       value={customerForm.creditLimit}
                       onChange={(e) => setCustomerForm({...customerForm, creditLimit: parseFloat(e.target.value) || 0})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                       min="0"
                     />
@@ -5845,7 +5845,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       type="text"
                       value={customerForm.accountManager}
                       onChange={(e) => setCustomerForm({...customerForm, accountManager: e.target.value})}
-                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                       style={{border: `1px solid ${T.hairline}`}}
                     />
                   </div>
@@ -6185,7 +6185,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               type="number" step="0.01" min="0.01" max={paymentModal.maxAmount}
               value={paymentModal.amount}
               onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
               style={{ border: `1px solid ${T.hairline}` }}
               autoFocus disabled={paymentModal.tyroProcessing}
             />
@@ -6196,7 +6196,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             <select
               value={paymentModal.method}
               onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value, tyroStatus: null })}
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
               style={{ border: `1px solid ${T.hairline}` }}
               disabled={paymentModal.tyroProcessing}
             >
@@ -6270,7 +6270,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 value={stockAdjustModal.adjustment}
                 onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, adjustment: e.target.value })}
                 placeholder="e.g. +10 or -5"
-                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 style={{ border: `1px solid ${T.hairline}` }}
                 autoFocus
               />
@@ -6285,7 +6285,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 value={stockAdjustModal.reason}
                 onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, reason: e.target.value })}
                 placeholder="e.g. Stocktake, Damaged goods..."
-                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 style={{ border: `1px solid ${T.hairline}` }}
               />
             </div>
@@ -6340,20 +6340,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Via *</label>
-              <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
+              <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Reference *</label>
-              <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+              <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>No. of Cartons</label>
-            <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+            <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Notes</label>
-            <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+            <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
           {dispatchModal.job?.status === 'FINISH' && (
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: T.text }}>
@@ -6459,7 +6459,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <tr key={j.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
                       <td className="px-3 py-1.5 font-mono font-medium" style={{ color: T.accentStrong }}>{j.id}</td>
                       <td className="px-3 py-1.5" style={{ color: T.text }}>{j.customer}</td>
-                      <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{j.status}</span></td>
+                      <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{j.status}</span></td>
                       <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.dateIn}</td>
                       <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.invoice || '—'}</td>
                       <td className="px-3 py-1.5 text-right" style={{ color: T.text }}>${(j.subtotal||0).toFixed(2)}</td>
@@ -6756,7 +6756,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b">
                   <div>
                     <div className="flex items-center space-x-3">
-                      <span className="font-mono font-black text-2xl text-blue-700">{card.shipCode}</span>
+                      <span className="font-mono font-black text-2xl text-amber-700">{card.shipCode}</span>
                       <span className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono">Group: {card.group}</span>
                     </div>
                     <p className="text-gray-500 text-sm mt-1">Customer Code: <span className="font-mono font-semibold text-gray-700">{card.customerCode}</span></p>
@@ -6814,16 +6814,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="divide-y rounded border overflow-hidden">
                       {relatedJobs.slice(0, 10).map(j => (
                         <button key={j.id} onClick={() => { pinJob(j); setActiveModule('jobs'); }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between">
+                          className="w-full text-left px-4 py-2.5 hover:bg-amber-50 flex items-center justify-between">
                           <div>
-                            <span className="font-mono text-blue-600 font-semibold text-sm">#{j.id}</span>
+                            <span className="font-mono text-amber-700 font-semibold text-sm">#{j.id}</span>
                             <span className="ml-3 text-sm text-gray-600">{j.customer}</span>
                             {j.invoice && <span className="ml-2 text-xs text-gray-400">Inv: {j.invoice}</span>}
                           </div>
                           <div className="flex items-center space-x-3">
                             <span className="text-xs text-gray-500">{j.due}</span>
                             <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                              { QUOTE:'bg-gray-100 text-gray-700', New:'bg-blue-100 text-blue-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700' }[j.status] || 'bg-gray-100 text-gray-600'
+                              { QUOTE:'bg-gray-100 text-gray-700', New:'bg-amber-100 text-amber-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700' }[j.status] || 'bg-gray-100 text-gray-600'
                             }`}>{j.status}</span>
                           </div>
                         </button>
@@ -6866,7 +6866,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         }));
                       }}
                       disabled={!!cardFileModal.editing}
-                      className="w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                      className="w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-50"
                       placeholder="RESP.SYD" />
                     {cardFileForm.shipCode && (
                       <p className="text-xs text-gray-400 mt-1">Group: <strong>{cardFileForm.shipCode.split('.')[0]}</strong></p>
@@ -6879,7 +6879,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </label>
                     <input type="text" value={cardFileForm.customerCode}
                       onChange={e => setCardFileForm(f => ({ ...f, customerCode: e.target.value.toUpperCase() }))}
-                      className="w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
                       placeholder="RESP.HO" />
                   </div>
                 </div>
@@ -6890,14 +6890,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
                     <input type="text" value={cardFileForm.companyName}
                       onChange={e => setCardFileForm(f => ({ ...f, companyName: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                       placeholder="Respite Care Sydney" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
                     <input type="text" value={cardFileForm.contactName}
                       onChange={e => setCardFileForm(f => ({ ...f, contactName: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                 </div>
 
@@ -6906,26 +6906,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
                   <input type="text" value={cardFileForm.address1}
                     onChange={e => setCardFileForm(f => ({ ...f, address1: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
                   <input type="text" value={cardFileForm.address2}
                     onChange={e => setCardFileForm(f => ({ ...f, address2: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Suburb / City</label>
                     <input type="text" value={cardFileForm.suburb}
                       onChange={e => setCardFileForm(f => ({ ...f, suburb: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
                     <select value={cardFileForm.state}
                       onChange={e => setCardFileForm(f => ({ ...f, state: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                       <option value="">—</option>
                       {['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'].map(s => <option key={s}>{s}</option>)}
                     </select>
@@ -6934,7 +6934,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Postcode</label>
                     <input type="text" value={cardFileForm.postcode}
                       onChange={e => setCardFileForm(f => ({ ...f, postcode: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="2000" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="2000" />
                   </div>
                 </div>
 
@@ -6944,13 +6944,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                     <input type="text" value={cardFileForm.phone}
                       onChange={e => setCardFileForm(f => ({ ...f, phone: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input type="email" value={cardFileForm.email}
                       onChange={e => setCardFileForm(f => ({ ...f, email: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                 </div>
 
@@ -6959,14 +6959,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea rows={3} value={cardFileForm.notes}
                     onChange={e => setCardFileForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
               </div>
               <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50">
                 <button onClick={() => setCardFileModal({ open: false, editing: null })}
                   className="px-4 py-2 border rounded text-sm hover:bg-gray-100">Cancel</button>
                 <button onClick={saveCard}
-                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center">
+                  className="px-4 py-2 bg-amber-600 text-white rounded text-sm hover:bg-amber-700 flex items-center">
                   <Save className="w-4 h-4 mr-1" />{cardFileModal.editing ? 'Save Changes' : 'Create Card File'}
                 </button>
               </div>
@@ -7028,7 +7028,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     ];
 
     const colorMap = {
-      blue:   { card: 'border-blue-200 bg-blue-50',     badge: 'bg-blue-100 text-blue-700',     btn: 'bg-blue-600 hover:bg-blue-700',     icon: 'text-blue-600' },
+      blue:   { card: 'border-amber-200 bg-amber-50',     badge: 'bg-amber-100 text-amber-700',     btn: 'bg-amber-600 hover:bg-amber-700',     icon: 'text-amber-700' },
       green:  { card: 'border-green-200 bg-green-50',   badge: 'bg-green-100 text-green-700',   btn: 'bg-green-600 hover:bg-green-700',   icon: 'text-green-600' },
       purple: { card: 'border-purple-200 bg-purple-50', badge: 'bg-purple-100 text-purple-700', btn: 'bg-purple-600 hover:bg-purple-700', icon: 'text-purple-600' },
       orange: { card: 'border-orange-200 bg-orange-50', badge: 'bg-orange-100 text-orange-700', btn: 'bg-orange-600 hover:bg-orange-700', icon: 'text-orange-600' },
@@ -7085,9 +7085,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         </div>
 
         {/* How it works */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
           <p className="font-semibold mb-1">How it works</p>
-          <ol className="list-decimal list-inside space-y-1 text-blue-700">
+          <ol className="list-decimal list-inside space-y-1 text-amber-700">
             <li>Download the CSV template for the data type you want to import.</li>
             <li>Fill it in with your existing data (or export from your old ERP and use the flexible column matching — most common column names are recognised automatically).</li>
             <li>Upload the file below and click <strong>Import</strong>.</li>
@@ -7138,7 +7138,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
 
                   {/* File drop zone */}
-                  <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg px-4 py-5 cursor-pointer transition-colors ${file ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}>
+                  <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg px-4 py-5 cursor-pointer transition-colors ${file ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-amber-300 hover:bg-amber-50'}`}>
                     <input
                       type="file"
                       accept=".csv"
@@ -7281,7 +7281,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const PARCEL_TYPES = ['Satchel', 'Box', 'Envelope', 'Pallet', 'Bag', 'Tube', 'Other'];
     const SERVICES = ['Standard', 'Express', 'Overnight', 'Same Day', 'Economy'];
     const TYPE_COLORS = {
-      Satchel: 'bg-blue-100 text-blue-700',
+      Satchel: 'bg-amber-100 text-amber-700',
       Box: 'bg-orange-100 text-orange-700',
       Envelope: 'bg-yellow-100 text-yellow-800',
       Pallet: 'bg-gray-100 text-gray-700',
