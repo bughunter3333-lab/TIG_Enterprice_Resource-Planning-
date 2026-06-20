@@ -675,10 +675,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">A Items (Top 80% Capital)</span>
+              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">A Items (Top 80% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.a_value)}</p>
             </div>
-            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
         </div>

@@ -4,8 +4,8 @@ import { T } from '../ui/tokens';
 
 const STATUS_COLORS = {
   QUOTE: 'bg-gray-100 text-gray-700 border-gray-300',
-  New: 'bg-blue-100 text-blue-700 border-blue-300',
-  ORDER: 'bg-blue-100 text-blue-700 border-blue-300',
+  New: 'bg-amber-100 text-amber-700 border-amber-300',
+  ORDER: 'bg-amber-100 text-amber-700 border-amber-300',
   'In Progress': 'bg-yellow-100 text-yellow-800 border-yellow-300',
   PROOF: 'bg-purple-100 text-purple-700 border-purple-300',
   PRINT: 'bg-orange-100 text-orange-700 border-orange-300',
@@ -19,11 +19,11 @@ const STATUS_COLORS = {
 const DEC_COLORS = {
   EMB:    { dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700',  label: 'Embroidery' },
   TRS:    { dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700',  label: 'Transfer' },
-  Screen: { dot: 'bg-blue-500',    pill: 'bg-blue-50 text-blue-700',      label: 'Screen Print' },
+  Screen: { dot: 'bg-amber-500',    pill: 'bg-amber-50 text-amber-700',      label: 'Screen Print' },
   DTF:    { dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700',      label: 'DTF' },
   Laser:  { dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700',        label: 'Laser' },
   Sub:    { dot: 'bg-pink-500',    pill: 'bg-pink-50 text-pink-700',      label: 'Sublimation' },
-  Pad:    { dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-700',      label: 'Pad Print' },
+  Pad:    { dot: 'bg-amber-600',    pill: 'bg-amber-50 text-amber-700',      label: 'Pad Print' },
   Vinyl:  { dot: 'bg-green-500',   pill: 'bg-green-50 text-green-700',    label: 'Vinyl Cut' },
   None:   { dot: 'bg-gray-300',    pill: 'bg-gray-50 text-gray-500',      label: 'None' },
 };

@@ -7,7 +7,7 @@ import { T } from '../ui/tokens';
 
 const ROLES = ['admin', 'staff', 'overseas_staff'];
 const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', overseas_staff: 'Overseas Staff' };
-const ROLE_COLORS = { admin: 'bg-red-100 text-red-800', staff: 'bg-blue-100 text-blue-800', overseas_staff: 'bg-amber-100 text-amber-800' };
+const ROLE_COLORS = { admin: 'bg-red-100 text-red-800', staff: 'bg-amber-100 text-amber-800', overseas_staff: 'bg-amber-100 text-amber-800' };
 
 const EMPTY_FORM = { username: '', email: '', full_name: '', password: '', role: 'staff' };
 
@@ -86,7 +86,7 @@ export default function UserManagement({ currentUser }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-blue-600" />
+          <Users className="w-5 h-5 text-amber-700" />
           <h3 className="font-semibold text-gray-800">User Accounts</h3>
           <span className="text-xs text-gray-400 ml-1">{userList.length} users</span>
         </div>
@@ -96,7 +96,7 @@ export default function UserManagement({ currentUser }) {
           </button>
           <button
             onClick={() => { setForm(EMPTY_FORM); setError(''); setCreateOpen(true); }}
-            className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700"
+            className="flex items-center gap-1.5 bg-amber-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-amber-700"
           >
             <Plus className="w-4 h-4" />New User
           </button>
@@ -107,7 +107,7 @@ export default function UserManagement({ currentUser }) {
       <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
         <span className="font-medium text-gray-600">Roles:</span>
         <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 font-medium">Admin</span> — full access, settings, users</span>
-        <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">Staff</span> — create/edit jobs, inventory, purchasing</span>
+        <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">Staff</span> — create/edit jobs, inventory, purchasing</span>
         <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">Overseas Staff</span> — read-only, no pricing</span>
       </div>
 
@@ -119,7 +119,7 @@ export default function UserManagement({ currentUser }) {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search users…"
-          className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
         />
       </div>
 
@@ -147,10 +147,10 @@ export default function UserManagement({ currentUser }) {
                 || (u.email || '').toLowerCase().includes(q)
                 || (ROLE_LABELS[u.role] || '').toLowerCase().includes(q);
             }).map(u => (
-              <tr key={u.id} className={`hover:bg-gray-50 ${u.id === currentUser?.id ? 'bg-blue-50' : ''}`}>
+              <tr key={u.id} className={`hover:bg-gray-50 ${u.id === currentUser?.id ? 'bg-amber-50' : ''}`}>
                 <td className="px-4 py-3 font-mono text-sm font-medium text-gray-800">
                   {u.username}
-                  {u.id === currentUser?.id && <span className="ml-1 text-xs text-blue-500">(you)</span>}
+                  {u.id === currentUser?.id && <span className="ml-1 text-xs text-amber-700">(you)</span>}
                 </td>
                 <td className="px-4 py-3">{u.full_name}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>
@@ -173,7 +173,7 @@ export default function UserManagement({ currentUser }) {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => { setEditForm({ role: u.role, is_active: u.is_active, full_name: u.full_name, email: u.email }); setEditUser(u); setError(''); }}
-                      className="p-1 hover:bg-blue-50 rounded text-blue-600" title="Edit"
+                      className="p-1 hover:bg-amber-50 rounded text-amber-700" title="Edit"
                     ><Edit className="w-3.5 h-3.5" /></button>
                     <button
                       onClick={() => { setResetUser(u); setNewPassword(''); setError(''); }}
@@ -215,14 +215,14 @@ export default function UserManagement({ currentUser }) {
                   value={form[f.key]}
                   onChange={e => setForm(x => ({ ...x, [f.key]: e.target.value }))}
                   placeholder={f.placeholder}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
               </div>
             ))}
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Role *</label>
               <select value={form.role} onChange={e => setForm(x => ({ ...x, role: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                 {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
               </select>
             </div>
@@ -232,7 +232,7 @@ export default function UserManagement({ currentUser }) {
             <button
               onClick={() => createUser(form)}
               disabled={creating || !form.username || !form.email || !form.full_name || !form.password}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
             >
               {creating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}Create User
             </button>
@@ -252,23 +252,23 @@ export default function UserManagement({ currentUser }) {
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Full Name</label>
               <input type="text" value={editForm.full_name || ''} onChange={e => setEditForm(x => ({ ...x, full_name: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Email</label>
               <input type="email" value={editForm.email || ''} onChange={e => setEditForm(x => ({ ...x, email: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Role</label>
               <select value={editForm.role || 'staff'} onChange={e => setEditForm(x => ({ ...x, role: e.target.value }))}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
                 {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
               </select>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={!!editForm.is_active} onChange={e => setEditForm(x => ({ ...x, is_active: e.target.checked }))}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                className="w-4 h-4 rounded border-gray-300 text-amber-700" />
               Account Active
             </label>
           </div>
@@ -277,7 +277,7 @@ export default function UserManagement({ currentUser }) {
             <button
               onClick={() => updateUser({ id: editUser.id, data: editForm })}
               disabled={updating}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
             >
               {updating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}Save Changes
             </button>
@@ -300,7 +300,7 @@ export default function UserManagement({ currentUser }) {
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               placeholder="Min 8 chars, 1 uppercase, 1 number"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
