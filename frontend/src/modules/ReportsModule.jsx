@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, DollarSign, Package, Users, Download, RefreshCw, Clock, AlertTriangle, Layers } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
+import { T } from '../ui/tokens';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -35,7 +36,8 @@ function ExportButton({ onClick, disabled }) {
       onClick={onClick}
       disabled={disabled}
       title="Export to CSV"
-      className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-green-700 border border-gray-200 hover:border-green-400 bg-white hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className="flex items-center gap-1.5 text-sm hover:text-green-700 border hover:border-green-400 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ color: T.textMuted, borderColor: T.hairline, background: T.panel }}
     >
       <Download className="w-3.5 h-3.5" />CSV
     </button>
@@ -45,12 +47,14 @@ function ExportButton({ onClick, disabled }) {
 function DateRange({ from, to, onChange }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <label className="text-gray-500">From</label>
+      <label style={{ color: T.textMuted }}>From</label>
       <input type="date" value={from} onChange={e => onChange('from', e.target.value)}
-        className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
-      <label className="text-gray-500">To</label>
+        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        style={{ border: `1px solid ${T.hairline}` }} />
+      <label style={{ color: T.textMuted }}>To</label>
       <input type="date" value={to} onChange={e => onChange('to', e.target.value)}
-        className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        style={{ border: `1px solid ${T.hairline}` }} />
     </div>
   );
 }
@@ -59,9 +63,9 @@ function TotalsBar({ totals, fields }) {
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${fields.length}, 1fr)` }}>
       {fields.map(({ key, label, color }) => (
-        <div key={key} className={`bg-white rounded-lg border p-3 text-center`}>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className={`text-lg font-bold ${color || 'text-gray-800'}`}>{fmt$(totals?.[key])}</p>
+        <div key={key} className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <p className="text-xs" style={{ color: T.textMuted }}>{label}</p>
+          <p className={`text-lg font-bold ${color || ''}`} style={!color ? { color: T.text } : undefined}>{fmt$(totals?.[key])}</p>
         </div>
       ))}
     </div>
@@ -94,7 +98,7 @@ function SalesSummaryTab() {
             'Revenue (ex GST)': r.revenue_ex, 'GST': r.gst,
             'Total (inc GST)': r.revenue_inc, Paid: r.paid, Outstanding: r.outstanding,
           })), `sales-summary-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -106,21 +110,21 @@ function SalesSummaryTab() {
         { key: 'outstanding', label: 'Outstanding', color: 'text-red-600' },
       ]} />
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-96 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Customer','Jobs','Revenue (ex)','GST','Total (inc)','Paid','Outstanding'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.customer_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
-                    <td className="px-3 py-2 text-center text-gray-600">{r.job_count}</td>
+                    <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{r.job_count}</td>
                     <td className="px-3 py-2 text-right">{fmt$(r.revenue_ex)}</td>
                     <td className="px-3 py-2 text-right text-amber-700">{fmt$(r.gst)}</td>
                     <td className="px-3 py-2 text-right font-medium">{fmt$(r.revenue_inc)}</td>
@@ -129,7 +133,7 @@ function SalesSummaryTab() {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+              <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-center">{totals.job_count}</td>
@@ -145,7 +149,7 @@ function SalesSummaryTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No invoiced jobs in this period.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No invoiced jobs in this period.</div>
       )}
     </div>
   );
@@ -175,7 +179,7 @@ function GSTTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Month: r.month, Invoices: r.invoices, 'Sales (inc GST)': r.sales_inc, 'Sales (ex GST)': r.sales_ex, 'GST Collected': r.gst,
           })), `gst-report-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -196,18 +200,18 @@ function GSTTab() {
         </div>
       </div>
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead style={{ background: T.hairlineSoft }}>
               <tr>
                 {['Month','Invoices','Sales (inc GST)','Sales (ex GST)','GST Collected'].map(h => (
-                  <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.month} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <tr key={r.month} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                   <td className="px-3 py-2 font-medium">{r.month}</td>
                   <td className="px-3 py-2 text-center">{r.invoices}</td>
                   <td className="px-3 py-2 text-right">{fmt$(r.sales_inc)}</td>
@@ -238,12 +242,12 @@ function AgedReceivablesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-gray-500">Outstanding balances as at today</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Outstanding balances as at today</p>
         <div className="flex items-center gap-2">
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Customer: r.customer_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total, 'Oldest Invoice': r.oldest_invoice,
           })), 'aged-receivables.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -256,30 +260,30 @@ function AgedReceivablesTab() {
         { key: 'total', label: 'Total Outstanding', color: 'text-gray-900' },
       ]} />
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Customer','Current','31–60d','61–90d','90d+','Total','Oldest Invoice'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.customer_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                     <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
                     <td className="px-3 py-2 text-right text-amber-700">{fmt$(r.days_31_60)}</td>
                     <td className="px-3 py-2 text-right text-orange-700">{fmt$(r.days_61_90)}</td>
                     <td className="px-3 py-2 text-right text-red-700">{fmt$(r.over_90)}</td>
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
-                    <td className="px-3 py-2 text-gray-500 text-xs">{r.oldest_invoice}</td>
+                    <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.oldest_invoice}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+              <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
@@ -295,7 +299,7 @@ function AgedReceivablesTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No outstanding balances.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No outstanding balances.</div>
       )}
     </div>
   );
@@ -316,12 +320,12 @@ function AgedPayablesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-gray-500">Outstanding supplier balances as at today</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Outstanding supplier balances as at today</p>
         <div className="flex items-center gap-2">
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Supplier: r.supplier_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total,
           })), 'aged-payables.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -334,19 +338,19 @@ function AgedPayablesTab() {
         { key: 'total', label: 'Total Owing', color: 'text-gray-900' },
       ]} />
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Supplier','Current','31–60d','61–90d','90d+','Total'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.supplier_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.supplier_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.supplier_name}</td>
                     <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
                     <td className="px-3 py-2 text-right text-amber-700">{fmt$(r.days_31_60)}</td>
@@ -356,7 +360,7 @@ function AgedPayablesTab() {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+              <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
@@ -371,7 +375,7 @@ function AgedPayablesTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No outstanding supplier balances.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No outstanding supplier balances.</div>
       )}
     </div>
   );
@@ -392,44 +396,44 @@ function InventoryValuationTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-gray-500">Current stock on hand × unit cost</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Current stock on hand × unit cost</p>
         <div className="flex items-center gap-2">
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Category: r.category, SKUs: r.sku_count, Units: r.total_units, 'Valuation ($)': r.value,
           })), 'inventory-valuation.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border rounded-lg p-3 text-center">
-          <p className="text-xs text-gray-500">Total SKUs</p>
+        <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <p className="text-xs" style={{ color: T.textMuted }}>Total SKUs</p>
           <p className="text-2xl font-bold text-blue-700">{totals.sku_count || 0}</p>
         </div>
-        <div className="bg-white border rounded-lg p-3 text-center">
-          <p className="text-xs text-gray-500">Total Units</p>
+        <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <p className="text-xs" style={{ color: T.textMuted }}>Total Units</p>
           <p className="text-2xl font-bold text-green-700">{(totals.total_units || 0).toLocaleString()}</p>
         </div>
-        <div className="bg-white border rounded-lg p-3 text-center">
-          <p className="text-xs text-gray-500">Total Valuation</p>
+        <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <p className="text-xs" style={{ color: T.textMuted }}>Total Valuation</p>
           <p className="text-2xl font-bold text-purple-700">{fmt$(totals.value)}</p>
         </div>
       </div>
       {rows.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border overflow-hidden">
+          <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Category','SKUs','Units','Value'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.category} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.category} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.category}</td>
                     <td className="px-3 py-2 text-center">{r.sku_count}</td>
                     <td className="px-3 py-2 text-center">{r.total_units.toLocaleString()}</td>
@@ -439,7 +443,7 @@ function InventoryValuationTab() {
               </tbody>
             </table>
           </div>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <h4 className="font-semibold text-sm mb-3">Value by Category</h4>
             <ResponsiveContainer width="100%" height={220}>
               <RechartsPie>
@@ -481,7 +485,7 @@ function JobProfitabilityTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             'Job#': r.job_id, Customer: r.customer_name, 'Date In': r.date_in, Revenue: r.revenue_ex, Cost: r.cost, Margin: r.margin, 'Margin%': r.margin_pct,
           })), `job-profitability-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -494,22 +498,22 @@ function JobProfitabilityTab() {
         ]} />
       )}
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Job','Customer','Date','Revenue','Cost','Margin','Margin %'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.job_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.job_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-mono text-xs">{r.job_id}</td>
                     <td className="px-3 py-2">{r.customer}</td>
-                    <td className="px-3 py-2 text-gray-500 text-xs">{r.date_in}</td>
+                    <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.date_in}</td>
                     <td className="px-3 py-2 text-right">{fmt$(r.revenue_ex)}</td>
                     <td className="px-3 py-2 text-right text-red-600">{fmt$(r.cost)}</td>
                     <td className="px-3 py-2 text-right text-green-700 font-medium">{fmt$(r.margin)}</td>
@@ -521,7 +525,7 @@ function JobProfitabilityTab() {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+              <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2" colSpan={3}>TOTAL ({rows.length} jobs)</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.revenue_ex)}</td>
@@ -535,7 +539,7 @@ function JobProfitabilityTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No job data in this period.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No job data in this period.</div>
       )}
     </div>
   );
@@ -566,7 +570,7 @@ function OnTimeDeliveryTab() {
           <ExportButton disabled={byCustomer.length === 0} onClick={() => exportCSV(byCustomer.map(r => ({
             Customer: r.customer_name, Jobs: r.total, 'On Time': r.on_time, Late: r.late, 'No Date': r.no_due_date, 'Rate %': r.rate,
           })), `on-time-delivery-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -575,12 +579,12 @@ function OnTimeDeliveryTab() {
       {summary.total > 0 && (
         <div className="grid grid-cols-4 gap-3">
           <div className={`rounded-lg border p-4 text-center ${rate >= 90 ? 'bg-emerald-50 border-emerald-200' : rate >= 75 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
-            <p className="text-xs font-semibold text-gray-500">On-Time Rate</p>
+            <p className="text-xs font-semibold" style={{ color: T.textMuted }}>On-Time Rate</p>
             <p className={`text-3xl font-bold mt-1 ${rate >= 90 ? 'text-emerald-700' : rate >= 75 ? 'text-amber-700' : 'text-red-700'}`}>{rate}%</p>
           </div>
-          <div className="bg-white border rounded-lg p-4 text-center">
-            <p className="text-xs text-gray-500">Total Jobs</p>
-            <p className="text-2xl font-bold text-gray-800">{summary.total}</p>
+          <div className="rounded-lg p-4 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+            <p className="text-xs" style={{ color: T.textMuted }}>Total Jobs</p>
+            <p className="text-2xl font-bold" style={{ color: T.text }}>{summary.total}</p>
           </div>
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
             <p className="text-xs text-emerald-600">On Time</p>
@@ -589,30 +593,30 @@ function OnTimeDeliveryTab() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
             <p className="text-xs text-red-600">Late</p>
             <p className="text-2xl font-bold text-red-700">{summary.late}</p>
-            {summary.no_due_date > 0 && <p className="text-xs text-gray-400 mt-0.5">{summary.no_due_date} no due date</p>}
+            {summary.no_due_date > 0 && <p className="text-xs mt-0.5" style={{ color: T.textFaint }}>{summary.no_due_date} no due date</p>}
           </div>
         </div>
       )}
 
       {byCustomer.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Customer','Jobs','On Time','Late','No Date','Rate'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {byCustomer.map((r, i) => (
-                  <tr key={r.customer_id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                     <td className="px-3 py-2 text-center">{r.total}</td>
                     <td className="px-3 py-2 text-center text-emerald-700">{r.on_time}</td>
                     <td className="px-3 py-2 text-center text-red-600">{r.late}</td>
-                    <td className="px-3 py-2 text-center text-gray-400">{r.no_due_date}</td>
+                    <td className="px-3 py-2 text-center" style={{ color: T.textFaint }}>{r.no_due_date}</td>
                     <td className="px-3 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${r.rate >= 90 ? 'bg-emerald-100 text-emerald-800' : r.rate >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
                         {r.rate}%
@@ -626,7 +630,7 @@ function OnTimeDeliveryTab() {
         </div>
       )}
       {!isFetching && summary.total === 0 && (
-        <div className="text-center text-gray-400 py-16">No completed jobs with due dates in this period.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No completed jobs with due dates in this period.</div>
       )}
     </div>
   );
@@ -712,18 +716,19 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
     <div className="space-y-4">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">Items on back order across active jobs</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Items on back order across active jobs</p>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
             <button
               onClick={openRaisePO}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm"
+              style={{ background: T.accentStrong }}
             >
               <Plus className="w-3.5 h-3.5" />
               Raise PO ({selected.size} SKU{selected.size !== 1 ? 's' : ''})
             </button>
           )}
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -743,9 +748,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
             <p className="text-xs text-orange-600">SKUs on Back Order</p>
             <p className="text-2xl font-bold text-orange-700">{totals.sku_count}</p>
           </div>
-          <div className="bg-white border rounded-lg p-4 text-center">
-            <p className="text-xs text-gray-500">Total Units B/O</p>
-            <p className="text-2xl font-bold text-gray-800">{(totals.total_b_ord || 0).toLocaleString()}</p>
+          <div className="rounded-lg p-4 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+            <p className="text-xs" style={{ color: T.textMuted }}>Total Units B/O</p>
+            <p className="text-2xl font-bold" style={{ color: T.text }}>{(totals.total_b_ord || 0).toLocaleString()}</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
             <p className="text-xs text-red-600">Total Value</p>
@@ -755,17 +760,17 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
       )}
 
       {rows.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <div className="max-h-[500px] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              <thead className="sticky top-0 z-10" style={{ background: T.hairlineSoft }}>
                 <tr>
                   <th className="px-3 py-2 w-8">
                     <input type="checkbox" checked={allSelected} onChange={toggleAll}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                   </th>
                   {['SKU','Description','Category','Supplier','SOH','B/O Qty','Unit Cost','Value','Jobs & POs'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600 whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -776,7 +781,10 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                   return (
                     <tr key={r.sku}
                       onClick={() => toggleRow(r.sku)}
-                      className={`cursor-pointer align-top transition-colors ${isSelected ? 'bg-blue-50 border-l-2 border-l-blue-400' : i % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'} ${!isSelected && r.stock_on_hand <= 0 ? 'border-l-2 border-l-red-400' : ''}`}>
+                      className={`cursor-pointer align-top transition-colors ${!isSelected && r.stock_on_hand <= 0 ? 'border-l-2 border-l-red-400' : ''}`}
+                      style={isSelected
+                        ? { background: '#eff6ff', borderLeft: '2px solid #60a5fa' }
+                        : { background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleRow(r.sku)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -786,11 +794,11 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         {alreadyOnPO && <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded">on PO</span>}
                       </td>
                       <td className="px-3 py-2.5 max-w-44 truncate text-xs" title={r.description}>{r.description}</td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs whitespace-nowrap">{r.category || '—'}</td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs whitespace-nowrap">{r.supplier || '—'}</td>
-                      <td className={`px-3 py-2.5 text-center font-medium whitespace-nowrap ${r.stock_on_hand <= 0 ? 'text-red-600' : 'text-gray-700'}`}>{r.stock_on_hand}</td>
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.category || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.supplier || '—'}</td>
+                      <td className={`px-3 py-2.5 text-center font-medium whitespace-nowrap ${r.stock_on_hand <= 0 ? 'text-red-600' : ''}`} style={r.stock_on_hand > 0 ? { color: T.text } : undefined}>{r.stock_on_hand}</td>
                       <td className="px-3 py-2.5 text-center font-bold text-orange-700 whitespace-nowrap">{r.total_b_ord}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">{fmt$(r.unit_cost)}</td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap" style={{ color: T.textMuted }}>{fmt$(r.unit_cost)}</td>
                       <td className="px-3 py-2.5 text-right font-medium text-red-700 whitespace-nowrap">{fmt$(r.total_value)}</td>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <div className="flex flex-col gap-1.5">
@@ -806,9 +814,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                                   PO {j.po_no}
                                 </span>
                               )}
-                              <span className="text-[11px] text-gray-400 truncate max-w-28" title={j.customer_name}>{j.customer_name}</span>
+                              <span className="text-[11px] truncate max-w-28" style={{ color: T.textFaint }} title={j.customer_name}>{j.customer_name}</span>
                               {j.due && (
-                                <span className={`text-[10px] px-1 py-0.5 rounded ${new Date(j.due) < new Date() ? 'bg-red-50 text-red-600' : 'text-gray-400'}`}>
+                                <span className={`text-[10px] px-1 py-0.5 rounded ${new Date(j.due) < new Date() ? 'bg-red-50 text-red-600' : ''}`} style={new Date(j.due) >= new Date() ? { color: T.textFaint } : undefined}>
                                   due {j.due}
                                 </span>
                               )}
@@ -820,7 +828,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                   );
                 })}
               </tbody>
-              <tfoot className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+              <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td />
                   <td className="px-3 py-2" colSpan={4}>TOTAL ({totals.sku_count} SKUs)</td>
@@ -835,20 +843,20 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No back orders found.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No back orders found.</div>
       )}
 
       {/* ── Raise PO Modal ── */}
       {raisePOOpen && poForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+          <div className="rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]" style={{ background: T.panel }}>
             {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b">
-              <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+              <h2 className="font-semibold flex items-center gap-2 text-base" style={{ color: T.text }}>
                 <ShoppingCart className="w-4 h-4 text-blue-500" />
                 Raise Purchase Order from Back Orders
               </h2>
-              <button onClick={() => setRaisePOOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setRaisePOOpen(false)} className="hover:text-gray-600" style={{ color: T.textMuted }}><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -861,13 +869,15 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
               {/* PO details */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-0.5">PO Number *</label>
-                  <input className="w-full border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-sm"
+                  <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>PO Number *</label>
+                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-sm"
+                    style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.id} onChange={e => setPoForm(f => ({ ...f, id: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-0.5">Supplier</label>
-                  <select className="w-full border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Supplier</label>
+                  <select className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                    style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.supplierCode}
                     onChange={e => {
                       const s = suppliers.find(s => s.code === e.target.value);
@@ -878,36 +888,38 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-0.5">Expected Delivery Date</label>
-                  <input type="date" className="w-full border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Expected Delivery Date</label>
+                  <input type="date" className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                    style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.expectedDate} onChange={e => setPoForm(f => ({ ...f, expectedDate: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-0.5">Notes</label>
-                  <input className="w-full border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Notes</label>
+                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                    style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
               </div>
 
               {/* Line items */}
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 border-b">Line Items</div>
+              <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${T.hairline}` }}>
+                <div className="px-3 py-2 text-xs font-semibold" style={{ background: T.hairlineSoft, color: T.textMuted, borderBottom: `1px solid ${T.hairline}` }}>Line Items</div>
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-50 border-b">
+                  <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                     <tr>
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">SKU</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Description</th>
-                      <th className="text-center px-3 py-2 font-medium text-gray-500">Qty</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-500">Unit Cost</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-500">Total</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-500">Linked Jobs</th>
+                      <th className="text-left px-3 py-2 font-medium" style={{ color: T.textMuted }}>SKU</th>
+                      <th className="text-left px-3 py-2 font-medium" style={{ color: T.textMuted }}>Description</th>
+                      <th className="text-center px-3 py-2 font-medium" style={{ color: T.textMuted }}>Qty</th>
+                      <th className="text-right px-3 py-2 font-medium" style={{ color: T.textMuted }}>Unit Cost</th>
+                      <th className="text-right px-3 py-2 font-medium" style={{ color: T.textMuted }}>Total</th>
+                      <th className="text-left px-3 py-2 font-medium" style={{ color: T.textMuted }}>Linked Jobs</th>
                     </tr>
                   </thead>
                   <tbody>
                     {poForm.items.map((item, idx) => (
-                      <tr key={item.sku} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="px-3 py-2 font-mono font-semibold text-gray-700">{item.sku}</td>
-                        <td className="px-3 py-2 text-gray-600 max-w-36 truncate" title={item.description}>{item.description}</td>
+                      <tr key={item.sku} className="last:border-0 hover:bg-gray-50" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                        <td className="px-3 py-2 font-mono font-semibold" style={{ color: T.text }}>{item.sku}</td>
+                        <td className="px-3 py-2 max-w-36 truncate" style={{ color: T.textMuted }} title={item.description}>{item.description}</td>
                         <td className="px-3 py-2 text-center">
                           <input type="number" min="1"
                             value={item.qty}
@@ -916,10 +928,11 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                               items[idx] = { ...items[idx], qty: parseInt(e.target.value) || 0 };
                               return { ...f, items };
                             })}
-                            className="w-16 border rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold text-orange-700" />
+                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400 font-semibold text-orange-700"
+                            style={{ border: `1px solid ${T.hairline}` }} />
                         </td>
-                        <td className="px-3 py-2 text-right text-gray-600">{fmt$(item.unitCost)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-gray-800">{fmt$(item.qty * item.unitCost)}</td>
+                        <td className="px-3 py-2 text-right" style={{ color: T.textMuted }}>{fmt$(item.unitCost)}</td>
+                        <td className="px-3 py-2 text-right font-semibold" style={{ color: T.text }}>{fmt$(item.qty * item.unitCost)}</td>
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {item.jobIds.map(jid => (
@@ -932,26 +945,27 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 border-t font-semibold">
+                  <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}>
                     <tr>
-                      <td colSpan={4} className="px-3 py-2 text-right text-gray-600">PO Total</td>
-                      <td className="px-3 py-2 text-right text-gray-800">{fmt$(poForm.items.reduce((s, i) => s + i.qty * i.unitCost, 0))}</td>
+                      <td colSpan={4} className="px-3 py-2 text-right" style={{ color: T.textMuted }}>PO Total</td>
+                      <td className="px-3 py-2 text-right" style={{ color: T.text }}>{fmt$(poForm.items.reduce((s, i) => s + i.qty * i.unitCost, 0))}</td>
                       <td />
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
-              <p className="text-xs text-gray-400">
+              <p className="text-xs" style={{ color: T.textFaint }}>
                 After raising: job items for these SKUs will be updated with this PO number. You can track receiving status in the Purchases module.
               </p>
             </div>
 
             {/* Modal footer */}
-            <div className="flex justify-end gap-2 px-5 py-3 border-t bg-gray-50">
-              <button onClick={() => setRaisePOOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+            <div className="flex justify-end gap-2 px-5 py-3" style={{ borderTop: `1px solid ${T.hairline}`, background: T.hairlineSoft }}>
+              <button onClick={() => setRaisePOOpen(false)} className="px-4 py-2 text-sm hover:text-gray-800" style={{ color: T.textMuted }}>Cancel</button>
               <button onClick={submitRaisePO} disabled={raising}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-800 disabled:opacity-60 flex items-center gap-1.5 font-semibold">
+                className="px-4 py-2 text-sm text-white rounded-lg hover:bg-blue-800 disabled:opacity-60 flex items-center gap-1.5 font-semibold"
+                style={{ background: T.accentStrong }}>
                 {raising ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Raise PO {poForm.id}
               </button>
@@ -987,7 +1001,7 @@ function DecorationPerformanceTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Type: r.decoration_type || 'None', Items: r.item_count, Qty: r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, 'Margin%': r.margin_pct,
           })), `decoration-performance-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-800" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -995,21 +1009,21 @@ function DecorationPerformanceTab() {
 
       {rows.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border overflow-hidden">
+          <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead style={{ background: T.hairlineSoft }}>
                 <tr>
                   {['Type','Items','Qty','Revenue','Cost','Margin','Margin %'].map(h => (
-                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.decoration_type} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={r.decoration_type} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-semibold">{r.decoration_type || 'None'}</td>
-                    <td className="px-3 py-2 text-center text-gray-600">{r.item_count}</td>
-                    <td className="px-3 py-2 text-center text-gray-600">{(r.qty || 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{r.item_count}</td>
+                    <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{(r.qty || 0).toLocaleString()}</td>
                     <td className="px-3 py-2 text-right text-blue-700">{fmt$(r.revenue)}</td>
                     <td className="px-3 py-2 text-right text-red-600">{fmt$(r.cost)}</td>
                     <td className="px-3 py-2 text-right text-green-700 font-medium">{fmt$(r.margin)}</td>
@@ -1023,7 +1037,7 @@ function DecorationPerformanceTab() {
               </tbody>
             </table>
           </div>
-          <div className="bg-white rounded-lg border p-4">
+          <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <h4 className="font-semibold text-sm mb-4">Revenue by Decoration Type</h4>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={rows}>
@@ -1040,7 +1054,7 @@ function DecorationPerformanceTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center text-gray-400 py-16">No decoration data in this period.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No decoration data in this period.</div>
       )}
     </div>
   );
@@ -1089,16 +1103,16 @@ function OverviewTab({ jobs = [], inventory = [] }) {
           { label: 'Low Stock Items', value: inventory.filter(i=>i.stock<=i.reorderLevel).length, color: 'text-red-600' },
           { label: 'Inventory Value', value: fmt$(inventory.reduce((s,i)=>s+i.stock*(i.unitCost||0),0)), color: 'text-purple-600' },
         ].map(kpi => (
-          <div key={kpi.label} className="bg-white rounded-xl shadow-sm p-4">
-            <p className="text-xs text-gray-500">{kpi.label}</p>
+          <div key={kpi.label} className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+            <p className="text-xs" style={{ color: T.textMuted }}>{kpi.label}</p>
             <p className={`text-xl font-bold mt-1 ${kpi.color}`}>{kpi.value}</p>
           </div>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <h3 className="font-semibold text-sm mb-3">Revenue by Month</h3>
-          {revenueByMonth.length === 0 ? <p className="text-gray-400 text-sm text-center py-8">No data</p> : (
+          {revenueByMonth.length === 0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No data</p> : (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1110,9 +1124,9 @@ function OverviewTab({ jobs = [], inventory = [] }) {
             </ResponsiveContainer>
           )}
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <h3 className="font-semibold text-sm mb-3">Jobs by Status</h3>
-          {jobsByStatus.length === 0 ? <p className="text-gray-400 text-sm text-center py-8">No data</p> : (
+          {jobsByStatus.length === 0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No data</p> : (
             <ResponsiveContainer width="100%" height={200}>
               <RechartsPie>
                 <Pie data={jobsByStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, value }) => `${name}: ${value}`}>
@@ -1123,9 +1137,9 @@ function OverviewTab({ jobs = [], inventory = [] }) {
             </ResponsiveContainer>
           )}
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <h3 className="font-semibold text-sm mb-3">Top Customers by Revenue</h3>
-          {topCustomers.length === 0 ? <p className="text-gray-400 text-sm text-center py-8">No data</p> : (
+          {topCustomers.length === 0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No data</p> : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={topCustomers} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1137,9 +1151,9 @@ function OverviewTab({ jobs = [], inventory = [] }) {
             </ResponsiveContainer>
           )}
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <h3 className="font-semibold text-sm mb-3">Inventory Value by Category</h3>
-          {invByCategory.length === 0 ? <p className="text-gray-400 text-sm text-center py-8">No data</p> : (
+          {invByCategory.length === 0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No data</p> : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={invByCategory}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1175,18 +1189,17 @@ export default function ReportsModule({ jobs = [], inventory = [], suppliers = [
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-gray-200 pb-0">
+      <div className="flex gap-1 pb-0" style={{ borderBottom: `1px solid ${T.hairline}` }}>
         {TABS.map(t => {
           const Icon = t.icon;
           return (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === t.id
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+              style={tab === t.id
+                ? { borderBottomColor: T.accentStrong, color: T.accentStrong }
+                : { borderBottomColor: 'transparent', color: T.textMuted }}
             >
               <Icon className="w-3.5 h-3.5" />{t.label}
             </button>
