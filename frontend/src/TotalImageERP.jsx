@@ -7320,39 +7320,44 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         <DraggableModal onClose={() => setOfModalOpen(false)} cardClass="w-full max-w-3xl max-h-[90vh] flex flex-col">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-orange-500 to-orange-600 rounded-t-xl">
+            <div className="flex items-center justify-between px-6 py-4 rounded-t-xl"
+              style={{ background: T.chrome, borderBottom: `1px solid ${T.chromeRaised}` }}>
               <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                  <Truck className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.12)' }}>
+                  <Truck className="w-5 h-5" style={{ color: T.accent }} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Open Freight</h2>
-                  <p className="text-xs text-orange-100">Carrier account &amp; parcel types</p>
+                  <h2 className="text-lg font-bold" style={{ color: T.chromeText }}>Open Freight</h2>
+                  <p className="text-xs" style={{ color: T.chromeTextMuted }}>Carrier account &amp; parcel types</p>
                 </div>
               </div>
-              <button onClick={() => setOfModalOpen(false)} className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-white" />
+              <button onClick={() => setOfModalOpen(false)} className="p-1.5 rounded-lg transition-colors"
+                style={{ color: T.chromeTextMuted }}>
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b bg-gray-50 px-6 rounded-none">
+            <div className="flex px-6" style={{ borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}>
               {[
                 { id: 'parcels', label: 'Parcel Types', icon: Box },
                 { id: 'account', label: 'Account', icon: Settings },
               ].map(tab => {
                 const Icon = tab.icon;
+                const active = ofTab === tab.id;
                 return (
                   <button key={tab.id} onClick={() => setOfTab(tab.id)}
-                    className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                      ofTab === tab.id
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}>
+                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors"
+                    style={{
+                      borderBottomColor: active ? T.accentStrong : 'transparent',
+                      color: active ? T.accentStrong : T.textMuted,
+                    }}>
                     <Icon className="w-4 h-4" />
                     <span>{tab.label}</span>
                     {tab.id === 'parcels' && ofParcels.length > 0 && (
-                      <span className="bg-orange-100 text-orange-700 text-xs px-1.5 py-0.5 rounded-full font-semibold">
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                        style={{ background: T.accentTint, color: T.accentStrong }}>
                         {ofParcels.length}
                       </span>
                     )}
@@ -7369,28 +7374,30 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-sm text-gray-500">Configure the parcel types you use with Open Freight. These can be selected when booking a shipment.</p>
+                      <p className="text-sm" style={{ color: T.textMuted }}>Configure the parcel types you use with Open Freight. These can be selected when booking a shipment.</p>
                     </div>
                     <button onClick={openAddParcel}
-                      className="flex items-center space-x-2 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm font-medium shadow-sm transition-colors">
+                      className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors"
+                      style={{ background: T.accentStrong, color: '#fff' }}>
                       <Plus className="w-4 h-4" />
                       <span>Add Parcel Type</span>
                     </button>
                   </div>
 
                   {ofParcels.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400">
+                    <div className="text-center py-16" style={{ color: T.textFaint }}>
                       <Box className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p className="font-medium text-gray-500">No parcel types yet</p>
+                      <p className="font-medium" style={{ color: T.textMuted }}>No parcel types yet</p>
                       <p className="text-sm mt-1">Click <strong>+ Add Parcel Type</strong> to create your first one</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       {ofParcels.map(p => (
-                        <div key={p.id} className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div key={p.id} className="rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+                          style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-800 truncate">{p.name}</p>
+                              <p className="font-semibold truncate" style={{ color: T.text }}>{p.name}</p>
                               <div className="flex items-center space-x-2 mt-1">
                                 {p.parcelType && (
                                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[p.parcelType] || 'bg-gray-100 text-gray-600'}`}>
@@ -7398,32 +7405,35 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   </span>
                                 )}
                                 {p.service && (
-                                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{p.service}</span>
+                                  <span className="text-xs px-2 py-0.5 rounded-full"
+                                    style={{ color: T.textMuted, background: T.hairlineSoft }}>{p.service}</span>
                                 )}
                               </div>
                             </div>
                             <div className="flex space-x-1 ml-2 flex-shrink-0">
                               <button onClick={() => openEditParcel(p)}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
+                                className="p-1.5 rounded-lg transition-colors"
+                                style={{ color: T.textMuted }}>
                                 <Edit className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => deleteParcel(p.id, p.name)}
-                                className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500">
+                                className="p-1.5 rounded-lg transition-colors"
+                                style={{ color: T.textMuted }}>
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-2 mt-3 text-xs text-gray-500">
+                          <div className="grid grid-cols-3 gap-2 mt-3 text-xs" style={{ color: T.textMuted }}>
                             {p.maxWeightKg > 0 && (
                               <div className="flex items-center space-x-1">
-                                <Weight className="w-3 h-3 text-gray-400" />
+                                <Weight className="w-3 h-3" style={{ color: T.textFaint }} />
                                 <span>Max {p.maxWeightKg} kg</span>
                               </div>
                             )}
                             {(p.lengthCm > 0 || p.widthCm > 0 || p.heightCm > 0) && (
                               <div className="flex items-center space-x-1 col-span-2">
-                                <Ruler className="w-3 h-3 text-gray-400" />
+                                <Ruler className="w-3 h-3" style={{ color: T.textFaint }} />
                                 <span>
                                   {[p.lengthCm, p.widthCm, p.heightCm].filter(Boolean).join(' × ')} cm
                                 </span>
@@ -7431,19 +7441,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             )}
                           </div>
 
-                          <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
+                          <div className="flex items-center justify-between mt-3 pt-2"
+                            style={{ borderTop: `1px solid ${T.hairline}` }}>
                             {p.carrierCode && (
-                              <span className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
+                              <span className="text-xs font-mono px-2 py-0.5 rounded"
+                                style={{ color: T.textMuted, background: T.hairlineSoft }}>
                                 {p.carrierCode}
                               </span>
                             )}
                             {p.rate > 0 && (
-                              <span className="ml-auto text-sm font-bold text-orange-600">
+                              <span className="ml-auto text-sm font-bold" style={{ color: T.accentStrong }}>
                                 ${Number(p.rate).toFixed(2)}
                               </span>
                             )}
                           </div>
-                          {p.notes && <p className="text-xs text-gray-400 mt-2 italic">{p.notes}</p>}
+                          {p.notes && <p className="text-xs mt-2 italic" style={{ color: T.textFaint }}>{p.notes}</p>}
                         </div>
                       ))}
                     </div>
@@ -7454,73 +7466,80 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               {/* ── ACCOUNT TAB ──────────────────────────────────────────── */}
               {ofTab === 'account' && (
                 <div className="p-6 space-y-5">
-                  <p className="text-sm text-gray-500">Store your Open Freight account credentials and depot details here for quick reference when booking shipments.</p>
+                  <p className="text-sm" style={{ color: T.textMuted }}>Store your Open Freight account credentials and depot details here for quick reference when booking shipments.</p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Account Number</label>
                       <input type="text" value={ofAccount.accountNumber}
                         onChange={e => { setOfAccount(a => ({ ...a, accountNumber: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="e.g. OF-12345" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Account Name</label>
                       <input type="text" value={ofAccount.accountName}
                         onChange={e => { setOfAccount(a => ({ ...a, accountName: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="Total Image Group" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Depot / Branch</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Depot / Branch</label>
                       <input type="text" value={ofAccount.depot}
                         onChange={e => { setOfAccount(a => ({ ...a, depot: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="e.g. Sydney West" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Name</label>
                       <input type="text" value={ofAccount.contactName}
                         onChange={e => { setOfAccount(a => ({ ...a, contactName: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Phone</label>
                       <input type="text" value={ofAccount.contactPhone}
                         onChange={e => { setOfAccount(a => ({ ...a, contactPhone: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                      <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Email</label>
                       <input type="email" value={ofAccount.contactEmail}
                         onChange={e => { setOfAccount(a => ({ ...a, contactEmail: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>
                       API Key / Login
-                      <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                      <span className="ml-1 text-xs font-normal" style={{ color: T.textFaint }}>(optional)</span>
                     </label>
                     <input type="password" value={ofAccount.apiKey}
                       onChange={e => { setOfAccount(a => ({ ...a, apiKey: e.target.value })); setOfAccountDirty(true); }}
-                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none"
+                      style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder={ofAccount.apiKeySet ? '(configured — leave blank to keep)' : 'API key or login credentials'} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Notes</label>
                     <textarea rows={3} value={ofAccount.notes}
                       onChange={e => { setOfAccount(a => ({ ...a, notes: e.target.value })); setOfAccountDirty(true); }}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder="Any additional account notes…" />
                   </div>
                   <div className="flex justify-end">
                     <button onClick={saveAccount} disabled={!ofAccountDirty}
-                      className={`flex items-center space-x-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        ofAccountDirty
-                          ? 'bg-orange-500 text-white hover:bg-orange-600'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}>
+                      className="flex items-center space-x-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                      style={ofAccountDirty
+                        ? { background: T.accentStrong, color: '#fff' }
+                        : { background: T.hairlineSoft, color: T.textFaint, cursor: 'not-allowed' }}>
                       <Save className="w-4 h-4" />
                       <span>{ofAccountDirty ? 'Save Account' : 'Saved'}</span>
                     </button>
@@ -7533,29 +7552,33 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         {/* ── Add / Edit Parcel Type sub-modal ─────────────────────────── */}
         {ofParcelModal.open && (
           <DraggableModal onClose={() => setOfParcelModal({ open: false, editing: null })} cardClass="w-full max-w-lg max-h-[90vh] overflow-y-auto" overlayClass="z-[60]">
-              <div className="flex items-center justify-between px-6 py-4 border-b">
-                <h3 className="font-bold text-gray-800">
+              <div className="flex items-center justify-between px-6 py-4"
+                style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                <h3 className="font-bold" style={{ color: T.text }}>
                   {ofParcelModal.editing ? 'Edit Parcel Type' : 'New Parcel Type'}
                 </h3>
                 <button onClick={() => setOfParcelModal({ open: false, editing: null })}>
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X className="w-5 h-5" style={{ color: T.textMuted }} />
                 </button>
               </div>
 
               <div className="px-6 py-5 space-y-4">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>
+                    Name <span style={{ color: T.danger }}>*</span>
+                  </label>
                   <input type="text" value={ofParcelForm.name}
                     onChange={e => setOfParcelForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                     placeholder="e.g. Standard Satchel 500g" autoFocus />
                 </div>
 
                 {/* Type + Service */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Parcel Type</label>
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Parcel Type</label>
                     <div className="flex flex-wrap gap-2">
                       {PARCEL_TYPES.map(t => (
                         <button key={t} type="button"
@@ -7563,16 +7586,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                             ofParcelForm.parcelType === t
                               ? (TYPE_COLORS[t] || 'bg-gray-200 text-gray-700') + ' border-current'
-                              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                          }`}>{t}</button>
+                              : ''
+                          }`}
+                          style={ofParcelForm.parcelType === t ? {} : {
+                            background: T.panel, color: T.textMuted,
+                            border: `1px solid ${T.hairline}`,
+                          }}>{t}</button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Service Level</label>
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Service Level</label>
                     <select value={ofParcelForm.service}
                       onChange={e => setOfParcelForm(f => ({ ...f, service: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
                       {SERVICES.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
@@ -7580,34 +7608,38 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                 {/* Weight + Dimensions */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Size &amp; Weight</label>
+                  <label className="block text-sm font-medium mb-2" style={{ color: T.text }}>Size &amp; Weight</label>
                   <div className="grid grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Max Weight (kg)</label>
+                      <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Max Weight (kg)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.maxWeightKg}
                         onChange={e => setOfParcelForm(f => ({ ...f, maxWeightKg: e.target.value }))}
-                        className="w-full border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="0.5" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Length (cm)</label>
+                      <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Length (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.lengthCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, lengthCm: e.target.value }))}
-                        className="w-full border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="30" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Width (cm)</label>
+                      <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Width (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.widthCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, widthCm: e.target.value }))}
-                        className="w-full border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="20" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Height (cm)</label>
+                      <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Height (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.heightCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, heightCm: e.target.value }))}
-                        className="w-full border rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="10" />
                     </div>
                   </div>
@@ -7616,22 +7648,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* Carrier code + Rate */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>
                       Carrier Code
-                      <span className="ml-1 text-xs font-normal text-gray-400">(for labels)</span>
+                      <span className="ml-1 text-xs font-normal" style={{ color: T.textFaint }}>(for labels)</span>
                     </label>
                     <input type="text" value={ofParcelForm.carrierCode}
                       onChange={e => setOfParcelForm(f => ({ ...f, carrierCode: e.target.value.toUpperCase() }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none"
+                      style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder="e.g. SAT500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate ($ per parcel)</label>
+                    <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Rate ($ per parcel)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2 text-gray-400 text-sm">$</span>
+                      <span className="absolute left-3 top-2 text-sm" style={{ color: T.textMuted }}>$</span>
                       <input type="number" step="0.01" min="0" value={ofParcelForm.rate}
                         onChange={e => setOfParcelForm(f => ({ ...f, rate: e.target.value }))}
-                        className="w-full border rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        className="w-full rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none"
+                        style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="0.00" />
                     </div>
                   </div>
@@ -7639,23 +7673,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Notes</label>
                   <input type="text" value={ofParcelForm.notes}
                     onChange={e => setOfParcelForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                     placeholder="Any special handling notes…" />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
+              <div className="flex justify-end space-x-3 px-6 py-4 rounded-b-xl"
+                style={{ borderTop: `1px solid ${T.hairline}`, background: T.hairlineSoft }}>
                 <button onClick={() => setOfParcelModal({ open: false, editing: null })}
-                  className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100 text-gray-600">Cancel</button>
+                  className="px-4 py-2 rounded-lg text-sm transition-colors"
+                  style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
                 <button onClick={saveParcel} disabled={!ofParcelForm.name.trim()}
-                  className={`flex items-center space-x-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    ofParcelForm.name.trim()
-                      ? 'bg-orange-500 text-white hover:bg-orange-600'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}>
+                  className="flex items-center space-x-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={ofParcelForm.name.trim()
+                    ? { background: T.accentStrong, color: '#fff' }
+                    : { background: T.hairline, color: T.textFaint, cursor: 'not-allowed' }}>
                   <Save className="w-4 h-4" />
                   <span>{ofParcelModal.editing ? 'Save Changes' : 'Add Parcel Type'}</span>
                 </button>
