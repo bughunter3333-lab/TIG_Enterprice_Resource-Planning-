@@ -27,7 +27,7 @@ class CompanySettings(Base):
     smtp_use_tls = Column(Boolean, default=True)
     tyro_merchant_id = Column(String(100))
     tyro_terminal_id = Column(String(100))
-    tyro_environment = Column(String(20), default='sandbox')
+    tyro_environment = Column(String(20), default="sandbox")
 
 
 class EmailLog(Base):
@@ -37,7 +37,7 @@ class EmailLog(Base):
     to_email = Column(String(200))
     subject = Column(String(200))
     job_id = Column(String(20))
-    email_type = Column(String(20))   # invoice / quote / reminder / statement
-    status = Column(String(20))       # sent / failed
+    email_type = Column(String(20))  # invoice / quote / reminder / statement
+    status = Column(String(20))  # sent / failed
     error = Column(Text)
     sent_by = Column(String(50))

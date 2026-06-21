@@ -17,7 +17,9 @@ def _validate_abn(abn: Optional[str]) -> Optional[str]:
     if not abn:
         return abn
     if not validate_abn(abn):
-        raise HTTPException(status_code=422, detail="Invalid ABN: must pass ATO checksum")
+        raise HTTPException(
+            status_code=422, detail="Invalid ABN: must pass ATO checksum"
+        )
     return clean_abn(abn)
 
 
@@ -69,7 +71,11 @@ def list_customers(
         q = db.query(Customer)
         if search:
             term = f"%{search}%"
-            q = q.filter(Customer.name.ilike(term) | Customer.id.ilike(term) | Customer.email.ilike(term))
+            q = q.filter(
+                Customer.name.ilike(term)
+                | Customer.id.ilike(term)
+                | Customer.email.ilike(term)
+            )
         if status and status != "all":
             q = q.filter(Customer.status == status)
         return q.order_by(Customer.name).offset(offset).limit(limit).all()
@@ -78,7 +84,9 @@ def list_customers(
 
 
 @router.get("/{customer_id}")
-def get_customer(customer_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_customer(
+    customer_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -86,7 +94,11 @@ def get_customer(customer_id: str, db: Session = Depends(get_db), _: User = Depe
 
 
 @router.post("/")
-def create_customer(body: CustomerCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_customer(
+    body: CustomerCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if db.query(Customer).filter(Customer.id == body.id).first():
         raise HTTPException(status_code=409, detail="Customer ID already exists")
     data = body.model_dump()
@@ -99,7 +111,12 @@ def create_customer(body: CustomerCreate, db: Session = Depends(get_db), _: User
 
 
 @router.patch("/{customer_id}")
-def update_customer(customer_id: str, body: CustomerUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_customer(
+    customer_id: str,
+    body: CustomerUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -114,19 +131,26 @@ def update_customer(customer_id: str, body: CustomerUpdate, db: Session = Depend
 
 
 @router.delete("/{customer_id}")
-def delete_customer(customer_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_customer(
+    customer_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     from app.models.job import Job
+
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    active_jobs = db.query(Job).filter(
-        Job.customer_id == customer_id,
-        ~Job.status.in_(["PAID", "CANCEL"]),
-    ).count()
+    active_jobs = (
+        db.query(Job)
+        .filter(
+            Job.customer_id == customer_id,
+            ~Job.status.in_(["PAID", "CANCEL"]),
+        )
+        .count()
+    )
     if active_jobs:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot delete customer with {active_jobs} active job(s). Close or cancel them first."
+            detail=f"Cannot delete customer with {active_jobs} active job(s). Close or cancel them first.",
         )
     db.delete(customer)
     db.commit()
@@ -168,16 +192,18 @@ def customer_statement(
         total_paid = sum(float(p.amount) for p in payments)
         balance = round(total_inc - total_paid, 2)
         running_balance += balance
-        lines.append({
-            "job_id": j.id,
-            "invoice_no": j.invoice or "",
-            "invoice_date": j.invoice_date or j.date_in or "",
-            "description": j.description or "",
-            "total_inc": round(total_inc, 2),
-            "paid": round(total_paid, 2),
-            "balance": balance,
-            "payment_status": j.payment_status or "unpaid",
-        })
+        lines.append(
+            {
+                "job_id": j.id,
+                "invoice_no": j.invoice or "",
+                "invoice_date": j.invoice_date or j.date_in or "",
+                "description": j.description or "",
+                "total_inc": round(total_inc, 2),
+                "paid": round(total_paid, 2),
+                "balance": balance,
+                "payment_status": j.payment_status or "unpaid",
+            }
+        )
 
     return {
         "customer_id": customer_id,

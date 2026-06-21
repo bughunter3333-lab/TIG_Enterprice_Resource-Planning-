@@ -27,7 +27,12 @@ def get_setting(key: str, db: Session = Depends(get_db), _=Depends(require_any))
 
 
 @router.put("/{key}")
-def upsert_setting(key: str, body: SettingUpsert, db: Session = Depends(get_db), _=Depends(require_admin)):
+def upsert_setting(
+    key: str,
+    body: SettingUpsert,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
     row = db.query(AdminSetting).filter(AdminSetting.key == key).first()
     if row is None:
         row = AdminSetting(key=key, value=body.value)

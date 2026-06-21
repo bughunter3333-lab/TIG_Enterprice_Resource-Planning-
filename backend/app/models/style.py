@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Boolean, Text, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Numeric,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Text,
+    func,
+)
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -25,15 +35,21 @@ class Style(Base):
     active = Column(Boolean, default=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     colours = relationship(
-        "StyleColour", back_populates="style",
-        cascade="all, delete-orphan", order_by="StyleColour.sort_order",
+        "StyleColour",
+        back_populates="style",
+        cascade="all, delete-orphan",
+        order_by="StyleColour.sort_order",
     )
     sizes = relationship(
-        "StyleSize", back_populates="style",
-        cascade="all, delete-orphan", order_by="StyleSize.sort_order",
+        "StyleSize",
+        back_populates="style",
+        cascade="all, delete-orphan",
+        order_by="StyleSize.sort_order",
     )
     inventory_items = relationship("InventoryItem", back_populates="style")
 

@@ -30,4 +30,6 @@ def decrypt_value(token: str, secret_key: str) -> str:
     try:
         return _fernet(secret_key).decrypt(token.encode()).decode()
     except (InvalidToken, Exception) as exc:
-        raise ValueError("Could not decrypt value — token invalid or key mismatch") from exc
+        raise ValueError(
+            "Could not decrypt value — token invalid or key mismatch"
+        ) from exc

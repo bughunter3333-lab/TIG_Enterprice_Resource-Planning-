@@ -74,7 +74,9 @@ def update_company_settings(
     data = body.model_dump(exclude_none=True)
     if "smtp_password" in data:
         raw_pw = data.pop("smtp_password")
-        data["smtp_password"] = encrypt_value(raw_pw, app_settings.SECRET_KEY) if raw_pw else None
+        data["smtp_password"] = (
+            encrypt_value(raw_pw, app_settings.SECRET_KEY) if raw_pw else None
+        )
     for field, value in data.items():
         setattr(s, field, value)
     db.commit()
@@ -86,7 +88,10 @@ def update_company_settings(
 def test_smtp(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     s = _get_or_create_settings(db)
     if not s.smtp_host:
-        raise HTTPException(status_code=400, detail="SMTP not configured — please save host settings first.")
+        raise HTTPException(
+            status_code=400,
+            detail="SMTP not configured — please save host settings first.",
+        )
 
     # Decrypt password in memory only
     plaintext_pw = None
@@ -108,6 +113,9 @@ def test_smtp(db: Session = Depends(get_db), _: User = Depends(require_staff)):
         if s.smtp_user and plaintext_pw:
             server.login(s.smtp_user, plaintext_pw)
         server.quit()
-        return {"ok": True, "message": f"Connected to {s.smtp_host}:{s.smtp_port or (587 if s.smtp_use_tls else 465)} successfully."}
+        return {
+            "ok": True,
+            "message": f"Connected to {s.smtp_host}:{s.smtp_port or (587 if s.smtp_use_tls else 465)} successfully.",
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SMTP test failed: {e}")

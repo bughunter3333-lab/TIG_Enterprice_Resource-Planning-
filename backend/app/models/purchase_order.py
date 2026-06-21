@@ -7,7 +7,9 @@ class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
 
     id = Column(String(20), primary_key=True)
-    supplier_id = Column(String(20), ForeignKey("suppliers.id"), nullable=True, index=True)
+    supplier_id = Column(
+        String(20), ForeignKey("suppliers.id"), nullable=True, index=True
+    )
     supplier_name = Column(String(100))
     status = Column(String(20), default="Draft", index=True)
     order_date = Column(String(20))
@@ -22,7 +24,9 @@ class PurchaseOrder(Base):
     notes = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan")
+    items = relationship(
+        "PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan"
+    )
 
 
 class PurchaseOrderItem(Base):

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/open-freight", tags=["open-freight"])
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+
 class AccountUpdate(BaseModel):
     account_number: Optional[str] = None
     account_name: Optional[str] = None
@@ -52,6 +53,7 @@ class ParcelUpdate(BaseModel):
 
 # ── Account (single-row settings) ─────────────────────────────────────────────
 
+
 def _account_response(account) -> dict:
     """Return account data with api_key stripped; callers get api_key_set instead."""
     return {
@@ -72,15 +74,23 @@ def get_account(db: Session = Depends(get_db), _: User = Depends(require_staff))
     account = db.query(OpenFreightAccount).filter(OpenFreightAccount.id == 1).first()
     if not account:
         return {
-            "id": 1, "account_number": "", "account_name": "",
-            "depot": "", "contact_name": "", "contact_phone": "",
-            "contact_email": "", "api_key_set": False, "notes": "",
+            "id": 1,
+            "account_number": "",
+            "account_name": "",
+            "depot": "",
+            "contact_name": "",
+            "contact_phone": "",
+            "contact_email": "",
+            "api_key_set": False,
+            "notes": "",
         }
     return _account_response(account)
 
 
 @router.put("/account")
-def save_account(body: AccountUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def save_account(
+    body: AccountUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     data = body.model_dump(exclude_none=True)
     # Never overwrite an existing key with an empty string from the frontend
     if not data.get("api_key"):
@@ -99,13 +109,16 @@ def save_account(body: AccountUpdate, db: Session = Depends(get_db), _: User = D
 
 # ── Parcel types ──────────────────────────────────────────────────────────────
 
+
 @router.get("/parcels")
 def list_parcels(db: Session = Depends(get_db), _: User = Depends(require_any)):
     return db.query(OpenFreightParcel).order_by(OpenFreightParcel.name).all()
 
 
 @router.post("/parcels")
-def create_parcel(body: ParcelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_parcel(
+    body: ParcelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     parcel = OpenFreightParcel(**body.model_dump())
     db.add(parcel)
     db.commit()
@@ -114,8 +127,15 @@ def create_parcel(body: ParcelCreate, db: Session = Depends(get_db), _: User = D
 
 
 @router.patch("/parcels/{parcel_id}")
-def update_parcel(parcel_id: int, body: ParcelUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    parcel = db.query(OpenFreightParcel).filter(OpenFreightParcel.id == parcel_id).first()
+def update_parcel(
+    parcel_id: int,
+    body: ParcelUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    parcel = (
+        db.query(OpenFreightParcel).filter(OpenFreightParcel.id == parcel_id).first()
+    )
     if not parcel:
         raise HTTPException(status_code=404, detail="Parcel type not found")
     for field, value in body.model_dump(exclude_none=True).items():
@@ -126,8 +146,12 @@ def update_parcel(parcel_id: int, body: ParcelUpdate, db: Session = Depends(get_
 
 
 @router.delete("/parcels/{parcel_id}")
-def delete_parcel(parcel_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    parcel = db.query(OpenFreightParcel).filter(OpenFreightParcel.id == parcel_id).first()
+def delete_parcel(
+    parcel_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
+    parcel = (
+        db.query(OpenFreightParcel).filter(OpenFreightParcel.id == parcel_id).first()
+    )
     if not parcel:
         raise HTTPException(status_code=404, detail="Parcel type not found")
     db.delete(parcel)

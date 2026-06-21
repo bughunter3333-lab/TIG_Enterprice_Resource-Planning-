@@ -17,6 +17,7 @@ try:
         fiscal_year_label,
         current_fiscal_year,
     )
+
     FISCAL_AVAILABLE = True
 except ImportError:
     FISCAL_AVAILABLE = False
@@ -30,6 +31,7 @@ pytestmark = pytest.mark.skipif(
 # ---------------------------------------------------------------------------
 # get_fiscal_year_bounds(date, start_month=7) -> (date, date)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 def test_fy_bounds_for_date_in_second_half():
@@ -71,6 +73,7 @@ def test_fy_bounds_calendar_year_start_month():
 # fiscal_year_label(date) -> str  e.g. "FY2025-26"
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 def test_fy_label_format():
     label = fiscal_year_label(date(2025, 10, 1))
@@ -86,6 +89,7 @@ def test_fy_label_first_half():
 # ---------------------------------------------------------------------------
 # current_fiscal_year() -> (date, date)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 def test_current_fiscal_year_returns_tuple():

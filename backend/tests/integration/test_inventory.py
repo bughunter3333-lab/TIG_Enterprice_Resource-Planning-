@@ -5,7 +5,6 @@ Covers: CRUD, stock adjustment, low-stock alert, transfer, stocktake.
 """
 
 import pytest
-from app.models.inventory import InventoryItem
 
 
 @pytest.mark.integration
@@ -16,26 +15,32 @@ class TestInventoryCRUD:
         assert isinstance(r.json(), list)
 
     def test_create_item(self, client):
-        r = client.post("/inventory/", json={
-            "sku": "INV-NEW01",
-            "name": "Test Polo Shirt",
-            "category": "Apparel",
-            "stock": 50,
-            "min_stock": 10,
-            "unit_cost": 15.00,
-            "sell_price": 35.00,
-            "status": "Active",
-        })
+        r = client.post(
+            "/inventory/",
+            json={
+                "sku": "INV-NEW01",
+                "name": "Test Polo Shirt",
+                "category": "Apparel",
+                "stock": 50,
+                "min_stock": 10,
+                "unit_cost": 15.00,
+                "sell_price": 35.00,
+                "status": "Active",
+            },
+        )
         assert r.status_code in (200, 201)
         assert r.json()["sku"] == "INV-NEW01"
 
     def test_create_duplicate_sku_rejected(self, client, make_inventory):
         make_inventory(sku="INV-DUP01")
-        r = client.post("/inventory/", json={
-            "sku": "INV-DUP01",
-            "name": "Duplicate",
-            "stock": 10,
-        })
+        r = client.post(
+            "/inventory/",
+            json={
+                "sku": "INV-DUP01",
+                "name": "Duplicate",
+                "stock": 10,
+            },
+        )
         assert r.status_code == 409
 
     def test_get_item(self, client, make_inventory):
@@ -64,22 +69,27 @@ class TestInventoryCRUD:
 class TestStockAdjustment:
     def test_positive_adjustment_increases_stock(self, client, make_inventory):
         make_inventory(sku="INV-ADJ01", stock=20)
-        r = client.post("/inventory/INV-ADJ01/adjust",
-                        json={"adjustment": 10, "reason": "Received delivery"})
+        r = client.post(
+            "/inventory/INV-ADJ01/adjust",
+            json={"adjustment": 10, "reason": "Received delivery"},
+        )
         assert r.status_code == 200
         assert r.json()["stock"] == 30
 
     def test_negative_adjustment_decreases_stock(self, client, make_inventory):
         make_inventory(sku="INV-ADJ02", stock=20)
-        r = client.post("/inventory/INV-ADJ02/adjust",
-                        json={"adjustment": -5, "reason": "Damaged goods"})
+        r = client.post(
+            "/inventory/INV-ADJ02/adjust",
+            json={"adjustment": -5, "reason": "Damaged goods"},
+        )
         assert r.status_code == 200
         assert r.json()["stock"] == 15
 
     def test_negative_below_zero_rejected(self, client, make_inventory):
         make_inventory(sku="INV-ADJ03", stock=5)
-        r = client.post("/inventory/INV-ADJ03/adjust",
-                        json={"adjustment": -10, "reason": "Error"})
+        r = client.post(
+            "/inventory/INV-ADJ03/adjust", json={"adjustment": -10, "reason": "Error"}
+        )
         assert r.status_code == 400
 
 
@@ -110,21 +120,27 @@ class TestStockTransfer:
     def test_transfer_between_skus(self, client, make_inventory):
         make_inventory(sku="INV-FROM01", stock=50)
         make_inventory(sku="INV-TO01", stock=10)
-        r = client.post("/inventory/transfer", json={
-            "from_sku": "INV-FROM01",
-            "to_sku": "INV-TO01",
-            "quantity": 20,
-        })
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "INV-FROM01",
+                "to_sku": "INV-TO01",
+                "quantity": 20,
+            },
+        )
         assert r.status_code == 200
 
     def test_transfer_insufficient_stock_rejected(self, client, make_inventory):
         make_inventory(sku="INV-FROM02", stock=5)
         make_inventory(sku="INV-TO02", stock=0)
-        r = client.post("/inventory/transfer", json={
-            "from_sku": "INV-FROM02",
-            "to_sku": "INV-TO02",
-            "quantity": 20,
-        })
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "INV-FROM02",
+                "to_sku": "INV-TO02",
+                "quantity": 20,
+            },
+        )
         assert r.status_code == 400
 
 
@@ -132,11 +148,14 @@ class TestStockTransfer:
 class TestStocktake:
     def test_stocktake_adjusts_variance(self, client, db, make_inventory):
         make_inventory(sku="INV-STKT01", stock=100)
-        r = client.post("/inventory/stocktake", json={
-            "reference": "STKTK-TEST01",
-            "method": "Full",
-            "items": [{"sku": "INV-STKT01", "counted_qty": 95}],
-        })
+        r = client.post(
+            "/inventory/stocktake",
+            json={
+                "reference": "STKTK-TEST01",
+                "method": "Full",
+                "items": [{"sku": "INV-STKT01", "counted_qty": 95}],
+            },
+        )
         assert r.status_code == 200
         results = r.json()["results"]
         item = next(res for res in results if res["sku"] == "INV-STKT01")
@@ -145,9 +164,12 @@ class TestStocktake:
 
     def test_stocktake_no_variance_no_movement(self, client, make_inventory):
         make_inventory(sku="INV-STKT02", stock=50)
-        r = client.post("/inventory/stocktake", json={
-            "items": [{"sku": "INV-STKT02", "counted_qty": 50}],
-        })
+        r = client.post(
+            "/inventory/stocktake",
+            json={
+                "items": [{"sku": "INV-STKT02", "counted_qty": 50}],
+            },
+        )
         assert r.status_code == 200
         result = next(res for res in r.json()["results"] if res["sku"] == "INV-STKT02")
         assert result["variance"] == 0

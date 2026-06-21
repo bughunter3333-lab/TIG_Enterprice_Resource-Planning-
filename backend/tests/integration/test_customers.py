@@ -64,27 +64,36 @@ class TestCustomerCRUD:
 @pytest.mark.integration
 class TestCustomerABN:
     def test_valid_abn_accepted(self, client):
-        r = client.post("/customers/", json={
-            "id": "CUST050",
-            "name": "Valid ABN Co",
-            "abn": "51824753556",
-        })
+        r = client.post(
+            "/customers/",
+            json={
+                "id": "CUST050",
+                "name": "Valid ABN Co",
+                "abn": "51824753556",
+            },
+        )
         assert r.status_code == 200
 
     def test_valid_abn_with_spaces_accepted(self, client):
-        r = client.post("/customers/", json={
-            "id": "CUST051",
-            "name": "Spaced ABN Co",
-            "abn": "51 824 753 556",
-        })
+        r = client.post(
+            "/customers/",
+            json={
+                "id": "CUST051",
+                "name": "Spaced ABN Co",
+                "abn": "51 824 753 556",
+            },
+        )
         assert r.status_code == 200
 
     def test_invalid_abn_rejected(self, client):
-        r = client.post("/customers/", json={
-            "id": "CUST052",
-            "name": "Bad ABN Co",
-            "abn": "12345678901",
-        })
+        r = client.post(
+            "/customers/",
+            json={
+                "id": "CUST052",
+                "name": "Bad ABN Co",
+                "abn": "12345678901",
+            },
+        )
         assert r.status_code == 422
         assert "ABN" in r.json().get("detail", "")
 
@@ -104,21 +113,27 @@ class TestCustomerGroupTerritoryFields:
     """customer_group and territory come in Phase 2a migration — test here."""
 
     def test_create_with_customer_group(self, client):
-        r = client.post("/customers/", json={
-            "id": "CUST060",
-            "name": "Grouped Customer",
-            "customer_group": "Wholesale",
-        })
+        r = client.post(
+            "/customers/",
+            json={
+                "id": "CUST060",
+                "name": "Grouped Customer",
+                "customer_group": "Wholesale",
+            },
+        )
         assert r.status_code == 200
         data = r.json()
         assert data.get("customer_group") == "Wholesale"
 
     def test_create_with_territory(self, client):
-        r = client.post("/customers/", json={
-            "id": "CUST061",
-            "name": "Territory Customer",
-            "territory": "VIC",
-        })
+        r = client.post(
+            "/customers/",
+            json={
+                "id": "CUST061",
+                "name": "Territory Customer",
+                "territory": "VIC",
+            },
+        )
         assert r.status_code == 200
         assert r.json().get("territory") == "VIC"
 

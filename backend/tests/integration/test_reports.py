@@ -6,7 +6,7 @@ Covers: sales-summary, gst (BAS), aged-receivables, inventory-valuation,
 """
 
 import pytest
-from app.models.job import Job, JobItem
+from app.models.job import Job
 from app.models.customer import Customer
 
 
@@ -127,9 +127,9 @@ class TestBASReport:
         assert r.status_code == 200
         data = r.json()
         # BAS required labels per ATO
-        assert "G1" in data   # total sales including GST
-        assert "1A" in data   # GST on sales
-        assert "1B" in data   # GST input tax credits on purchases
+        assert "G1" in data  # total sales including GST
+        assert "1A" in data  # GST on sales
+        assert "1B" in data  # GST input tax credits on purchases
         assert "period" in data
 
     def test_bas_g1_equals_total_sales_inc(self, client, db):

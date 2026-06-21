@@ -7,7 +7,12 @@ class CustomerShipTo(Base):
     __tablename__ = "customer_ship_tos"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    customer_id = Column(String(20), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(
+        String(20),
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     code = Column(String(20), nullable=False)
     name = Column(String(100))
     address = Column(String(255))

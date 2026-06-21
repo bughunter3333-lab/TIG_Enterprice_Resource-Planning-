@@ -32,10 +32,12 @@ def configure_logging(json_logs: bool = False) -> None:
     if json_logs:
         handler.setFormatter(_JSONFormatter())
     else:
-        handler.setFormatter(logging.Formatter(
-            fmt="%(asctime)s %(levelname)-8s %(name)s  %(message)s",
-            datefmt="%Y-%m-%dT%H:%M:%SZ",
-        ))
+        handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s %(levelname)-8s %(name)s  %(message)s",
+                datefmt="%Y-%m-%dT%H:%M:%SZ",
+            )
+        )
     logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

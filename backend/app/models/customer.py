@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean, func
+from sqlalchemy import Column, String, Numeric, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -27,4 +27,9 @@ class Customer(Base):
     status = Column(String(20), default="Active", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    ship_tos = relationship("CustomerShipTo", back_populates="customer", cascade="all, delete-orphan", order_by="CustomerShipTo.code")
+    ship_tos = relationship(
+        "CustomerShipTo",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+        order_by="CustomerShipTo.code",
+    )

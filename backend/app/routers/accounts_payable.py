@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import date
 
 from app.database import get_db
@@ -91,7 +91,12 @@ def list_bills(
             SupplierBill.due_date < today,
             SupplierBill.status.in_(["pending", "approved"]),
         )
-    bills = q.order_by(SupplierBill.due_date.asc().nullslast()).offset(offset).limit(limit).all()
+    bills = (
+        q.order_by(SupplierBill.due_date.asc().nullslast())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return [_serialize(b) for b in bills]
 
 
@@ -192,13 +197,14 @@ def ap_summary(
     _: User = Depends(require_any),
 ):
     today = date.today().isoformat()
-    all_open = db.query(SupplierBill).filter(
-        SupplierBill.status.in_(["pending", "approved"])
-    ).all()
+    all_open = (
+        db.query(SupplierBill)
+        .filter(SupplierBill.status.in_(["pending", "approved"]))
+        .all()
+    )
     overdue = [b for b in all_open if b.due_date and b.due_date < today]
     due_this_week = [
-        b for b in all_open
-        if b.due_date and today <= b.due_date <= _week_end(today)
+        b for b in all_open if b.due_date and today <= b.due_date <= _week_end(today)
     ]
     return {
         "total_open_count": len(all_open),
@@ -206,12 +212,15 @@ def ap_summary(
         "overdue_count": len(overdue),
         "overdue_amount": round(sum(float(b.amount_inc or 0) for b in overdue), 2),
         "due_this_week_count": len(due_this_week),
-        "due_this_week_amount": round(sum(float(b.amount_inc or 0) for b in due_this_week), 2),
+        "due_this_week_amount": round(
+            sum(float(b.amount_inc or 0) for b in due_this_week), 2
+        ),
     }
 
 
 def _week_end(today_iso: str) -> str:
     from datetime import timedelta
+
     d = date.fromisoformat(today_iso)
     days_until_sunday = 6 - d.weekday()
     return (d + timedelta(days=days_until_sunday)).isoformat()

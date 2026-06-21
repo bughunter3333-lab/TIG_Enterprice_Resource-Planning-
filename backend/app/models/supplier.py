@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean, func
+from sqlalchemy import Column, String, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -19,4 +19,9 @@ class Supplier(Base):
     status = Column(String(20), default="Active", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    price_list = relationship("SupplierPriceList", back_populates="supplier", cascade="all, delete-orphan", order_by="SupplierPriceList.sku")
+    price_list = relationship(
+        "SupplierPriceList",
+        back_populates="supplier",
+        cascade="all, delete-orphan",
+        order_by="SupplierPriceList.sku",
+    )

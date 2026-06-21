@@ -8,9 +8,15 @@ import re
 from app.database import get_db
 from app.models.user import User
 from app.core.security import (
-    verify_password, hash_password,
-    create_access_token, create_refresh_token, create_pre_mfa_token,
-    decode_token, generate_totp_secret, verify_totp, totp_qr_base64,
+    verify_password,
+    hash_password,
+    create_access_token,
+    create_refresh_token,
+    create_pre_mfa_token,
+    decode_token,
+    generate_totp_secret,
+    verify_totp,
+    totp_qr_base64,
 )
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -51,7 +57,12 @@ class ChangePasswordRequest(BaseModel):
 
 @router.post("/login")
 @limiter.limit("10/minute")
-def login(request: Request, body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    body: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -137,7 +148,11 @@ def confirm_2fa(
 
 
 @router.post("/refresh")
-def refresh(response: Response, refresh_token: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+def refresh(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     payload = decode_token(refresh_token)
@@ -178,12 +193,24 @@ def change_password(
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _issue_tokens(response: Response, user: User):
     from app.core.config import settings
+
     access = create_access_token(user.id, user.role, mfa_verified=True)
     refresh = create_refresh_token(user.id)
-    response.set_cookie("access_token", access, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, **COOKIE_OPTS)
-    response.set_cookie("refresh_token", refresh, max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, **COOKIE_OPTS)
+    response.set_cookie(
+        "access_token",
+        access,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        **COOKIE_OPTS,
+    )
+    response.set_cookie(
+        "refresh_token",
+        refresh,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        **COOKIE_OPTS,
+    )
 
 
 def _require_authenticated(token: Optional[str], db: Session) -> User:

@@ -7,7 +7,12 @@ class SupplierPriceList(Base):
     __tablename__ = "supplier_price_lists"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    supplier_id = Column(String(20), ForeignKey("suppliers.id", ondelete="CASCADE"), nullable=False, index=True)
+    supplier_id = Column(
+        String(20),
+        ForeignKey("suppliers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     sku = Column(String(50), nullable=False, index=True)
     description = Column(String(255))
     unit_cost = Column(Numeric(10, 2), nullable=False)

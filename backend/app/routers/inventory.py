@@ -162,11 +162,16 @@ def low_stock_alert(
     _: User = Depends(require_any),
 ):
     """Return all active SKUs where stock <= min_stock, sorted by urgency."""
-    items = db.query(InventoryItem).filter(
-        InventoryItem.min_stock > 0,
-        InventoryItem.stock <= InventoryItem.min_stock,
-        InventoryItem.status == "Active",
-    ).order_by(InventoryItem.stock).all()
+    items = (
+        db.query(InventoryItem)
+        .filter(
+            InventoryItem.min_stock > 0,
+            InventoryItem.stock <= InventoryItem.min_stock,
+            InventoryItem.status == "Active",
+        )
+        .order_by(InventoryItem.stock)
+        .all()
+    )
 
     rows = [
         {
@@ -179,7 +184,8 @@ def low_stock_alert(
             "reorder_qty": i.reorder_qty or 0,
             "shortfall": max(0, (i.min_stock or 0) - (i.stock or 0)),
             "unit_cost": float(i.unit_cost or 0),
-            "reorder_value": float(i.unit_cost or 0) * max(0, (i.reorder_qty or i.min_stock or 0)),
+            "reorder_value": float(i.unit_cost or 0)
+            * max(0, (i.reorder_qty or i.min_stock or 0)),
         }
         for i in items
     ]
@@ -210,7 +216,9 @@ def stock_flow(
     """Return stock items with their recent movement history for the Stock Flow view."""
     q = db.query(InventoryItem)
     if sku:
-        q = q.filter(InventoryItem.sku.ilike(f"%{sku}%") | InventoryItem.name.ilike(f"%{sku}%"))
+        q = q.filter(
+            InventoryItem.sku.ilike(f"%{sku}%") | InventoryItem.name.ilike(f"%{sku}%")
+        )
     items = q.order_by(InventoryItem.name).limit(limit).all()
     result = []
     for item in items:
@@ -221,33 +229,51 @@ def stock_flow(
             .limit(10)
             .all()
         )
-        result.append({
-            "sku": item.sku,
-            "name": item.name,
-            "category": item.category,
-            "stock": item.stock,
-            "min_stock": item.min_stock,
-            "location": item.location,
-            "unit_cost": float(item.unit_cost or 0),
-            "sell_price": float(item.sell_price or 0),
-            "movements": [
-                {"id": m.id, "date": m.date, "type": m.type, "quantity": m.quantity, "reference": m.reference, "notes": m.notes}
-                for m in movements
-            ],
-        })
+        result.append(
+            {
+                "sku": item.sku,
+                "name": item.name,
+                "category": item.category,
+                "stock": item.stock,
+                "min_stock": item.min_stock,
+                "location": item.location,
+                "unit_cost": float(item.unit_cost or 0),
+                "sell_price": float(item.sell_price or 0),
+                "movements": [
+                    {
+                        "id": m.id,
+                        "date": m.date,
+                        "type": m.type,
+                        "quantity": m.quantity,
+                        "reference": m.reference,
+                        "notes": m.notes,
+                    }
+                    for m in movements
+                ],
+            }
+        )
     return result
 
 
 @router.get("/{sku}")
 def get_item(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    item = db.query(InventoryItem).options(joinedload(InventoryItem.movements)).filter(InventoryItem.sku == sku).first()
+    item = (
+        db.query(InventoryItem)
+        .options(joinedload(InventoryItem.movements))
+        .filter(InventoryItem.sku == sku)
+        .first()
+    )
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
 
 @router.post("/")
-def create_item(body: InventoryCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_item(
+    body: InventoryCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if db.query(InventoryItem).filter(InventoryItem.sku == body.sku).first():
         raise HTTPException(status_code=409, detail="SKU already exists")
     item = InventoryItem(**body.model_dump())
@@ -258,7 +284,12 @@ def create_item(body: InventoryCreate, db: Session = Depends(get_db), _: User = 
 
 
 @router.patch("/{sku}")
-def update_item(sku: str, body: InventoryUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_item(
+    sku: str,
+    body: InventoryUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -270,13 +301,20 @@ def update_item(sku: str, body: InventoryUpdate, db: Session = Depends(get_db), 
 
 
 @router.post("/{sku}/adjust")
-def adjust_stock(sku: str, body: StockAdjust, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def adjust_stock(
+    sku: str,
+    body: StockAdjust,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     new_stock = item.stock + body.adjustment
     if new_stock < 0:
-        raise HTTPException(status_code=400, detail="Adjustment would result in negative stock")
+        raise HTTPException(
+            status_code=400, detail="Adjustment would result in negative stock"
+        )
     item.stock = new_stock
     movement = StockMovement(
         sku=sku,
@@ -292,7 +330,9 @@ def adjust_stock(sku: str, body: StockAdjust, db: Session = Depends(get_db), _: 
 
 
 @router.delete("/{sku}")
-def delete_item(sku: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_item(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -302,17 +342,31 @@ def delete_item(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
 
 
 @router.get("/{sku}/locations")
-def get_locations(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_locations(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
-    locs = db.query(StockLocation).filter(StockLocation.sku == sku).order_by(StockLocation.branch).all()
+    locs = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == sku)
+        .order_by(StockLocation.branch)
+        .all()
+    )
     return [
         {
-            "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
-            "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
-            "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
-            "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
-            "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+            "id": loc.id,
+            "sku": loc.sku,
+            "branch": loc.branch,
+            "zone": loc.zone,
+            "qty_on_hand": loc.qty_on_hand,
+            "committed_qty": loc.committed_qty,
+            "available_qty": loc.available_qty,
+            "backorder_qty": loc.backorder_qty,
+            "on_po_qty": loc.on_po_qty,
+            "primary_bin_1": loc.primary_bin_1,
+            "max_qty_bin_1": loc.max_qty_bin_1,
+            "primary_bin_2": loc.primary_bin_2,
             "max_qty_bin_2": loc.max_qty_bin_2,
         }
         for loc in locs
@@ -320,28 +374,57 @@ def get_locations(sku: str, db: Session = Depends(get_db), _: User = Depends(req
 
 
 @router.post("/{sku}/locations")
-def add_location(sku: str, body: LocationCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def add_location(
+    sku: str,
+    body: LocationCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
-    if db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == body.branch).first():
-        raise HTTPException(status_code=409, detail=f"Location '{body.branch}' already exists for this SKU")
+    if (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == sku, StockLocation.branch == body.branch)
+        .first()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Location '{body.branch}' already exists for this SKU",
+        )
     loc = StockLocation(sku=sku, **body.model_dump())
     db.add(loc)
     db.commit()
     db.refresh(loc)
     return {
-        "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
-        "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
-        "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
-        "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
-        "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+        "id": loc.id,
+        "sku": loc.sku,
+        "branch": loc.branch,
+        "zone": loc.zone,
+        "qty_on_hand": loc.qty_on_hand,
+        "committed_qty": loc.committed_qty,
+        "available_qty": loc.available_qty,
+        "backorder_qty": loc.backorder_qty,
+        "on_po_qty": loc.on_po_qty,
+        "primary_bin_1": loc.primary_bin_1,
+        "max_qty_bin_1": loc.max_qty_bin_1,
+        "primary_bin_2": loc.primary_bin_2,
         "max_qty_bin_2": loc.max_qty_bin_2,
     }
 
 
 @router.patch("/{sku}/locations/{branch}")
-def update_location(sku: str, branch: str, body: LocationUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
+def update_location(
+    sku: str,
+    branch: str,
+    body: LocationUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    loc = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == sku, StockLocation.branch == branch)
+        .first()
+    )
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     for field, value in body.model_dump(exclude_none=True).items():
@@ -349,18 +432,34 @@ def update_location(sku: str, branch: str, body: LocationUpdate, db: Session = D
     db.commit()
     db.refresh(loc)
     return {
-        "id": loc.id, "sku": loc.sku, "branch": loc.branch, "zone": loc.zone,
-        "qty_on_hand": loc.qty_on_hand, "committed_qty": loc.committed_qty,
-        "available_qty": loc.available_qty, "backorder_qty": loc.backorder_qty,
-        "on_po_qty": loc.on_po_qty, "primary_bin_1": loc.primary_bin_1,
-        "max_qty_bin_1": loc.max_qty_bin_1, "primary_bin_2": loc.primary_bin_2,
+        "id": loc.id,
+        "sku": loc.sku,
+        "branch": loc.branch,
+        "zone": loc.zone,
+        "qty_on_hand": loc.qty_on_hand,
+        "committed_qty": loc.committed_qty,
+        "available_qty": loc.available_qty,
+        "backorder_qty": loc.backorder_qty,
+        "on_po_qty": loc.on_po_qty,
+        "primary_bin_1": loc.primary_bin_1,
+        "max_qty_bin_1": loc.max_qty_bin_1,
+        "primary_bin_2": loc.primary_bin_2,
         "max_qty_bin_2": loc.max_qty_bin_2,
     }
 
 
 @router.delete("/{sku}/locations/{branch}")
-def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    loc = db.query(StockLocation).filter(StockLocation.sku == sku, StockLocation.branch == branch).first()
+def delete_location(
+    sku: str,
+    branch: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    loc = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == sku, StockLocation.branch == branch)
+        .first()
+    )
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     db.delete(loc)
@@ -369,7 +468,9 @@ def delete_location(sku: str, branch: str, db: Session = Depends(get_db), _: Use
 
 
 @router.get("/{sku}/pricing")
-def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_pricing(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -385,8 +486,12 @@ def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
         "avg_cost": float(item.avg_cost) if item.avg_cost is not None else None,
         "avg_cog": float(item.avg_cog) if item.avg_cog is not None else None,
         "max_cog": float(item.max_cog) if item.max_cog is not None else None,
-        "last_po_cogs": float(item.last_po_cogs) if item.last_po_cogs is not None else None,
-        "avg_po_cogs": float(item.avg_po_cogs) if item.avg_po_cogs is not None else None,
+        "last_po_cogs": (
+            float(item.last_po_cogs) if item.last_po_cogs is not None else None
+        ),
+        "avg_po_cogs": (
+            float(item.avg_po_cogs) if item.avg_po_cogs is not None else None
+        ),
         "last_ex": float(item.last_ex) if item.last_ex is not None else None,
         "last_effective_date": item.last_effective_date,
         "price_template": item.price_template,
@@ -404,7 +509,9 @@ def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
                         "min_qty": bp.min_qty,
                         "price_ex": float(bp.price_ex),
                         "price_inc": float(bp.price_inc),
-                        "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None,
+                        "pont_pct": (
+                            float(bp.pont_pct) if bp.pont_pct is not None else None
+                        ),
                     }
                     for bp in pl.breakpoints
                 ],
@@ -415,7 +522,12 @@ def get_pricing(sku: str, db: Session = Depends(get_db), _: User = Depends(requi
 
 
 @router.put("/{sku}/pricing/cost")
-def update_cost(sku: str, body: CostUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_cost(
+    sku: str,
+    body: CostUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -426,11 +538,25 @@ def update_cost(sku: str, body: CostUpdate, db: Session = Depends(get_db), _: Us
 
 
 @router.post("/{sku}/pricing/levels")
-def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def add_price_level(
+    sku: str,
+    body: PriceLevelCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
-    if db.query(StockPriceLevel).filter(StockPriceLevel.sku == sku, StockPriceLevel.price_level == body.price_level).first():
-        raise HTTPException(status_code=409, detail=f"Price level '{body.price_level}' already exists for this SKU")
+    if (
+        db.query(StockPriceLevel)
+        .filter(
+            StockPriceLevel.sku == sku, StockPriceLevel.price_level == body.price_level
+        )
+        .first()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Price level '{body.price_level}' already exists for this SKU",
+        )
     level = StockPriceLevel(
         sku=sku,
         price_level=body.price_level,
@@ -451,15 +577,31 @@ def add_price_level(sku: str, body: PriceLevelCreate, db: Session = Depends(get_
         "currency": level.currency,
         "tax_code": level.tax_code,
         "breakpoints": [
-            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc), "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None}
+            {
+                "id": bp.id,
+                "min_qty": bp.min_qty,
+                "price_ex": float(bp.price_ex),
+                "price_inc": float(bp.price_inc),
+                "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None,
+            }
             for bp in level.breakpoints
         ],
     }
 
 
 @router.put("/{sku}/pricing/levels/{level_id}")
-def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
+def update_price_level(
+    sku: str,
+    level_id: int,
+    body: PriceLevelCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    level = (
+        db.query(StockPriceLevel)
+        .filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku)
+        .first()
+    )
     if not level:
         raise HTTPException(status_code=404, detail="Price level not found")
     level.price_level = body.price_level
@@ -470,22 +612,39 @@ def update_price_level(sku: str, level_id: int, body: PriceLevelCreate, db: Sess
     for bp in list(level.breakpoints):
         db.delete(bp)
     db.flush()
-    level.breakpoints = [StockPriceBreakpoint(**bp.model_dump()) for bp in body.breakpoints]
+    level.breakpoints = [
+        StockPriceBreakpoint(**bp.model_dump()) for bp in body.breakpoints
+    ]
     db.commit()
     db.refresh(level)
     return {
         "id": level.id,
         "price_level": level.price_level,
         "breakpoints": [
-            {"id": bp.id, "min_qty": bp.min_qty, "price_ex": float(bp.price_ex), "price_inc": float(bp.price_inc), "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None}
+            {
+                "id": bp.id,
+                "min_qty": bp.min_qty,
+                "price_ex": float(bp.price_ex),
+                "price_inc": float(bp.price_inc),
+                "pont_pct": float(bp.pont_pct) if bp.pont_pct is not None else None,
+            }
             for bp in level.breakpoints
         ],
     }
 
 
 @router.delete("/{sku}/pricing/levels/{level_id}")
-def delete_price_level(sku: str, level_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
-    level = db.query(StockPriceLevel).filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku).first()
+def delete_price_level(
+    sku: str,
+    level_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    level = (
+        db.query(StockPriceLevel)
+        .filter(StockPriceLevel.id == level_id, StockPriceLevel.sku == sku)
+        .first()
+    )
     if not level:
         raise HTTPException(status_code=404, detail="Price level not found")
     db.delete(level)
@@ -532,7 +691,9 @@ def get_transactions(
 
 
 @router.get("/{sku}/committed")
-def get_committed(sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_committed(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
     rows = (
@@ -555,7 +716,9 @@ def get_committed(sku: str, db: Session = Depends(get_db), _: User = Depends(req
             "qty": item_.order_qty,
             "unit": "UNIT",
             "price_ex": float(item_.price_ex) if item_.price_ex is not None else None,
-            "price_inc": float(item_.price_inc) if item_.price_inc is not None else None,
+            "price_inc": (
+                float(item_.price_inc) if item_.price_inc is not None else None
+            ),
             "currency": "AUD",
             "total_aud": float(item_.total) if item_.total is not None else None,
         }
@@ -564,9 +727,15 @@ def get_committed(sku: str, db: Session = Depends(get_db), _: User = Depends(req
 
 
 @router.post("/transfer")
-def transfer_stock(body: TransferRequest, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def transfer_stock(
+    body: TransferRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     """Move quantity from one SKU/location to another, creating movement records for both."""
-    from_item = db.query(InventoryItem).filter(InventoryItem.sku == body.from_sku).first()
+    from_item = (
+        db.query(InventoryItem).filter(InventoryItem.sku == body.from_sku).first()
+    )
     if not from_item:
         raise HTTPException(status_code=404, detail=f"SKU '{body.from_sku}' not found")
     if from_item.stock < body.quantity:
@@ -582,14 +751,19 @@ def transfer_stock(body: TransferRequest, db: Session = Depends(get_db), _: User
         type="Transfer Out",
         quantity=-body.quantity,
         reference=ref,
-        notes=body.notes or f"Transfer to {body.to_location or body.to_sku or 'unknown'}",
+        notes=body.notes
+        or f"Transfer to {body.to_location or body.to_sku or 'unknown'}",
     )
     db.add(out_movement)
 
     if body.to_sku and body.to_sku != body.from_sku:
-        to_item = db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first()
+        to_item = (
+            db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first()
+        )
         if not to_item:
-            raise HTTPException(status_code=404, detail=f"Destination SKU '{body.to_sku}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Destination SKU '{body.to_sku}' not found"
+            )
         to_item.stock += body.quantity
         in_movement = StockMovement(
             sku=body.to_sku,
@@ -617,7 +791,11 @@ def transfer_stock(body: TransferRequest, db: Session = Depends(get_db), _: User
 
 
 @router.post("/stocktake")
-def stocktake(body: StocktakeRequest, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def stocktake(
+    body: StocktakeRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     """Reconcile physical counts against system stock, creating adjustment movements."""
     ref = body.reference or f"STKTK-{datetime.now().strftime('%Y%m%d%H%M')}"
     now = datetime.now().strftime("%d/%m/%Y")
@@ -636,10 +814,18 @@ def stocktake(body: StocktakeRequest, db: Session = Depends(get_db), _: User = D
                 type="Stocktake",
                 quantity=variance,
                 reference=ref,
-                notes=entry.notes or f"Stocktake ({body.method}): counted {entry.counted_qty}, was {item.stock + (-variance)}",
+                notes=entry.notes
+                or f"Stocktake ({body.method}): counted {entry.counted_qty}, was {item.stock + (-variance)}",
             )
             db.add(movement)
-        results.append({"sku": entry.sku, "previous": item.stock - variance if variance != 0 else item.stock, "counted": entry.counted_qty, "variance": variance})
+        results.append(
+            {
+                "sku": entry.sku,
+                "previous": item.stock - variance if variance != 0 else item.stock,
+                "counted": entry.counted_qty,
+                "variance": variance,
+            }
+        )
     db.commit()
     return {"reference": ref, "method": body.method, "results": results}
 
@@ -649,11 +835,15 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
     """Find all low-stock items and create draft purchase orders grouped by supplier."""
     from datetime import date
 
-    low_stock = db.query(InventoryItem).filter(
-        InventoryItem.stock <= InventoryItem.min_stock,
-        InventoryItem.min_stock > 0,
-        InventoryItem.status == "Active",
-    ).all()
+    low_stock = (
+        db.query(InventoryItem)
+        .filter(
+            InventoryItem.stock <= InventoryItem.min_stock,
+            InventoryItem.min_stock > 0,
+            InventoryItem.status == "Active",
+        )
+        .all()
+    )
 
     if not low_stock:
         return {"created": 0, "purchase_orders": []}
@@ -669,9 +859,9 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
 
     for idx, (supplier_name, items) in enumerate(by_supplier.items(), 1):
         # Try to match supplier name to DB record
-        supplier_rec = db.query(Supplier).filter(
-            Supplier.name.ilike(f"%{supplier_name}%")
-        ).first()
+        supplier_rec = (
+            db.query(Supplier).filter(Supplier.name.ilike(f"%{supplier_name}%")).first()
+        )
         supplier_id = supplier_rec.id if supplier_rec else None
 
         po_id = f"AR-{date.today().strftime('%Y%m%d')}-{idx:03d}"
@@ -692,14 +882,16 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
                 qty = max(item.min_stock * 2 - item.stock, item.min_stock)
             line_total = float(qty * (item.unit_cost or 0))
             total += line_total
-            po_items.append(PurchaseOrderItem(
-                sku=item.sku,
-                description=item.name,
-                qty_ordered=qty,
-                qty_received=0,
-                unit_cost=float(item.unit_cost or 0),
-                total=line_total,
-            ))
+            po_items.append(
+                PurchaseOrderItem(
+                    sku=item.sku,
+                    description=item.name,
+                    qty_ordered=qty,
+                    qty_received=0,
+                    unit_cost=float(item.unit_cost or 0),
+                    total=line_total,
+                )
+            )
 
         po = PurchaseOrder(
             id=po_id,

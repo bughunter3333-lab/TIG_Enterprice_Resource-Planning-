@@ -87,7 +87,11 @@ def list_receipts(
 
 
 @router.get("/{receipt_id}")
-def get_receipt(receipt_id: int, db: Session = Depends(get_db), _=Depends(require_role(["admin", "staff"]))):
+def get_receipt(
+    receipt_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role(["admin", "staff"])),
+):
     gr = db.get(GoodsReceipt, receipt_id)
     if not gr:
         raise HTTPException(status_code=404, detail="Goods receipt not found")
@@ -107,7 +111,9 @@ def create_receipt(
     if body.po_id:
         po = db.get(PurchaseOrder, body.po_id)
         if not po:
-            raise HTTPException(status_code=404, detail=f"Purchase order {body.po_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Purchase order {body.po_id} not found"
+            )
         supplier_name = supplier_name or po.supplier_name
         supplier_id = supplier_id or po.supplier_id
 
@@ -125,16 +131,18 @@ def create_receipt(
     db.flush()
 
     for ln in body.lines:
-        db.add(GoodsReceiptLine(
-            receipt_id=gr.id,
-            sku=ln.sku,
-            description=ln.description,
-            qty_expected=ln.qty_expected,
-            qty_received=ln.qty_received,
-            unit_cost=ln.unit_cost,
-            condition=ln.condition,
-            notes=ln.notes,
-        ))
+        db.add(
+            GoodsReceiptLine(
+                receipt_id=gr.id,
+                sku=ln.sku,
+                description=ln.description,
+                qty_expected=ln.qty_expected,
+                qty_received=ln.qty_received,
+                unit_cost=ln.unit_cost,
+                condition=ln.condition,
+                notes=ln.notes,
+            )
+        )
 
     db.commit()
     db.refresh(gr)
@@ -153,7 +161,9 @@ def update_receipt(
         raise HTTPException(status_code=404, detail="Goods receipt not found")
 
     if body.status and body.status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail=f"Invalid status. Valid: {sorted(VALID_STATUSES)}")
+        raise HTTPException(
+            status_code=422, detail=f"Invalid status. Valid: {sorted(VALID_STATUSES)}"
+        )
 
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(gr, k, v)
@@ -190,14 +200,16 @@ def accept_receipt(
             inv.stock = (inv.stock or 0) + qty
             if ln.unit_cost and float(ln.unit_cost) > 0:
                 inv.unit_cost = ln.unit_cost
-            db.add(StockMovement(
-                sku=ln.sku,
-                date=today,
-                type="GR",
-                quantity=qty,
-                reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
-                notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",
-            ))
+            db.add(
+                StockMovement(
+                    sku=ln.sku,
+                    date=today,
+                    type="GR",
+                    quantity=qty,
+                    reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
+                    notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",
+                )
+            )
 
         # Update PO line qty_received if linked
         if gr.po_id:
@@ -222,8 +234,7 @@ def accept_receipt(
         po = db.get(PurchaseOrder, gr.po_id)
         if po and po.status not in ("Received", "Cancelled"):
             all_received = all(
-                (item.qty_received or 0) >= (item.qty_ordered or 0)
-                for item in po.items
+                (item.qty_received or 0) >= (item.qty_ordered or 0) for item in po.items
             )
             if all_received:
                 po.status = "Received"
@@ -295,6 +306,9 @@ def delete_receipt(
     if not gr:
         raise HTTPException(status_code=404, detail="Goods receipt not found")
     if gr.status == "Accepted":
-        raise HTTPException(status_code=409, detail="Cannot delete an accepted goods receipt — reverse via stock adjustment")
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete an accepted goods receipt — reverse via stock adjustment",
+        )
     db.delete(gr)
     db.commit()

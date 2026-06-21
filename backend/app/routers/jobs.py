@@ -10,41 +10,51 @@ from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.customer import Customer
 from app.models.inventory import InventoryItem, StockMovement
-from app.core.dependencies import require_any, require_staff, get_current_user
+from app.core.dependencies import require_any, require_staff
 from app.models.user import User
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 VALID_STATUSES = {
-    "QUOTE", "New", "ORDER", "In Progress", "PROOF", "PRINT",
-    "Pick/Pack", "FINISH", "INVOICE", "PAID", "CANCEL",
+    "QUOTE",
+    "New",
+    "ORDER",
+    "In Progress",
+    "PROOF",
+    "PRINT",
+    "Pick/Pack",
+    "FINISH",
+    "INVOICE",
+    "PAID",
+    "CANCEL",
 }
 
 # Allowed forward and backward transitions for non-admin users.
 # Key = current status, value = set of allowed next statuses.
 # Admins bypass this map entirely.
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "QUOTE":       {"ORDER", "CANCEL"},
-    "New":         {"ORDER", "QUOTE", "CANCEL"},
-    "ORDER":       {"In Progress", "QUOTE", "CANCEL"},
+    "QUOTE": {"ORDER", "CANCEL"},
+    "New": {"ORDER", "QUOTE", "CANCEL"},
+    "ORDER": {"In Progress", "QUOTE", "CANCEL"},
     "In Progress": {"PROOF", "PRINT", "ORDER", "CANCEL"},
-    "PROOF":       {"In Progress", "PRINT", "CANCEL"},
-    "PRINT":       {"Pick/Pack", "In Progress", "CANCEL"},
-    "Pick/Pack":   {"FINISH", "PRINT", "CANCEL"},
-    "FINISH":      {"INVOICE", "Pick/Pack", "CANCEL"},
-    "INVOICE":     {"PAID", "FINISH", "CANCEL"},
-    "PAID":        {"CANCEL"},
-    "CANCEL":      {"QUOTE"},
+    "PROOF": {"In Progress", "PRINT", "CANCEL"},
+    "PRINT": {"Pick/Pack", "In Progress", "CANCEL"},
+    "Pick/Pack": {"FINISH", "PRINT", "CANCEL"},
+    "FINISH": {"INVOICE", "Pick/Pack", "CANCEL"},
+    "INVOICE": {"PAID", "FINISH", "CANCEL"},
+    "PAID": {"CANCEL"},
+    "CANCEL": {"QUOTE"},
 }
 
 # Fields that must be present when moving to certain statuses.
 REQUIRED_FIELDS_FOR_STATUS: dict[str, list[tuple[str, str]]] = {
-    "ORDER":   [("customer_id", "Customer must be set before converting to ORDER")],
+    "ORDER": [("customer_id", "Customer must be set before converting to ORDER")],
     "INVOICE": [("invoice", "Invoice number must be set before marking as INVOICE")],
 }
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
+
 
 class JobItemSchema(BaseModel):
     sort: int = 0
@@ -187,6 +197,7 @@ class DispatchRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _validate_transition(job: "Job", new_status: str, current_user: "User") -> None:
     """Raise 422 if the status move is not permitted for this user's role."""
     if current_user.role == "admin":
@@ -196,7 +207,7 @@ def _validate_transition(job: "Job", new_status: str, current_user: "User") -> N
         raise HTTPException(
             status_code=422,
             detail=f"Cannot move from '{job.status}' to '{new_status}'. "
-                   f"Allowed next statuses: {', '.join(sorted(allowed)) or 'none'}.",
+            f"Allowed next statuses: {', '.join(sorted(allowed)) or 'none'}.",
         )
 
 
@@ -206,7 +217,10 @@ def _validate_required_fields(job: "Job", new_status: str) -> None:
         if not getattr(job, field, None):
             raise HTTPException(status_code=422, detail=message)
     if new_status == "INVOICE" and float(job.total_inc or 0) <= 0:
-        raise HTTPException(status_code=422, detail="Job total must be greater than zero before invoicing")
+        raise HTTPException(
+            status_code=422,
+            detail="Job total must be greater than zero before invoicing",
+        )
 
 
 def _check_credit_limit(job: "Job", db: Session) -> None:
@@ -217,7 +231,9 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
     if not customer:
         return
     if customer.credit_hold:
-        raise HTTPException(status_code=422, detail=f"Customer '{customer.name}' is on credit hold")
+        raise HTTPException(
+            status_code=422, detail=f"Customer '{customer.name}' is on credit hold"
+        )
     if float(customer.credit_limit or 0) > 0:
         outstanding = float(customer.balance or 0)
         job_total = float(job.total_inc or 0)
@@ -225,12 +241,20 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
             raise HTTPException(
                 status_code=422,
                 detail=f"Order would exceed credit limit of ${customer.credit_limit:.2f} "
-                       f"(current balance ${outstanding:.2f}, order ${job_total:.2f})"
+                f"(current balance ${outstanding:.2f}, order ${job_total:.2f})",
             )
 
 
 # Statuses where stock is actively reserved (committed)
-_COMMITTED_STATUSES = {"ORDER", "In Progress", "PROOF", "PRINT", "Pick/Pack", "FINISH", "INVOICE"}
+_COMMITTED_STATUSES = {
+    "ORDER",
+    "In Progress",
+    "PROOF",
+    "PRINT",
+    "Pick/Pack",
+    "FINISH",
+    "INVOICE",
+}
 
 # Fuel levy rate: 13% of freight (derived from sticky note: $30→$3.90, $20→$2.60, $15→$1.95)
 _FUEL_LEVY_RATE = 0.13
@@ -252,18 +276,22 @@ def _commit_job_stock(job: "Job", db: Session) -> None:
         qty = item.qty or item.order_qty or 0
         if qty <= 0:
             continue
-        inv = db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
+        inv = (
+            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
+        )
         if not inv:
             continue
         inv.committed_qty = (inv.committed_qty or 0) + qty
-        db.add(StockMovement(
-            sku=item.stock_code,
-            date=today,
-            type="Committed",
-            quantity=qty,
-            reference=job.id,
-            notes=f"Committed for Job {job.id}",
-        ))
+        db.add(
+            StockMovement(
+                sku=item.stock_code,
+                date=today,
+                type="Committed",
+                quantity=qty,
+                reference=job.id,
+                notes=f"Committed for Job {job.id}",
+            )
+        )
 
 
 def _release_job_stock(job: "Job", db: Session) -> None:
@@ -275,23 +303,31 @@ def _release_job_stock(job: "Job", db: Session) -> None:
         qty = item.qty or item.order_qty or 0
         if qty <= 0:
             continue
-        inv = db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
+        inv = (
+            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
+        )
         if not inv:
             continue
         inv.committed_qty = max(0, (inv.committed_qty or 0) - qty)
-        db.add(StockMovement(
-            sku=item.stock_code,
-            date=today,
-            type="Released",
-            quantity=-qty,
-            reference=job.id,
-            notes=f"Released from Job {job.id}",
-        ))
+        db.add(
+            StockMovement(
+                sku=item.stock_code,
+                date=today,
+                type="Released",
+                quantity=-qty,
+                reference=job.id,
+                notes=f"Released from Job {job.id}",
+            )
+        )
 
 
 def _recalculate_weight(job: "Job", db: Session) -> None:
     """Recompute job.weight_total from item quantities and per-SKU weights."""
-    skus = [item.stock_code for item in job.items if item.stock_code and item.display_type == "product"]
+    skus = [
+        item.stock_code
+        for item in job.items
+        if item.stock_code and item.display_type == "product"
+    ]
     if not skus:
         job.weight_total = 0
         return
@@ -314,16 +350,22 @@ def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
     if not customer_id:
         return
     from sqlalchemy import func as sqlfunc
-    total = db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0)).filter(
-        Job.customer_id == customer_id,
-        Job.status.in_(["INVOICE", "PAID", "FINISH"]),
-    ).scalar()
+
+    total = (
+        db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0))
+        .filter(
+            Job.customer_id == customer_id,
+            Job.status.in_(["INVOICE", "PAID", "FINISH"]),
+        )
+        .scalar()
+    )
     db.query(Customer).filter(Customer.id == customer_id).update(
         {"balance": float(total or 0)}, synchronize_session=False
     )
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("/fuel-levy")
 def get_fuel_levy(freight: float, _: User = Depends(require_any)):
@@ -351,11 +393,11 @@ def list_jobs(
     if search:
         term = f"%{search}%"
         q = q.filter(
-            Job.id.ilike(term) |
-            Job.customer_name.ilike(term) |
-            Job.invoice.ilike(term) |
-            Job.cust_ref.ilike(term) |
-            Job.our_ref.ilike(term)
+            Job.id.ilike(term)
+            | Job.customer_name.ilike(term)
+            | Job.invoice.ilike(term)
+            | Job.cust_ref.ilike(term)
+            | Job.our_ref.ilike(term)
         )
     return q.order_by(Job.created_at.desc()).offset(offset).limit(limit).all()
 
@@ -366,9 +408,11 @@ JOB_ID_START = 110000
 def _next_job_id(db: Session) -> str:
     # Single MAX() aggregate — O(log N) via primary key index.
     # regexp_match limits to 6-digit IDs so legacy 7-digit random IDs are excluded.
-    result = db.query(func.max(cast(Job.id, Integer))).filter(
-        Job.id.regexp_match(r"^\d{6}$")
-    ).scalar()
+    result = (
+        db.query(func.max(cast(Job.id, Integer)))
+        .filter(Job.id.regexp_match(r"^\d{6}$"))
+        .scalar()
+    )
     return str((result or JOB_ID_START - 1) + 1)
 
 
@@ -391,7 +435,11 @@ def sales_register(
     _: User = Depends(require_any),
 ):
     """Return INVOICE and PAID jobs for the Sales Register, filtered by date range."""
-    q = db.query(Job).options(joinedload(Job.items)).filter(Job.status.in_(["INVOICE", "PAID"]))
+    q = (
+        db.query(Job)
+        .options(joinedload(Job.items))
+        .filter(Job.status.in_(["INVOICE", "PAID"]))
+    )
     if customer_id:
         q = q.filter(Job.customer_id == customer_id)
     if date_from:
@@ -404,7 +452,12 @@ def sales_register(
     total_tax = sum(float(j.tax or 0) for j in result)
     return {
         "jobs": result,
-        "summary": {"count": len(result), "total_ex": round(total_ex, 2), "total_inc": round(total_inc, 2), "total_tax": round(total_tax, 2)},
+        "summary": {
+            "count": len(result),
+            "total_ex": round(total_ex, 2),
+            "total_inc": round(total_inc, 2),
+            "total_tax": round(total_tax, 2),
+        },
     }
 
 
@@ -426,15 +479,21 @@ def get_order_requirements(
     if req_type == "garment":
         rows = base.filter(
             JobItem.b_ord > 0,
-            (JobItem.po_no == None) | (JobItem.po_no == ""),
+            (JobItem.po_no.is_(None)) | (JobItem.po_no == ""),
         ).all()
 
         grouped: dict = {}
         skus = list({item.stock_code for item, _ in rows if item.stock_code})
-        inv_map = {
-            inv.sku: inv
-            for inv in db.query(InventoryItem).filter(InventoryItem.sku.in_(skus)).all()
-        } if skus else {}
+        inv_map = (
+            {
+                inv.sku: inv
+                for inv in db.query(InventoryItem)
+                .filter(InventoryItem.sku.in_(skus))
+                .all()
+            }
+            if skus
+            else {}
+        )
 
         for item, job in rows:
             key = item.stock_code or ""
@@ -444,30 +503,36 @@ def get_order_requirements(
                     "sku": key,
                     "description": item.description or "",
                     "supplier": inv.supplier if inv else "",
-                    "unit_cost": float(inv.unit_cost) if inv else float(item.purchase_price or 0),
+                    "unit_cost": (
+                        float(inv.unit_cost) if inv else float(item.purchase_price or 0)
+                    ),
                     "total_b_ord": 0,
                     "jobs": [],
                 }
             grouped[key]["total_b_ord"] += item.b_ord or 0
-            grouped[key]["jobs"].append({
-                "job_id": job.id,
-                "customer_name": job.customer_name or "",
-                "item_id": item.id,
-                "b_ord": item.b_ord or 0,
-                "po_no": item.po_no or "",
-            })
+            grouped[key]["jobs"].append(
+                {
+                    "job_id": job.id,
+                    "customer_name": job.customer_name or "",
+                    "item_id": item.id,
+                    "b_ord": item.b_ord or 0,
+                    "po_no": item.po_no or "",
+                }
+            )
         return list(grouped.values())
 
     # decoration type
     rows = base.filter(
         JobItem.decoration_type.notin_(["None", ""]),
-        JobItem.decoration_type != None,
-        (JobItem.po_no == None) | (JobItem.po_no == ""),
+        JobItem.decoration_type.isnot(None),
+        (JobItem.po_no.is_(None)) | (JobItem.po_no == ""),
     ).all()
 
     grouped: dict = {}
     for item, job in rows:
-        dec_code = (item.emb_code if item.decoration_type == "EMB" else item.trs_code) or ""
+        dec_code = (
+            item.emb_code if item.decoration_type == "EMB" else item.trs_code
+        ) or ""
         key = f"{item.decoration_type}:{dec_code}"
         if key not in grouped:
             grouped[key] = {
@@ -478,27 +543,36 @@ def get_order_requirements(
                 "jobs": [],
             }
         grouped[key]["total_qty"] += item.order_qty or 0
-        grouped[key]["jobs"].append({
-            "job_id": job.id,
-            "customer_name": job.customer_name or "",
-            "item_id": item.id,
-            "qty": item.order_qty or 0,
-            "dec_code": dec_code,
-            "po_no": item.po_no or "",
-        })
+        grouped[key]["jobs"].append(
+            {
+                "job_id": job.id,
+                "customer_name": job.customer_name or "",
+                "item_id": item.id,
+                "qty": item.order_qty or 0,
+                "dec_code": dec_code,
+                "po_no": item.po_no or "",
+            }
+        )
     return list(grouped.values())
 
 
 @router.get("/{job_id}")
 def get_job(job_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    job = db.query(Job).options(joinedload(Job.items), joinedload(Job.comments)).filter(Job.id == job_id).first()
+    job = (
+        db.query(Job)
+        .options(joinedload(Job.items), joinedload(Job.comments))
+        .filter(Job.id == job_id)
+        .first()
+    )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 
 @router.post("/")
-def create_job(body: JobCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_job(
+    body: JobCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     job_id = body.id or _next_job_id(db)
     if db.query(Job).filter(Job.id == job_id).first():
         raise HTTPException(status_code=409, detail="Job ID already exists")
@@ -522,7 +596,12 @@ def create_job(body: JobCreate, db: Session = Depends(get_db), _: User = Depends
 
 
 @router.patch("/{job_id}")
-def update_job(job_id: str, body: JobUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_staff)):
+def update_job(
+    job_id: str,
+    body: JobUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
     job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -732,7 +811,9 @@ def record_payment(
 
 
 @router.delete("/{job_id}")
-def delete_job(job_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_job(
+    job_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -790,7 +871,9 @@ def unprint_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in ("INVOICE", "PAID"):
-        raise HTTPException(status_code=400, detail="Can only unprint INVOICE or PAID jobs")
+        raise HTTPException(
+            status_code=400, detail="Can only unprint INVOICE or PAID jobs"
+        )
     prev_status = job.status
     job.status = "FINISH"
     now = datetime.now()

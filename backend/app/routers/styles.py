@@ -14,6 +14,7 @@ router = APIRouter(prefix="/styles", tags=["styles"])
 
 # ── Pydantic schemas ─────────────────────────────────────────────────────────
 
+
 class ColourIn(BaseModel):
     code: str
     name: str
@@ -65,12 +66,21 @@ class StyleUpdate(BaseModel):
 
 # ── Serialiser ───────────────────────────────────────────────────────────────
 
+
 def _serial(s: Style, matrix: bool = False) -> dict:
     colours = [
-        {"id": c.id, "code": c.code, "name": c.name, "hex": c.hex, "sort_order": c.sort_order}
+        {
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "hex": c.hex,
+            "sort_order": c.sort_order,
+        }
         for c in s.colours
     ]
-    sizes = [{"id": sz.id, "code": sz.code, "sort_order": sz.sort_order} for sz in s.sizes]
+    sizes = [
+        {"id": sz.id, "code": sz.code, "sort_order": sz.sort_order} for sz in s.sizes
+    ]
 
     out = {
         "id": s.id,
@@ -129,6 +139,7 @@ def _load(style_id: int, db: Session) -> Style:
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
+
 @router.get("/")
 def list_styles(
     search: Optional[str] = Query(None),
@@ -157,21 +168,42 @@ def list_styles(
         q = q.filter(Style.season == season)
     if active_only:
         q = q.filter(Style.active.is_(True))
-    return [_serial(s, matrix=True) for s in q.order_by(Style.code).offset(offset).limit(limit).all()]
+    return [
+        _serial(s, matrix=True)
+        for s in q.order_by(Style.code).offset(offset).limit(limit).all()
+    ]
 
 
 @router.get("/meta")
 def style_meta(db: Session = Depends(get_db), _: User = Depends(require_any)):
     """Distinct filter values for categories, brands, seasons."""
     from sqlalchemy import distinct
-    categories = [r[0] for r in db.query(distinct(Style.category)).filter(Style.category.isnot(None)).all()]
-    brands = [r[0] for r in db.query(distinct(Style.brand)).filter(Style.brand.isnot(None)).all()]
-    seasons = [r[0] for r in db.query(distinct(Style.season)).filter(Style.season.isnot(None)).all()]
-    return {"categories": sorted(categories), "brands": sorted(brands), "seasons": sorted(seasons)}
+
+    categories = [
+        r[0]
+        for r in db.query(distinct(Style.category))
+        .filter(Style.category.isnot(None))
+        .all()
+    ]
+    brands = [
+        r[0]
+        for r in db.query(distinct(Style.brand)).filter(Style.brand.isnot(None)).all()
+    ]
+    seasons = [
+        r[0]
+        for r in db.query(distinct(Style.season)).filter(Style.season.isnot(None)).all()
+    ]
+    return {
+        "categories": sorted(categories),
+        "brands": sorted(brands),
+        "seasons": sorted(seasons),
+    }
 
 
 @router.post("/")
-def create_style(data: StyleCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_style(
+    data: StyleCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     if db.query(Style).filter(Style.code == data.code.upper()).first():
         raise HTTPException(400, "Style code already exists")
     s = Style(
@@ -193,7 +225,11 @@ def create_style(data: StyleCreate, db: Session = Depends(get_db), _: User = Dep
     db.add(s)
     db.flush()
     for i, c in enumerate(data.colours):
-        db.add(StyleColour(style_id=s.id, code=c.code.upper(), name=c.name, hex=c.hex, sort_order=i))
+        db.add(
+            StyleColour(
+                style_id=s.id, code=c.code.upper(), name=c.name, hex=c.hex, sort_order=i
+            )
+        )
     for i, sz in enumerate(data.sizes):
         db.add(StyleSize(style_id=s.id, code=sz.code.upper(), sort_order=i))
     db.commit()
@@ -201,15 +237,35 @@ def create_style(data: StyleCreate, db: Session = Depends(get_db), _: User = Dep
 
 
 @router.get("/{style_id}")
-def get_style(style_id: int, db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_style(
+    style_id: int, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
     return _serial(_load(style_id, db), matrix=True)
 
 
 @router.put("/{style_id}")
-def update_style(style_id: int, data: StyleUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_style(
+    style_id: int,
+    data: StyleUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     s = _load(style_id, db)
-    for f in ["name", "category", "brand", "gender", "season", "collection", "description",
-              "base_purchase_price", "base_sell_price", "gst_applicable", "image_url", "notes", "active"]:
+    for f in [
+        "name",
+        "category",
+        "brand",
+        "gender",
+        "season",
+        "collection",
+        "description",
+        "base_purchase_price",
+        "base_sell_price",
+        "gst_applicable",
+        "image_url",
+        "notes",
+        "active",
+    ]:
         v = getattr(data, f)
         if v is not None:
             setattr(s, f, v)
@@ -219,7 +275,15 @@ def update_style(style_id: int, data: StyleUpdate, db: Session = Depends(get_db)
             db.delete(c)
         db.flush()
         for i, c in enumerate(data.colours):
-            db.add(StyleColour(style_id=s.id, code=c.code.upper(), name=c.name, hex=c.hex, sort_order=i))
+            db.add(
+                StyleColour(
+                    style_id=s.id,
+                    code=c.code.upper(),
+                    name=c.name,
+                    hex=c.hex,
+                    sort_order=i,
+                )
+            )
 
     if data.sizes is not None:
         for sz in list(s.sizes):
@@ -233,7 +297,9 @@ def update_style(style_id: int, data: StyleUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{style_id}")
-def delete_style(style_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_style(
+    style_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     s = db.query(Style).filter(Style.id == style_id).first()
     if not s:
         raise HTTPException(404, "Style not found")
@@ -246,7 +312,9 @@ def delete_style(style_id: int, db: Session = Depends(get_db), _: User = Depends
 
 
 @router.post("/{style_id}/generate-skus")
-def generate_skus(style_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def generate_skus(
+    style_id: int, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     """Create inventory SKUs for every colour × size combo that doesn't exist yet."""
     s = _load(style_id, db)
     if not s.colours or not s.sizes:
@@ -258,19 +326,21 @@ def generate_skus(style_id: int, db: Session = Depends(get_db), _: User = Depend
         for size in s.sizes:
             sku = f"{s.code}-{colour.code}-{size.code}"
             if sku not in existing:
-                db.add(InventoryItem(
-                    sku=sku,
-                    name=f"{s.name} {colour.name} {size.code}",
-                    category=s.category,
-                    stock=0,
-                    min_stock=0,
-                    unit_cost=s.base_purchase_price,
-                    sell_price=s.base_sell_price,
-                    status="Active",
-                    style_id=s.id,
-                    colour_code=colour.code,
-                    size_code=size.code,
-                ))
+                db.add(
+                    InventoryItem(
+                        sku=sku,
+                        name=f"{s.name} {colour.name} {size.code}",
+                        category=s.category,
+                        stock=0,
+                        min_stock=0,
+                        unit_cost=s.base_purchase_price,
+                        sell_price=s.base_sell_price,
+                        status="Active",
+                        style_id=s.id,
+                        colour_code=colour.code,
+                        size_code=size.code,
+                    )
+                )
                 created += 1
     db.commit()
     return {"created": created}

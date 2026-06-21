@@ -22,8 +22,8 @@ class OpenFreightParcel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
-    parcel_type = Column(String(30))       # Satchel, Box, Envelope, Pallet, Other
-    service = Column(String(50))           # Standard, Express, Overnight
+    parcel_type = Column(String(30))  # Satchel, Box, Envelope, Pallet, Other
+    service = Column(String(50))  # Standard, Express, Overnight
     carrier_code = Column(String(50))
     max_weight_kg = Column(Numeric(8, 3))
     length_cm = Column(Numeric(8, 1))

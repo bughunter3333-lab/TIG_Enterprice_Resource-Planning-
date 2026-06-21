@@ -86,6 +86,7 @@ def list_pos(
 def next_po_id(db: Session = Depends(get_db), _: User = Depends(require_any)):
     """Return the next available PO ID in PO-NNNN format."""
     from sqlalchemy import func as sqlfunc
+
     last = db.query(PurchaseOrder.id).order_by(PurchaseOrder.created_at.desc()).first()
     if last:
         try:
@@ -99,14 +100,21 @@ def next_po_id(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 @router.get("/{po_id}")
 def get_po(po_id: str, db: Session = Depends(get_db), _: User = Depends(require_any)):
-    po = db.query(PurchaseOrder).options(joinedload(PurchaseOrder.items)).filter(PurchaseOrder.id == po_id).first()
+    po = (
+        db.query(PurchaseOrder)
+        .options(joinedload(PurchaseOrder.items))
+        .filter(PurchaseOrder.id == po_id)
+        .first()
+    )
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
     return po
 
 
 @router.post("/")
-def create_po(body: POCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def create_po(
+    body: POCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     if db.query(PurchaseOrder).filter(PurchaseOrder.id == body.id).first():
         raise HTTPException(status_code=409, detail="PO ID already exists")
     po = PurchaseOrder(**body.model_dump(exclude={"items"}))
@@ -152,7 +160,9 @@ def create_po_from_requirements(
                 "sku": key,
                 "description": ji.description or key,
                 "qty_ordered": 0,
-                "unit_cost": float(inv.unit_cost) if inv else float(ji.purchase_price or 0),
+                "unit_cost": (
+                    float(inv.unit_cost) if inv else float(ji.purchase_price or 0)
+                ),
                 "total": 0,
             }
         sku_groups[key]["qty_ordered"] += req.qty
@@ -223,14 +233,16 @@ def create_po_from_back_orders(
         total=sum(i.qty * i.unit_cost for i in body.items),
     )
     for item in body.items:
-        po.items.append(PurchaseOrderItem(
-            sku=item.sku,
-            description=item.description or item.sku,
-            qty_ordered=item.qty,
-            qty_received=0,
-            unit_cost=item.unit_cost,
-            total=round(item.qty * item.unit_cost, 2),
-        ))
+        po.items.append(
+            PurchaseOrderItem(
+                sku=item.sku,
+                description=item.description or item.sku,
+                qty_ordered=item.qty,
+                qty_received=0,
+                unit_cost=item.unit_cost,
+                total=round(item.qty * item.unit_cost, 2),
+            )
+        )
     db.add(po)
     db.flush()
 
@@ -257,7 +269,12 @@ def create_po_from_back_orders(
 
 
 @router.patch("/{po_id}")
-def update_po(po_id: str, body: POUpdate, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def update_po(
+    po_id: str,
+    body: POUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
@@ -271,9 +288,19 @@ def update_po(po_id: str, body: POUpdate, db: Session = Depends(get_db), _: User
 
 
 @router.post("/{po_id}/receive")
-def receive_items(po_id: str, body: ReceiveItems, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def receive_items(
+    po_id: str,
+    body: ReceiveItems,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
     """Mark items as received and update inventory stock levels."""
-    po = db.query(PurchaseOrder).options(joinedload(PurchaseOrder.items)).filter(PurchaseOrder.id == po_id).first()
+    po = (
+        db.query(PurchaseOrder)
+        .options(joinedload(PurchaseOrder.items))
+        .filter(PurchaseOrder.id == po_id)
+        .first()
+    )
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
 
@@ -307,7 +334,9 @@ def receive_items(po_id: str, body: ReceiveItems, db: Session = Depends(get_db),
 
 
 @router.delete("/{po_id}")
-def delete_po(po_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def delete_po(
+    po_id: str, db: Session = Depends(get_db), _: User = Depends(require_staff)
+):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
