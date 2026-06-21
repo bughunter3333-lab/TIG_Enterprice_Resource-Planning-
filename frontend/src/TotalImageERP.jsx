@@ -31,7 +31,7 @@ const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; co
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
   { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300', hasStitch: true },
-  { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700 border-orange-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-orange-400 text-orange-700 border-orange-300' },
+  { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700 border-indigo-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-indigo-400 text-indigo-700 border-indigo-300' },
   { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-amber-500',    pill: 'bg-amber-50 text-amber-700 border-amber-200', hasColors: true },
   { v: 'DTF',    l: 'DTF Print',     emoji: '🎨', dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700 border-teal-200', hasColors: true },
   { v: 'DTG',    l: 'DTG Print',     emoji: '👕', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', hasColors: true },
@@ -1937,7 +1937,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const renderJobs = () => {
     const jStatusColors = {
       QUOTE:'bg-gray-100 text-gray-700', New:'bg-amber-100 text-amber-700', ORDER:'bg-indigo-100 text-indigo-700',
-      'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-orange-100 text-orange-700',
+      'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-indigo-100 text-indigo-700',
       'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700',
       PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700',
     };
@@ -2102,7 +2102,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
                       badge={activeJob.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : activeJob.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-50 text-red-600'} />
                     <F label="Inv. Status" value={(activeJob.invoiceStatus || 'not_invoiced').replace(/_/g, ' ')}
-                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'} />
+                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'} />
                     {activeJob.proofStatus && activeJob.proofStatus !== 'none' && (
                       <F label="Proof" value={activeJob.proofStatus}
                         badge={activeJob.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : activeJob.proofStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} />
@@ -2306,7 +2306,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="font-medium" style={{ color: T.text }}>{item.description}</div>
                             {item.sizes && <div className="whitespace-pre-line mt-0.5" style={{ color: T.textMuted }}>{item.sizes}</div>}
                             {item.embCode && <div className="text-xs text-purple-700 font-mono mt-0.5">🧵 {item.embCode}</div>}
-                            {item.trsCode && <div className="text-xs text-orange-700 font-mono mt-0.5">♨️ {item.trsCode}</div>}
+                            {item.trsCode && <div className="text-xs text-indigo-700 font-mono mt-0.5">♨️ {item.trsCode}</div>}
                           </td>
                           <td className="px-2 py-1.5 text-right" style={{ color: T.text }}>{item.order}</td>
                           <td className="px-2 py-1.5 text-right">
@@ -2314,12 +2314,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               {item.supply}
                             </span>
                           </td>
-                          <td className="px-2 py-1.5 text-right text-orange-600 font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 text-right text-indigo-600 font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5 text-right text-purple-700 font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceEx || 0).toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceInc || 0).toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-center" style={{ color: T.textMuted }}>{item.taxType || 'G'}</td>
-                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-orange-500 font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
+                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-indigo-500 font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
                           <td className="px-2 py-1.5 text-right font-semibold">${(item.total || 0).toFixed(2)}</td>
                         </tr>
                         );
@@ -2493,7 +2493,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <p className="text-sm" style={{ color: T.textMuted }}>Check off items as you pick them from the warehouse.</p>
                   <button
                     onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
-                    className="text-sm bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 flex items-center"
+                    className="text-sm bg-indigo-500 text-white px-3 py-1.5 rounded hover:bg-indigo-600 flex items-center"
                   >
                     <Printer className="w-3 h-3 mr-1" />Print Picking Slip
                   </button>
@@ -2576,7 +2576,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700' },
-                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700' },
+                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700' },
                     { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700' },
                     { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700' },
                     { type: 'shipLabel', label: 'Ship Label', desc: 'Large-format shipping label with recipient address and job number', icon: Tag, color: 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700' },
@@ -2795,7 +2795,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           { label: 'Job Sheet', icon: Printer,       action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }),      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
                           { label: 'Invoice',   icon: FileText,      action: () => setInvoiceJob(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                           { label: 'Delivery',  icon: Package,       action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }), color: 'bg-teal-50 hover:bg-teal-100 text-teal-700' },
-                          { label: 'Picking',   icon: ClipboardList, action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }),  color: 'bg-orange-50 hover:bg-orange-100 text-orange-700' },
+                          { label: 'Picking',   icon: ClipboardList, action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }),  color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                         ].map(a => (
                           <button key={a.label} onClick={a.action} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[11px] font-medium transition-colors ${a.color}`}>
                             <a.icon className="w-4 h-4" />{a.label}
@@ -2948,7 +2948,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { label: 'Total Jobs', value: cJobs.length, color: 'text-amber-700' },
                       { label: 'Lifetime Revenue', value: `$${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-green-600' },
                       { label: 'Outstanding', value: `$${outstanding.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: outstanding > 0 ? 'text-red-600' : 'text-gray-400' },
-                      { label: 'Credit Used', value: c.creditLimit > 0 ? `${util.toFixed(0)}%` : 'Unlimited', color: util > 80 ? 'text-orange-600' : 'text-gray-600' },
+                      { label: 'Credit Used', value: c.creditLimit > 0 ? `${util.toFixed(0)}%` : 'Unlimited', color: util > 80 ? 'text-indigo-600' : 'text-gray-600' },
                     ].map((k, i) => (
                       <div key={k.label} className={`p-4 text-center ${i < 3 ? 'border-r' : ''}`}>
                         <p className="text-xs text-gray-500">{k.label}</p>
@@ -2962,9 +2962,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="px-5 py-2 border-b bg-gray-50 flex items-center gap-3">
                       <span className="text-xs text-gray-500 shrink-0">Credit: ${outstanding.toLocaleString('en-AU',{maximumFractionDigits:0})} / ${c.creditLimit.toLocaleString()}</span>
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div className={`h-2 rounded-full ${overLimit?'bg-red-500':util>80?'bg-orange-400':'bg-green-500'}`} style={{width:`${Math.min(100,util)}%`}}/>
+                        <div className={`h-2 rounded-full ${overLimit?'bg-red-500':util>80?'bg-indigo-400':'bg-green-500'}`} style={{width:`${Math.min(100,util)}%`}}/>
                       </div>
-                      <span className={`text-xs font-semibold shrink-0 ${overLimit?'text-red-600':util>80?'text-orange-600':'text-gray-500'}`}>{util.toFixed(0)}%</span>
+                      <span className={`text-xs font-semibold shrink-0 ${overLimit?'text-red-600':util>80?'text-indigo-600':'text-gray-500'}`}>{util.toFixed(0)}%</span>
                     </div>
                   )}
 
@@ -3032,9 +3032,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         <p className="text-sm text-gray-500 mb-4">Accounts receivable aging — overdue by due date</p>
                         <div className="grid grid-cols-5 gap-3 mb-5">
                           {[['Current',aging.current,'green'],['1–30d',aging.d30,'yellow'],['31–60d',aging.d60,'orange'],['61–90d',aging.d90,'red'],['90d+',aging.d90p,'red']].map(([label,amt,col])=>(
-                            <div key={label} className={`rounded-lg p-3 text-center border ${col==='green'?'bg-green-50 border-green-200':col==='yellow'?'bg-yellow-50 border-yellow-200':col==='orange'?'bg-orange-50 border-orange-200':'bg-red-50 border-red-200'}`}>
+                            <div key={label} className={`rounded-lg p-3 text-center border ${col==='green'?'bg-green-50 border-green-200':col==='yellow'?'bg-yellow-50 border-yellow-200':col==='orange'?'bg-indigo-50 border-indigo-200':'bg-red-50 border-red-200'}`}>
                               <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
-                              <p className={`text-lg font-bold ${col==='green'?'text-green-700':col==='yellow'?'text-yellow-700':col==='orange'?'text-orange-600':'text-red-600'}`}>${amt.toFixed(0)}</p>
+                              <p className={`text-lg font-bold ${col==='green'?'text-green-700':col==='yellow'?'text-yellow-700':col==='orange'?'text-indigo-600':'text-red-600'}`}>${amt.toFixed(0)}</p>
                             </div>
                           ))}
                         </div>
@@ -3228,7 +3228,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <div key={sup.code} onClick={() => { setSelectedSupplier(sup); setSuppTab('details'); }}
                     className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-4"
                     style={{ background: isSel ? T.hairlineSoft : T.panel, borderLeftColor: isSel ? T.accentStrong : 'transparent', borderBottom: `1px solid ${T.hairline}` }}>
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 text-white font-black text-sm flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0">
                       {(sup.name||'?').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -3239,7 +3239,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <p className="text-[11px] font-mono mt-0.5" style={{ color: T.textFaint }}>{sup.code}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-[11px]" style={{ color: T.textMuted }}>{poCount} PO{poCount!==1?'s':''}</span>
-                        {spend>0 && <span className="text-[11px] font-semibold text-orange-600">${spend.toLocaleString('en-AU',{maximumFractionDigits:0})}</span>}
+                        {spend>0 && <span className="text-[11px] font-semibold text-indigo-600">${spend.toLocaleString('en-AU',{maximumFractionDigits:0})}</span>}
                       </div>
                     </div>
                   </div>
@@ -3257,7 +3257,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             ) : (
               <div className="rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
                 <div className="px-6 py-4 flex items-start gap-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white font-black text-lg flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-black text-lg flex items-center justify-center shrink-0">
                     {(sel.name||'?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3266,7 +3266,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => { setActiveModule('purchase-orders'); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 text-xs font-semibold hover:bg-orange-100 border border-orange-200">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 border border-indigo-200">
                       <Plus className="w-3 h-3"/>New PO
                     </button>
                     <button onClick={() => openModal('supplier',sel)} className="p-1.5 rounded-lg" style={{ color: T.accentStrong }}><Edit className="w-4 h-4"/></button>
@@ -3625,7 +3625,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
                           <td className="px-3 py-2.5" style={{ color: T.textMuted }}>{req.supplier || <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-3 py-2.5 text-right font-bold text-orange-600">{req.total_b_ord}</td>
+                          <td className="px-3 py-2.5 text-right font-bold text-indigo-600">{req.total_b_ord}</td>
                           <td className="px-3 py-2.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${req.unit_cost.toFixed(2)}` : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-3 py-2.5 text-right font-semibold" style={{ color: T.text }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toLocaleString('en-AU', { maximumFractionDigits: 2 })}` : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-3 py-2.5">
@@ -3635,7 +3635,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
                                   style={{ background: T.hairlineSoft, color: T.textMuted }}
                                   title={`${j.customer_name} — ${j.b_ord} units`}>
-                                  #{j.job_id} <span className="text-orange-500 font-bold">×{j.b_ord}</span>
+                                  #{j.job_id} <span className="text-indigo-500 font-bold">×{j.b_ord}</span>
                                 </button>
                               ))}
                             </div>
@@ -3674,7 +3674,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   </td>
                   {orderReqTab === 'garment' ? (
                     <>
-                      <td className="px-3 py-2 text-right text-xs font-bold text-orange-600">{reqs.reduce((t, r) => t + r.total_b_ord, 0)}</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-indigo-600">{reqs.reduce((t, r) => t + r.total_b_ord, 0)}</td>
                       <td className="px-3 py-2" />
                       <td className="px-3 py-2 text-right text-xs font-bold" style={{ color: T.text }}>${reqs.reduce((t, r) => t + r.total_b_ord * (r.unit_cost || 0), 0).toLocaleString('en-AU', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2" />
@@ -3749,7 +3749,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           <tr key={key} style={{ borderBottom: `1px solid ${T.hairline}` }}>
                             <td className="px-3 py-1.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || req.decoration_type}</td>
                             <td className="px-3 py-1.5 truncate max-w-[160px]" style={{ color: T.textMuted }}>{req.description}</td>
-                            <td className="px-3 py-1.5 text-right font-bold text-orange-600">×{req.total_b_ord || req.total_qty}</td>
+                            <td className="px-3 py-1.5 text-right font-bold text-indigo-600">×{req.total_b_ord || req.total_qty}</td>
                             {orderReqTab === 'garment' && <td className="px-3 py-1.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toFixed(2)}` : ''}</td>}
                           </tr>
                         );
@@ -3925,7 +3925,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         {item.stockCode && <div style={{ color: '#888', fontSize: 10 }}>SKU: {item.stockCode}</div>}
                         {item.sizes && <div style={{ color: '#666', fontSize: 11 }}>{item.sizes}</div>}
                         {item.embCode && <div style={{ color: '#7c3aed', fontSize: 10, fontFamily: 'monospace' }}>🧵 EMB: {item.embCode}</div>}
-                        {item.trsCode && <div style={{ color: '#c2410c', fontSize: 10, fontFamily: 'monospace' }}>♨️ TRS: {item.trsCode}</div>}
+                        {item.trsCode && <div style={{ color: '#4f46e5', fontSize: 10, fontFamily: 'monospace' }}>♨️ TRS: {item.trsCode}</div>}
                       </td>
                       <td style={{ padding: '6px 8px', color: '#555' }}>{item.decorationType !== 'None' ? item.decorationType : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>{item.orderQty || item.order || item.qty || 0}</td>
@@ -4719,7 +4719,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Priority</span>
                       <select value={jobForm.priority} onChange={e => setJobForm({...jobForm, priority: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
                         style={jobForm.priority === 'Urgent' || jobForm.priority === 'High' ? {} : {background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Low</option><option>Normal</option><option>High</option><option>Urgent</option>
                       </select>
@@ -4744,7 +4744,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
                       <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-orange-100 text-orange-700 border-orange-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
                         style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
                       </select>
@@ -5247,7 +5247,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               { key: 'desc', label: 'Description', align: 'left' },
                               { key: 'order', label: 'Ord', align: 'right' },
                               { key: 'supply', label: 'Sup', align: 'right' },
-                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-orange-500' },
+                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-indigo-500' },
                               { key: 'priceEx', label: 'Price Ex', align: 'right' },
                               { key: 'priceInc', label: 'Price Inc', align: 'right' },
                               { key: 'margin', label: 'M%', align: 'right', color: 'text-green-600' },
@@ -5273,10 +5273,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const hasDecoration = !isSec && !isNote && item.decorationType && item.decorationType !== 'None';
 
                             const rowBg = isSec ? 'bg-amber-50' : isNote ? 'bg-yellow-50'
-                              : isOutOfStock ? 'bg-orange-50' : isLowMargin ? 'bg-red-50'
+                              : isOutOfStock ? 'bg-indigo-50' : isLowMargin ? 'bg-red-50'
                               : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
                             const borderLeft = isSec ? 'border-l-2 border-l-amber-400' : isNote ? 'border-l-2 border-l-yellow-300'
-                              : isOutOfStock ? 'border-l-2 border-l-orange-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
+                              : isOutOfStock ? 'border-l-2 border-l-indigo-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
 
                             const ci = 'w-full h-6 border border-gray-200 rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white';
                             const ciR = ci + ' text-right tabular-nums';
@@ -5437,7 +5437,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {/* B.Ord */}
                                     <td className="px-0.5 py-0.5" style={{ width: colWidths.bord, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={item.bOrd || ''} onChange={e => updateJobItem(idx, 'bOrd', e.target.value)}
-                                        className={`${ciR} ${item.bOrd > 0 ? 'text-orange-600 font-semibold border-orange-300 bg-orange-50' : ''}`}
+                                        className={`${ciR} ${item.bOrd > 0 ? 'text-indigo-600 font-semibold border-indigo-300 bg-indigo-50' : ''}`}
                                         min="0" placeholder="0" />
                                     </td>
 
@@ -5480,7 +5480,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                                 {/* Decoration sub-row */}
                                 {hasDecoration && (
-                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-purple-50/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-orange-50/50' : decOpt.v === 'DTF' ? 'bg-cyan-50/50' : decOpt.v === 'SCR' ? 'bg-rose-50/50' : 'bg-gray-50/50'}`}
+                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-purple-50/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-indigo-50/50' : decOpt.v === 'DTF' ? 'bg-cyan-50/50' : decOpt.v === 'SCR' ? 'bg-rose-50/50' : 'bg-gray-50/50'}`}
                                     style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
                                     <td colSpan={10} className="px-2 py-0.5">
@@ -5516,7 +5516,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         {/* TRS/SP: transfer code */}
                                         {(decOpt.v === 'TRS' || decOpt.v === 'SP') && (
                                           <input type="text" value={item.trsCode || ''} onChange={e => updateJobItem(idx, 'trsCode', e.target.value)}
-                                            className="h-5 border border-orange-200 rounded px-1.5 text-[11px] font-mono text-orange-700 focus:outline-none focus:ring-1 focus:ring-orange-400 w-32 bg-white" placeholder="TRS/SP code…" />
+                                            className="h-5 border border-indigo-200 rounded px-1.5 text-[11px] font-mono text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-32 bg-white" placeholder="TRS/SP code…" />
                                         )}
                                         {/* Color count for Screen/DTF/DTG/Sub/Pad */}
                                         {decOpt.hasColors && (
@@ -6129,7 +6129,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
                               style={{borderBottom: `1px solid ${T.hairline}`, background: i === supplierDropdown.highlighted ? T.hairlineSoft : T.panel}}
                             >
-                              <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
                                 {s.name.charAt(0).toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -6544,10 +6544,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return (
       <DraggableModal onClose={close} cardClass="w-[420px] p-6">
         <div className="flex items-center justify-between mb-4 cursor-move select-none">
-          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Printer className="w-5 h-5 text-orange-600" />Unprint Job #{unprintModal.job?.id}</h3>
+          <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Printer className="w-5 h-5 text-indigo-600" />Unprint Job #{unprintModal.job?.id}</h3>
           <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
         </div>
-        <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-orange-600">{unprintModal.job?.status}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>FINISH</span>.</p>
+        <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-indigo-600">{unprintModal.job?.status}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>FINISH</span>.</p>
         <p className="text-xs mb-4" style={{ color: T.textMuted }}>An internal comment will be added recording this action. Use this to recall and re-issue an invoice.</p>
         {unprintModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, background: T.dangerTint }}>{unprintModal.error}</p>}
         <div className="flex justify-end gap-2 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
@@ -6771,7 +6771,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <td className="px-3 py-1 font-mono" style={{ color: T.text }}>{item.sku}</td>
                       <td className="px-3 py-1" style={{ color: T.text }}>{item.name}</td>
                       <td className="px-3 py-1" style={{ color: T.textMuted }}>{stocktakeModal.method === 'Blind' ? '—' : item.currentStock}</td>
-                      <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-orange-400 bg-orange-50' : ''}`} /></td>
+                      <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-indigo-400 bg-indigo-50' : ''}`} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -7187,7 +7187,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       blue:   { card: 'border-amber-200 bg-amber-50',     badge: 'bg-amber-100 text-amber-700',     btn: 'bg-amber-600 hover:bg-amber-700',     icon: 'text-amber-700' },
       green:  { card: 'border-green-200 bg-green-50',   badge: 'bg-green-100 text-green-700',   btn: 'bg-green-600 hover:bg-green-700',   icon: 'text-green-600' },
       purple: { card: 'border-purple-200 bg-purple-50', badge: 'bg-purple-100 text-purple-700', btn: 'bg-purple-600 hover:bg-purple-700', icon: 'text-purple-600' },
-      orange: { card: 'border-orange-200 bg-orange-50', badge: 'bg-orange-100 text-orange-700', btn: 'bg-orange-600 hover:bg-orange-700', icon: 'text-orange-600' },
+      orange: { card: 'border-indigo-200 bg-indigo-50', badge: 'bg-indigo-100 text-indigo-700', btn: 'bg-indigo-600 hover:bg-indigo-700', icon: 'text-indigo-600' },
       teal:   { card: 'border-teal-200 bg-teal-50',     badge: 'bg-teal-100 text-teal-700',     btn: 'bg-teal-600 hover:bg-teal-700',     icon: 'text-teal-600' },
     };
 
@@ -7438,7 +7438,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const SERVICES = ['Standard', 'Express', 'Overnight', 'Same Day', 'Economy'];
     const TYPE_COLORS = {
       Satchel: 'bg-amber-100 text-amber-700',
-      Box: 'bg-orange-100 text-orange-700',
+      Box: 'bg-indigo-100 text-indigo-700',
       Envelope: 'bg-yellow-100 text-yellow-800',
       Pallet: 'bg-gray-100 text-gray-700',
       Bag: 'bg-green-100 text-green-700',
@@ -8804,7 +8804,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <div className="shrink-0 bg-white border-b border-gray-100 flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
           { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-red-500',    bg: 'hover:bg-red-50',    text: 'text-red-600',    border: 'border-red-100',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-orange-500', bg: 'hover:bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', action: () => { setActiveModule('jobs'); } },
+          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-indigo-500', bg: 'hover:bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', action: () => { setActiveModule('jobs'); } },
           { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-purple-500', bg: 'hover:bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', action: () => { setActiveModule('jobs'); setFilterStatus('FINISH'); } },
           { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-amber-500',  bg: 'hover:bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-100',  action: () => setActiveModule('inventory') },
           { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-blue-500',   bg: 'hover:bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-100',   action: () => setActiveModule('jobs') },
@@ -9006,7 +9006,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   (j.invoice || '').toLowerCase().includes(q) ||
                   (j.custRef || '').toLowerCase().includes(q)
                 ).slice(0, 6);
-                const statusColors = { QUOTE:'bg-gray-100 text-gray-600', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-orange-100 text-orange-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-600' };
+                const statusColors = { QUOTE:'bg-gray-100 text-gray-600', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-indigo-100 text-indigo-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-600' };
                 return hits.length > 0 ? (
                   <div className="mt-2 rounded-xl border border-gray-100 overflow-hidden shadow-sm">
                     {hits.map(j => (
@@ -9217,7 +9217,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       {suppHits.map(s => (
                         <div key={s.code} className="flex items-center gap-3 px-5 py-2.5 hover:bg-blue-50 cursor-pointer"
                           onClick={() => { setActiveModule('suppliers'); setGlobalSearchOpen(false); }}>
-                          <Truck className="w-4 h-4 text-orange-400 shrink-0" />
+                          <Truck className="w-4 h-4 text-indigo-400 shrink-0" />
                           <span className="flex-1 text-sm text-gray-700 truncate">{s.name}</span>
                           <span className="text-xs text-gray-400 font-mono">{s.code}</span>
                         </div>

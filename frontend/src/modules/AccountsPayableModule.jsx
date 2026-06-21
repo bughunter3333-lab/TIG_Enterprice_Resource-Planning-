@@ -332,8 +332,8 @@ export default function AccountsPayableModule({ suppliers = [] }) {
           </div>
           <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4.5 h-4.5 text-orange-600" />
+              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4.5 h-4.5 text-indigo-600" />
               </div>
               <div>
                 <p className="text-xs" style={{ color: T.textMuted }}>Due This Week</p>

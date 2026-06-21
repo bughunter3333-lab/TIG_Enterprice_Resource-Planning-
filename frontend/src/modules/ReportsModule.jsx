@@ -255,7 +255,7 @@ function AgedReceivablesTab() {
       <TotalsBar totals={totals} fields={[
         { key: 'current', label: 'Current (0-30d)', color: 'text-green-700' },
         { key: 'days_31_60', label: '31–60 days', color: 'text-amber-600' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-orange-600' },
+        { key: 'days_61_90', label: '61–90 days', color: 'text-indigo-600' },
         { key: 'over_90', label: 'Over 90 days', color: 'text-red-700' },
         { key: 'total', label: 'Total Outstanding', color: 'text-gray-900' },
       ]} />
@@ -276,7 +276,7 @@ function AgedReceivablesTab() {
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                     <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
                     <td className="px-3 py-2 text-right text-amber-700">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-orange-700">{fmt$(r.days_61_90)}</td>
+                    <td className="px-3 py-2 text-right text-indigo-700">{fmt$(r.days_61_90)}</td>
                     <td className="px-3 py-2 text-right text-red-700">{fmt$(r.over_90)}</td>
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
                     <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.oldest_invoice}</td>
@@ -288,7 +288,7 @@ function AgedReceivablesTab() {
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
                   <td className="px-3 py-2 text-right text-amber-700">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-orange-700">{fmt$(totals.days_61_90)}</td>
+                  <td className="px-3 py-2 text-right text-indigo-700">{fmt$(totals.days_61_90)}</td>
                   <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.over_90)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                   <td />
@@ -333,7 +333,7 @@ function AgedPayablesTab() {
       <TotalsBar totals={totals} fields={[
         { key: 'current', label: 'Current (0-30d)', color: 'text-green-700' },
         { key: 'days_31_60', label: '31–60 days', color: 'text-amber-600' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-orange-600' },
+        { key: 'days_61_90', label: '61–90 days', color: 'text-indigo-600' },
         { key: 'over_90', label: 'Over 90 days', color: 'text-red-700' },
         { key: 'total', label: 'Total Owing', color: 'text-gray-900' },
       ]} />
@@ -354,7 +354,7 @@ function AgedPayablesTab() {
                     <td className="px-3 py-2 font-medium">{r.supplier_name}</td>
                     <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
                     <td className="px-3 py-2 text-right text-amber-700">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-orange-700">{fmt$(r.days_61_90)}</td>
+                    <td className="px-3 py-2 text-right text-indigo-700">{fmt$(r.days_61_90)}</td>
                     <td className="px-3 py-2 text-right text-red-700">{fmt$(r.over_90)}</td>
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
                   </tr>
@@ -365,7 +365,7 @@ function AgedPayablesTab() {
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
                   <td className="px-3 py-2 text-right text-amber-700">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-orange-700">{fmt$(totals.days_61_90)}</td>
+                  <td className="px-3 py-2 text-right text-indigo-700">{fmt$(totals.days_61_90)}</td>
                   <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.over_90)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                 </tr>
@@ -744,9 +744,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
       {totals.sku_count > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-orange-600">SKUs on Back Order</p>
-            <p className="text-2xl font-bold text-orange-700">{totals.sku_count}</p>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
+            <p className="text-xs text-indigo-600">SKUs on Back Order</p>
+            <p className="text-2xl font-bold text-indigo-700">{totals.sku_count}</p>
           </div>
           <div className="rounded-lg p-4 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <p className="text-xs" style={{ color: T.textMuted }}>Total Units B/O</p>
@@ -797,7 +797,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                       <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.category || '—'}</td>
                       <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.supplier || '—'}</td>
                       <td className={`px-3 py-2.5 text-center font-medium whitespace-nowrap ${r.stock_on_hand <= 0 ? 'text-red-600' : ''}`} style={r.stock_on_hand > 0 ? { color: T.text } : undefined}>{r.stock_on_hand}</td>
-                      <td className="px-3 py-2.5 text-center font-bold text-orange-700 whitespace-nowrap">{r.total_b_ord}</td>
+                      <td className="px-3 py-2.5 text-center font-bold text-indigo-700 whitespace-nowrap">{r.total_b_ord}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap" style={{ color: T.textMuted }}>{fmt$(r.unit_cost)}</td>
                       <td className="px-3 py-2.5 text-right font-medium text-red-700 whitespace-nowrap">{fmt$(r.total_value)}</td>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
@@ -805,9 +805,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                           {(r.jobs || []).map(j => (
                             <div key={j.job_id} className="flex items-center gap-1.5 flex-wrap">
                               <button onClick={() => onOpenJob?.(j.job_id)}
-                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded hover:bg-orange-100 font-semibold"
+                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded hover:bg-indigo-100 font-semibold"
                                 title={`Open job ${j.job_id} — ${j.customer_name}`}>
-                                {j.job_id}{j.b_ord > 1 && <span className="text-orange-500">×{j.b_ord}</span>}
+                                {j.job_id}{j.b_ord > 1 && <span className="text-indigo-500">×{j.b_ord}</span>}
                               </button>
                               {j.po_no && (
                                 <span className="font-mono text-[11px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded" title={`PO: ${j.po_no}`}>
@@ -832,7 +832,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 <tr>
                   <td />
                   <td className="px-3 py-2" colSpan={4}>TOTAL ({totals.sku_count} SKUs)</td>
-                  <td className="px-3 py-2 text-center text-orange-700">{totals.total_b_ord}</td>
+                  <td className="px-3 py-2 text-center text-indigo-700">{totals.total_b_ord}</td>
                   <td />
                   <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.total_value)}</td>
                   <td />
@@ -928,7 +928,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                               items[idx] = { ...items[idx], qty: parseInt(e.target.value) || 0 };
                               return { ...f, items };
                             })}
-                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-amber-400 font-semibold text-orange-700"
+                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-amber-400 font-semibold text-indigo-700"
                             style={{ border: `1px solid ${T.hairline}` }} />
                         </td>
                         <td className="px-3 py-2 text-right" style={{ color: T.textMuted }}>{fmt$(item.unitCost)}</td>
@@ -936,7 +936,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {item.jobIds.map(jid => (
-                              <span key={jid} className="font-mono text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-1 py-0.5 rounded">
+                              <span key={jid} className="font-mono text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1 py-0.5 rounded">
                                 {jid}
                               </span>
                             ))}

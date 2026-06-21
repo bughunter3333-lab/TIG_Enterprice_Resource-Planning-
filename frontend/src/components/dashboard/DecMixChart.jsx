@@ -3,7 +3,7 @@ import { T } from '../../ui/tokens';
 const DEC_COLORS = {
   EMB: '#8b5cf6', DTF: '#14b8a6', Screen: '#3b82f6',
   DTG: '#10b981', Vinyl: '#22c55e', Sub: '#ec4899',
-  Pad: '#f59e0b', Laser: '#ef4444', TRS: '#f97316',
+  Pad: '#f59e0b', Laser: '#ef4444', TRS: '#6366f1',
 };
 
 export default function DecMixChart({ jobs }) {

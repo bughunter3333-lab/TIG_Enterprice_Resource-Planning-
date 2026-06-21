@@ -8,7 +8,7 @@ const STATUS_COLORS = {
   ORDER: 'bg-amber-100 text-amber-700 border-amber-300',
   'In Progress': 'bg-yellow-100 text-yellow-800 border-yellow-300',
   PROOF: 'bg-purple-100 text-purple-700 border-purple-300',
-  PRINT: 'bg-orange-100 text-orange-700 border-orange-300',
+  PRINT: 'bg-indigo-100 text-indigo-700 border-indigo-300',
   'Pick/Pack': 'bg-cyan-100 text-cyan-700 border-cyan-300',
   FINISH: 'bg-green-100 text-green-800 border-green-300',
   INVOICE: 'bg-teal-100 text-teal-700 border-teal-300',
@@ -18,7 +18,7 @@ const STATUS_COLORS = {
 
 const DEC_COLORS = {
   EMB:    { dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700',  label: 'Embroidery' },
-  TRS:    { dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700',  label: 'Transfer' },
+  TRS:    { dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700',  label: 'Transfer' },
   Screen: { dot: 'bg-amber-500',    pill: 'bg-amber-50 text-amber-700',      label: 'Screen Print' },
   DTF:    { dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700',      label: 'DTF' },
   Laser:  { dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700',        label: 'Laser' },
@@ -83,7 +83,7 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
         <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>#{job.id}</span>
         <div className="flex items-center gap-1 shrink-0">
           {job.priority === 'Urgent' && <span className="text-[10px] px-1 rounded font-bold leading-4" style={{ background: T.dangerTint, color: T.danger }}>URG</span>}
-          {job.priority === 'High' && <span className="text-[10px] bg-orange-100 text-orange-700 px-1 rounded font-bold leading-4">HIGH</span>}
+          {job.priority === 'High' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1 rounded font-bold leading-4">HIGH</span>}
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
         </div>
       </div>
