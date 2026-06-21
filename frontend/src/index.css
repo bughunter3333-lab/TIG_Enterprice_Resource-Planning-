@@ -2,18 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System ── */
+/* ── ERP Design System — amber-on-zinc, IBM Plex type ── */
 :root {
-  --tig-primary:       #1d4ed8;
-  --tig-primary-dark:  #1e40af;
-  --tig-primary-light: #dbeafe;
-  --tig-bg:            #f8fafc;
+  --tig-chrome:        #18181b;
   --tig-surface:       #ffffff;
-  --tig-border:        #e2e8f0;
-  --tig-border-light:  #f1f5f9;
-  --tig-text:          #0f172a;
-  --tig-text-muted:    #64748b;
-  --tig-nav:           #0f172a;
+  --tig-page:          #fafafa;
+  --tig-border:        #e4e4e7;
+  --tig-border-light:  #f4f4f5;
+  --tig-text:          #18181b;
+  --tig-text-muted:    #71717a;
+  --tig-accent:        #eab308;
+  --tig-accent-strong: #ca8a04;
+}
+
+/* Type foundation: IBM Plex Sans for UI; tabular numerals so figures align in
+   dense tables and totals. IDs/SKUs/money use IBM Plex Mono via .font-mono. */
+html, body {
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+body {
+  font-feature-settings: 'tnum' 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
@@ -27,29 +37,14 @@
   appearance: textfield;
 }
 
-/* ── Scrollbar styling (enterprise-neutral) ── */
+/* ── Scrollbar — zinc-toned to match the chrome ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #64748b; }
+::-webkit-scrollbar-track { background: #f4f4f5; }
+::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
 
-/* ── Inputs: consistent focus ring ── */
+/* ── Inputs: amber focus ring to match the accent identity ── */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #bfdbfe;
+  box-shadow: 0 0 0 2px #fde68a;
 }
-
-/* ── ERP table: tighter alternating rows ── */
-.erp-table tbody tr:nth-child(even) { background: #f8fafc; }
-.erp-table tbody tr:hover { background: #eff6ff !important; }
-.erp-table th {
-  background: #f1f5f9;
-  color: #475569;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 2px solid #cbd5e1;
-  padding: 6px 8px;
-}
-.erp-table td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }

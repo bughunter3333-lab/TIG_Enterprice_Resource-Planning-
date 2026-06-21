@@ -31,8 +31,9 @@ export const T = {
   ok: '#15803d',
   okTint: '#dcfce7',
 
-  // Type
-  font: "'Segoe UI', system-ui, sans-serif",
+  // Type — IBM Plex Sans for UI, IBM Plex Mono for IDs/SKUs/figures
+  font: "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif",
+  fontMono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace",
   fsBase: 13,
   fsGrid: 12,
   fsHeader: 11,
