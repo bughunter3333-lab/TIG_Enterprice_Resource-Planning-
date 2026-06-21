@@ -2349,10 +2349,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {/* ── Secondary tab strip ──────────────────────────────────── */}
             <div className="mt-3 pt-1 flex gap-0 text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
               {[
-                { id: 'pickpack',  label: 'Pick / Pack', icon: CheckSquare },
-                { id: 'documents', label: 'Documents',   icon: ClipboardList },
-                { id: 'cost',      label: 'Cost',        icon: DollarSign },
-                { id: 'activity',  label: 'Activity',    icon: Bell },
+                { id: 'job',       label: 'Job',                icon: FileText },
+                { id: 'cost',      label: 'Cost',               icon: DollarSign },
+                { id: 'stats',     label: 'Stats',              icon: BarChart3 },
+                { id: 'linked',    label: 'Linked Jobs/Quotes', icon: Layers },
+                { id: 'pickpack',  label: 'Pick / Pack',        icon: CheckSquare },
+                { id: 'documents', label: 'Documents',          icon: ClipboardList },
+                { id: 'activity',  label: 'Activity',           icon: Bell },
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = jobDetailTab === tab.id;
@@ -2368,6 +2371,82 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 );
               })}
             </div>
+
+            {/* ── STATS TAB ────────────────────────────────────────────── */}
+            {jobDetailTab === 'stats' && (() => {
+              const lines = (activeJob.items || []).filter(i => i.displayType !== 'section' && i.displayType !== 'note');
+              const totalQty = lines.reduce((s, i) => s + (parseInt(i.order) || parseInt(i.qty) || 0), 0);
+              const parseD = (d) => d ? new Date(String(d).split('/').reverse().join('-')) : null;
+              const din = parseD(activeJob.dateIn);
+              const daysIn = din && !isNaN(din.getTime()) ? Math.max(0, Math.round((new Date() - din) / 86400000)) : null;
+              const stats = [
+                { label: 'Line Items', value: String(lines.length), note: 'Product lines' },
+                { label: 'Total Qty', value: totalQty.toLocaleString(), note: 'Units ordered' },
+                { label: 'Order Value', value: `$${(activeJob.total || 0).toFixed(2)}`, note: 'Inc GST' },
+                { label: 'Margin', value: `$${(activeJob.marginTotal || 0).toFixed(2)}`, note: `${activeJob.marginPct || 0}% of revenue`, color: (activeJob.marginTotal || 0) >= 0 ? T.ok : T.danger },
+                { label: 'Weight', value: activeJob.weightTotal ? `${activeJob.weightTotal} kg` : '—', note: 'Order weight' },
+                { label: 'Days In', value: daysIn != null ? String(daysIn) : '—', note: 'Since date in' },
+              ];
+              return (
+                <div className="grid grid-cols-3 gap-4">
+                  {stats.map(s => (
+                    <div key={s.label} className="rounded-lg p-4 text-center" style={{ background: T.hairlineSoft }}>
+                      <p className="text-xs mb-1" style={{ color: T.textMuted }}>{s.label}</p>
+                      <p className="text-2xl font-bold" style={{ color: s.color || T.text }}>{s.value}</p>
+                      <p className="text-xs mt-1" style={{ color: T.textFaint }}>{s.note}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* ── LINKED JOBS / QUOTES TAB ─────────────────────────────── */}
+            {jobDetailTab === 'linked' && (() => {
+              const related = (jobs || []).filter(j => j.id !== activeJob.id && String(j.customerId) === String(activeJob.customerId)).slice(0, 12);
+              return (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg p-3" style={{ background: T.hairlineSoft }}>
+                      <p className="text-xs mb-1" style={{ color: T.textMuted }}>Originating Job (Ex.Job#)</p>
+                      <p className="text-sm font-mono font-semibold" style={{ color: activeJob.exJobRef ? T.accentStrong : T.textFaint }}>{activeJob.exJobRef || '—'}</p>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: T.hairlineSoft }}>
+                      <p className="text-xs mb-1" style={{ color: T.textMuted }}>Quote Reference</p>
+                      <p className="text-sm font-mono font-semibold" style={{ color: activeJob.quote ? T.accentStrong : T.textFaint }}>{activeJob.quote || '—'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: T.textMuted }}>Other jobs for {activeJob.customer || 'this customer'}</p>
+                    {related.length === 0 ? (
+                      <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No other jobs for this customer.</p>
+                    ) : (
+                      <div className="border rounded overflow-hidden" style={{ borderColor: T.hairline }}>
+                        <table className="w-full text-sm">
+                          <thead style={{ background: T.hairlineSoft }}>
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Job #</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Status</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Due</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium" style={{ color: T.textMuted }}>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {related.map(j => (
+                              <tr key={j.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => pinJob(j)}>
+                                <td className="px-3 py-2 font-mono" style={{ color: T.accentStrong }}>#{j.id}</td>
+                                <td className="px-3 py-2"><StatusBadge status={j.status} size="sm" /></td>
+                                <td className="px-3 py-2" style={{ color: T.text }}>{j.due || '—'}</td>
+                                <td className="px-3 py-2 text-right font-medium" style={{ color: T.text }}>${(j.total || 0).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── PICK / PACK TAB ──────────────────────────────────────── */}
             {jobDetailTab === 'pickpack' && (
