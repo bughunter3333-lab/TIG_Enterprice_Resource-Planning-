@@ -24,9 +24,7 @@ from app.models.supplier import Supplier
 from app.models.inventory import InventoryItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.settings import CompanySettings
-from app.models.admin_setting import (
-    AdminSetting,
-)  # noqa: F401 — registers table with Base.metadata
+from app.models.admin_setting import AdminSetting  # noqa: F401  (registers table)
 from app.models.stock_location import StockLocation  # noqa: F401 — registers table
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint  # noqa: F401
 
