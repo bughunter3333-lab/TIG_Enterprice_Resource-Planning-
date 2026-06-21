@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
 from typing import Optional
@@ -197,8 +197,8 @@ def _require_authenticated(token: Optional[str], db: Session) -> User:
     except (ValueError, TypeError):
         raise HTTPException(status_code=401, detail="Not authenticated")
     user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return user
 
 
