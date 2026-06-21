@@ -2346,6 +2346,44 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
             )}
 
+            {/* ── Jim2-style Freight + Totals footer ───────────────────── */}
+            {(() => {
+              const freightItem = (activeJob.items || []).find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
+              const freightAmt = freightItem ? parseFloat(freightItem.priceEx || freightItem.total || 0) : 0;
+              const freightTax = Math.round(freightAmt * 0.10 * 100) / 100;
+              const cartons = freightItem ? (parseInt(freightItem.order) || parseInt(freightItem.qty) || 1) : 1;
+              const TR = ({ label, value, strong, color }) => (
+                <div className="flex justify-between items-baseline" style={{ fontSize: strong ? 14 : 12, padding: strong ? '5px 0' : '3px 0', marginTop: strong ? 2 : 0, borderTop: strong ? `1px solid ${T.hairline}` : 'none', fontWeight: strong ? 500 : 400 }}>
+                  <span style={{ color: strong ? T.text : T.textMuted }}>{label}</span>
+                  <span className="font-mono" style={{ color: color || T.text, fontWeight: 500 }}>{value}</span>
+                </div>
+              );
+              return (
+                <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: '1fr 260px', alignItems: 'start' }}>
+                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                    <div className="flex items-center gap-1.5 mb-1" style={{ color: T.textMuted }}>
+                      <Package className="w-3.5 h-3.5" /><span className="text-xs font-bold uppercase tracking-wide">Freight</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <TR label="Freight $" value={freightAmt ? freightAmt.toFixed(2) : '—'} color={freightAmt ? T.text : T.textFaint} />
+                      <TR label="Tax" value={freightAmt ? freightTax.toFixed(2) : '0.00'} />
+                      <TR label="Amount" value={freightAmt ? (freightAmt + freightTax).toFixed(2) : '0.00'} />
+                      <TR label="Cartons" value={String(cartons)} />
+                      <TR label="Fuel Levy" value={activeJob.fuelLevy ? activeJob.fuelLevy.toFixed(2) : '0.00'} />
+                      <TR label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : '—'} color={activeJob.weightTotal ? T.text : T.textFaint} />
+                    </div>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                    <TR label="SubTotal $" value={(activeJob.subtotal || 0).toFixed(2)} />
+                    <TR label="Tax $" value={(activeJob.tax || 0).toFixed(2)} />
+                    <TR label="Total $ (AUD)" value={(activeJob.totalInc || activeJob.total || 0).toFixed(2)} strong />
+                    <TR label="Prepaid $" value={(activeJob.invoicePaid || 0).toFixed(2)} color={T.ok} />
+                    <TR label="Balance Due $" value={(activeJob.balanceDue || 0).toFixed(2)} strong color={activeJob.balanceDue > 0 ? T.danger : T.ok} />
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Secondary tab strip ──────────────────────────────────── */}
             <div className="mt-3 pt-1 flex gap-0 text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
               {[
