@@ -29,6 +29,8 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise credentials_error
+    if payload.get("tv", 0) != user.token_version:
+        raise credentials_error
     return user
 
 

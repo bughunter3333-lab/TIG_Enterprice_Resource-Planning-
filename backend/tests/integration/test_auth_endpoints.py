@@ -70,6 +70,39 @@ async def test_login_inactive_user(async_client: AsyncClient, test_db_session: S
 
 
 @pytest.mark.integration
+async def test_password_change_invalidates_old_tokens(
+    async_client: AsyncClient, test_admin_user: User, test_db_session: Session
+):
+    """Changing the password bumps token_version, invalidating previously-issued JWTs
+    while keeping the current session signed in via freshly re-issued tokens."""
+    # Log in (test admin has no 2FA) → sets access_token + refresh_token cookies.
+    r = await async_client.post(
+        "/auth/login", json={"username": "testadmin", "password": "password123"}
+    )
+    assert r.status_code == 200
+    old_refresh = async_client.cookies.get("refresh_token")
+    assert old_refresh
+
+    # The freshly-issued refresh token works.
+    assert (await async_client.post("/auth/refresh")).status_code == 200
+
+    # Change the password — invalidates old tokens, re-issues the current session.
+    r = await async_client.post(
+        "/auth/change-password",
+        json={"current_password": "password123", "new_password": "NewPass123"},
+    )
+    assert r.status_code == 200
+
+    # The current session (re-issued cookies) still works.
+    assert (await async_client.post("/auth/refresh")).status_code == 200
+
+    # The OLD refresh token is now rejected.
+    async_client.cookies.clear()
+    async_client.cookies.set("refresh_token", old_refresh)
+    assert (await async_client.post("/auth/refresh")).status_code == 401
+
+
+@pytest.mark.integration
 async def test_rate_limiting_login(async_client: AsyncClient):
     """Test rate limiting on login endpoint."""
     rate_limited = False

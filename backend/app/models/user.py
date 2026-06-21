@@ -15,6 +15,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     totp_secret = Column(String(64), nullable=True)
     totp_enabled = Column(Boolean, default=False)
+    # Bumped on password change to invalidate all previously-issued JWTs.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     # SSO fields — populated when migrating to SSO later
     sso_provider = Column(String(50), nullable=True)
     sso_subject = Column(String(255), nullable=True)

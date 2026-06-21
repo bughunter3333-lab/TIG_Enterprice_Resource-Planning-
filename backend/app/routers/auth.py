@@ -165,7 +165,11 @@ def refresh(
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
-    access = create_access_token(user.id, user.role, mfa_verified=True)
+    if payload.get("tv", 0) != user.token_version:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    access = create_access_token(
+        user.id, user.role, mfa_verified=True, token_version=user.token_version
+    )
     response.set_cookie("access_token", access, max_age=1800, **COOKIE_OPTS)
     return {"ok": True}
 
@@ -180,6 +184,7 @@ def logout(response: Response):
 @router.post("/change-password")
 def change_password(
     body: ChangePasswordRequest,
+    response: Response,
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
@@ -187,7 +192,11 @@ def change_password(
     if not verify_password(body.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password incorrect")
     user.hashed_password = hash_password(body.new_password)
+    # Invalidate every previously-issued JWT (e.g. on other devices)...
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
+    # ...then re-issue fresh tokens so the current session stays signed in.
+    _issue_tokens(response, user)
     return {"message": "Password updated"}
 
 
@@ -197,8 +206,10 @@ def change_password(
 def _issue_tokens(response: Response, user: User):
     from app.core.config import settings
 
-    access = create_access_token(user.id, user.role, mfa_verified=True)
-    refresh = create_refresh_token(user.id)
+    access = create_access_token(
+        user.id, user.role, mfa_verified=True, token_version=user.token_version
+    )
+    refresh = create_refresh_token(user.id, token_version=user.token_version)
     response.set_cookie(
         "access_token",
         access,
@@ -225,6 +236,8 @@ def _require_authenticated(token: Optional[str], db: Session) -> User:
         raise HTTPException(status_code=401, detail="Not authenticated")
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if payload.get("tv", 0) != user.token_version:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
 

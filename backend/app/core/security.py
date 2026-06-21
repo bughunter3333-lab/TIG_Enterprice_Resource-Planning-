@@ -33,16 +33,24 @@ def create_token(data: dict, expires_delta: timedelta) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 
-def create_access_token(user_id: int, role: str, mfa_verified: bool = False) -> str:
+def create_access_token(
+    user_id: int, role: str, mfa_verified: bool = False, token_version: int = 0
+) -> str:
     return create_token(
-        {"sub": str(user_id), "role": role, "mfa": mfa_verified, "type": "access"},
+        {
+            "sub": str(user_id),
+            "role": role,
+            "mfa": mfa_verified,
+            "type": "access",
+            "tv": token_version,
+        },
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: int, token_version: int = 0) -> str:
     return create_token(
-        {"sub": str(user_id), "type": "refresh"},
+        {"sub": str(user_id), "type": "refresh", "tv": token_version},
         timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
     )
 
