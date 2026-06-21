@@ -33,6 +33,9 @@ python -m alembic upgrade head
 # Seed initial admin user
 python seed_admin.py
 
+# Seed realistic demo data (idempotent; customers, stock, jobs across all statuses)
+python seed_data.py
+
 # Lint / format
 ruff check app tests
 black --check app tests

@@ -31,6 +31,10 @@ The app has no users until you seed one. Two ways:
 - **Render Shell** (service → *Shell* tab): run `python seed_admin.py` and answer the prompts.
 - **Non-interactive** (no shell / CI): set env vars `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (and optional `ADMIN_FULL_NAME`) on the service, then run `python seed_admin.py` as a one-off command — it skips the prompts when those are present. Remove the `ADMIN_PASSWORD` var afterward.
 
+### Optional — seed demo data for the testing period
+
+Run `python seed_data.py` (no args) to populate a realistic dataset: 6 customers, 3 suppliers, 12 stock items, and 12 jobs spanning the full status workflow (quote → order → in progress → … → paid/cancel). It is **idempotent and additive** — it inserts only rows whose IDs don't already exist, so it never duplicates or clobbers data and is safe to re-run. Skip on a production database you intend to fill with real records.
+
 ## Step 3 — Wire the frontend to the backend
 
 1. Edit `frontend/vercel.json` → replace `REPLACE_ME.onrender.com` with your real backend host (e.g. `tig-erp-api.onrender.com`). Keep the `/api/:path*` → `https://<host>/:path*` shape (backend routes live at root: `/auth/login`, `/health`, …).
