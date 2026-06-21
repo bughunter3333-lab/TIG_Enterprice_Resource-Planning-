@@ -2135,6 +2135,45 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               );
             })()}
 
+            {/* ── Jim2-style Invoice Details (Customer / Ship) ── */}
+            {(() => {
+              const cust = customers.find(c => String(c.id) === String(activeJob.customerId));
+              const Row = ({ label, value, mono, accent }) => (
+                <div className="flex items-baseline gap-2 py-0.5" style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
+                  <span className="text-xs shrink-0 w-16" style={{ color: T.textFaint }}>{label}</span>
+                  <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: accent ? T.accentStrong : value ? T.text : T.textFaint }}>{value || '—'}</span>
+                </div>
+              );
+              return (
+                <div className="mb-4 rounded overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+                  <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: T.chrome, borderLeft: `3px solid ${T.accent}` }}>
+                    <FileText className="w-3.5 h-3.5" style={{ color: T.accent }} />
+                    <span className="text-xs font-semibold" style={{ color: T.chromeText }}>Invoice Details</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-5 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer (Bill To)</div>
+                      <Row label="Cust#" value={activeJob.customerId} mono accent />
+                      <Row label="Name" value={cust?.name || activeJob.customer} />
+                      <Row label="Attn" value={cust?.contact} />
+                      <Row label="Address" value={cust?.address} />
+                      <Row label="Phone" value={cust?.phone || cust?.mobile} />
+                      <Row label="Email" value={cust?.email} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Ship To</div>
+                      <Row label="Ship#" value={activeJob.shipTo} mono accent />
+                      <Row label="Attn" value={activeJob.nameContact} />
+                      <Row label="Address" value={activeJob.shippingAddress} />
+                      <Row label="Our Ref#" value={activeJob.ourRef} />
+                      <Row label="Branch" value={activeJob.branch} />
+                      <Row label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : ''} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Jim2-style Comments panel (middle, always visible) ── */}
             <div className="mb-4 rounded" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
               <div className="flex items-center justify-between px-3 py-1.5 rounded-t" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
