@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "_comment": "Same-origin /api proxy: the browser only ever talks to this Vercel domain, so the backend's SameSite=Lax auth cookies keep working (no cross-site cookie/CORS changes needed). Pre-wired to the Render blueprint's service name (tig-erp-api). If Render appends a suffix because that subdomain is taken, update the host below to the real one Render shows and redeploy. Backend routes live at root (/auth/login, /health, ...), so /api/auth/login proxies to https://<host>/auth/login.",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://tig-erp-api.onrender.com/:path*" }
   ]
