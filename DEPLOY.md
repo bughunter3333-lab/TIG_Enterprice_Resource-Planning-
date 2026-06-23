@@ -37,8 +37,9 @@ Run `python seed_data.py` (no args) to populate a realistic dataset: 6 customers
 
 ## Step 3 — Wire the frontend to the backend
 
-1. Edit `frontend/vercel.json` → replace `REPLACE_ME.onrender.com` with your real backend host (e.g. `tig-erp-api.onrender.com`). Keep the `/api/:path*` → `https://<host>/:path*` shape (backend routes live at root: `/auth/login`, `/health`, …).
-2. Commit and push — Vercel redeploys automatically.
+`frontend/vercel.json` is **pre-wired** to `https://tig-erp-api.onrender.com` (the service name from `render.yaml`), so no edit is needed if Render serves the API at that subdomain.
+
+- **Only if** Render appended a suffix (because `tig-erp-api` was globally taken): edit `frontend/vercel.json` → change the host to the real one Render shows, keeping the `/api/:path*` → `https://<host>/:path*` shape (backend routes live at root: `/auth/login`, `/health`, …), then commit and push — Vercel redeploys automatically.
 
 ## Step 4 — Verify
 
