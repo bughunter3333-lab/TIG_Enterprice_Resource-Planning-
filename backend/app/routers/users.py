@@ -60,12 +60,12 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.get("/", response_model=List[UserOut])
+@router.get("", response_model=List[UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return db.query(User).all()
 
 
-@router.post("/", response_model=UserOut)
+@router.post("", response_model=UserOut)
 def create_user(
     body: UserCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)
 ):

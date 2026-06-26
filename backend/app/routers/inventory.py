@@ -132,7 +132,7 @@ class CostUpdate(BaseModel):
     price_template: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 def list_inventory(
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
@@ -268,7 +268,7 @@ def get_item(sku: str, db: Session = Depends(get_db), _: User = Depends(require_
     return item
 
 
-@router.post("/")
+@router.post("")
 def create_item(
     body: InventoryCreate,
     db: Session = Depends(get_db),

@@ -373,7 +373,7 @@ def get_fuel_levy(freight: float, _: User = Depends(require_any)):
     return {"freight": freight, "fuel_levy": calculate_fuel_levy(freight)}
 
 
-@router.get("/")
+@router.get("")
 def list_jobs(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
@@ -569,7 +569,7 @@ def get_job(job_id: str, db: Session = Depends(get_db), _: User = Depends(requir
     return job
 
 
-@router.post("/")
+@router.post("")
 def create_job(
     body: JobCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
 ):

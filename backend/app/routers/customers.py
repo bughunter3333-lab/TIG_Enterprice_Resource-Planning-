@@ -58,7 +58,7 @@ class CustomerUpdate(BaseModel):
     status: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 def list_customers(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -93,7 +93,7 @@ def get_customer(
     return customer
 
 
-@router.post("/")
+@router.post("")
 def create_customer(
     body: CustomerCreate,
     db: Session = Depends(get_db),

@@ -42,7 +42,7 @@ class CardFileUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 def list_card_files(
     search: Optional[str] = Query(None),
     group: Optional[str] = Query(None),
@@ -78,7 +78,7 @@ def get_card_file(
     return card
 
 
-@router.post("/")
+@router.post("")
 def create_card_file(
     body: CardFileCreate,
     db: Session = Depends(get_db),

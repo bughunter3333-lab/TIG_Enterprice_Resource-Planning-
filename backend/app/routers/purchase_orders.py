@@ -65,7 +65,7 @@ class POFromRequirements(BaseModel):
     requirements: List[RequirementItem]
 
 
-@router.get("/")
+@router.get("")
 def list_pos(
     status: Optional[str] = Query(None),
     supplier_id: Optional[str] = Query(None),
@@ -111,7 +111,7 @@ def get_po(po_id: str, db: Session = Depends(get_db), _: User = Depends(require_
     return po
 
 
-@router.post("/")
+@router.post("")
 def create_po(
     body: POCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
 ):

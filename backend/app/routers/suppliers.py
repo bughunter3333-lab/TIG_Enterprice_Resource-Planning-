@@ -47,7 +47,7 @@ class SupplierUpdate(BaseModel):
     status: Optional[str] = Field(None, max_length=20)
 
 
-@router.get("/")
+@router.get("")
 def list_suppliers(
     search: Optional[str] = Query(None),
     limit: int = Query(500, ge=1, le=2000),
@@ -75,7 +75,7 @@ def get_supplier(
     return s
 
 
-@router.post("/")
+@router.post("")
 def create_supplier(
     body: SupplierCreate,
     db: Session = Depends(get_db),

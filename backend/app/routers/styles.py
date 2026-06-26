@@ -140,7 +140,7 @@ def _load(style_id: int, db: Session) -> Style:
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
-@router.get("/")
+@router.get("")
 def list_styles(
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
@@ -200,7 +200,7 @@ def style_meta(db: Session = Depends(get_db), _: User = Depends(require_any)):
     }
 
 
-@router.post("/")
+@router.post("")
 def create_style(
     data: StyleCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
 ):
