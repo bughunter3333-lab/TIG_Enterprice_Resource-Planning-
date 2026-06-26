@@ -5288,7 +5288,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                             const invSearch = (term) => inventory.map(inv => {
                               const sku = inv.sku.toLowerCase(); const name = (inv.name || '').toLowerCase(); const t = term.toLowerCase();
-                              if (!t) return { inv, score: 1 };
+                              if (!t) return { inv, score: 0 };
                               if (name === t) return { inv, score: 100 };
                               if (name.startsWith(t)) return { inv, score: 80 };
                               if (sku === t) return { inv, score: 75 };
@@ -5301,7 +5301,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const dScored = dIsOpen ? invSearch(descDropdown.query) : [];
                             const skuScored = skuIsOpen ? inventory.map(inv => {
                               const sku = inv.sku.toLowerCase(); const name = (inv.name || '').toLowerCase(); const term = skuQ.toLowerCase();
-                              if (!term) return { inv, score: 1 };
+                              if (!term) return { inv, score: 0 };
                               if (sku === term) return { inv, score: 100 };
                               if (sku.startsWith(term)) return { inv, score: 80 };
                               if (sku.includes(term)) return { inv, score: 60 };
@@ -5347,8 +5347,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {/* Stock Code */}
                                     <td className="px-0.5 py-0.5 relative" style={{ width: colWidths.stock, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={skuQ}
-                                        onChange={e => { setSkuDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0 })); updateJobItem(idx, 'stockCode', e.target.value); }}
-                                        onFocus={(e) => { const r = e.target.getBoundingClientRect(); setSkuDropdown({ idx, query: item.stockCode || '', highlighted: 0, rect: r }); }}
+                                        onChange={e => { setSkuDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0, typed: true })); updateJobItem(idx, 'stockCode', e.target.value); }}
+                                        onFocus={(e) => { const r = e.target.getBoundingClientRect(); setSkuDropdown({ idx, query: item.stockCode || '', highlighted: 0, rect: r, typed: false }); }}
                                         onBlur={() => setTimeout(() => setSkuDropdown({ idx: -1, query: '', highlighted: 0, rect: null }), 200)}
                                         onKeyDown={e => {
                                           if (!skuIsOpen) return;
@@ -5358,7 +5358,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           if (e.key === 'Escape') setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                                         }}
                                         className={ci + ' font-mono'} placeholder="SKU…" autoComplete="off" />
-                                      {skuIsOpen && skuDropdown.rect && (
+                                      {skuIsOpen && skuDropdown.rect && skuDropdown.typed && skuScored.length > 0 && (
                                         <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 380, left: skuDropdown.rect.left, top: skuDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
                                           <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{skuQ ? `SKU: "${skuQ}"` : 'Browse by SKU'}</div>
                                           {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-center" style={{ color: T.textFaint }}>No matches</div>
@@ -5383,8 +5383,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {/* Description + Sizes */}
                                     <td className="px-0.5 py-0.5" style={{ width: colWidths.desc, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={dq}
-                                        onChange={e => { setDescDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0 })); updateJobItem(idx, 'description', e.target.value); }}
-                                        onFocus={(e) => { const r = e.target.getBoundingClientRect(); setDescDropdown({ idx, query: item.description || '', highlighted: 0, rect: r }); }}
+                                        onChange={e => { setDescDropdown(s => ({ ...s, idx, query: e.target.value, highlighted: 0, typed: true })); updateJobItem(idx, 'description', e.target.value); }}
+                                        onFocus={(e) => { const r = e.target.getBoundingClientRect(); setDescDropdown({ idx, query: item.description || '', highlighted: 0, rect: r, typed: false }); }}
                                         onBlur={() => setTimeout(() => setDescDropdown({ idx: -1, query: '', highlighted: 0, rect: null }), 200)}
                                         onKeyDown={e => {
                                           if (!dIsOpen) return;
@@ -5394,7 +5394,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           if (e.key === 'Escape') setDescDropdown({ idx: -1, query: '', highlighted: 0 });
                                         }}
                                         className={ci} placeholder="Description…" autoComplete="off" />
-                                      {dIsOpen && descDropdown.rect && dScored.length > 0 && (
+                                      {dIsOpen && descDropdown.rect && descDropdown.typed && dScored.length > 0 && (
                                         <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 420, left: descDropdown.rect.left, top: descDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
                                           <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{dq ? `"${dq}"` : 'All items'}</div>
                                           {dScored.map(({ inv }, i) => (
