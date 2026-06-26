@@ -1253,7 +1253,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     // Look up stock on hand for the linked SKU (null if no SKU or not in inventory)
     const stockCode = field === 'stockCode' ? value : it.stockCode;
     const invItem = stockCode ? inventory.find(i => i.sku === stockCode) : null;
-    const soh = invItem != null ? Math.max(0, invItem.stock) : null; // null = unknown/no link
+    const soh = invItem != null ? Math.max(0, (invItem.stock || 0) - (invItem.committed_qty || 0)) : null; // available = on-hand − committed
 
     if (soh !== null) {
       // Stock-linked item: supply is always capped at what's on hand
@@ -5318,7 +5318,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                 const priceInc = parseFloat((priceEx * 1.1).toFixed(2));
                                 const margin = cost > 0 ? parseFloat((priceEx - cost).toFixed(2)) : 0;
                                 const marginPercent = priceEx > 0 && cost > 0 ? parseFloat(((priceEx - cost) / priceEx * 100).toFixed(1)) : 0;
-                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, total: parseFloat((priceEx * (parseFloat(items[idx].order) || 0)).toFixed(2)) };
+                                // Jim2 stock split: supply from available (on-hand − committed), back-order the rest.
+                                const order = parseFloat(items[idx].order) || 0;
+                                const avail = Math.max(0, (inv.stock || 0) - (inv.committed_qty || 0));
+                                const supply = Math.min(order, avail);
+                                const bOrd = Math.max(0, order - supply);
+                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, supply, bOrd, total: parseFloat((priceEx * order).toFixed(2)) };
                                 return recalcJobTotals({ ...f, items });
                               });
                               setDescDropdown({ idx: -1, query: '', highlighted: 0 });
