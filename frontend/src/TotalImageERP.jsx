@@ -1211,7 +1211,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   const blankItem = () => ({
     displayType: 'product', decorationType: 'None',
-    description: '', sizes: '', stockCode: '', embCode: '', trsCode: '',
+    description: '', sizes: '', stockCode: '', embCode: '', trsCode: '', decCode: '',
     stitchCount: '', colorCount: '', decPosition: '',
     order: 0, supply: 0, bOrd: 0, purchasePrice: 0, discount: 0, marginPercent: 0, margin: 0,
     priceEx: 0, priceInc: 0, total: 0,
@@ -2305,8 +2305,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           <td className="px-2 py-1.5">
                             <div className="font-medium" style={{ color: T.text }}>{item.description}</div>
                             {item.sizes && <div className="whitespace-pre-line mt-0.5" style={{ color: T.textMuted }}>{item.sizes}</div>}
-                            {item.embCode && <div className="text-xs text-purple-700 font-mono mt-0.5">🧵 {item.embCode}</div>}
-                            {item.trsCode && <div className="text-xs text-indigo-700 font-mono mt-0.5">♨️ {item.trsCode}</div>}
+                            {(item.decCode || item.embCode || item.trsCode) && <div className="text-xs font-mono mt-0.5" style={{ color: T.accentStrong }}>{item.decorationType && item.decorationType !== 'None' ? `${item.decorationType}: ` : ''}{item.decCode || item.embCode || item.trsCode}{item.stitchCount ? ` · ${item.stitchCount} sts` : ''}</div>}
                           </td>
                           <td className="px-2 py-1.5 text-right" style={{ color: T.text }}>{item.order}</td>
                           <td className="px-2 py-1.5 text-right">
@@ -5503,20 +5502,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                             </div>
                                           </>
                                         )}
-                                        {/* EMB: design code + stitch count */}
-                                        {decOpt.v === 'EMB' && (<>
-                                          <input type="text" value={item.embCode || ''} onChange={e => updateJobItem(idx, 'embCode', e.target.value)}
-                                            className="h-5 border border-purple-200 rounded px-1.5 text-[11px] font-mono text-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-400 w-32 bg-white" placeholder="EMB code…" />
+                                        {/* Generic decoration code — works for any method (EMB/TRS/SP/DTF…) */}
+                                        <input type="text" value={item.decCode || item.embCode || item.trsCode || ''} onChange={e => updateJobItem(idx, 'decCode', e.target.value)}
+                                          className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-amber-400 w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
+                                        {/* EMB: stitch count */}
+                                        {decOpt.v === 'EMB' && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="0" value={item.stitchCount || ''} onChange={e => updateJobItem(idx, 'stitchCount', e.target.value)}
-                                              className="h-5 w-20 border border-purple-200 rounded px-1.5 text-[11px] text-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-400 bg-white" placeholder="Stitches" />
-                                            <span className="text-[10px] text-purple-400 shrink-0">sts</span>
+                                              className="h-5 w-20 border rounded px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white" style={{ borderColor: T.hairline }} placeholder="Stitches" />
+                                            <span className="text-[10px] shrink-0" style={{ color: T.textFaint }}>sts</span>
                                           </div>
-                                        </>)}
-                                        {/* TRS/SP: transfer code */}
-                                        {(decOpt.v === 'TRS' || decOpt.v === 'SP') && (
-                                          <input type="text" value={item.trsCode || ''} onChange={e => updateJobItem(idx, 'trsCode', e.target.value)}
-                                            className="h-5 border border-indigo-200 rounded px-1.5 text-[11px] font-mono text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-32 bg-white" placeholder="TRS/SP code…" />
                                         )}
                                         {/* Color count for Screen/DTF/DTG/Sub/Pad */}
                                         {decOpt.hasColors && (

@@ -104,6 +104,9 @@ class JobItem(Base):
     )  # None / EMB / TRS / Screen / DTF / DTG / Sub / Pad / Laser / Vinyl
     emb_code = Column(String(50))
     trs_code = Column(String(50))
+    # Generic decoration code — works for any method (EMB/TRS/SP/DTF/…).
+    # emb_code/trs_code are kept for back-compat with existing rows.
+    dec_code = Column(String(100))
     stitch_count = Column(Integer, nullable=True)  # EMB stitch count (pricing basis)
     color_count = Column(Integer, nullable=True)  # Screen/DTF/DTG color count
     dec_position = Column(String(30))  # Chest / Back / L.Sleeve / etc.

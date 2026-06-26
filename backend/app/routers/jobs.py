@@ -65,6 +65,7 @@ class JobItemSchema(BaseModel):
     decoration_type: str = "None"
     emb_code: Optional[str] = None
     trs_code: Optional[str] = None
+    dec_code: Optional[str] = None
     stitch_count: Optional[int] = None
     color_count: Optional[int] = None
     dec_position: Optional[str] = None
