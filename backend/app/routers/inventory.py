@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
 from typing import Optional, List
@@ -151,7 +152,28 @@ def list_inventory(
             q = q.filter(InventoryItem.category == category)
         if low_stock:
             q = q.filter(InventoryItem.stock <= InventoryItem.min_stock)
-        return q.order_by(InventoryItem.name).offset(offset).limit(limit).all()
+        items = q.order_by(InventoryItem.name).offset(offset).limit(limit).all()
+        # Live committed qty = supply on OPEN job lines. Quotes/paid/cancelled jobs
+        # don't reserve stock (Jim2). Overrides the stored column so available =
+        # on-hand − committed is real across all jobs. Not persisted (no commit).
+        skus = [it.sku for it in items]
+        if skus:
+            committed = dict(
+                db.query(
+                    JobItem.stock_code,
+                    func.coalesce(func.sum(JobItem.supply_qty), 0),
+                )
+                .join(Job, JobItem.job_id == Job.id)
+                .filter(
+                    JobItem.stock_code.in_(skus),
+                    Job.status.notin_(["QUOTE", "PAID", "CANCEL"]),
+                )
+                .group_by(JobItem.stock_code)
+                .all()
+            )
+            for it in items:
+                it.committed_qty = int(committed.get(it.sku, 0) or 0)
+        return items
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to retrieve inventory")
 

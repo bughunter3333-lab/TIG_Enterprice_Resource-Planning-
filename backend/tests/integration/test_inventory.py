@@ -64,6 +64,39 @@ class TestInventoryCRUD:
         r = client.delete("/inventory/INV-DEL01")
         assert r.status_code == 200
 
+    def test_committed_qty_computed_from_open_job_lines(
+        self, client, make_inventory, make_customer
+    ):
+        """committed_qty = supply on OPEN job lines; quotes/paid don't reserve."""
+        make_inventory(sku="INV-COMMIT", stock=100)
+        make_customer(id="CCOMMIT")
+        # Open ORDER reserves 30 from stock
+        r = client.post(
+            "/jobs",
+            json={
+                "customer_id": "CCOMMIT",
+                "status": "ORDER",
+                "items": [
+                    {"stock_code": "INV-COMMIT", "order_qty": 50, "supply_qty": 30}
+                ],
+            },
+        )
+        assert r.status_code in (200, 201)
+        # A QUOTE must NOT reserve stock
+        client.post(
+            "/jobs",
+            json={
+                "customer_id": "CCOMMIT",
+                "status": "QUOTE",
+                "items": [
+                    {"stock_code": "INV-COMMIT", "order_qty": 10, "supply_qty": 10}
+                ],
+            },
+        )
+        inv = client.get("/inventory").json()
+        item = next(i for i in inv if i["sku"] == "INV-COMMIT")
+        assert item["committed_qty"] == 30
+
 
 @pytest.mark.integration
 class TestStockAdjustment:
