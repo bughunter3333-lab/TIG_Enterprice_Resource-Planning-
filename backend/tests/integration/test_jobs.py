@@ -65,6 +65,39 @@ class TestJobCRUD:
         )
         assert r.status_code in (200, 201)
 
+    def test_create_job_returns_line_items(self, client, make_customer):
+        """The create response must include the saved line items (not an empty list)."""
+        make_customer(id="JITEMS")
+        r = client.post(
+            "/jobs",
+            json={
+                "customer_id": "JITEMS",
+                "status": "QUOTE",
+                "total_ex": 180.0,
+                "tax": 18.0,
+                "total_inc": 198.0,
+                "balance_due": 198.0,
+                "items": [
+                    {
+                        "display_type": "product",
+                        "description": "Staple Tee",
+                        "stock_code": "AS5026",
+                        "order_qty": 10,
+                        "qty": 10,
+                        "price_ex": 18.0,
+                        "total": 180.0,
+                        "decoration_type": "EMB",
+                        "emb_code": "E-123",
+                    }
+                ],
+            },
+        )
+        assert r.status_code in (200, 201)
+        body = r.json()
+        assert len(body["items"]) == 1
+        assert body["items"][0]["description"] == "Staple Tee"
+        assert body["items"][0]["emb_code"] == "E-123"
+
     def test_get_job_not_found(self, client):
         r = client.get("/jobs/NONEXISTENT")
         assert r.status_code == 404

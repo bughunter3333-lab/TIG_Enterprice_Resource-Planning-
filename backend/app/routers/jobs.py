@@ -569,6 +569,17 @@ def get_job(job_id: str, db: Session = Depends(get_db), _: User = Depends(requir
     return job
 
 
+def _job_with_relations(db: Session, job_id: str) -> Job:
+    """Re-load a job with items + comments eagerly so the response includes them.
+    (db.refresh() expires relationships, which would serialize an empty items list.)"""
+    return (
+        db.query(Job)
+        .options(joinedload(Job.items), joinedload(Job.comments))
+        .filter(Job.id == job_id)
+        .first()
+    )
+
+
 @router.post("")
 def create_job(
     body: JobCreate, db: Session = Depends(get_db), _: User = Depends(require_staff)
@@ -591,8 +602,7 @@ def create_job(
         job.items.append(JobItem(**item_data.model_dump()))
     db.add(job)
     db.commit()
-    db.refresh(job)
-    return job
+    return _job_with_relations(db, job_id)
 
 
 @router.patch("/{job_id}")
@@ -624,8 +634,7 @@ def update_job(
         _recalculate_weight(job, db)
 
     db.commit()
-    db.refresh(job)
-    return job
+    return _job_with_relations(db, job_id)
 
 
 @router.post("/{job_id}/status")
