@@ -8873,7 +8873,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {!loading && activeModule === 'inventory' && (
                   <StockModule
                     inventory={inventory}
-                    onNavigateJob={(jobId) => { const j = jobs.find(jb => String(jb.id) === String(jobId)); if (j) { pinJob(j); } setActiveModule('jobs'); }}
+                    onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}
                   />
                 )}

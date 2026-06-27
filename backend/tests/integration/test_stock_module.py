@@ -202,6 +202,7 @@ def test_committed_from_job_items(client, make_inventory, make_customer, db):
         job_id="J002",
         stock_code="SKU001",
         order_qty=5,
+        supply_qty=5,
         price_ex=58.00,
         price_inc=63.80,
         total=319.00,
@@ -215,6 +216,30 @@ def test_committed_from_job_items(client, make_inventory, make_customer, db):
     assert rows[0]["job_id"] == "J002"
     assert rows[0]["qty"] == 5
     assert float(rows[0]["total_aud"]) == pytest.approx(319.00)
+
+
+@pytest.mark.integration
+def test_committed_excludes_quotes_and_backorder_only(
+    client, make_inventory, make_customer, db
+):
+    """Committed reflects stock actually reserved (supply_qty) on live orders:
+    quotes don't reserve, and a fully back-ordered line commits no on-hand stock."""
+    make_inventory(sku="SKU001")
+    make_customer(id="CUST001")
+    quote = Job(id="J010", customer_id="CUST001", customer_name="Q", status="QUOTE")
+    order = Job(id="J011", customer_id="CUST001", customer_name="O", status="ORDER")
+    db.add_all([quote, order])
+    db.commit()
+    # Quote line: supplied but status QUOTE -> excluded
+    db.add(JobItem(job_id="J010", stock_code="SKU001", order_qty=4, supply_qty=4))
+    # Order line fully back-ordered: supply_qty 0 -> excluded
+    db.add(
+        JobItem(job_id="J011", stock_code="SKU001", order_qty=6, supply_qty=0, b_ord=6)
+    )
+    db.commit()
+    resp = client.get("/inventory/SKU001/committed")
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 @pytest.mark.integration

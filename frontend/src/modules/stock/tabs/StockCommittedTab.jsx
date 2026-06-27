@@ -30,6 +30,7 @@ export default function StockCommittedTab({ sku, onNavigateJob }) {
       columns={columns}
       rows={error ? [] : (data || []).map((r, i) => ({ ...r, _rowId: `${r.job_id}-${i}` }))}
       rowKey="_rowId"
+      onRowClick={(r) => onNavigateJob && onNavigateJob(r.job_id)}
       error={error ? (error.message || 'Failed to load committed') : undefined}
       onRetry={refetch}
       emptyText="No committed stock"

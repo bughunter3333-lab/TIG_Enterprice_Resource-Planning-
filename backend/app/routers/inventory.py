@@ -723,7 +723,8 @@ def get_committed(
         .join(Job, JobItem.job_id == Job.id)
         .filter(
             JobItem.stock_code == sku,
-            Job.status.notin_(["PAID", "CANCEL"]),
+            JobItem.supply_qty > 0,
+            Job.status.notin_(["QUOTE", "PAID", "CANCEL"]),
         )
         .all()
     )
