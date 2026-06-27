@@ -166,7 +166,7 @@ def list_inventory(
                 .join(Job, JobItem.job_id == Job.id)
                 .filter(
                     JobItem.stock_code.in_(skus),
-                    Job.status.notin_(["QUOTE", "PAID", "CANCEL"]),
+                    Job.status.notin_(["QUOTE", "INVOICE", "PAID", "CANCEL"]),
                 )
                 .group_by(JobItem.stock_code)
                 .all()
@@ -724,7 +724,7 @@ def get_committed(
         .filter(
             JobItem.stock_code == sku,
             JobItem.supply_qty > 0,
-            Job.status.notin_(["QUOTE", "PAID", "CANCEL"]),
+            Job.status.notin_(["QUOTE", "INVOICE", "PAID", "CANCEL"]),
         )
         .all()
     )

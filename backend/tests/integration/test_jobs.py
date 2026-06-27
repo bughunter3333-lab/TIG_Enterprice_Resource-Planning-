@@ -150,6 +150,80 @@ class TestJobStatusTransitions:
         assert r.status_code == 200
 
 
+def _finish_job_with_line(db, make_inventory, job_id, cust_id, sku, on_hand, qty):
+    """A FINISH-status job carrying one supplied product line, ready to invoice."""
+    from app.models.job import JobItem
+
+    make_inventory(sku=sku, stock=on_hand)
+    job = _make_job(db, job_id, cust_id, status="FINISH")
+    job.invoice = f"INV-{job_id}"
+    db.add(
+        JobItem(
+            job_id=job_id,
+            display_type="product",
+            stock_code=sku,
+            description="Tee",
+            order_qty=qty,
+            qty=qty,
+            supply_qty=qty,
+        )
+    )
+    db.commit()
+    return job
+
+
+@pytest.mark.integration
+class TestStockDepletionOnInvoice:
+    """On-hand stock leaves inventory when a job is invoiced (Jim2 model)."""
+
+    def test_invoice_depletes_on_hand(self, client, db, make_customer, make_inventory):
+        from app.models.inventory import InventoryItem, StockMovement
+
+        _finish_job_with_line(db, make_inventory, "J-D001", "JD01", "DEP1", 50, 10)
+        r = client.post("/jobs/J-D001/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        db.expire_all()
+        inv = db.query(InventoryItem).filter_by(sku="DEP1").first()
+        assert inv.stock == 40  # 50 on-hand − 10 supplied
+        sale = db.query(StockMovement).filter_by(job_id="J-D001", type="Sale").first()
+        assert sale is not None
+        assert sale.quantity == -10
+
+    def test_invoiced_line_not_committed(
+        self, client, db, make_customer, make_inventory
+    ):
+        _finish_job_with_line(db, make_inventory, "J-D002", "JD02", "DEP2", 50, 10)
+        client.post("/jobs/J-D002/status", json={"status": "INVOICE"})
+        # Stock has left → the line no longer shows as committed.
+        rows = client.get("/inventory/DEP2/committed").json()
+        assert all(row["job_id"] != "J-D002" for row in rows)
+
+    def test_invoice_then_paid_does_not_double_deplete(
+        self, client, db, make_customer, make_inventory
+    ):
+        from app.models.inventory import InventoryItem
+
+        _finish_job_with_line(db, make_inventory, "J-D003", "JD03", "DEP3", 50, 10)
+        client.post("/jobs/J-D003/status", json={"status": "INVOICE"})
+        client.post("/jobs/J-D003/status", json={"status": "PAID"})
+        db.expire_all()
+        inv = db.query(InventoryItem).filter_by(sku="DEP3").first()
+        assert inv.stock == 40  # depleted once, not twice
+
+    def test_unprint_restores_on_hand(self, client, db, make_customer, make_inventory):
+        from app.models.inventory import InventoryItem, StockMovement
+
+        _finish_job_with_line(db, make_inventory, "J-D004", "JD04", "DEP4", 50, 10)
+        client.post("/jobs/J-D004/status", json={"status": "INVOICE"})
+        r = client.post("/jobs/J-D004/unprint")
+        assert r.status_code == 200
+        db.expire_all()
+        inv = db.query(InventoryItem).filter_by(sku="DEP4").first()
+        assert inv.stock == 50  # restored
+        sale = db.query(StockMovement).filter_by(job_id="J-D004", type="Sale").first()
+        assert sale is None  # reversal removed the depletion movement
+
+
 @pytest.mark.integration
 class TestJobPayments:
     def test_record_payment_reduces_balance(self, client, db, make_customer):

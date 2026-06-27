@@ -322,6 +322,57 @@ def _release_job_stock(job: "Job", db: Session) -> None:
         )
 
 
+def _deplete_on_hand(job: "Job", db: Session) -> None:
+    """Goods physically leave on-hand stock when the job is invoiced (Jim2 model).
+    Idempotent per job: a "Sale" movement already on the ledger means done."""
+    already = (
+        db.query(StockMovement)
+        .filter(StockMovement.job_id == job.id, StockMovement.type == "Sale")
+        .first()
+    )
+    if already:
+        return
+    today = datetime.now().strftime("%Y-%m-%d")
+    for item in job.items:
+        if not item.stock_code or item.display_type != "product":
+            continue
+        qty = item.supply_qty or 0  # only what was actually supplied from stock ships
+        if qty <= 0:
+            continue
+        inv = (
+            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
+        )
+        if not inv:
+            continue
+        inv.stock = (inv.stock or 0) - qty
+        db.add(
+            StockMovement(
+                sku=item.stock_code,
+                date=today,
+                type="Sale",
+                quantity=-qty,
+                reference=job.id,
+                job_id=job.id,
+                notes=f"Invoiced — shipped on Job {job.id}",
+            )
+        )
+
+
+def _restore_on_hand(job: "Job", db: Session) -> None:
+    """Reverse invoice depletion (e.g. on unprint): add stock back, drop Sale rows."""
+    sales = (
+        db.query(StockMovement)
+        .filter(StockMovement.job_id == job.id, StockMovement.type == "Sale")
+        .all()
+    )
+    for mv in sales:
+        inv = db.query(InventoryItem).filter(InventoryItem.sku == mv.sku).first()
+        if inv:
+            # mv.quantity is negative → subtracting it adds the stock back
+            inv.stock = (inv.stock or 0) - (mv.quantity or 0)
+        db.delete(mv)
+
+
 def _recalculate_weight(job: "Job", db: Session) -> None:
     """Recompute job.weight_total from item quantities and per-SKU weights."""
     skus = [
@@ -669,6 +720,10 @@ def update_status(
     elif was_committed and not now_committed:
         _release_job_stock(job, db)
 
+    # On-hand depletion: stock physically leaves when the job is invoiced (Jim2 model)
+    if body.status == "INVOICE" and old_status != "INVOICE":
+        _deplete_on_hand(job, db)
+
     # Set compliance timestamps automatically
     if body.status == "INVOICE" and not job.invoice_date:
         job.invoice_date = today
@@ -865,6 +920,7 @@ def dispatch_job(
         job.status = "INVOICE"
         if not job.invoice_date:
             job.invoice_date = today
+        _deplete_on_hand(job, db)
     db.commit()
     db.refresh(job)
     return job
@@ -886,6 +942,8 @@ def unprint_job(
         )
     prev_status = job.status
     job.status = "FINISH"
+    # Recalling the invoice puts the shipped stock back on hand
+    _restore_on_hand(job, db)
     now = datetime.now()
     comment = JobComment(
         job_id=job_id,
