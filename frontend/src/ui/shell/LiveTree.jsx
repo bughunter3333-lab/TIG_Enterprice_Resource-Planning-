@@ -1,4 +1,5 @@
-import { X } from 'lucide-react';
+import { useState } from 'react';
+import { X, ChevronRight, ChevronDown } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
@@ -28,6 +29,21 @@ export const SAVED_LISTS = [
   { id: 'pickpack', label: 'Pick/Pack', test: (j) => j.status === 'Pick/Pack' },
 ];
 
+// Group active jobs by customer (Jim2's tree groups jobs under a parent node, e.g.
+// "Zone Bowling · 13"). Sorted by size desc so the busiest accounts surface first.
+function groupActiveJobs(jobs) {
+  const map = new Map();
+  for (const j of jobs) {
+    if (!ACTIVE(j)) continue;
+    const key = j.customer || j.customerId || 'Unassigned';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(j);
+  }
+  return [...map.entries()]
+    .map(([name, js]) => ({ name, jobs: js }))
+    .sort((a, b) => b.jobs.length - a.jobs.length || a.name.localeCompare(b.name));
+}
+
 function SectionLabel({ children }) {
   return (
     <div style={{ padding: '8px 10px 3px', fontSize: 9.5, fontWeight: 700, color: T.textFaint, letterSpacing: '0.06em' }}>
@@ -36,7 +52,55 @@ function SectionLabel({ children }) {
   );
 }
 
+// One expandable/clickable tree row. `depth` indents children; `caret` shows a
+// chevron for parent nodes (null for leaves).
+function TreeRow({ depth = 0, caret = null, label, count, countColor, bold, onClick, onKeyDown, children: trailing }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={onKeyDown ?? (e => { if (e.key === 'Enter') onClick?.(); })}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: `3px 10px 3px ${10 + depth * 12}px`,
+        fontSize: T.fsSmall, cursor: 'pointer', color: T.text,
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = T.hairlineSoft)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <span style={{ width: 12, display: 'flex', flexShrink: 0, color: T.textFaint }}>{caret}</span>
+      <span style={{
+        flex: 1, fontWeight: bold ? 700 : 500, overflow: 'hidden',
+        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      {trailing}
+      {count != null && (
+        <span style={{ fontSize: 9.5, fontWeight: 700, color: countColor ?? T.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function LiveTree({ jobs = [], pinnedJobs = [], currentUser, onOpenJob, onUnpinJob, onSelectList }) {
+  // JOBS branch and its customer groups are collapsed by default (Jim2 behaviour:
+  // expand a parent to drill into its children).
+  const [jobsOpen, setJobsOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState(() => new Set());
+
+  const toggleGroup = (name) => setOpenGroups(prev => {
+    const next = new Set(prev);
+    next.has(name) ? next.delete(name) : next.add(name);
+    return next;
+  });
+
+  const groups = groupActiveJobs(jobs);
+  const activeCount = groups.reduce((n, g) => n + g.jobs.length, 0);
+
   return (
     <div style={{
       width: 190, background: T.panel, borderRight: `1px solid ${T.hairline}`,
@@ -78,6 +142,51 @@ export default function LiveTree({ jobs = [], pinnedJobs = [], currentUser, onOp
           )}
         </div>
       ))}
+
+      {/* JOBS branch — parent → customer group → child job (Jim2 nav tree) */}
+      <SectionLabel>NAV TREE</SectionLabel>
+      <TreeRow
+        depth={0}
+        bold
+        caret={jobsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        label="Jobs"
+        count={activeCount}
+        onClick={() => setJobsOpen(o => !o)}
+      />
+      {jobsOpen && groups.length === 0 && (
+        <div style={{ padding: '2px 10px 2px 32px', fontSize: T.fsSmall, color: T.textFaint }}>No active jobs</div>
+      )}
+      {jobsOpen && groups.map(group => {
+        const isOpen = openGroups.has(group.name);
+        return (
+          <div key={group.name}>
+            <TreeRow
+              depth={1}
+              caret={isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              label={group.name}
+              count={group.jobs.length}
+              onClick={() => toggleGroup(group.name)}
+            />
+            {isOpen && group.jobs.map(j => (
+              <TreeRow
+                key={j.id}
+                depth={2}
+                label={j.id}
+                onClick={() => onOpenJob(j)}
+                count={undefined}
+              >
+                <span style={{
+                  color: statusColor(j.status), fontSize: 9, fontWeight: 600,
+                  textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap', maxWidth: 70,
+                }}>
+                  {j.status}
+                </span>
+              </TreeRow>
+            ))}
+          </div>
+        );
+      })}
 
       <SectionLabel>LISTS</SectionLabel>
       {SAVED_LISTS.map(list => {

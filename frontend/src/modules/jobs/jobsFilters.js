@@ -26,6 +26,56 @@ export const EMPTY_JOBS_FILTERS = {
   jobList: null,
 };
 
+// Jim2's status-class checkboxes (Active / Ready / Finish / Inv'd / Quote).
+// Each maps a job status onto one of our workflow buckets. When several are
+// ticked the job only has to match one of them (OR within the checked set).
+export const JOB_LIST_CLASSES = {
+  quote: (s) => s === 'QUOTE',
+  active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'].includes(s),
+  ready: (s) => s === 'Pick/Pack',
+  finish: (s) => s === 'FINISH',
+  invoiced: (s) => ['INVOICE', 'PAID'].includes(s),
+};
+
+const _contains = (val, q) => !q || String(val || '').toLowerCase().includes(String(q).toLowerCase());
+
+const _inRange = (raw, from, to) => {
+  if (!from && !to) return true;
+  const d = parseD(raw);
+  if (!d) return false; // a date filter excludes records without that date (Jim2 behaviour)
+  if (from && d < new Date(from)) return false;
+  if (to && d > new Date(to + 'T23:59:59')) return false;
+  return true;
+};
+
+// The saved/advanced "Job List" predicate. Every field is optional, so an empty
+// object (or null) matches everything; only populated fields constrain results.
+export function matchJobList(job, jl) {
+  if (!jl) return true;
+  if (jl.customerId && job.customerId !== jl.customerId) return false;
+  if (jl.status && job.status !== jl.status) return false;
+  if (jl.priority && job.priority !== jl.priority) return false;
+  if (jl.type && job.type !== jl.type) return false;
+  if (jl.accMgr && job.accMgr !== jl.accMgr) return false;
+  if (jl.shipTo && job.shipTo !== jl.shipTo) return false;
+  if (jl.group) {
+    const g = job.customerId ? job.customerId.split('.')[0] : '';
+    if (g !== jl.group) return false;
+  }
+  if (!_contains(job.id, jl.jobNo)) return false;
+  if (!_contains(job.custRef, jl.custRef)) return false;
+  if (!_contains(job.ourRef, jl.ourRef)) return false;
+  if (!_contains(job.invoice, jl.invoice)) return false;
+  if (!_contains(job.projectNo, jl.projectNo)) return false;
+  if (!_contains(job.serialNo, jl.serialNo)) return false;
+  if (!_inRange(job.dateIn, jl.dateInFrom, jl.dateInTo)) return false;
+  if (!_inRange(job.due, jl.dueFrom, jl.dueTo)) return false;
+  if (!_inRange(job.out, jl.dateOutFrom, jl.dateOutTo)) return false;
+  const classes = Object.keys(JOB_LIST_CLASSES).filter((k) => jl[k]);
+  if (classes.length && !classes.some((k) => JOB_LIST_CLASSES[k](job.status))) return false;
+  return true;
+}
+
 export function buildFilterOptions(jobs) {
   const uniqueCustomers = [...new Map(jobs.map(j => [j.customerId, { id: j.customerId, name: j.customer }])).values()]
     .filter(c => c.id).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -66,11 +116,7 @@ export function filterJobs(jobs, f, currentUser, now = new Date()) {
     const matchesGroup = f.customerGroup === 'all' || jobGroup === f.customerGroup;
     const matchesOpenFreight = !f.openFreight || (job.shipTo && !['PAID', 'CANCEL'].includes(job.status));
 
-    const matchesJobList = !f.jobList || (
-      (!f.jobList.customerId || job.customerId === f.jobList.customerId) &&
-      (!f.jobList.status || job.status === f.jobList.status) &&
-      (!f.jobList.priority || job.priority === f.jobList.priority)
-    );
+    const matchesJobList = matchJobList(job, f.jobList);
 
     let matchesQuick = true;
     if (f.quick) {

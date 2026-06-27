@@ -1,4 +1,4 @@
-import { filterJobs, buildFilterOptions, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { filterJobs, buildFilterOptions, matchJobList, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
 
 const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const today = new Date();
@@ -50,6 +50,40 @@ test('buildFilterOptions produces sorted unique lists', () => {
   expect(o.uniqueAssignees).toEqual(['Emon', 'Sam']);
   expect(o.uniqueShipCodes).toEqual(['MEL', 'SYD']);
   expect(o.uniqueGroups).toEqual(['BHP', 'ONSIT']);
+});
+
+test('matchJobList: empty/null draft matches everything', () => {
+  expect(jobs.every(j => matchJobList(j, null))).toBe(true);
+  expect(jobs.every(j => matchJobList(j, {}))).toBe(true);
+});
+
+test('matchJobList: text fields are case-insensitive "contains"', () => {
+  expect(jobs.filter(j => matchJobList(j, { custRef: 'po' })).map(j => j.id)).toEqual(['1001']);
+  expect(jobs.filter(j => matchJobList(j, { jobNo: '100' }))).toHaveLength(3);
+  expect(jobs.filter(j => matchJobList(j, { invoice: 'inv-1' })).map(j => j.id)).toEqual(['1003']);
+});
+
+test('matchJobList: exact selects (customerId, status, group, accMgr)', () => {
+  expect(jobs.filter(j => matchJobList(j, { customerId: 'BHP.HQ' })).map(j => j.id)).toEqual(['1001']);
+  expect(jobs.filter(j => matchJobList(j, { status: 'QUOTE' })).map(j => j.id)).toEqual(['1002']);
+  expect(jobs.filter(j => matchJobList(j, { group: 'BHP' }))).toHaveLength(2);
+});
+
+test('matchJobList: status-class checkboxes OR within the checked set', () => {
+  // active = working statuses (PRINT); quote = QUOTE; invoiced = PAID/INVOICE
+  expect(jobs.filter(j => matchJobList(j, { active: true })).map(j => j.id)).toEqual(['1001']);
+  expect(jobs.filter(j => matchJobList(j, { quote: true })).map(j => j.id)).toEqual(['1002']);
+  expect(jobs.filter(j => matchJobList(j, { invoiced: true })).map(j => j.id)).toEqual(['1003']);
+  // two classes ticked → union
+  expect(jobs.filter(j => matchJobList(j, { active: true, quote: true })).map(j => j.id)).toEqual(['1001', '1002']);
+});
+
+test('matchJobList: due-date range excludes jobs outside the window', () => {
+  // local Y-M-D so it lines up with parseD's reconstruction (TZ-robust)
+  const localYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // only jobs due on/after today → 1002 (due tomorrow); 1001/1003 due yesterday
+  const out = jobs.filter(j => matchJobList(j, { dueFrom: localYmd(today) }));
+  expect(out.map(j => j.id)).toEqual(['1002']);
 });
 
 test('QUICK_FILTERS exposes the seven quick filter ids', () => {

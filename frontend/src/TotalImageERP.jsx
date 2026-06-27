@@ -19,6 +19,8 @@ import StatusBadge from './ui/StatusBadge';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
 import JobsModule from './modules/jobs/JobsModule';
+import JobListBuilder from './modules/jobs/JobListBuilder';
+import { matchJobList } from './modules/jobs/jobsFilters';
 import StockModule from './modules/stock/StockModule';
 import POModule from './modules/purchase-orders/POModule';
 import CustomersModule from './modules/customers/CustomersModule';
@@ -27,6 +29,14 @@ import AdminPanel from './components/admin/AdminPanel';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
+
+// Blank draft for the advanced Job List builder (every field optional → see matchJobList)
+const EMPTY_JOB_LIST = {
+  jobNo: '', customerId: '', status: '', priority: '', type: '', accMgr: '', shipTo: '', group: '',
+  custRef: '', ourRef: '', invoice: '', projectNo: '', serialNo: '',
+  dateInFrom: '', dateInTo: '', dueFrom: '', dueTo: '', dateOutFrom: '', dateOutTo: '',
+  active: false, ready: false, finish: false, invoiced: false, quote: false,
+};
 
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
@@ -823,8 +833,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Job detail / list view separation
   const [showJobDetail, setShowJobDetail] = useState(false);
-  const [jobListModal, setJobListModal] = useState({ open: false, name: '', customerId: '', status: '', priority: '' });
-  const [activeJobList, setActiveJobList] = useState(null); // { name, customerId, status, priority }
+  const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST } });
+  const [activeJobList, setActiveJobList] = useState(null); // matchJobList draft + name
 
   // Order Requirements module
   const [orderReqTab, setOrderReqTab] = useState('garment');
@@ -3114,66 +3124,54 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </div>
         </div>
       {/* Create Job List modal */}
-      {jobListModal.open && (
-        <DraggableModal onClose={() => setJobListModal(m => ({ ...m, open: false }))} cardClass="w-full max-w-md">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-indigo-500" />
-              <h3 className="text-sm font-semibold text-gray-800">Create Job List</h3>
-            </div>
-            <button onClick={() => setJobListModal(m => ({ ...m, open: false }))} className="p-1 rounded hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
-          </div>
-          <div className="px-6 py-4 space-y-3">
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">List Name</label>
-              <input value={jobListModal.name} onChange={e => setJobListModal(m => ({ ...m, name: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                placeholder="e.g. Arcare Active Jobs" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Customer</label>
-              <select value={jobListModal.customerId} onChange={e => setJobListModal(m => ({ ...m, customerId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                <option value="">All Customers</option>
-                {uniqueCustomers.map(c => <option key={c.id} value={c.id}>{c.id} — {c.name}</option>)}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Status</label>
-                <select value={jobListModal.status} onChange={e => setJobListModal(m => ({ ...m, status: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                  <option value="">All Statuses</option>
-                  {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+      {jobListModal.open && (() => {
+        const d = jobListModal.draft;
+        const jobsArr = jobs || [];
+        const uniq = (sel) => [...new Set(jobsArr.map(sel).filter(Boolean))].sort();
+        const options = {
+          customers: (customers || []).map(c => ({ id: c.id, name: c.name })),
+          accMgrs: uniq(j => j.accMgr),
+          shipCodes: uniq(j => j.shipTo),
+          groups: uniq(j => (j.customerId ? j.customerId.split('.')[0] : null)),
+          types: uniq(j => j.type),
+        };
+        const results = jobsArr.filter(j => matchJobList(j, d));
+        const close = () => setJobListModal(m => ({ ...m, open: false }));
+        const run = () => {
+          const hasAny = Object.values(d).some(v => v !== '' && v !== false);
+          const parts = [];
+          if (d.customerId) parts.push((customers.find(c => c.id === d.customerId)?.name) || d.customerId);
+          if (d.status) parts.push(d.status);
+          if (d.priority) parts.push(d.priority);
+          ['active', 'ready', 'finish', 'invoiced', 'quote'].forEach(k => { if (d[k]) parts.push(k[0].toUpperCase() + k.slice(1)); });
+          const name = parts.join(' · ') || 'Filtered Jobs';
+          setActiveJobList(hasAny ? { ...d, name } : null);
+          setShowJobDetail(false);
+          setActiveModule('jobs');
+          close();
+        };
+        return (
+          <DraggableModal onClose={close} cardClass="w-full max-w-5xl">
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: T.hairline }}>
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4" style={{ color: T.accentStrong }} />
+                <h3 className="text-sm font-semibold" style={{ color: T.text }}>Job List — Advanced Filter</h3>
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Priority</label>
-                <select value={jobListModal.priority} onChange={e => setJobListModal(m => ({ ...m, priority: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                  <option value="">All Priorities</option>
-                  {['Low','Normal','High','Urgent'].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
+              <button onClick={close} className="p-1 rounded hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-gray-400">Leave fields empty to include all.</p>
-          </div>
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
-            <button onClick={() => setJobListModal(m => ({ ...m, open: false }))} className="px-4 py-2 text-xs text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
-            <button
-              onClick={() => {
-                const hasFilter = jobListModal.customerId || jobListModal.status || jobListModal.priority;
-                const cust = uniqueCustomers.find(c => c.id === jobListModal.customerId);
-                const label = jobListModal.name || [cust?.name, jobListModal.status, jobListModal.priority].filter(Boolean).join(' · ') || 'All Jobs';
-                setActiveJobList(hasFilter || jobListModal.name ? { name: label, customerId: jobListModal.customerId, status: jobListModal.status, priority: jobListModal.priority } : null);
-                setJobListModal(m => ({ ...m, open: false }));
-              }}
-              className="px-5 py-2 text-xs font-semibold text-white bg-amber-700 rounded-lg hover:bg-amber-700 flex items-center gap-1.5">
-              <ClipboardList className="w-3.5 h-3.5" />Run List
-            </button>
-          </div>
-        </DraggableModal>
-      )}
+            <JobListBuilder
+              draft={d}
+              onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
+              options={options}
+              results={results}
+              onRun={run}
+              onCancel={close}
+              onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
+              onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
+            />
+          </DraggableModal>
+        );
+      })()}
       </>
     );
   };
