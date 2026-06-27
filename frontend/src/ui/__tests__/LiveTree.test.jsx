@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import LiveTree from '../shell/LiveTree';
+import LiveTree, { groupActiveJobs } from '../shell/LiveTree';
 
 const today = new Date();
 const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -45,4 +45,20 @@ test('clicking a saved list fires onSelectList with its id', () => {
   render(<LiveTree {...base} />);
   fireEvent.click(screen.getByText('Overdue'));
   expect(base.onSelectList).toHaveBeenCalledWith('overdue');
+});
+
+test('groupActiveJobs: prefers project, falls back to customer, excludes finished', () => {
+  const input = [
+    { id: 'A', status: 'ORDER', projectNo: 'Zone Bowling', customer: 'Zone Pty' },
+    { id: 'B', status: 'PRINT', projectNo: 'Zone Bowling', customer: 'Zone Pty' },
+    { id: 'C', status: 'ORDER', projectNo: '', customer: 'BHP Group' },
+    { id: 'D', status: 'PAID', projectNo: 'Zone Bowling', customer: 'Zone Pty' }, // finished → excluded
+  ];
+  const groups = groupActiveJobs(input);
+  const project = groups.find(g => g.name === 'Zone Bowling');
+  const customer = groups.find(g => g.name === 'BHP Group');
+  expect(project.isProject).toBe(true);
+  expect(project.jobs.map(j => j.id)).toEqual(['A', 'B']); // D excluded (PAID)
+  expect(customer.isProject).toBe(false);
+  expect(customer.jobs.map(j => j.id)).toEqual(['C']);
 });

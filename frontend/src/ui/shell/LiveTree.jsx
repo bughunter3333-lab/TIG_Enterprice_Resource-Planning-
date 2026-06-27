@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, Folder } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
@@ -29,18 +29,19 @@ export const SAVED_LISTS = [
   { id: 'pickpack', label: 'Pick/Pack', test: (j) => j.status === 'Pick/Pack' },
 ];
 
-// Group active jobs by customer (Jim2's tree groups jobs under a parent node, e.g.
-// "Zone Bowling · 13"). Sorted by size desc so the busiest accounts surface first.
-function groupActiveJobs(jobs) {
+// Group active jobs under a parent node like Jim2's tree (e.g. "Zone Bowling · 13").
+// Prefer the job's Project; fall back to the customer account when there's no
+// project. Sorted by size desc so the busiest groups surface first.
+export function groupActiveJobs(jobs) {
   const map = new Map();
   for (const j of jobs) {
     if (!ACTIVE(j)) continue;
-    const key = j.customer || j.customerId || 'Unassigned';
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(j);
+    const project = (j.projectNo || '').trim();
+    const key = project || j.customer || j.customerId || 'Unassigned';
+    if (!map.has(key)) map.set(key, { name: key, isProject: !!project, jobs: [] });
+    map.get(key).jobs.push(j);
   }
-  return [...map.entries()]
-    .map(([name, js]) => ({ name, jobs: js }))
+  return [...map.values()]
     .sort((a, b) => b.jobs.length - a.jobs.length || a.name.localeCompare(b.name));
 }
 
@@ -54,7 +55,7 @@ function SectionLabel({ children }) {
 
 // One expandable/clickable tree row. `depth` indents children; `caret` shows a
 // chevron for parent nodes (null for leaves).
-function TreeRow({ depth = 0, caret = null, label, count, countColor, bold, onClick, onKeyDown, children: trailing }) {
+function TreeRow({ depth = 0, caret = null, icon = null, label, count, countColor, bold, onClick, onKeyDown, children: trailing }) {
   return (
     <div
       role="button"
@@ -70,6 +71,7 @@ function TreeRow({ depth = 0, caret = null, label, count, countColor, bold, onCl
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
       <span style={{ width: 12, display: 'flex', flexShrink: 0, color: T.textFaint }}>{caret}</span>
+      {icon && <span style={{ display: 'flex', flexShrink: 0, color: T.accentStrong }}>{icon}</span>}
       <span style={{
         flex: 1, fontWeight: bold ? 700 : 500, overflow: 'hidden',
         textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -163,6 +165,7 @@ export default function LiveTree({ jobs = [], pinnedJobs = [], currentUser, onOp
             <TreeRow
               depth={1}
               caret={isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              icon={group.isProject ? <Folder size={11} /> : null}
               label={group.name}
               count={group.jobs.length}
               onClick={() => toggleGroup(group.name)}
