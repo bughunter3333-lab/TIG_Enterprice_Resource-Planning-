@@ -719,6 +719,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const { data: inventory = [], isLoading: invLoading } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  // Admin-managed custom decoration methods (added via the line-item picker's "+ Add method").
+  const { data: customDecRaw } = useQuery({ queryKey: ['custom_dec_types'], queryFn: () => api.adminSettings.get('custom_dec_types'), staleTime: 300000, onError: () => {} });
+  const customDecTypes = (() => { try { const arr = customDecRaw?.value ? JSON.parse(customDecRaw.value) : []; return Array.isArray(arr) ? arr : []; } catch { return []; } })();
+  const decMethods = [...DEC_OPTIONS, ...customDecTypes.filter(c => c && c.v && !DEC_OPTIONS.some(d => d.v === c.v)).map(c => ({ v: c.v, l: c.l || c.v, emoji: '🏷️', dot: 'bg-zinc-400', pill: 'bg-zinc-100 text-zinc-700 border-zinc-300' }))];
+  const addDecMethod = async () => {
+    const name = (window.prompt('New decoration method code (e.g. UV, Foil, DTG):') || '').trim();
+    if (!name) return null;
+    if (!decMethods.some(d => d.v === name)) {
+      try {
+        await api.adminSettings.set('custom_dec_types', [...customDecTypes.filter(c => c.v !== name), { v: name, l: name }]);
+        queryClient.invalidateQueries({ queryKey: ['custom_dec_types'] });
+      } catch (e) { setApiError(e.message); }
+    }
+    return name;
+  };
   const { data: purchaseOrders = [] } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: garmentReqs = [], refetch: refetchGarmentReqs } = useQuery({ queryKey: ['orderRequirements', 'garment'], queryFn: () => api.jobs.orderRequirements('garment'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
@@ -5268,7 +5283,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const invItem = item.stockCode ? inventory.find(i => i.sku === item.stockCode) : null;
                             const isOutOfStock = !isSec && !isNote && invItem != null && invItem.stock <= 0;
                             const isLowMargin = !isSec && !isNote && item.priceEx > 0 && item.purchasePrice > 0 && (item.marginPercent || 0) < 15;
-                            const decOpt = DEC_OPTIONS.find(o => o.v === (item.decorationType || 'None')) || DEC_OPTIONS[0];
+                            const decOpt = decMethods.find(o => o.v === (item.decorationType || 'None')) || DEC_OPTIONS[0];
                             const hasDecoration = !isSec && !isNote && item.decorationType && item.decorationType !== 'None';
 
                             const rowBg = isSec ? 'bg-amber-50' : isNote ? 'bg-yellow-50'
@@ -5497,13 +5512,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           <>
                                             <div className="fixed inset-0 z-40" onClick={() => setOpenDecIdx(null)} />
                                             <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden" style={{ minWidth: 148 }}>
-                                              {DEC_OPTIONS.map(opt => (
+                                              {decMethods.map(opt => (
                                                 <button key={opt.v} type="button"
                                                   onMouseDown={() => { updateJobItem(idx, 'decorationType', opt.v); setOpenDecIdx(null); }}
                                                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-gray-50 ${opt.v === (item.decorationType || 'None') ? 'font-semibold bg-gray-50' : 'text-gray-700'}`}>
                                                   <span className={`w-2 h-2 rounded-full shrink-0 ${opt.dot}`} /> {opt.emoji} {opt.l}
                                                 </button>
                                               ))}
+                                              <button type="button"
+                                                onMouseDown={async () => { const v = await addDecMethod(); if (v) updateJobItem(idx, 'decorationType', v); setOpenDecIdx(null); }}
+                                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left font-medium border-t" style={{ color: T.accentStrong, borderColor: T.hairline }}>
+                                                ＋ Add method…
+                                              </button>
                                             </div>
                                           </>
                                         )}
