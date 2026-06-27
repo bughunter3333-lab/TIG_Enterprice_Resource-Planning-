@@ -76,7 +76,7 @@ def list_receipts(
     po_id: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     q = db.query(GoodsReceipt)
     if po_id:
@@ -90,7 +90,7 @@ def list_receipts(
 def get_receipt(
     receipt_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     gr = db.get(GoodsReceipt, receipt_id)
     if not gr:
@@ -103,7 +103,7 @@ def create_receipt(
     body: GoodsReceiptIn,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     # Derive supplier info from PO if provided
     supplier_name = body.supplier_name
@@ -154,7 +154,7 @@ def update_receipt(
     receipt_id: int,
     body: GoodsReceiptPatch,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     gr = db.get(GoodsReceipt, receipt_id)
     if not gr:
@@ -176,7 +176,7 @@ def update_receipt(
 def accept_receipt(
     receipt_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     """Accept a goods receipt: update stock on hand, update PO qty_received, mark Accepted."""
     gr = db.get(GoodsReceipt, receipt_id)
@@ -276,6 +276,9 @@ def _auto_allocate_backorders(gr: GoodsReceipt, db: Session) -> None:
                 break
             fill = min(item.b_ord, remaining)
             item.b_ord = item.b_ord - fill
+            # Move the filled qty from back-order into supply (now on hand),
+            # keeping the invariant order_qty = supply_qty + b_ord.
+            item.supply_qty = (item.supply_qty or 0) + fill
             remaining -= fill
 
 
@@ -283,7 +286,7 @@ def _auto_allocate_backorders(gr: GoodsReceipt, db: Session) -> None:
 def reject_receipt(
     receipt_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     gr = db.get(GoodsReceipt, receipt_id)
     if not gr:
@@ -300,7 +303,7 @@ def reject_receipt(
 def delete_receipt(
     receipt_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin"])),
+    _=Depends(require_role("admin")),
 ):
     gr = db.get(GoodsReceipt, receipt_id)
     if not gr:

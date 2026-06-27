@@ -54,7 +54,7 @@ def _row(p: SupplierPriceList) -> dict:
 def list_price_list(
     supplier_id: str,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     supplier = db.get(Supplier, supplier_id)
     if not supplier:
@@ -67,7 +67,7 @@ def create_price_list_item(
     supplier_id: str,
     body: PriceListItemIn,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     supplier = db.get(Supplier, supplier_id)
     if not supplier:
@@ -85,7 +85,7 @@ def update_price_list_item(
     item_id: int,
     body: PriceListItemPatch,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin", "staff"])),
+    _=Depends(require_role("admin", "staff")),
 ):
     item = (
         db.query(SupplierPriceList)
@@ -106,7 +106,7 @@ def delete_price_list_item(
     supplier_id: str,
     item_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_role(["admin"])),
+    _=Depends(require_role("admin")),
 ):
     item = (
         db.query(SupplierPriceList)
