@@ -12,6 +12,7 @@ export default function AppShell({
   badges, onNewJob, searchValue, onSearchChange, notifCount,
   // New:
   jobs, pinnedJobs, onOpenJob, onUnpinJob, onSelectList,
+  savedLists, onRunList, onDeleteList,
   children,
 }) {
   const [treeOpen, setTreeOpen] = useState(() => {
@@ -48,6 +49,9 @@ export default function AppShell({
             onOpenJob={onOpenJob}
             onUnpinJob={onUnpinJob}
             onSelectList={onSelectList ?? (() => onNavigate('jobs'))}
+            savedLists={savedLists}
+            onRunList={onRunList}
+            onDeleteList={onDeleteList}
           />
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

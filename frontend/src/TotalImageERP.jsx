@@ -847,6 +847,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST } });
   const [activeJobList, setActiveJobList] = useState(null); // matchJobList draft + name
 
+  // Saved Job Lists (Jim2: named lists that run live in the nav tree, max 25).
+  // Each is { id, name, filter } where filter is a matchJobList draft; persisted locally.
+  const [savedJobLists, setSavedJobLists] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tig.jobLists') || '[]'); } catch { return []; }
+  });
+  const persistJobLists = (next) => {
+    setSavedJobLists(next);
+    try { localStorage.setItem('tig.jobLists', JSON.stringify(next)); } catch { /* storage blocked — session-only */ }
+  };
+  const saveJobList = (name, filter) => {
+    const clean = (name || '').trim() || `Job List ${savedJobLists.length + 1}`;
+    persistJobLists([...savedJobLists, { id: `JL-${Date.now()}`, name: clean, filter }].slice(0, 25));
+  };
+  const deleteJobList = (id) => persistJobLists(savedJobLists.filter(l => l.id !== id));
+
   // Order Requirements module
   const [orderReqTab, setOrderReqTab] = useState('garment');
   const [orderReqSelected, setOrderReqSelected] = useState(new Set());
@@ -3204,6 +3219,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               onCancel={close}
               onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
               onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
+              onSaveAsList={() => {
+                if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
+                const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
+                if (name === null) return; // cancelled
+                const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
+                saveJobList(finalName, d);
+                setActiveJobList({ ...d, name: finalName });
+                setShowJobDetail(false);
+                setActiveModule('jobs');
+                notify(`Saved list "${finalName}"`, { type: 'success' });
+                close();
+              }}
             />
           </DraggableModal>
         );
@@ -8201,6 +8228,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         setShowJobDetail(false);
         setActiveModule('jobs');
       }}
+      savedLists={savedJobLists.map(l => ({ id: l.id, name: l.name, jobs: (jobs ?? []).filter(j => matchJobList(j, l.filter)) }))}
+      onRunList={(listId) => {
+        const l = savedJobLists.find(x => x.id === listId);
+        if (l) { setActiveJobList({ ...l.filter, name: l.name }); setShowJobDetail(false); setActiveModule('jobs'); }
+      }}
+      onDeleteList={deleteJobList}
     >
 
       {/* ── Contextual Action Toolbar ── */}

@@ -1,4 +1,4 @@
-import { Play, RotateCcw, X, Eye } from 'lucide-react';
+import { Play, RotateCcw, X, Eye, Save } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import DataGrid from '../../ui/DataGrid';
 
@@ -85,7 +85,7 @@ const RESULT_COLUMNS = (onOpen) => [
   },
 ];
 
-export default function JobListBuilder({ draft, onChange, options, results, onRun, onCancel, onReset, onOpenJob }) {
+export default function JobListBuilder({ draft, onChange, options, results, onRun, onCancel, onReset, onOpenJob, onSaveAsList }) {
   const set = (patch) => onChange(patch);
   const o = options || {};
 
@@ -162,6 +162,11 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
         <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', fontSize: T.fsSmall, color: T.textMuted, background: T.hairlineSoft, border: `1px solid ${T.hairline}`, borderRadius: 6, cursor: 'pointer' }}>
           <X size={13} /> Cancel
         </button>
+        {onSaveAsList && (
+          <button onClick={onSaveAsList} title="Save these filters as a named list in the nav tree" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', fontSize: T.fsSmall, fontWeight: 600, color: T.accentStrong, background: T.accentTint, border: `1px solid ${T.accentStrong}`, borderRadius: 6, cursor: 'pointer' }}>
+            <Save size={13} /> Save as List
+          </button>
+        )}
         <button onClick={onRun} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', fontSize: T.fsSmall, fontWeight: 700, color: '#fff', background: T.accentStrong ?? T.accent, border: 'none', borderRadius: 6, cursor: 'pointer' }}>
           <Play size={13} /> Run List
         </button>
