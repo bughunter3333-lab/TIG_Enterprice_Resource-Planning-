@@ -811,6 +811,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [poStatusFilter, setPoStatusFilter] = useState('all');
   const [receiveQtys, setReceiveQtys] = useState({});
 
+  // Jim2 cycle: open a PO straight from a job line's PO#. Selecting it shows the
+  // PO detail panel; if it isn't in the loaded list, surface it via search.
+  const openPOById = (poNo) => {
+    if (!poNo) return;
+    const po = (purchaseOrders || []).find(p => String(p.id) === String(poNo));
+    if (po) { setSelectedPO(po); setPoStatusFilter('all'); setSearchTerm(''); }
+    else { setSearchTerm(String(poNo)); }
+    setActiveModule('purchase-orders');
+  };
+
   // Sidebar nav context menu
   const [navCtxMenu, setNavCtxMenu] = useState({ open: false, x: 0, y: 0, itemId: null, pinnedJobId: null });
 
@@ -2283,6 +2293,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Order Items</span>
                   <span className="text-[10px]" style={{ color: T.textFaint }}>{activeJob.items.filter(i => !i.displayType).length} lines</span>
                 </div>
+                {(() => {
+                  const linkedPOs = [...new Set(activeJob.items.filter(i => i.poNo).map(i => i.poNo))];
+                  if (linkedPOs.length === 0) return null;
+                  return (
+                    <div className="px-3 py-1.5 flex items-center gap-2 flex-wrap" style={{ background: T.panel, borderBottom: `1px solid ${T.hairline}` }}>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: T.textFaint }}>Purchase Orders</span>
+                      {linkedPOs.map(po => (
+                        <button key={po} onClick={() => openPOById(po)} title={`Open PO ${po}`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold hover:underline"
+                          style={{ background: T.accentTint, color: T.accentStrong, border: `1px solid ${T.accentStrong}` }}>
+                          {po}<ExternalLink className="w-3 h-3" />
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs" style={{ minWidth: 860 }}>
                     <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
@@ -2324,7 +2350,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
                               : <span style={{ color: T.textFaint }}>—</span>}
                           </td>
-                          <td className="px-2 py-1.5 font-mono" style={{ color: T.text }}>{item.poNo || <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 font-mono">
+                            {item.poNo
+                              ? <button onClick={() => openPOById(item.poNo)} title={`Open PO ${item.poNo}`}
+                                  className="inline-flex items-center gap-1 hover:underline" style={{ color: T.accentStrong, fontWeight: 600 }}>
+                                  {item.poNo}<ExternalLink className="w-3 h-3" />
+                                </button>
+                              : <span style={{ color: T.textFaint }}>—</span>}
+                          </td>
                           <td className="px-2 py-1.5 whitespace-nowrap" style={{ color: T.text }}>{item.poDue || <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5 font-mono" style={{ color: T.accentStrong }}>{item.stockCode || <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5">
