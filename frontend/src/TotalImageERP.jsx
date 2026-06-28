@@ -3172,69 +3172,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             })()}
           </div>
         </div>
-      {/* Create Job List modal */}
-      {jobListModal.open && (() => {
-        const d = jobListModal.draft;
-        const jobsArr = jobs || [];
-        const uniq = (sel) => [...new Set(jobsArr.map(sel).filter(Boolean))].sort();
-        const options = {
-          customers: (customers || []).map(c => ({ id: c.id, name: c.name })),
-          accMgrs: uniq(j => j.accMgr),
-          shipCodes: uniq(j => j.shipTo),
-          groups: uniq(j => (j.customerId ? j.customerId.split('.')[0] : null)),
-          types: uniq(j => j.type),
-          branches: uniq(j => j.branch),
-          priceLevels: uniq(j => j.priceLevel),
-        };
-        const results = jobsArr.filter(j => matchJobList(j, d));
-        const close = () => setJobListModal(m => ({ ...m, open: false }));
-        const run = () => {
-          const hasAny = Object.values(d).some(v => v !== '' && v !== false);
-          const parts = [];
-          if (d.customerId) parts.push((customers.find(c => c.id === d.customerId)?.name) || d.customerId);
-          if (d.status) parts.push(d.status);
-          if (d.priority) parts.push(d.priority);
-          ['active', 'ready', 'finish', 'invoiced', 'quote'].forEach(k => { if (d[k]) parts.push(k[0].toUpperCase() + k.slice(1)); });
-          const name = parts.join(' · ') || 'Filtered Jobs';
-          setActiveJobList(hasAny ? { ...d, name } : null);
-          setShowJobDetail(false);
-          setActiveModule('jobs');
-          close();
-        };
-        return (
-          <DraggableModal onClose={close} cardClass="w-full max-w-5xl">
-            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: T.hairline }}>
-              <div className="flex items-center gap-2">
-                <ClipboardList className="w-4 h-4" style={{ color: T.accentStrong }} />
-                <h3 className="text-sm font-semibold" style={{ color: T.text }}>Job List — Advanced Filter</h3>
-              </div>
-              <button onClick={close} className="p-1 rounded hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
-            </div>
-            <JobListBuilder
-              draft={d}
-              onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
-              options={options}
-              results={results}
-              onRun={run}
-              onCancel={close}
-              onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
-              onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
-              onSaveAsList={() => {
-                if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
-                const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
-                if (name === null) return; // cancelled
-                const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
-                saveJobList(finalName, d);
-                setActiveJobList({ ...d, name: finalName });
-                setShowJobDetail(false);
-                setActiveModule('jobs');
-                notify(`Saved list "${finalName}"`, { type: 'success' });
-                close();
-              }}
-            />
-          </DraggableModal>
-        );
-      })()}
       </>
     );
   };
@@ -6324,6 +6261,63 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     );
   };
 
+  const renderJobListModal = () => {
+    if (!jobListModal.open) return null;
+    const d = jobListModal.draft;
+    const jobsArr = jobs || [];
+    const uniq = (sel) => [...new Set(jobsArr.map(sel).filter(Boolean))].sort();
+    const options = {
+      customers: (customers || []).map(c => ({ id: c.id, name: c.name })),
+      accMgrs: uniq(j => j.accMgr),
+      shipCodes: uniq(j => j.shipTo),
+      groups: uniq(j => (j.customerId ? j.customerId.split('.')[0] : null)),
+      types: uniq(j => j.type),
+      branches: uniq(j => j.branch),
+      priceLevels: uniq(j => j.priceLevel),
+    };
+    const results = jobsArr.filter(j => matchJobList(j, d));
+    const close = () => setJobListModal(m => ({ ...m, open: false }));
+    const run = () => {
+      const hasAny = Object.values(d).some(v => v !== '' && v !== false);
+      const parts = [];
+      if (d.customerId) parts.push((customers.find(c => c.id === d.customerId)?.name) || d.customerId);
+      if (d.status) parts.push(d.status);
+      if (d.priority) parts.push(d.priority);
+      ['active', 'ready', 'finish', 'invoiced', 'quote'].forEach(k => { if (d[k]) parts.push(k[0].toUpperCase() + k.slice(1)); });
+      const name = parts.join(' · ') || 'Filtered Jobs';
+      setActiveJobList(hasAny ? { ...d, name } : null);
+      setShowJobDetail(false);
+      setActiveModule('jobs');
+      close();
+    };
+    return (
+      <DraggableModal onClose={close} cardClass="w-full max-w-5xl">
+        <JobListBuilder
+          draft={d}
+          onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
+          options={options}
+          results={results}
+          onRun={run}
+          onCancel={close}
+          onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
+          onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
+          onSaveAsList={() => {
+            if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
+            const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
+            if (name === null) return; // cancelled
+            const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
+            saveJobList(finalName, d);
+            setActiveJobList({ ...d, name: finalName });
+            setShowJobDetail(false);
+            setActiveModule('jobs');
+            notify(`Saved list "${finalName}"`, { type: 'success' });
+            close();
+          }}
+        />
+      </DraggableModal>
+    );
+  };
+
   const renderConfirmModal = () => {
     if (!confirmModal.show) return null;
     return (
@@ -9133,6 +9127,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
       {/* Modals */}
       {renderModal()}
+      {renderJobListModal()}
       {renderConfirmModal()}
       {renderPaymentModal()}
       {renderStockAdjustModal()}
