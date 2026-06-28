@@ -78,6 +78,42 @@ test('matchJobList: status-class checkboxes OR within the checked set', () => {
   expect(jobs.filter(j => matchJobList(j, { active: true, quote: true })).map(j => j.id)).toEqual(['1001', '1002']);
 });
 
+test('matchJobList: name matches customer or on-job contact; branch is exact', () => {
+  const js = [
+    { id: '1', customer: 'BHP Group', nameContact: 'Jane', branch: 'HQ' },
+    { id: '2', customer: 'Onsite', nameContact: 'Bob Jones', branch: 'MELB' },
+  ];
+  expect(js.filter(j => matchJobList(j, { name: 'jane' })).map(j => j.id)).toEqual(['1']);
+  expect(js.filter(j => matchJobList(j, { name: 'jones' })).map(j => j.id)).toEqual(['2']);
+  expect(js.filter(j => matchJobList(j, { branch: 'MELB' })).map(j => j.id)).toEqual(['2']);
+});
+
+test('matchJobList: Item#/Stock# matches any line stock code or description', () => {
+  const js = [
+    { id: '1', items: [{ stockCode: 'AS5026', description: 'Staple Tee' }] },
+    { id: '2', items: [{ stockCode: 'TW1823', description: 'Hi Vis Polo' }] },
+    { id: '3', items: [] },
+  ];
+  expect(js.filter(j => matchJobList(j, { stockCode: 'as50' })).map(j => j.id)).toEqual(['1']);
+  expect(js.filter(j => matchJobList(j, { stockCode: 'polo' })).map(j => j.id)).toEqual(['2']);
+  expect(js.filter(j => matchJobList(j, { stockCode: 'zzz' }))).toHaveLength(0);
+});
+
+test('matchJobList: overdue toggle uses injected now and excludes finished', () => {
+  const NOW = new Date('2026-06-12T00:00:00');
+  const js = [
+    { id: '1', status: 'PRINT', due: '01/06/2026' },   // past + active → overdue
+    { id: '2', status: 'PRINT', due: '20/06/2026' },    // future → not overdue
+    { id: '3', status: 'PAID', due: '01/06/2026' },     // past but finished → excluded
+  ];
+  expect(js.filter(j => matchJobList(j, { overdue: true }, NOW)).map(j => j.id)).toEqual(['1']);
+});
+
+test('matchJobList: tax toggle keeps only jobs with tax > 0', () => {
+  const js = [{ id: '1', tax: 18 }, { id: '2', tax: 0 }];
+  expect(js.filter(j => matchJobList(j, { tax: true })).map(j => j.id)).toEqual(['1']);
+});
+
 test('matchJobList: due-date range excludes jobs outside the window', () => {
   // local Y-M-D so it lines up with parseD's reconstruction (TZ-robust)
   const localYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

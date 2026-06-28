@@ -48,9 +48,12 @@ const _inRange = (raw, from, to) => {
   return true;
 };
 
+const _FINISHED = ['FINISH', 'INVOICE', 'PAID', 'CANCEL'];
+
 // The saved/advanced "Job List" predicate. Every field is optional, so an empty
 // object (or null) matches everything; only populated fields constrain results.
-export function matchJobList(job, jl) {
+// `now` is injectable so the "overdue" toggle stays deterministic in tests.
+export function matchJobList(job, jl, now = new Date()) {
   if (!jl) return true;
   if (jl.customerId && job.customerId !== jl.customerId) return false;
   if (jl.status && job.status !== jl.status) return false;
@@ -58,6 +61,7 @@ export function matchJobList(job, jl) {
   if (jl.type && job.type !== jl.type) return false;
   if (jl.accMgr && job.accMgr !== jl.accMgr) return false;
   if (jl.shipTo && job.shipTo !== jl.shipTo) return false;
+  if (jl.branch && job.branch !== jl.branch) return false;
   if (jl.group) {
     const g = job.customerId ? job.customerId.split('.')[0] : '';
     if (g !== jl.group) return false;
@@ -68,9 +72,25 @@ export function matchJobList(job, jl) {
   if (!_contains(job.invoice, jl.invoice)) return false;
   if (!_contains(job.projectNo, jl.projectNo)) return false;
   if (!_contains(job.serialNo, jl.serialNo)) return false;
+  if (!_contains(job.priceLevel, jl.priceLevel)) return false;
+  // Name matches the customer or the on-job contact name
+  if (jl.name && !(_contains(job.customer, jl.name) || _contains(job.nameContact, jl.name))) return false;
+  // Item# / Stock# matches any line's stock code or description
+  if (jl.stockCode) {
+    const q = jl.stockCode.toLowerCase();
+    const hit = (job.items || []).some(
+      (it) => String(it.stockCode || '').toLowerCase().includes(q) || String(it.description || '').toLowerCase().includes(q)
+    );
+    if (!hit) return false;
+  }
   if (!_inRange(job.dateIn, jl.dateInFrom, jl.dateInTo)) return false;
   if (!_inRange(job.due, jl.dueFrom, jl.dueTo)) return false;
   if (!_inRange(job.out, jl.dateOutFrom, jl.dateOutTo)) return false;
+  if (jl.overdue) {
+    const d = parseD(job.due);
+    if (!d || d >= now || _FINISHED.includes(job.status)) return false;
+  }
+  if (jl.tax && !(Number(job.tax) > 0)) return false;
   const classes = Object.keys(JOB_LIST_CLASSES).filter((k) => jl[k]);
   if (classes.length && !classes.some((k) => JOB_LIST_CLASSES[k](job.status))) return false;
   return true;
@@ -116,7 +136,7 @@ export function filterJobs(jobs, f, currentUser, now = new Date()) {
     const matchesGroup = f.customerGroup === 'all' || jobGroup === f.customerGroup;
     const matchesOpenFreight = !f.openFreight || (job.shipTo && !['PAID', 'CANCEL'].includes(job.status));
 
-    const matchesJobList = matchJobList(job, f.jobList);
+    const matchesJobList = matchJobList(job, f.jobList, now);
 
     let matchesQuick = true;
     if (f.quick) {

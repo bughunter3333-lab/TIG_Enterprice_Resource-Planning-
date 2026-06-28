@@ -67,6 +67,7 @@ function ClassChk({ label, checked, onToggle }) {
 const RESULT_COLUMNS = (onOpen) => [
   { key: 'id', label: 'Job#', width: 78, render: r => <span style={{ fontWeight: 700 }}>{r.id}</span> },
   { key: 'status', label: 'Status', width: 84, render: r => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{r.status}</span> },
+  { key: 'projectNo', label: 'Project#', width: 96, render: r => r.projectNo || '' },
   { key: 'customerId', label: 'Cust#', width: 90 },
   { key: 'customer', label: 'Customer Name' },
   { key: 'custRef', label: 'Cust Ref#', width: 110 },
@@ -110,6 +111,14 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
           <Txt label="Inv#" value={draft.invoice} onChange={v => set({ invoice: v })} />
           <Txt label="Project#" value={draft.projectNo} onChange={v => set({ projectNo: v })} />
 
+          <Txt label="Name" value={draft.name} onChange={v => set({ name: v })} placeholder="customer / contact" />
+          <Sel label="Branch" value={draft.branch} onChange={v => set({ branch: v })} options={o.branches || []} />
+          <Sel label="Price Lev." value={draft.priceLevel} onChange={v => set({ priceLevel: v })} options={o.priceLevels || []} />
+
+          <Txt label="Item# / Stock#" value={draft.stockCode} onChange={v => set({ stockCode: v })} placeholder="stock code / desc" />
+          <Txt label="Serial#" value={draft.serialNo} onChange={v => set({ serialNo: v })} />
+          <div />
+
           <DateRange label="Date In" fromVal={draft.dateInFrom} toVal={draft.dateInTo} onFrom={v => set({ dateInFrom: v })} onTo={v => set({ dateInTo: v })} />
           <DateRange label="Due" fromVal={draft.dueFrom} toVal={draft.dueTo} onFrom={v => set({ dueFrom: v })} onTo={v => set({ dueTo: v })} />
           <DateRange label="Date Out" fromVal={draft.dateOutFrom} toVal={draft.dateOutTo} onFrom={v => set({ dateOutFrom: v })} onTo={v => set({ dateOutTo: v })} />
@@ -123,6 +132,8 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
           <ClassChk label="Finish" checked={!!draft.finish} onToggle={() => set({ finish: !draft.finish })} />
           <ClassChk label="Inv'd" checked={!!draft.invoiced} onToggle={() => set({ invoiced: !draft.invoiced })} />
           <ClassChk label="Quote" checked={!!draft.quote} onToggle={() => set({ quote: !draft.quote })} />
+          <ClassChk label="Overdue" checked={!!draft.overdue} onToggle={() => set({ overdue: !draft.overdue })} />
+          <ClassChk label="Tax" checked={!!draft.tax} onToggle={() => set({ tax: !draft.tax })} />
         </div>
       </div>
 

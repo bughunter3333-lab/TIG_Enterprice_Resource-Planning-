@@ -34,8 +34,9 @@ const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; co
 const EMPTY_JOB_LIST = {
   jobNo: '', customerId: '', status: '', priority: '', type: '', accMgr: '', shipTo: '', group: '',
   custRef: '', ourRef: '', invoice: '', projectNo: '', serialNo: '',
+  name: '', branch: '', priceLevel: '', stockCode: '',
   dateInFrom: '', dateInTo: '', dueFrom: '', dueTo: '', dateOutFrom: '', dateOutTo: '',
-  active: false, ready: false, finish: false, invoiced: false, quote: false,
+  active: false, ready: false, finish: false, invoiced: false, quote: false, overdue: false, tax: false,
 };
 
 const DEC_OPTIONS = [
@@ -3167,6 +3168,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           shipCodes: uniq(j => j.shipTo),
           groups: uniq(j => (j.customerId ? j.customerId.split('.')[0] : null)),
           types: uniq(j => j.type),
+          branches: uniq(j => j.branch),
+          priceLevels: uniq(j => j.priceLevel),
         };
         const results = jobsArr.filter(j => matchJobList(j, d));
         const close = () => setJobListModal(m => ({ ...m, open: false }));
