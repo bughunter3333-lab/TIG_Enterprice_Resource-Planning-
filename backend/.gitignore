@@ -7,3 +7,6 @@ venv/
 *.egg-info/
 dist/
 .pytest_cache/
+
+dev_local.db
+*.db

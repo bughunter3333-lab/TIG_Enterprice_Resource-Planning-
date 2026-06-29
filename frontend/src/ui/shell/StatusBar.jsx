@@ -29,6 +29,9 @@ export default function StatusBar({ currentUser }) {
       {currentUser?.role && <span style={{ fontSize: 10.5, color: T.chromeTextMuted, textTransform: 'capitalize' }}>{currentUser.role}</span>}
       <span style={{ fontSize: 10.5, color: T.chromeTextMuted }}>Total Image Group</span>
       <div style={{ flex: 1 }} />
+      <span style={{ fontSize: 10.5, color: T.chromeTextMuted, fontFamily: T.mono ?? 'monospace' }} title="Deployed build id">
+        build {typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'}
+      </span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: T.chromeTextMuted }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor }} />
         {online == null ? 'Checking…' : online ? 'Connected' : 'Offline'}

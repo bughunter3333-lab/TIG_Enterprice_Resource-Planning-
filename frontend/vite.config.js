@@ -4,6 +4,14 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // Visible build marker so we can confirm which version is actually live.
+    // Vercel sets VERCEL_GIT_COMMIT_SHA at build time; falls back to a timestamp locally.
+    __BUILD_ID__: JSON.stringify(
+      (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) ||
+        new Date().toISOString().slice(0, 16).replace('T', ' ')
+    ),
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
