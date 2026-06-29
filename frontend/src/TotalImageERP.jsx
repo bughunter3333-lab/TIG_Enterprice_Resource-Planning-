@@ -1388,17 +1388,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // CRUD operations
   const saveJob = async () => {
+    if (!jobForm.customerId) {
+      const msg = 'Pick a customer before saving — type a name in the Customer field or choose one from Cust #.';
+      setApiError(msg);
+      notify(msg, { type: 'error' });
+      return;
+    }
     try {
       const formWithTotals = recalcJobTotals(jobForm);
       if (editingItem) {
         const updated = await api.jobs.update(editingItem.id, formWithTotals);
         updatePinnedJob(updated);
+        notify(`Job ${editingItem.id} saved`, { type: 'success' });
       } else {
-        await api.jobs.create(formWithTotals);
+        const created = await api.jobs.create(formWithTotals);
+        notify(`Job ${created?.id ?? ''} created`.trim(), { type: 'success' });
       }
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       closeModal();
-    } catch (e) { setApiError(e.message); }
+    } catch (e) {
+      setApiError(e.message);
+      notify(e.message || 'Could not save job', { type: 'error' });
+    }
   };
 
   const deleteJob = (jobId) => {
@@ -5637,10 +5648,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 >
                   Cancel
                 </button>
+                {!jobForm.customerId && (
+                  <span className="self-center text-xs" style={{ color: T.textFaint }}>Pick a customer to save</span>
+                )}
                 <button
                   onClick={saveJob}
-                  disabled={!jobForm.customerId}
-                  className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 flex items-center"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Job
