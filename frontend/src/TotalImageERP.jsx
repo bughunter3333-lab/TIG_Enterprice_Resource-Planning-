@@ -6261,7 +6261,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     );
   };
 
-  const renderJobListModal = () => {
+  const renderJobListPage = () => {
     if (!jobListModal.open) return null;
     const d = jobListModal.draft;
     const jobsArr = jobs || [];
@@ -6291,30 +6291,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       close();
     };
     return (
-      <DraggableModal onClose={close} cardClass="w-full max-w-5xl">
-        <JobListBuilder
-          draft={d}
-          onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
-          options={options}
-          results={results}
-          onRun={run}
-          onCancel={close}
-          onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
-          onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
-          onSaveAsList={() => {
-            if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
-            const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
-            if (name === null) return; // cancelled
-            const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
-            saveJobList(finalName, d);
-            setActiveJobList({ ...d, name: finalName });
-            setShowJobDetail(false);
-            setActiveModule('jobs');
-            notify(`Saved list "${finalName}"`, { type: 'success' });
-            close();
-          }}
-        />
-      </DraggableModal>
+      <JobListBuilder
+        draft={d}
+        onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
+        options={options}
+        results={results}
+        onRun={run}
+        onCancel={close}
+        onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
+        onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
+        onSaveAsList={() => {
+          if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
+          const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
+          if (name === null) return; // cancelled
+          const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
+          saveJobList(finalName, d);
+          setActiveJobList({ ...d, name: finalName });
+          setShowJobDetail(false);
+          setActiveModule('jobs');
+          notify(`Saved list "${finalName}"`, { type: 'success' });
+          close();
+        }}
+      />
     );
   };
 
@@ -8929,7 +8927,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             ) : (
               <>
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
-                {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && renderJobs()}
+                {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (jobListModal.open ? renderJobListPage() : renderJobs())}
                 {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
                 {!loading && activeModule === 'inventory' && (
                   <StockModule
@@ -9127,7 +9125,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
       {/* Modals */}
       {renderModal()}
-      {renderJobListModal()}
       {renderConfirmModal()}
       {renderPaymentModal()}
       {renderStockAdjustModal()}

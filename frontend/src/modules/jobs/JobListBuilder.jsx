@@ -111,7 +111,7 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
   const activeCount = Object.values(draft).filter(v => v !== '' && v !== false).length;
 
   return (
-    <div style={{ fontFamily: T.font, display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
+    <div style={{ fontFamily: T.font, display: 'flex', flexDirection: 'column', background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${T.hairline}` }}>
         <ClipboardList size={16} style={{ color: T.accentStrong }} />
@@ -130,7 +130,7 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
       </div>
 
       {/* Grouped filters */}
-      <div style={{ padding: 14, overflowY: 'auto', borderBottom: `1px solid ${T.hairline}` }}>
+      <div style={{ padding: 14, borderBottom: `1px solid ${T.hairline}` }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, alignItems: 'start' }}>
           <Group title="Job">
             <Txt label="Job#" value={draft.jobNo} onChange={v => set({ jobNo: v })} placeholder="e.g. 1199" />
