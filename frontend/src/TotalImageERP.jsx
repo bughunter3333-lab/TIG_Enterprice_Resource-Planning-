@@ -2029,7 +2029,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             viewMode={jobsViewMode === 'board' ? 'board' : 'table'}
             onViewModeChange={setJobsViewMode}
             currentUser={currentUser}
-            onJobClick={(job) => { setActiveJob(job); openModal('job'); }}
+            onJobClick={(job) => { setActiveJob(job); setShowJobDetail(true); }}
             lockedStatus={activeModule === 'quotes' ? 'QUOTE' : undefined}
           />
         )}
