@@ -844,7 +844,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Job detail / list view separation
   const [showJobDetail, setShowJobDetail] = useState(false);
-  const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST } });
+  const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST }, editingId: null });
   const [activeJobList, setActiveJobList] = useState(null); // matchJobList draft + name
 
   // Saved Job Lists (Jim2: named lists that run live in the nav tree).
@@ -867,6 +867,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return true;
   };
   const deleteJobList = (id) => persistJobLists(savedJobLists.filter(l => l.id !== id));
+  // Jim2: "Create Job List" makes an empty list in the tree immediately, then you
+  // filter + Run it. filter=null means "not run yet" (shows 0 until executed).
+  const createEmptyJobList = (node = 'jobs') => {
+    if (listsForNode(node).length >= JOB_LIST_MAX) {
+      notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
+      return;
+    }
+    const id = `JL-${Date.now()}`;
+    const name = `Job List ${listsForNode(node).length + 1}`;
+    persistJobLists([...savedJobLists, { id, name, filter: null, node }]);
+    setShowJobDetail(false);
+    setActiveModule('jobs');
+    setJobListModal({ open: true, draft: { ...EMPTY_JOB_LIST }, editingId: id });
+  };
 
   // Order Requirements module
   const [orderReqTab, setOrderReqTab] = useState('garment');
@@ -6295,40 +6309,35 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       priceLevels: uniq(j => j.priceLevel),
     };
     const results = jobsArr.filter(j => matchJobList(j, d));
-    const close = () => setJobListModal(m => ({ ...m, open: false }));
-    const listNode = 'jobs'; // the nav-tree node these lists live under (Jim2: 25 per node)
+    const editingId = jobListModal.editingId;
+    const editingList = savedJobLists.find(l => l.id === editingId);
+    const close = () => setJobListModal(m => ({ ...m, open: false, editingId: null }));
+    // Run: commit the current filters to this list; it now runs live in the tree + jobs view.
     const run = () => {
-      // Jim2: creating a list adds it to the nav tree under Jobs as "Job List N".
-      const name = `Job List ${listsForNode(listNode).length + 1}`;
-      if (!saveJobList(name, d, listNode)) { notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' }); return; }
-      setActiveJobList({ ...d, name });
+      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      setActiveJobList({ ...d, name: editingList ? editingList.name : 'Filtered Jobs' });
       setShowJobDetail(false);
       setActiveModule('jobs');
-      notify(`Created "${name}" — now under Jobs in the nav tree`, { type: 'success' });
+      notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} job${results.length === 1 ? '' : 's'}`, { type: 'success' });
+      close();
+    };
+    // Cancel: a list that was never run is discarded (Jim2 keeps only run lists).
+    const cancel = () => {
+      if (editingId && editingList && editingList.filter == null) deleteJobList(editingId);
       close();
     };
     return (
       <JobListBuilder
         draft={d}
+        listName={editingList ? editingList.name : 'Job List'}
         onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
         options={options}
         results={results}
         onRun={run}
-        onCancel={close}
-        onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
-        onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
-        onSaveAsList={() => {
-          if (listsForNode(listNode).length >= JOB_LIST_MAX) { notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' }); return; }
-          const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
-          if (name === null) return; // cancelled
-          const finalName = name.trim() || `Job List ${listsForNode(listNode).length + 1}`;
-          saveJobList(finalName, d, listNode);
-          setActiveJobList({ ...d, name: finalName });
-          setShowJobDetail(false);
-          setActiveModule('jobs');
-          notify(`Saved list "${finalName}"`, { type: 'success' });
-          close();
-        }}
+        onCancel={cancel}
+        onAddJob={() => { close(); openModal('job'); }}
+        onEditJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
+        onViewJob={(job) => { close(); setActiveJob(job); setShowJobDetail(true); setActiveModule('jobs'); }}
       />
     );
   };
@@ -8237,7 +8246,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         setShowJobDetail(false);
         setActiveModule('jobs');
       }}
-      savedLists={listsForNode('jobs').map(l => ({ id: l.id, name: l.name, jobs: (jobs ?? []).filter(j => matchJobList(j, l.filter)) }))}
+      savedLists={listsForNode('jobs').map(l => ({ id: l.id, name: l.name, jobs: l.filter ? (jobs ?? []).filter(j => matchJobList(j, l.filter)) : [] }))}
       onRunList={(listId) => {
         const l = savedJobLists.find(x => x.id === listId);
         if (l) { setActiveJobList({ ...l.filter, name: l.name }); setShowJobDetail(false); setActiveModule('jobs'); }
@@ -8258,7 +8267,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View Job</span>
               </button>
-              <button onClick={() => setJobListModal(m => ({ ...m, open: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+              <button onClick={() => createEmptyJobList('jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">

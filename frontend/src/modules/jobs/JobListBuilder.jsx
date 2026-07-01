@@ -1,4 +1,5 @@
-import { Play, RotateCcw, X, Eye, Save, ClipboardList } from 'lucide-react';
+import { useState } from 'react';
+import { Play, X, Eye, Plus, Pencil, ClipboardList } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import DataGrid from '../../ui/DataGrid';
 
@@ -105,10 +106,14 @@ const btn = (variant) => {
   return { ...base, color: T.textMuted, background: T.hairlineSoft, border: `1px solid ${T.hairline}` };
 };
 
-export default function JobListBuilder({ draft, onChange, options, results, onRun, onCancel, onReset, onOpenJob, onSaveAsList }) {
+export default function JobListBuilder({ draft, listName, onChange, options, results, onRun, onCancel, onAddJob, onEditJob, onViewJob }) {
   const set = (patch) => onChange(patch);
   const o = options || {};
   const activeCount = Object.values(draft).filter(v => v !== '' && v !== false).length;
+  const [selectedId, setSelectedId] = useState(null);
+  const [showTotal, setShowTotal] = useState(false);
+  const selected = (results || []).find(r => r.id === selectedId) || null;
+  const totalSum = (results || []).reduce((s, r) => s + Number(r.total || 0), 0);
 
   return (
     <div style={{ fontFamily: T.font, display: 'flex', flexDirection: 'column', background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, overflow: 'hidden' }}>
@@ -116,8 +121,8 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${T.hairline}` }}>
         <ClipboardList size={16} style={{ color: T.accentStrong }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Create Job List</div>
-          <div style={{ fontSize: 10.5, color: T.textFaint }}>Filter jobs by any combination below · empty fields match everything</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{listName || 'Job List'}</div>
+          <div style={{ fontSize: 10.5, color: T.textFaint }}>Set filters, then Run — empty fields match everything</div>
         </div>
         {activeCount > 0 && (
           <span style={{ fontSize: 10, fontWeight: 700, color: T.accentStrong, background: T.accentTint, border: `1px solid ${T.accentStrong}`, borderRadius: 999, padding: '2px 9px' }}>
@@ -186,30 +191,36 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
           <span style={{ ...lbl, marginBottom: 0 }}>Results</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>{results ? results.length : '…'}</span>
-          <span style={{ fontSize: 10.5, color: T.textFaint }}>match{results && results.length === 1 ? 'es' : ''} — double-click to open</span>
+          <span style={{ fontSize: 10.5, color: T.textFaint }}>match{results && results.length === 1 ? 'es' : ''} — click to select, double-click to view</span>
         </div>
         <DataGrid
-          columns={RESULT_COLUMNS(onOpenJob)}
+          columns={RESULT_COLUMNS(onViewJob)}
           rows={results}
           rowKey="id"
-          onRowClick={onOpenJob}
+          selectedKey={selectedId}
+          onRowClick={(r) => setSelectedId(r.id)}
+          onRowDoubleClick={onViewJob}
           emptyText="No jobs match these filters"
-          maxHeight="32vh"
+          maxHeight="30vh"
           initialSort={{ key: 'id', dir: 'desc' }}
         />
+        {showTotal && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 6, fontSize: T.fsSmall, color: T.textMuted }}>
+            <span>{(results || []).length} jobs</span>
+            <span style={{ fontWeight: 700, color: T.text }}>Total ${totalSum.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
       </div>
 
-      {/* Footer */}
+      {/* Footer — Jim2 Job List bar: Add · Edit · View · Run · Cancel · Show Total */}
       <div style={{ padding: '10px 14px', borderTop: `1px solid ${T.hairline}`, display: 'flex', alignItems: 'center', gap: 8, background: T.hairlineSoft }}>
-        <button onClick={onReset} style={btn()}><RotateCcw size={13} /> Reset</button>
+        <button onClick={onAddJob} style={btn()}><Plus size={13} /> Add</button>
+        <button onClick={() => selected && onEditJob(selected)} disabled={!selected} style={{ ...btn(), opacity: selected ? 1 : 0.45, cursor: selected ? 'pointer' : 'not-allowed' }}><Pencil size={13} /> Edit</button>
+        <button onClick={() => selected && onViewJob(selected)} disabled={!selected} style={{ ...btn(), opacity: selected ? 1 : 0.45, cursor: selected ? 'pointer' : 'not-allowed' }}><Eye size={13} /> View</button>
         <div style={{ flex: 1 }} />
-        <button onClick={onCancel} style={btn()}><X size={13} /> Cancel</button>
-        {onSaveAsList && (
-          <button onClick={onSaveAsList} title="Save these filters as a named list in the nav tree" style={btn('accent')}>
-            <Save size={13} /> Save as List
-          </button>
-        )}
-        <button onClick={onRun} style={btn('primary')}><Play size={13} /> Create List</button>
+        <button onClick={onRun} style={btn('primary')}><Play size={13} /> Run</button>
+        <button onClick={onCancel} style={{ ...btn(), color: T.danger, borderColor: T.danger }}><X size={13} /> Cancel</button>
+        <button onClick={() => setShowTotal(s => !s)} style={showTotal ? btn('accent') : btn()}>Show Total</button>
       </div>
     </div>
   );
