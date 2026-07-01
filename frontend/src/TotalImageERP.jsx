@@ -6291,16 +6291,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const results = jobsArr.filter(j => matchJobList(j, d));
     const close = () => setJobListModal(m => ({ ...m, open: false }));
     const run = () => {
-      const hasAny = Object.values(d).some(v => v !== '' && v !== false);
-      const parts = [];
-      if (d.customerId) parts.push((customers.find(c => c.id === d.customerId)?.name) || d.customerId);
-      if (d.status) parts.push(d.status);
-      if (d.priority) parts.push(d.priority);
-      ['active', 'ready', 'finish', 'invoiced', 'quote'].forEach(k => { if (d[k]) parts.push(k[0].toUpperCase() + k.slice(1)); });
-      const name = parts.join(' · ') || 'Filtered Jobs';
-      setActiveJobList(hasAny ? { ...d, name } : null);
+      // Jim2: creating a list adds it to the nav tree under Jobs as "Job List N".
+      if (savedJobLists.length >= 25) { notify('You can keep up to 25 job lists — delete one first.', { type: 'error' }); return; }
+      const name = `Job List ${savedJobLists.length + 1}`;
+      saveJobList(name, d);
+      setActiveJobList({ ...d, name });
       setShowJobDetail(false);
       setActiveModule('jobs');
+      notify(`Created "${name}" — now under Jobs in the nav tree`, { type: 'success' });
       close();
     };
     return (

@@ -209,7 +209,7 @@ export default function JobListBuilder({ draft, onChange, options, results, onRu
             <Save size={13} /> Save as List
           </button>
         )}
-        <button onClick={onRun} style={btn('primary')}><Play size={13} /> Run List</button>
+        <button onClick={onRun} style={btn('primary')}><Play size={13} /> Create List</button>
       </div>
     </div>
   );
