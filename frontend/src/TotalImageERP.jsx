@@ -847,8 +847,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST } });
   const [activeJobList, setActiveJobList] = useState(null); // matchJobList draft + name
 
-  // Saved Job Lists (Jim2: named lists that run live in the nav tree, max 25).
-  // Each is { id, name, filter } where filter is a matchJobList draft; persisted locally.
+  // Saved Job Lists (Jim2: named lists that run live in the nav tree).
+  // Each is { id, name, filter, node } — Jim2 allows up to 25 lists PER node/object.
+  const JOB_LIST_MAX = 25;
   const [savedJobLists, setSavedJobLists] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tig.jobLists') || '[]'); } catch { return []; }
   });
@@ -856,9 +857,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setSavedJobLists(next);
     try { localStorage.setItem('tig.jobLists', JSON.stringify(next)); } catch { /* storage blocked — session-only */ }
   };
-  const saveJobList = (name, filter) => {
-    const clean = (name || '').trim() || `Job List ${savedJobLists.length + 1}`;
-    persistJobLists([...savedJobLists, { id: `JL-${Date.now()}`, name: clean, filter }].slice(0, 25));
+  const listsForNode = (node) => savedJobLists.filter(l => (l.node || 'jobs') === node);
+  // Returns true if saved, false if the node is already at the 25-list cap.
+  const saveJobList = (name, filter, node = 'jobs') => {
+    const sameNode = listsForNode(node);
+    if (sameNode.length >= JOB_LIST_MAX) return false;
+    const clean = (name || '').trim() || `Job List ${sameNode.length + 1}`;
+    persistJobLists([...savedJobLists, { id: `JL-${Date.now()}`, name: clean, filter, node }]);
+    return true;
   };
   const deleteJobList = (id) => persistJobLists(savedJobLists.filter(l => l.id !== id));
 
@@ -6290,11 +6296,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     };
     const results = jobsArr.filter(j => matchJobList(j, d));
     const close = () => setJobListModal(m => ({ ...m, open: false }));
+    const listNode = 'jobs'; // the nav-tree node these lists live under (Jim2: 25 per node)
     const run = () => {
       // Jim2: creating a list adds it to the nav tree under Jobs as "Job List N".
-      if (savedJobLists.length >= 25) { notify('You can keep up to 25 job lists — delete one first.', { type: 'error' }); return; }
-      const name = `Job List ${savedJobLists.length + 1}`;
-      saveJobList(name, d);
+      const name = `Job List ${listsForNode(listNode).length + 1}`;
+      if (!saveJobList(name, d, listNode)) { notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' }); return; }
       setActiveJobList({ ...d, name });
       setShowJobDetail(false);
       setActiveModule('jobs');
@@ -6312,11 +6318,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         onReset={() => setJobListModal(m => ({ ...m, draft: { ...EMPTY_JOB_LIST } }))}
         onOpenJob={(job) => { close(); setActiveJob(job); openModal('job'); }}
         onSaveAsList={() => {
-          if (savedJobLists.length >= 25) { notify('You can save up to 25 job lists.', { type: 'error' }); return; }
+          if (listsForNode(listNode).length >= JOB_LIST_MAX) { notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' }); return; }
           const name = window.prompt('Name this list (appears in the nav tree under Jobs):', '');
           if (name === null) return; // cancelled
-          const finalName = name.trim() || `Job List ${savedJobLists.length + 1}`;
-          saveJobList(finalName, d);
+          const finalName = name.trim() || `Job List ${listsForNode(listNode).length + 1}`;
+          saveJobList(finalName, d, listNode);
           setActiveJobList({ ...d, name: finalName });
           setShowJobDetail(false);
           setActiveModule('jobs');
@@ -8231,7 +8237,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         setShowJobDetail(false);
         setActiveModule('jobs');
       }}
-      savedLists={savedJobLists.map(l => ({ id: l.id, name: l.name, jobs: (jobs ?? []).filter(j => matchJobList(j, l.filter)) }))}
+      savedLists={listsForNode('jobs').map(l => ({ id: l.id, name: l.name, jobs: (jobs ?? []).filter(j => matchJobList(j, l.filter)) }))}
       onRunList={(listId) => {
         const l = savedJobLists.find(x => x.id === listId);
         if (l) { setActiveJobList({ ...l.filter, name: l.name }); setShowJobDetail(false); setActiveModule('jobs'); }
