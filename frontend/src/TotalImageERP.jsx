@@ -877,10 +877,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return;
     }
     const id = `JL-${Date.now()}`;
-    const name = `Job List ${listsForNode(node).length + 1}`;
+    const prefix = node === 'quotes' ? 'Quote List' : 'Job List';
+    const name = `${prefix} ${listsForNode(node).length + 1}`;
     persistJobLists([...savedJobLists, { id, name, filter: null, node }]);
     setShowJobDetail(false);
-    setActiveModule('jobs');
+    setActiveModule(node === 'quotes' ? 'quotes' : 'jobs');
     setJobListModal({ open: true, draft: { ...EMPTY_JOB_LIST }, editingId: id });
   };
 
@@ -6334,7 +6335,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
       setActiveJobList({ ...d, name: editingList ? editingList.name : 'Filtered Jobs' });
       setShowJobDetail(false);
-      setActiveModule('jobs');
+      setActiveModule(editingList && editingList.node === 'quotes' ? 'quotes' : 'jobs');
       notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} job${results.length === 1 ? '' : 's'}`, { type: 'success' });
       close();
     };
@@ -8318,14 +8319,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       }}
       onDeleteStockList={deleteJobList}
       onOpenStock={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }}
+      savedQuoteLists={listsForNode('quotes').map(l => ({ id: l.id, name: l.name, jobs: l.filter ? (jobs ?? []).filter(j => j.status === 'QUOTE' && matchJobList(j, l.filter)) : [] }))}
+      onRunQuoteList={(listId) => {
+        const l = savedJobLists.find(x => x.id === listId);
+        if (l) { setActiveJobList({ ...(l.filter || {}), name: l.name }); setShowJobDetail(false); setActiveModule('quotes'); }
+      }}
+      onDeleteQuoteList={deleteJobList}
     >
 
       {/* ── Contextual Action Toolbar ── */}
       <div className="shrink-0 bg-white border-b border-gray-200 overflow-x-auto">
         <div className="flex items-center h-11 px-3 gap-0.5">
 
-          {/* ── JOBS ribbon ── */}
-          {activeModule === 'jobs' && (<>
+          {/* ── JOBS ribbon (also used by Quotes) ── */}
+          {(activeModule === 'jobs' || activeModule === 'quotes') && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
               <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Job</span>
@@ -8333,7 +8340,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View Job</span>
               </button>
-              <button onClick={() => createEmptyJobList('jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+              <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">

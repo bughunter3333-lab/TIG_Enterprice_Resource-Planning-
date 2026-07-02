@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes, FileText } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
@@ -113,9 +113,11 @@ export default function LiveTree({
   jobs = [], pinnedJobs = [], currentUser, onOpenJob, onUnpinJob, onSelectList,
   savedLists = [], onRunList, onDeleteList,
   savedStockLists = [], onRunStockList, onDeleteStockList, onOpenStock,
+  savedQuoteLists = [], onRunQuoteList, onDeleteQuoteList,
 }) {
   const [jobsOpen, setJobsOpen] = useState(true);
   const [stockOpen, setStockOpen] = useState(true);
+  const [quotesOpen, setQuotesOpen] = useState(true);
   const [openLists, setOpenLists] = useState(() => new Set());
 
   const toggleList = (id) => setOpenLists(prev => {
@@ -247,6 +249,59 @@ export default function LiveTree({
                 {isOpen && list.items.map(item => (
                   <TreeRow key={item.sku} depth={2} label={item.sku} onClick={() => onOpenStock && onOpenStock(item.sku)}>
                     <span style={{ color: T.textMuted, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 72 }}>{item.name}</span>
+                  </TreeRow>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Quotes parent → saved Quote Lists (appears once you create one) */}
+      {savedQuoteLists.length > 0 && (
+        <>
+          <TreeRow
+            depth={0}
+            bold
+            icon={<FileText size={12} />}
+            caret={quotesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            label="Quotes"
+            count={savedQuoteLists.length}
+            onClick={() => setQuotesOpen(o => !o)}
+          />
+          {quotesOpen && savedQuoteLists.map(list => {
+            const isOpen = openLists.has(list.id);
+            return (
+              <div key={list.id}>
+                <TreeRow
+                  depth={1}
+                  caret={isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  onCaretClick={() => toggleList(list.id)}
+                  icon={<ListFilter size={11} />}
+                  label={list.name}
+                  count={list.jobs.length}
+                  onClick={() => onRunQuoteList && onRunQuoteList(list.id)}
+                  title={`Open quote list "${list.name}" (${list.jobs.length})`}
+                >
+                  {onDeleteQuoteList && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Delete list ${list.name}`}
+                      onClick={e => { e.stopPropagation(); onDeleteQuoteList(list.id); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeleteQuoteList(list.id); } }}
+                      style={{ color: T.textFaint, display: 'flex' }}
+                    >
+                      <Trash2 size={11} />
+                    </span>
+                  )}
+                </TreeRow>
+                {isOpen && list.jobs.length === 0 && (
+                  <div style={{ padding: '2px 10px 2px 34px', fontSize: T.fsSmall, color: T.textFaint }}>No matching quotes</div>
+                )}
+                {isOpen && list.jobs.map(job => (
+                  <TreeRow key={job.id} depth={2} label={job.id} onClick={() => onOpenJob(job)}>
+                    <span style={{ color: statusColor(job.status), fontSize: 9, fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>{job.status}</span>
                   </TreeRow>
                 ))}
               </div>

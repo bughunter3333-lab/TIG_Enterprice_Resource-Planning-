@@ -14,6 +14,7 @@ export default function AppShell({
   jobs, pinnedJobs, onOpenJob, onUnpinJob, onSelectList,
   savedLists, onRunList, onDeleteList,
   savedStockLists, onRunStockList, onDeleteStockList, onOpenStock,
+  savedQuoteLists, onRunQuoteList, onDeleteQuoteList,
   children,
 }) {
   const [treeOpen, setTreeOpen] = useState(() => {
@@ -57,6 +58,9 @@ export default function AppShell({
             onRunStockList={onRunStockList}
             onDeleteStockList={onDeleteStockList}
             onOpenStock={onOpenStock}
+            savedQuoteLists={savedQuoteLists}
+            onRunQuoteList={onRunQuoteList}
+            onDeleteQuoteList={onDeleteQuoteList}
           />
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
