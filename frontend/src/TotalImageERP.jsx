@@ -22,6 +22,8 @@ import JobsModule from './modules/jobs/JobsModule';
 import JobListBuilder from './modules/jobs/JobListBuilder';
 import { matchJobList } from './modules/jobs/jobsFilters';
 import StockModule from './modules/stock/StockModule';
+import StockListBuilder from './modules/stock/StockListBuilder';
+import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
 import POModule from './modules/purchase-orders/POModule';
 import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
@@ -880,6 +882,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setShowJobDetail(false);
     setActiveModule('jobs');
     setJobListModal({ open: true, draft: { ...EMPTY_JOB_LIST }, editingId: id });
+  };
+
+  // Stock Lists — same per-node model over inventory (node = 'stock').
+  const [stockListModal, setStockListModal] = useState({ open: false, draft: { ...EMPTY_STOCK_LIST }, editingId: null });
+  const [stockFocusSku, setStockFocusSku] = useState(null);
+  const createEmptyStockList = () => {
+    if (listsForNode('stock').length >= JOB_LIST_MAX) {
+      notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
+      return;
+    }
+    const id = `SL-${Date.now()}`;
+    const name = `Stock List ${listsForNode('stock').length + 1}`;
+    persistJobLists([...savedJobLists, { id, name, filter: null, node: 'stock' }]);
+    setActiveModule('inventory');
+    setStockListModal({ open: true, draft: { ...EMPTY_STOCK_LIST }, editingId: id });
   };
 
   // Order Requirements module
@@ -6342,6 +6359,48 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     );
   };
 
+  const renderStockListPage = () => {
+    if (!stockListModal.open) return null;
+    const d = stockListModal.draft;
+    const inv = inventory || [];
+    const uniq = (sel) => [...new Set(inv.map(sel).filter(Boolean))].sort();
+    const options = {
+      categories: uniq(i => i.category),
+      suppliers: uniq(i => i.supplier),
+      glGroups: uniq(i => i.gl_group),
+      locations: uniq(i => i.location),
+      itemTypes: uniq(i => i.item_type),
+    };
+    const results = inv.filter(i => matchStockList(i, d));
+    const editingId = stockListModal.editingId;
+    const editingList = savedJobLists.find(l => l.id === editingId);
+    const close = () => setStockListModal(m => ({ ...m, open: false, editingId: null }));
+    const openStock = (item) => { close(); setStockFocusSku(item.sku); setActiveModule('inventory'); };
+    const run = () => {
+      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} item${results.length === 1 ? '' : 's'}`, { type: 'success' });
+      close();
+    };
+    const cancel = () => {
+      if (editingId && editingList && editingList.filter == null) deleteJobList(editingId);
+      close();
+    };
+    return (
+      <StockListBuilder
+        draft={d}
+        listName={editingList ? editingList.name : 'Stock List'}
+        onChange={(patch) => setStockListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
+        options={options}
+        results={results}
+        onRun={run}
+        onCancel={cancel}
+        onAddItem={() => { close(); openModal('inventory'); }}
+        onEditItem={(item) => { close(); openModal('inventory', item); }}
+        onViewItem={openStock}
+      />
+    );
+  };
+
   const renderConfirmModal = () => {
     if (!confirmModal.show) return null;
     return (
@@ -8252,6 +8311,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         if (l) { setActiveJobList({ ...l.filter, name: l.name }); setShowJobDetail(false); setActiveModule('jobs'); }
       }}
       onDeleteList={deleteJobList}
+      savedStockLists={listsForNode('stock').map(l => ({ id: l.id, name: l.name, items: l.filter ? (inventory ?? []).filter(i => matchStockList(i, l.filter)) : [] }))}
+      onRunStockList={(listId) => {
+        const l = savedJobLists.find(x => x.id === listId);
+        if (l) { setStockListModal({ open: true, draft: { ...(l.filter || EMPTY_STOCK_LIST) }, editingId: l.id }); setActiveModule('inventory'); }
+      }}
+      onDeleteStockList={deleteJobList}
+      onOpenStock={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }}
     >
 
       {/* ── Contextual Action Toolbar ── */}
@@ -8531,7 +8597,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
                 <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit Stock</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
+              <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
               <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
@@ -8955,13 +9021,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
                 {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (jobListModal.open ? renderJobListPage() : renderJobs())}
                 {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
-                {!loading && activeModule === 'inventory' && (
+                {!loading && activeModule === 'inventory' && (stockListModal.open ? renderStockListPage() : (
                   <StockModule
                     inventory={inventory}
+                    focusSku={stockFocusSku}
                     onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}
                   />
-                )}
+                ))}
                 {!loading && activeModule === 'customers'          && renderCustomers()}
                 {!loading && activeModule === 'suppliers'          && renderSuppliers()}
                 {!loading && activeModule === 'purchase-orders'    && renderPurchaseOrders()}

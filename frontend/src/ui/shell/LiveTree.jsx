@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronRight, ChevronDown, ListFilter, Trash2 } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
@@ -112,8 +112,10 @@ function OpenJobRow({ job, onOpen, onUnpin }) {
 export default function LiveTree({
   jobs = [], pinnedJobs = [], currentUser, onOpenJob, onUnpinJob, onSelectList,
   savedLists = [], onRunList, onDeleteList,
+  savedStockLists = [], onRunStockList, onDeleteStockList, onOpenStock,
 }) {
   const [jobsOpen, setJobsOpen] = useState(true);
+  const [stockOpen, setStockOpen] = useState(true);
   const [openLists, setOpenLists] = useState(() => new Set());
 
   const toggleList = (id) => setOpenLists(prev => {
@@ -192,6 +194,59 @@ export default function LiveTree({
                     <span style={{ color: statusColor(job.status), fontSize: 9, fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>
                       {job.status}
                     </span>
+                  </TreeRow>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Stock parent → saved Stock Lists (appears once you create one) */}
+      {savedStockLists.length > 0 && (
+        <>
+          <TreeRow
+            depth={0}
+            bold
+            caret={stockOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            icon={<Boxes size={12} />}
+            label="Stock"
+            count={savedStockLists.length}
+            onClick={() => setStockOpen(o => !o)}
+          />
+          {stockOpen && savedStockLists.map(list => {
+            const isOpen = openLists.has(list.id);
+            return (
+              <div key={list.id}>
+                <TreeRow
+                  depth={1}
+                  caret={isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  onCaretClick={() => toggleList(list.id)}
+                  icon={<ListFilter size={11} />}
+                  label={list.name}
+                  count={list.items.length}
+                  onClick={() => onRunStockList && onRunStockList(list.id)}
+                  title={`Open stock list "${list.name}" (${list.items.length})`}
+                >
+                  {onDeleteStockList && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Delete list ${list.name}`}
+                      onClick={e => { e.stopPropagation(); onDeleteStockList(list.id); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeleteStockList(list.id); } }}
+                      style={{ color: T.textFaint, display: 'flex' }}
+                    >
+                      <Trash2 size={11} />
+                    </span>
+                  )}
+                </TreeRow>
+                {isOpen && list.items.length === 0 && (
+                  <div style={{ padding: '2px 10px 2px 34px', fontSize: T.fsSmall, color: T.textFaint }}>No matching items</div>
+                )}
+                {isOpen && list.items.map(item => (
+                  <TreeRow key={item.sku} depth={2} label={item.sku} onClick={() => onOpenStock && onOpenStock(item.sku)}>
+                    <span style={{ color: T.textMuted, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 72 }}>{item.name}</span>
                   </TreeRow>
                 ))}
               </div>

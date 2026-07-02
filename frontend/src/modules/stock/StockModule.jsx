@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { T } from '../../ui/tokens';
 import StockList from './StockList';
 import StockDetailPanel from './StockDetailPanel';
 
-export default function StockModule({ inventory = [], onNavigateJob, onNavigatePO }) {
-  const [selectedSku, setSelectedSku] = useState(null);
+export default function StockModule({ inventory = [], onNavigateJob, onNavigatePO, focusSku }) {
+  const [selectedSku, setSelectedSku] = useState(focusSku ?? null);
+  // Let the parent open a specific item (from a Stock List result or nav-tree list).
+  useEffect(() => { if (focusSku) setSelectedSku(focusSku); }, [focusSku]);
   const selectedItem = useMemo(
     () => inventory.find(i => i.sku === selectedSku) || null,
     [inventory, selectedSku],
