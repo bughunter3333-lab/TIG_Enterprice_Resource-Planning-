@@ -134,12 +134,14 @@ class TestBASReport:
 
     def test_bas_g1_equals_total_sales_inc(self, client, db):
         _seed_invoiced_job(db, "J-BAS03", "BCUST03", 500.0, 50.0)
-        r = client.get("/reports/bas-summary")
+        # Explicit period bracketing the seeded invoice_date (2025-08-15) so the
+        # assertion is independent of the current fiscal year at run time.
+        r = client.get("/reports/bas-summary?date_from=2025-07-01&date_to=2026-06-30")
         data = r.json()
         assert float(data["G1"]) >= 550.0  # includes the job we seeded
 
     def test_bas_1a_equals_gst_collected(self, client, db):
         _seed_invoiced_job(db, "J-BAS04", "BCUST04", 300.0, 30.0)
-        r = client.get("/reports/bas-summary")
+        r = client.get("/reports/bas-summary?date_from=2025-07-01&date_to=2026-06-30")
         data = r.json()
         assert float(data["1A"]) >= 30.0
