@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes, FileText } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes, FileText, ShoppingCart } from 'lucide-react';
 import { T, statusColor } from '../tokens';
 import { parseD } from '../dates';
 
@@ -114,10 +114,12 @@ export default function LiveTree({
   savedLists = [], onRunList, onDeleteList,
   savedStockLists = [], onRunStockList, onDeleteStockList, onOpenStock,
   savedQuoteLists = [], onRunQuoteList, onDeleteQuoteList,
+  savedPOLists = [], onRunPOList, onDeletePOList, onOpenPO,
 }) {
   const [jobsOpen, setJobsOpen] = useState(true);
   const [stockOpen, setStockOpen] = useState(true);
   const [quotesOpen, setQuotesOpen] = useState(true);
+  const [purchasesOpen, setPurchasesOpen] = useState(true);
   const [openLists, setOpenLists] = useState(() => new Set());
 
   const toggleList = (id) => setOpenLists(prev => {
@@ -302,6 +304,59 @@ export default function LiveTree({
                 {isOpen && list.jobs.map(job => (
                   <TreeRow key={job.id} depth={2} label={job.id} onClick={() => onOpenJob(job)}>
                     <span style={{ color: statusColor(job.status), fontSize: 9, fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>{job.status}</span>
+                  </TreeRow>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Purchases parent → saved Purchase Lists (appears once you create one) */}
+      {savedPOLists.length > 0 && (
+        <>
+          <TreeRow
+            depth={0}
+            bold
+            icon={<ShoppingCart size={12} />}
+            caret={purchasesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            label="Purchases"
+            count={savedPOLists.length}
+            onClick={() => setPurchasesOpen(o => !o)}
+          />
+          {purchasesOpen && savedPOLists.map(list => {
+            const isOpen = openLists.has(list.id);
+            return (
+              <div key={list.id}>
+                <TreeRow
+                  depth={1}
+                  caret={isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  onCaretClick={() => toggleList(list.id)}
+                  icon={<ListFilter size={11} />}
+                  label={list.name}
+                  count={list.pos.length}
+                  onClick={() => onRunPOList && onRunPOList(list.id)}
+                  title={`Open purchase list "${list.name}" (${list.pos.length})`}
+                >
+                  {onDeletePOList && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Delete list ${list.name}`}
+                      onClick={e => { e.stopPropagation(); onDeletePOList(list.id); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeletePOList(list.id); } }}
+                      style={{ color: T.textFaint, display: 'flex' }}
+                    >
+                      <Trash2 size={11} />
+                    </span>
+                  )}
+                </TreeRow>
+                {isOpen && list.pos.length === 0 && (
+                  <div style={{ padding: '2px 10px 2px 34px', fontSize: T.fsSmall, color: T.textFaint }}>No matching orders</div>
+                )}
+                {isOpen && list.pos.map(po => (
+                  <TreeRow key={po.id} depth={2} label={po.id} onClick={() => onOpenPO && onOpenPO(po.id)}>
+                    <span style={{ color: T.textMuted, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 72 }}>{po.supplier}</span>
                   </TreeRow>
                 ))}
               </div>

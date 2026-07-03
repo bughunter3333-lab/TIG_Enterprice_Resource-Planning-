@@ -15,6 +15,7 @@ export default function AppShell({
   savedLists, onRunList, onDeleteList,
   savedStockLists, onRunStockList, onDeleteStockList, onOpenStock,
   savedQuoteLists, onRunQuoteList, onDeleteQuoteList,
+  savedPOLists, onRunPOList, onDeletePOList, onOpenPO,
   children,
 }) {
   const [treeOpen, setTreeOpen] = useState(() => {
@@ -61,6 +62,10 @@ export default function AppShell({
             savedQuoteLists={savedQuoteLists}
             onRunQuoteList={onRunQuoteList}
             onDeleteQuoteList={onDeleteQuoteList}
+            savedPOLists={savedPOLists}
+            onRunPOList={onRunPOList}
+            onDeletePOList={onDeletePOList}
+            onOpenPO={onOpenPO}
           />
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

@@ -24,6 +24,8 @@ import { matchJobList } from './modules/jobs/jobsFilters';
 import StockModule from './modules/stock/StockModule';
 import StockListBuilder from './modules/stock/StockListBuilder';
 import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
+import POListBuilder from './modules/purchase-orders/POListBuilder';
+import { matchPOList, EMPTY_PO_LIST } from './modules/purchase-orders/poListFilters';
 import POModule from './modules/purchase-orders/POModule';
 import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
@@ -898,6 +900,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     persistJobLists([...savedJobLists, { id, name, filter: null, node: 'stock' }]);
     setActiveModule('inventory');
     setStockListModal({ open: true, draft: { ...EMPTY_STOCK_LIST }, editingId: id });
+  };
+
+  // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
+  const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
+  const createEmptyPOList = () => {
+    if (listsForNode('purchases').length >= JOB_LIST_MAX) {
+      notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
+      return;
+    }
+    const id = `PL-${Date.now()}`;
+    const name = `Purchase List ${listsForNode('purchases').length + 1}`;
+    persistJobLists([...savedJobLists, { id, name, filter: null, node: 'purchases' }]);
+    setActiveModule('purchase-orders');
+    setPoListModal({ open: true, draft: { ...EMPTY_PO_LIST }, editingId: id });
   };
 
   // Order Requirements module
@@ -6402,6 +6418,42 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     );
   };
 
+  const renderPOListPage = () => {
+    if (!poListModal.open) return null;
+    const d = poListModal.draft;
+    const posArr = purchaseOrders || [];
+    const uniq = (sel) => [...new Set(posArr.map(sel).filter(Boolean))].sort();
+    const options = { suppliers: uniq(p => p.supplier), statuses: uniq(p => p.status) };
+    const results = posArr.filter(p => matchPOList(p, d));
+    const editingId = poListModal.editingId;
+    const editingList = savedJobLists.find(l => l.id === editingId);
+    const close = () => setPoListModal(m => ({ ...m, open: false, editingId: null }));
+    const openPO = (po) => { close(); setSelectedPO(po); setActiveModule('purchase-orders'); };
+    const run = () => {
+      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} order${results.length === 1 ? '' : 's'}`, { type: 'success' });
+      close();
+    };
+    const cancel = () => {
+      if (editingId && editingList && editingList.filter == null) deleteJobList(editingId);
+      close();
+    };
+    return (
+      <POListBuilder
+        draft={d}
+        listName={editingList ? editingList.name : 'Purchase List'}
+        onChange={(patch) => setPoListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
+        options={options}
+        results={results}
+        onRun={run}
+        onCancel={cancel}
+        onAddPO={() => { close(); openModal('po'); }}
+        onEditPO={(po) => { close(); openModal('po', po); }}
+        onViewPO={openPO}
+      />
+    );
+  };
+
   const renderConfirmModal = () => {
     if (!confirmModal.show) return null;
     return (
@@ -8325,6 +8377,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         if (l) { setActiveJobList({ ...(l.filter || {}), name: l.name }); setShowJobDetail(false); setActiveModule('quotes'); }
       }}
       onDeleteQuoteList={deleteJobList}
+      savedPOLists={listsForNode('purchases').map(l => ({ id: l.id, name: l.name, pos: l.filter ? (purchaseOrders ?? []).filter(p => matchPOList(p, l.filter)) : [] }))}
+      onRunPOList={(listId) => {
+        const l = savedJobLists.find(x => x.id === listId);
+        if (l) { setPoListModal({ open: true, draft: { ...(l.filter || EMPTY_PO_LIST) }, editingId: l.id }); setActiveModule('purchase-orders'); }
+      }}
+      onDeletePOList={deleteJobList}
+      onOpenPO={(poId) => { const po = (purchaseOrders ?? []).find(p => p.id === poId); if (po) { setSelectedPO(po); } setActiveModule('purchase-orders'); }}
     >
 
       {/* ── Contextual Action Toolbar ── */}
@@ -8475,8 +8534,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">PO List</span>
+              <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
               </button>
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
                 <Truck className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Return to Vendor</span>
@@ -9038,7 +9097,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 ))}
                 {!loading && activeModule === 'customers'          && renderCustomers()}
                 {!loading && activeModule === 'suppliers'          && renderSuppliers()}
-                {!loading && activeModule === 'purchase-orders'    && renderPurchaseOrders()}
+                {!loading && activeModule === 'purchase-orders'    && (poListModal.open ? renderPOListPage() : renderPurchaseOrders())}
                 {!loading && activeModule === 'reports'            && renderReports()}
                 {!loading && activeModule === 'warehouse'          && renderWarehouse()}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
