@@ -904,6 +904,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
   const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
+  const [stockReportOpen, setStockReportOpen] = useState(false);
   const createEmptyPOList = () => {
     if (listsForNode('purchases').length >= JOB_LIST_MAX) {
       notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
@@ -8710,9 +8711,57 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Job Reports</span>
-              </button>
+              <div className="relative">
+                <button onClick={() => setStockReportOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
+                  <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
+                </button>
+                {stockReportOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-64 py-1.5 overflow-hidden" onMouseLeave={() => setStockReportOpen(false)}>
+                    {(() => {
+                      const inv = inventory || [];
+                      const csvSafe = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+                      const rows = (arr) => arr.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, csvSafe(v)])));
+                      const reports = [
+                        {
+                          label: 'Stock List',
+                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, category: i.category, supplier: i.supplier, on_hand: i.stock, committed: i.committed_qty, available: Math.max(0, (i.stock || 0) - (i.committed_qty || 0)), on_po: i.on_order_qty, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list'),
+                        },
+                        {
+                          label: 'Stock List — with GL Groups',
+                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, gl_group: i.gl_group || '', item_type: i.item_type, location: i.location, on_hand: i.stock, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list-gl-groups'),
+                        },
+                        {
+                          label: 'Stock Valuation',
+                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, unit_cost: i.unitCost, value: ((i.stock || 0) * (i.unitCost || 0)).toFixed(2) }))), 'stock-valuation'),
+                        },
+                        {
+                          label: 'Low Stock / Reorder',
+                          run: () => exportToCSV(rows(inv.filter(i => (i.stock || 0) <= (i.min_stock ?? i.reorderLevel ?? 0)).map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, min_stock: i.min_stock ?? i.reorderLevel ?? 0, on_po: i.on_order_qty, supplier: i.supplier }))), 'low-stock-reorder'),
+                        },
+                        {
+                          label: 'Stock List — 12 Month Sales',
+                          run: () => {
+                            const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
+                            const sold = {};
+                            (jobs || []).forEach(j => {
+                              if (['QUOTE', 'CANCEL'].includes(j.status)) return;
+                              const d = parseD(j.dateIn); if (!d || d < cutoff) return;
+                              (j.items || []).forEach(it => { if (it.stockCode) sold[it.stockCode] = (sold[it.stockCode] || 0) + (it.supply || it.qty || 0); });
+                            });
+                            exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, sold_12m: sold[i.sku] || 0, on_hand: i.stock, on_po: i.on_order_qty }))), 'stock-12-month-sales');
+                          },
+                        },
+                      ];
+                      return reports.map(r => (
+                        <button key={r.label} onClick={() => { if (!inv.length) { notify('No stock data loaded yet.', { type: 'error' }); return; } r.run(); setStockReportOpen(false); notify(`Exported ${r.label} (CSV)`, { type: 'success' }); }}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-gray-400" />{r.label}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-0.5">
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
