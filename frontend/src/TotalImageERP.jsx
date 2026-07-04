@@ -851,29 +851,57 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobListModal, setJobListModal] = useState({ open: false, draft: { ...EMPTY_JOB_LIST }, editingId: null });
   const [activeJobList, setActiveJobList] = useState(null); // matchJobList draft + name
 
-  // Saved Job Lists (Jim2: named lists that run live in the nav tree).
-  // Each is { id, name, filter, node } — Jim2 allows up to 25 lists PER node/object.
+  // Saved nav-tree lists (Jim2: named lists that run live in the tree, max 25
+  // PER node, per user). Server-synced so lists follow the user across machines;
+  // savedJobLists is the local mirror of /saved-lists.
   const JOB_LIST_MAX = 25;
-  const [savedJobLists, setSavedJobLists] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tig.jobLists') || '[]'); } catch { return []; }
-  });
-  const persistJobLists = (next) => {
-    setSavedJobLists(next);
-    try { localStorage.setItem('tig.jobLists', JSON.stringify(next)); } catch { /* storage blocked — session-only */ }
-  };
+  const [savedJobLists, setSavedJobLists] = useState([]);
+  const { data: serverLists } = useQuery({ queryKey: ['savedLists'], queryFn: api.savedLists.list, staleTime: 30_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); } });
+  useEffect(() => { if (serverLists) setSavedJobLists(serverLists); }, [serverLists]);
+  // One-time migration: lists created before server sync lived in localStorage.
+  useEffect(() => {
+    if (!serverLists || serverLists.length > 0) return;
+    let local = [];
+    try { local = JSON.parse(localStorage.getItem('tig.jobLists') || '[]'); } catch { return; }
+    if (!local.length) return;
+    Promise.allSettled(local.map(l => api.savedLists.create({ id: l.id, name: l.name, node: l.node || 'jobs', filter: l.filter ?? null })))
+      .then(() => {
+        try { localStorage.removeItem('tig.jobLists'); } catch { /* ignore */ }
+        queryClient.invalidateQueries({ queryKey: ['savedLists'] });
+      });
+  }, [serverLists]);
+
   const listsForNode = (node) => savedJobLists.filter(l => (l.node || 'jobs') === node);
+  const createListOnServer = async (item) => {
+    try {
+      await api.savedLists.create(item);
+      setSavedJobLists(prev => [...prev, item]);
+      return true;
+    } catch (e) { notify(e.message || 'Could not save list', { type: 'error' }); return false; }
+  };
+  const updateListFilter = async (id, filter) => {
+    try {
+      await api.savedLists.update(id, { filter });
+      setSavedJobLists(prev => prev.map(l => l.id === id ? { ...l, filter } : l));
+    } catch (e) { notify(e.message || 'Could not update list', { type: 'error' }); }
+  };
   // Returns true if saved, false if the node is already at the 25-list cap.
   const saveJobList = (name, filter, node = 'jobs') => {
     const sameNode = listsForNode(node);
     if (sameNode.length >= JOB_LIST_MAX) return false;
     const clean = (name || '').trim() || `Job List ${sameNode.length + 1}`;
-    persistJobLists([...savedJobLists, { id: `JL-${Date.now()}`, name: clean, filter, node }]);
+    createListOnServer({ id: `JL-${Date.now()}`, name: clean, filter, node });
     return true;
   };
-  const deleteJobList = (id) => persistJobLists(savedJobLists.filter(l => l.id !== id));
+  const deleteJobList = async (id) => {
+    try {
+      await api.savedLists.delete(id);
+      setSavedJobLists(prev => prev.filter(l => l.id !== id));
+    } catch (e) { notify(e.message || 'Could not delete list', { type: 'error' }); }
+  };
   // Jim2: "Create Job List" makes an empty list in the tree immediately, then you
   // filter + Run it. filter=null means "not run yet" (shows 0 until executed).
-  const createEmptyJobList = (node = 'jobs') => {
+  const createEmptyJobList = async (node = 'jobs') => {
     if (listsForNode(node).length >= JOB_LIST_MAX) {
       notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
       return;
@@ -881,7 +909,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const id = `JL-${Date.now()}`;
     const prefix = node === 'quotes' ? 'Quote List' : 'Job List';
     const name = `${prefix} ${listsForNode(node).length + 1}`;
-    persistJobLists([...savedJobLists, { id, name, filter: null, node }]);
+    if (!(await createListOnServer({ id, name, filter: null, node }))) return;
     setShowJobDetail(false);
     setActiveModule(node === 'quotes' ? 'quotes' : 'jobs');
     setJobListModal({ open: true, draft: { ...EMPTY_JOB_LIST }, editingId: id });
@@ -890,14 +918,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Stock Lists — same per-node model over inventory (node = 'stock').
   const [stockListModal, setStockListModal] = useState({ open: false, draft: { ...EMPTY_STOCK_LIST }, editingId: null });
   const [stockFocusSku, setStockFocusSku] = useState(null);
-  const createEmptyStockList = () => {
+  const createEmptyStockList = async () => {
     if (listsForNode('stock').length >= JOB_LIST_MAX) {
       notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
       return;
     }
     const id = `SL-${Date.now()}`;
     const name = `Stock List ${listsForNode('stock').length + 1}`;
-    persistJobLists([...savedJobLists, { id, name, filter: null, node: 'stock' }]);
+    if (!(await createListOnServer({ id, name, filter: null, node: 'stock' }))) return;
     setActiveModule('inventory');
     setStockListModal({ open: true, draft: { ...EMPTY_STOCK_LIST }, editingId: id });
   };
@@ -905,14 +933,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
   const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
   const [stockReportOpen, setStockReportOpen] = useState(false);
-  const createEmptyPOList = () => {
+  const createEmptyPOList = async () => {
     if (listsForNode('purchases').length >= JOB_LIST_MAX) {
       notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
       return;
     }
     const id = `PL-${Date.now()}`;
     const name = `Purchase List ${listsForNode('purchases').length + 1}`;
-    persistJobLists([...savedJobLists, { id, name, filter: null, node: 'purchases' }]);
+    if (!(await createListOnServer({ id, name, filter: null, node: 'purchases' }))) return;
     setActiveModule('purchase-orders');
     setPoListModal({ open: true, draft: { ...EMPTY_PO_LIST }, editingId: id });
   };
@@ -6349,7 +6377,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const close = () => setJobListModal(m => ({ ...m, open: false, editingId: null }));
     // Run: commit the current filters to this list; it now runs live in the tree + jobs view.
     const run = () => {
-      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      if (editingId) updateListFilter(editingId, { ...d });
       setActiveJobList({ ...d, name: editingList ? editingList.name : 'Filtered Jobs' });
       setShowJobDetail(false);
       setActiveModule(editingList && editingList.node === 'quotes' ? 'quotes' : 'jobs');
@@ -6395,7 +6423,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const close = () => setStockListModal(m => ({ ...m, open: false, editingId: null }));
     const openStock = (item) => { close(); setStockFocusSku(item.sku); setActiveModule('inventory'); };
     const run = () => {
-      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      if (editingId) updateListFilter(editingId, { ...d });
       notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} item${results.length === 1 ? '' : 's'}`, { type: 'success' });
       close();
     };
@@ -6431,7 +6459,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const close = () => setPoListModal(m => ({ ...m, open: false, editingId: null }));
     const openPO = (po) => { close(); setSelectedPO(po); setActiveModule('purchase-orders'); };
     const run = () => {
-      if (editingId) persistJobLists(savedJobLists.map(l => l.id === editingId ? { ...l, filter: { ...d } } : l));
+      if (editingId) updateListFilter(editingId, { ...d });
       notify(`Ran "${editingList ? editingList.name : 'list'}" — ${results.length} order${results.length === 1 ? '' : 's'}`, { type: 'success' });
       close();
     };

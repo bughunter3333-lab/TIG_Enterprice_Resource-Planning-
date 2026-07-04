@@ -15,3 +15,4 @@ from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine
 from app.models.supplier_bill import SupplierBill
 from app.models.stock_location import StockLocation
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
+from app.models.saved_list import SavedList

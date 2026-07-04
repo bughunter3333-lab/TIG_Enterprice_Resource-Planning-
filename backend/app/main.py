@@ -33,6 +33,7 @@ from app.routers import (
     goods_receipt,
     accounts_payable,
     analytics,
+    saved_lists,
 )
 from app.routers.admin_settings import router as admin_settings_router
 
@@ -107,3 +108,4 @@ app.include_router(goods_receipt.router)
 app.include_router(accounts_payable.router)
 app.include_router(analytics.router)
 app.include_router(admin_settings_router)
+app.include_router(saved_lists.router)

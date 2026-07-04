@@ -1187,6 +1187,18 @@ export const adminSettings = {
   }),
 };
 
+// ── Saved nav-tree lists (server-synced; Jim2 25 per node, per user) ─────────
+
+export const savedLists = {
+  list: () => request('/saved-lists'),
+  create: ({ id, name, node, filter = null }) =>
+    request('/saved-lists', { method: 'POST', body: { id, name, node, filter } }),
+  update: (id, patch) =>
+    request(`/saved-lists/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch }),
+  delete: (id) =>
+    request(`/saved-lists/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
 // ── Health ───────────────────────────────────────────────────────────────────
 
 export const health = {
