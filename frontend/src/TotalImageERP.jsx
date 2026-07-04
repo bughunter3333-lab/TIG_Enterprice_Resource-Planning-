@@ -966,6 +966,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Invoice
   const [invoiceJob, setInvoiceJob] = useState(null);
+  // Jim2 invoice documents: standard TAX Invoice, TAX Proforma, Proforma Balance ONLY
+  const [invoiceVariant, setInvoiceVariant] = useState('standard');
+  const openInvoiceDoc = (job, variant = 'standard') => { setInvoiceVariant(variant); setInvoiceJob(job); };
   const [emailModalJob, setEmailModalJob] = useState(null);
   const [matrixPopup, setMatrixPopup] = useState(null); // { idx } when open
 
@@ -1968,7 +1971,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   };
 
   const printInvoice = (job) => {
-    setInvoiceJob(job);
+    openInvoiceDoc(job);
   };
 
   const _legacyPrintInvoice_unused = (job) => {
@@ -2152,7 +2155,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {printDropdownOpen && (
                   <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-44 py-1.5 overflow-hidden" onMouseLeave={() => setPrintDropdownOpen(false)}>
                     {[
-                      { type:'invoice',      label:'TAX Invoice',    action:()=>{ setInvoiceJob(activeJob); setPrintDropdownOpen(false); } },
+                      { type:'invoice',      label:'TAX Invoice',    action:()=>{ openInvoiceDoc(activeJob); setPrintDropdownOpen(false); } },
+                      { type:'proforma',     label:'Proforma Invoice', action:()=>{ openInvoiceDoc(activeJob, 'proforma'); setPrintDropdownOpen(false); } },
+                      { type:'proformaBal',  label:'Proforma — Balance ONLY', action:()=>{ openInvoiceDoc(activeJob, 'proformaBalance'); setPrintDropdownOpen(false); } },
                       { type:'pickingSlip',  label:'Picking Slip',   action:()=>{ setDocumentPrint({ type:'pickingSlip',  job:activeJob }); setPrintDropdownOpen(false); } },
                       { type:'deliveryNote', label:'Delivery Note',  action:()=>{ setDocumentPrint({ type:'deliveryNote', job:activeJob }); setPrintDropdownOpen(false); } },
                       { type:'jobSheet',     label:'Job Sheet',      action:()=>{ setDocumentPrint({ type:'jobSheet',     job:activeJob }); setPrintDropdownOpen(false); } },
@@ -2753,7 +2758,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <button
                         key={doc.type}
                         onClick={() => {
-                          if (doc.type === 'invoice') setInvoiceJob(activeJob);
+                          if (doc.type === 'invoice') openInvoiceDoc(activeJob);
                           else setDocumentPrint({ type: doc.type, job: activeJob });
                         }}
                         className={`p-4 rounded-lg border text-left transition-colors ${doc.color}`}
@@ -2960,7 +2965,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-amber-50 hover:bg-amber-100 text-amber-700' },
                           { label: 'Clone',     icon: Copy,          action: () => cloneJob(activeJob),                                        color: 'bg-gray-50 hover:bg-gray-100 text-gray-700' },
                           { label: 'Job Sheet', icon: Printer,       action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }),      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
-                          { label: 'Invoice',   icon: FileText,      action: () => setInvoiceJob(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
+                          { label: 'Invoice',   icon: FileText,      action: () => openInvoiceDoc(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                           { label: 'Delivery',  icon: Package,       action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }), color: 'bg-teal-50 hover:bg-teal-100 text-teal-700' },
                           { label: 'Picking',   icon: ClipboardList, action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }),  color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                         ].map(a => (
@@ -3918,7 +3923,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const paid = parseFloat(j.deposit || j.invoicePaid || 0);
     const balance = parseFloat((grandTotal - paid).toFixed(2));
     const isQuote = j.status === 'QUOTE';
-    const docTitle = isQuote ? 'TAX QUOTE' : 'TAX INVOICE';
+    const isProforma = !isQuote && invoiceVariant !== 'standard';
+    const balanceOnly = invoiceVariant === 'proformaBalance';
+    const docTitle = isQuote ? 'TAX QUOTE' : isProforma ? 'TAX PROFORMA INVOICE' : 'TAX INVOICE';
 
     return (
       <DraggableModal onClose={() => setInvoiceJob(null)} cardClass="w-full max-w-3xl max-h-[95vh] overflow-y-auto print:shadow-none print:rounded-none print:max-h-none print:overflow-visible" overlayClass="print:hidden">
@@ -4009,10 +4016,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600 }}>Description</th>
                   <th style={{ textAlign: 'left', padding: '7px 8px', fontWeight: 600, width: 80 }}>Decoration</th>
                   <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 52 }}>Qty</th>
-                  <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 75 }}>Unit (ex)</th>
-                  <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 50 }}>Disc%</th>
-                  <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 80 }}>Amount</th>
-                  <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 600, width: 40 }}>GST</th>
+                  {!balanceOnly && <>
+                    <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 75 }}>Unit (ex)</th>
+                    <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 50 }}>Disc%</th>
+                    <th style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 600, width: 80 }}>Amount</th>
+                    <th style={{ textAlign: 'center', padding: '7px 8px', fontWeight: 600, width: 40 }}>GST</th>
+                  </>}
                 </tr>
               </thead>
               <tbody>
@@ -4020,7 +4029,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   const isSec = item.displayType === 'section';
                   if (isSec) return (
                     <tr key={i} style={{ background: '#eff6ff' }}>
-                      <td colSpan={7} style={{ padding: '5px 10px', fontWeight: 700, color: '#1d4ed8', fontSize: 12 }}>{item.description}</td>
+                      <td colSpan={balanceOnly ? 3 : 7} style={{ padding: '5px 10px', fontWeight: 700, color: '#1d4ed8', fontSize: 12 }}>{item.description}</td>
                     </tr>
                   );
                   const gstType = item.taxType || 'GST';
@@ -4035,15 +4044,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </td>
                       <td style={{ padding: '6px 8px', color: '#555' }}>{item.decorationType !== 'None' ? item.decorationType : ''}</td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>{item.orderQty || item.order || item.qty || 0}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>${(parseFloat(item.priceEx) || 0).toFixed(2)}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: item.discount > 0 ? '#dc2626' : '#ccc' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600 }}>${(parseFloat(item.total) || 0).toFixed(2)}</td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', color: '#16a34a', fontSize: 10 }}>{gstType}</td>
+                      {!balanceOnly && <>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>${(parseFloat(item.priceEx) || 0).toFixed(2)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: item.discount > 0 ? '#dc2626' : '#ccc' }}>{item.discount > 0 ? `${item.discount}%` : '—'}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600 }}>${(parseFloat(item.total) || 0).toFixed(2)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: '#16a34a', fontSize: 10 }}>{gstType}</td>
+                      </>}
                     </tr>
                   );
                 })}
                 {visibleItems.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: '#aaa' }}>No line items</td></tr>
+                  <tr><td colSpan={balanceOnly ? 3 : 7} style={{ padding: '20px', textAlign: 'center', color: '#aaa' }}>No line items</td></tr>
                 )}
               </tbody>
             </table>
@@ -4068,28 +4079,38 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div style={{ color: '#78350f', fontSize: 10 }}>Prices valid until {j.due || j.validityDate || '30 days from issue'}. GST will apply upon invoicing.</div>
                   </div>
                 )}
+                {isProforma && (
+                  <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginTop: 8 }}>
+                    <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 2 }}>Proforma — Not a Tax Invoice</div>
+                    <div style={{ color: '#78350f', fontSize: 10 }}>Issued for payment prior to supply. A tax invoice will follow once goods are invoiced.</div>
+                  </div>
+                )}
               </div>
 
-              {/* Totals box */}
+              {/* Totals box — Balance ONLY variant shows just what's owed */}
               <div style={{ minWidth: 240 }}>
                 <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                   <tbody>
-                    <tr><td style={{ padding: '4px 12px 4px 0', color: '#555' }}>Subtotal (ex GST)</td><td style={{ textAlign: 'right', padding: '4px 0', fontFamily: 'monospace' }}>${subtotal.toFixed(2)}</td></tr>
-                    <tr style={{ borderTop: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '4px 12px 4px 0', color: '#555' }}>GST (10%)</td>
-                      <td style={{ textAlign: 'right', padding: '4px 0', fontFamily: 'monospace' }}>${gst.toFixed(2)}</td>
-                    </tr>
-                    <tr style={{ borderTop: '2px solid #1d4ed8', background: '#eff6ff' }}>
-                      <td style={{ padding: '7px 12px 7px 6px', fontWeight: 700, fontSize: 14 }}>TOTAL (inc GST)</td>
-                      <td style={{ textAlign: 'right', padding: '7px 6px 7px 0', fontWeight: 700, fontSize: 14, fontFamily: 'monospace' }}>${grandTotal.toFixed(2)}</td>
-                    </tr>
-                    {paid > 0 && <>
+                    {!balanceOnly && <>
+                      <tr><td style={{ padding: '4px 12px 4px 0', color: '#555' }}>Subtotal (ex GST)</td><td style={{ textAlign: 'right', padding: '4px 0', fontFamily: 'monospace' }}>${subtotal.toFixed(2)}</td></tr>
+                      <tr style={{ borderTop: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: '4px 12px 4px 0', color: '#555' }}>GST (10%)</td>
+                        <td style={{ textAlign: 'right', padding: '4px 0', fontFamily: 'monospace' }}>${gst.toFixed(2)}</td>
+                      </tr>
+                      <tr style={{ borderTop: '2px solid #1d4ed8', background: '#eff6ff' }}>
+                        <td style={{ padding: '7px 12px 7px 6px', fontWeight: 700, fontSize: 14 }}>TOTAL (inc GST)</td>
+                        <td style={{ textAlign: 'right', padding: '7px 6px 7px 0', fontWeight: 700, fontSize: 14, fontFamily: 'monospace' }}>${grandTotal.toFixed(2)}</td>
+                      </tr>
+                    </>}
+                    {(balanceOnly ? paid > 0 : paid > 0) && (
                       <tr><td style={{ padding: '4px 12px 4px 0', color: '#16a34a' }}>Less: Amount Paid</td><td style={{ textAlign: 'right', padding: '4px 0', color: '#16a34a', fontFamily: 'monospace' }}>-${paid.toFixed(2)}</td></tr>
+                    )}
+                    {(balanceOnly || paid > 0) && (
                       <tr style={{ borderTop: '2px solid #dc2626', background: '#fef2f2' }}>
                         <td style={{ padding: '7px 12px 7px 6px', fontWeight: 700, fontSize: 14, color: '#dc2626' }}>BALANCE DUE</td>
                         <td style={{ textAlign: 'right', padding: '7px 6px 7px 0', fontWeight: 700, fontSize: 14, color: '#dc2626', fontFamily: 'monospace' }}>${balance.toFixed(2)}</td>
                       </tr>
-                    </>}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -8456,7 +8477,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               >
                 <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setInvoiceJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+              <button disabled={!activeJob} onClick={() => activeJob && openInvoiceDoc(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <FileText className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Invoice Job</span>
               </button>
             </div>
@@ -8518,8 +8539,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { type: 'shipLabel',    label: 'Ship Label – Total Image',            action: () => setDocumentPrint({ type: 'shipLabel',    job: activeJob }) },
                       { type: 'deliveryNote', label: 'TIG Delivery Note – NZ',              action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
                       null,
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => setInvoiceJob(activeJob) },
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', disabled: true, action: () => {} },
+                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => openInvoiceDoc(activeJob, 'proforma') },
+                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', action: () => openInvoiceDoc(activeJob, 'proformaBalance') },
                       null,
                       { type: 'pdf-job-sheet',    label: 'Download Job Sheet (PDF)',    action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=job-sheet`, '_blank') },
                       { type: 'pdf-picking-slip', label: 'Download Picking Slip (PDF)', action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=picking-slip`, '_blank') },
