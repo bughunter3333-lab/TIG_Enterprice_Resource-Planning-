@@ -2659,54 +2659,106 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             })()}
 
             {/* ── PICK / PACK TAB ──────────────────────────────────────── */}
-            {jobDetailTab === 'pickpack' && (
+            {jobDetailTab === 'pickpack' && (() => {
+              // Persisted Pick/Pack (Jim2 Qty Pick): drafts overlay the saved
+              // qty_pick per line; Save Picks writes them via /jobs/{id}/pick.
+              const productLines = (activeJob.items || []).filter(i => (i.displayType || 'product') === 'product');
+              const target = (i) => i.supply || i.qty || i.order || 0;
+              const draft = pickState[activeJob.id] || {};
+              const pickedOf = (i) => (draft[i.id] !== undefined ? draft[i.id] : (i.qtyPick || 0));
+              const setDraft = (itemId, val) => setPickState(prev => ({
+                ...prev, [activeJob.id]: { ...(prev[activeJob.id] || {}), [itemId]: val },
+              }));
+              const fullyPicked = productLines.length > 0 && productLines.every(i => target(i) > 0 && pickedOf(i) >= target(i));
+              const pickedCount = productLines.filter(i => target(i) > 0 && pickedOf(i) >= target(i)).length;
+              const pct = productLines.length ? Math.round((pickedCount / productLines.length) * 100) : 0;
+              const dirty = productLines.some(i => draft[i.id] !== undefined && draft[i.id] !== (i.qtyPick || 0));
+              const savePicks = async () => {
+                try {
+                  const picks = productLines.map(i => ({ item_id: i.id, qty_pick: pickedOf(i) }));
+                  const { allPicked, job } = await api.jobs.pick(activeJob.id, picks);
+                  setActiveJob(job);
+                  updatePinnedJob(job);
+                  setPickState(prev => ({ ...prev, [activeJob.id]: {} }));
+                  queryClient.invalidateQueries({ queryKey: ['jobs'] });
+                  notify(allPicked ? 'Picks saved — all lines picked' : 'Picks saved', { type: 'success' });
+                } catch (e) { notify(e.message || 'Could not save picks', { type: 'error' }); }
+              };
+              return (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm" style={{ color: T.textMuted }}>Check off items as you pick them from the warehouse.</p>
-                  <button
-                    onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
-                    className="text-sm bg-indigo-500 text-white px-3 py-1.5 rounded hover:bg-indigo-600 flex items-center"
-                  >
-                    <Printer className="w-3 h-3 mr-1" />Print Picking Slip
-                  </button>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm" style={{ color: T.textMuted }}>Enter quantities as you pick them — picks are saved to the job.</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPickState(prev => ({ ...prev, [activeJob.id]: Object.fromEntries(productLines.map(i => [i.id, target(i)])) }))}
+                      className="text-sm px-3 py-1.5 rounded border flex items-center"
+                      style={{ borderColor: T.hairline, color: T.textMuted }}
+                    >
+                      <CheckSquare className="w-3 h-3 mr-1" />Pick All
+                    </button>
+                    <button
+                      onClick={savePicks}
+                      disabled={!dirty}
+                      className="text-sm text-white px-3 py-1.5 rounded flex items-center disabled:opacity-40"
+                      style={{ background: T.accentStrong }}
+                    >
+                      <Save className="w-3 h-3 mr-1" />Save Picks
+                    </button>
+                    <button
+                      onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
+                      className="text-sm bg-indigo-500 text-white px-3 py-1.5 rounded hover:bg-indigo-600 flex items-center"
+                    >
+                      <Printer className="w-3 h-3 mr-1" />Picking Slip
+                    </button>
+                  </div>
                 </div>
-                {(activeJob.items || []).length === 0 ? (
-                  <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No items on this job.</p>
+                {productLines.length === 0 ? (
+                  <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No product lines on this job.</p>
                 ) : (
                   <div className="border rounded overflow-hidden" style={{ borderColor: T.hairline }}>
                     <table className="w-full text-sm">
                       <thead style={{ background: T.hairlineSoft }}>
                         <tr>
-                          <th className="px-3 py-2 w-10 text-center text-xs font-medium" style={{ color: T.textMuted }}>✓</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Status</th>
                           <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Stock Code</th>
                           <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Description</th>
                           <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Sizes</th>
                           <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: T.textMuted }}>Bin</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium" style={{ color: T.textMuted }}>Qty</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium" style={{ color: T.textMuted }}>Supply</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium w-24" style={{ color: T.textMuted }}>Qty Pick</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {(activeJob.items || []).map((item, idx) => {
-                          const picked = (pickState[activeJob.id] || {})[idx] || false;
+                        {productLines.map((item) => {
+                          const t = target(item);
+                          const p = pickedOf(item);
+                          const done = t > 0 && p >= t;
                           const binLoc = inventory.find(i => i.sku === item.stockCode)?.location || '—';
                           return (
-                            <tr key={idx} style={picked ? { background: T.okTint } : {}} className={picked ? '' : 'hover:bg-gray-50'}>
-                              <td className="px-3 py-3 text-center">
+                            <tr key={item.id} style={done ? { background: T.okTint } : {}} className={done ? '' : 'hover:bg-gray-50'}>
+                              <td className="px-3 py-2">
+                                {done
+                                  ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: T.okTint, color: T.ok }}>Picked</span>
+                                  : p > 0
+                                    ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>Partial</span>
+                                    : <span className="text-xs" style={{ color: T.textFaint }}>—</span>}
+                              </td>
+                              <td className="px-3 py-2 font-mono text-xs">{item.stockCode}</td>
+                              <td className="px-3 py-2">{item.description}</td>
+                              <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{item.sizes || '—'}</td>
+                              <td className="px-3 py-2 font-mono text-xs font-medium" style={{ color: T.accentStrong }}>{binLoc}</td>
+                              <td className="px-3 py-2 text-right font-medium">{t}</td>
+                              <td className="px-3 py-2 text-right">
                                 <input
-                                  type="checkbox"
-                                  checked={picked}
-                                  onChange={() => setPickState(prev => ({
-                                    ...prev,
-                                    [activeJob.id]: { ...(prev[activeJob.id] || {}), [idx]: !picked }
-                                  }))}
-                                  className="w-4 h-4 rounded cursor-pointer accent-green-600"
+                                  type="number"
+                                  min={0}
+                                  max={t}
+                                  value={p}
+                                  onChange={e => setDraft(item.id, Math.max(0, Math.min(t, parseInt(e.target.value, 10) || 0)))}
+                                  className="w-16 text-right border rounded px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                  style={{ borderColor: done ? T.ok : T.hairline }}
                                 />
                               </td>
-                              <td className={`px-3 py-3 font-mono text-xs${picked ? ' line-through' : ''}`} style={picked ? { color: T.textFaint } : {}}>{item.stockCode}</td>
-                              <td className={`px-3 py-3${picked ? ' line-through' : ''}`} style={picked ? { color: T.textFaint } : {}}>{item.description}</td>
-                              <td className="px-3 py-3 text-xs" style={{ color: T.textMuted }}>{item.sizes || '—'}</td>
-                              <td className="px-3 py-3 font-mono text-xs font-medium" style={{ color: T.accentStrong }}>{binLoc}</td>
-                              <td className="px-3 py-3 text-right font-medium">{item.order || item.qty || 0}</td>
                             </tr>
                           );
                         })}
@@ -2714,32 +2766,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </table>
                   </div>
                 )}
-                {(activeJob.items || []).length > 0 && (() => {
-                  const total = activeJob.items.length;
-                  const pickedCount = Object.values(pickState[activeJob.id] || {}).filter(Boolean).length;
-                  const pct = Math.round((pickedCount / total) * 100);
-                  return (
-                    <div className="rounded p-3" style={{ background: T.hairlineSoft }}>
-                      <div className="flex items-center justify-between text-sm mb-1.5">
-                        <span style={{ color: T.textMuted }}>Pick Progress</span>
-                        <span className="font-medium">{pickedCount}/{total} items ({pct}%)</span>
-                      </div>
-                      <div className="w-full rounded-full h-2" style={{ background: T.hairline }}>
-                        <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? T.ok : T.accent }} />
-                      </div>
-                      {pct === 100 && (
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-sm font-medium" style={{ color: T.ok }}>All items picked!</span>
-                          <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} className="px-3 py-1 rounded text-sm text-white" style={{ background: T.ok }}>
-                            Mark Complete
-                          </button>
-                        </div>
-                      )}
+                {productLines.length > 0 && (
+                  <div className="rounded p-3" style={{ background: T.hairlineSoft }}>
+                    <div className="flex items-center justify-between text-sm mb-1.5">
+                      <span style={{ color: T.textMuted }}>Pick Progress</span>
+                      <span className="font-medium">{pickedCount}/{productLines.length} lines ({pct}%)</span>
                     </div>
-                  );
-                })()}
+                    <div className="w-full rounded-full h-2" style={{ background: T.hairline }}>
+                      <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? T.ok : T.accent }} />
+                    </div>
+                    {fullyPicked && (
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-sm font-medium" style={{ color: T.ok }}>All lines picked{dirty ? ' — save picks to record' : ''}</span>
+                        <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: T.ok }}>
+                          Mark Complete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
 
             {/* ── DOCUMENTS TAB ────────────────────────────────────────── */}
             {jobDetailTab === 'documents' && (

@@ -443,6 +443,12 @@ export const jobs = {
   updateStatus: (id, status) =>
     request(`/jobs/${id}/status`, { method: 'POST', body: { status } }).then(normalizeJob),
 
+  // Jim2 Pick/Pack: persist per-line picked quantities.
+  // picks: [{ item_id, qty_pick }] → { allPicked, job }
+  pick: (id, picks) =>
+    request(`/jobs/${id}/pick`, { method: 'POST', body: { picks } })
+      .then(r => ({ allPicked: !!r.all_picked, job: normalizeJob(r.job) })),
+
   patchDue: (id, due) =>
     request(`/jobs/${id}`, { method: 'PATCH', body: { due } }).then(normalizeJob),
 

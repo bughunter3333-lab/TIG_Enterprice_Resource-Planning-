@@ -173,6 +173,77 @@ def _finish_job_with_line(db, make_inventory, job_id, cust_id, sku, on_hand, qty
 
 
 @pytest.mark.integration
+class TestPickPack:
+    """POST /jobs/{id}/pick persists per-line picked quantities (Jim2 Qty Pick)."""
+
+    def _job_with_two_lines(self, db, make_inventory, job_id, cust_id):
+        from app.models.job import JobItem
+
+        make_inventory(sku=f"PK-{job_id}-A", stock=50)
+        make_inventory(sku=f"PK-{job_id}-B", stock=50)
+        job = _make_job(db, job_id, cust_id, status="Pick/Pack")
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code=f"PK-{job_id}-A",
+                description="Polo",
+                order_qty=10,
+                qty=10,
+                supply_qty=10,
+            )
+        )
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code=f"PK-{job_id}-B",
+                description="Cap",
+                order_qty=4,
+                qty=4,
+                supply_qty=4,
+            )
+        )
+        db.commit()
+        return job
+
+    def test_full_pick_sets_picked_and_all_picked(self, client, db, make_inventory):
+        from app.models.job import JobItem
+
+        self._job_with_two_lines(db, make_inventory, "J-PK01", "PKC01")
+        items = db.query(JobItem).filter_by(job_id="J-PK01").all()
+        picks = [{"item_id": i.id, "qty_pick": i.supply_qty} for i in items]
+        r = client.post("/jobs/J-PK01/pick", json={"picks": picks})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["all_picked"] is True
+        got = {i["stock_code"]: i for i in data["job"]["items"]}
+        assert got["PK-J-PK01-A"]["qty_pick"] == 10
+        assert got["PK-J-PK01-A"]["item_status"] == "Picked"
+
+    def test_partial_pick_sets_partial(self, client, db, make_inventory):
+        from app.models.job import JobItem
+
+        self._job_with_two_lines(db, make_inventory, "J-PK02", "PKC02")
+        first = db.query(JobItem).filter_by(job_id="J-PK02").first()
+        r = client.post(
+            "/jobs/J-PK02/pick", json={"picks": [{"item_id": first.id, "qty_pick": 4}]}
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["all_picked"] is False
+        got = {i["id"]: i for i in data["job"]["items"]}
+        assert got[first.id]["qty_pick"] == 4
+        assert got[first.id]["item_status"] == "Partial"
+
+    def test_pick_unknown_job_404(self, client):
+        r = client.post(
+            "/jobs/NOPE/pick", json={"picks": [{"item_id": 1, "qty_pick": 1}]}
+        )
+        assert r.status_code == 404
+
+
+@pytest.mark.integration
 class TestStockDepletionOnInvoice:
     """On-hand stock leaves inventory when a job is invoiced (Jim2 model)."""
 

@@ -196,6 +196,15 @@ class DispatchRequest(BaseModel):
     advance_status: bool = False
 
 
+class PickLine(BaseModel):
+    item_id: int
+    qty_pick: int = Field(ge=0)
+
+
+class PickRequest(BaseModel):
+    picks: List[PickLine]
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -924,6 +933,64 @@ def dispatch_job(
     db.commit()
     db.refresh(job)
     return job
+
+
+@router.post("/{job_id}/pick")
+def pick_job_items(
+    job_id: str,
+    body: PickRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    """Record per-line picked quantities (Jim2 Qty Pick).
+
+    A line picked to its supply qty gets item_status 'Picked'; partly picked
+    'Partial'. Returns all_picked so the UI can offer to advance the job.
+    """
+    job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    def target(i: JobItem) -> int:
+        return i.supply_qty or i.qty or i.order_qty or 0
+
+    item_map = {i.id: i for i in job.items}
+    updated = 0
+    for p in body.picks:
+        item = item_map.get(p.item_id)
+        if not item:
+            continue
+        item.qty_pick = p.qty_pick
+        t = target(item)
+        if t > 0 and p.qty_pick >= t:
+            item.item_status = "Picked"
+        elif p.qty_pick > 0:
+            item.item_status = "Partial"
+        else:
+            item.item_status = ""
+        updated += 1
+
+    products = [i for i in job.items if (i.display_type or "product") == "product"]
+    all_picked = bool(products) and all(
+        target(i) > 0 and (i.qty_pick or 0) >= target(i) for i in products
+    )
+
+    now = datetime.now()
+    db.add(
+        JobComment(
+            job_id=job_id,
+            date=now.strftime("%d/%m/%Y"),
+            time=now.strftime("%H:%M"),
+            initials=_get_initials(current_user),
+            author_name=current_user.full_name or current_user.username,
+            status=job.status,
+            is_internal=True,
+            comment=f"Pick/Pack: {updated} line(s) updated"
+            + (" — all lines picked" if all_picked else ""),
+        )
+    )
+    db.commit()
+    return {"all_picked": all_picked, "job": _job_with_relations(db, job_id)}
 
 
 @router.post("/{job_id}/unprint")
