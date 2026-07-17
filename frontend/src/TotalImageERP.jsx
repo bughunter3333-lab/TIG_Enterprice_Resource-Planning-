@@ -20,6 +20,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
 import JobsModule from './modules/jobs/JobsModule';
 import JobListBuilder from './modules/jobs/JobListBuilder';
+import DispatchList from './modules/jobs/DispatchList';
 import { matchJobList } from './modules/jobs/jobsFilters';
 import StockModule from './modules/stock/StockModule';
 import StockListBuilder from './modules/stock/StockListBuilder';
@@ -933,6 +934,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
   const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
   const [stockReportOpen, setStockReportOpen] = useState(false);
+  // Jim2 Dispatch list: batch-dispatch ready + invoiced jobs
+  const [dispatchListOpen, setDispatchListOpen] = useState(false);
+  const [dispatchListBusy, setDispatchListBusy] = useState(false);
+  const dispatchBatch = async (batch) => {
+    setDispatchListBusy(true);
+    const results = await Promise.allSettled(
+      batch.map(b => api.jobs.dispatch(b.id, { shipVia: b.shipVia, shipRef: b.shipRef, cartons: b.cartons, advanceStatus: b.advanceStatus }))
+    );
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.length - ok;
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    setDispatchListBusy(false);
+    if (failed) notify(`Dispatched ${ok} job${ok === 1 ? '' : 's'} — ${failed} failed`, { type: 'error' });
+    else { notify(`Dispatched ${ok} job${ok === 1 ? '' : 's'}`, { type: 'success' }); setDispatchListOpen(false); }
+  };
   const createEmptyPOList = async () => {
     if (listsForNode('purchases').length >= JOB_LIST_MAX) {
       notify(`Maximum ${JOB_LIST_MAX} lists on this node — delete one first.`, { type: 'error' });
@@ -8507,7 +8523,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Sales Reg.</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDispatchModal(m => ({ ...m, open: true, job: activeJob, shipVia: '', shipRef: '', cartons: 1, notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+              <button onClick={() => { setShowJobDetail(false); setDispatchListOpen(true); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
                 <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Dispatch</span>
               </button>
               <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
@@ -9232,7 +9248,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             ) : (
               <>
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
-                {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (jobListModal.open ? renderJobListPage() : renderJobs())}
+                {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (
+                  jobListModal.open ? renderJobListPage()
+                  : (dispatchListOpen && activeModule === 'jobs') ? (
+                    <DispatchList jobs={jobs ?? []} busy={dispatchListBusy} onDispatch={dispatchBatch} onClose={() => setDispatchListOpen(false)} />
+                  )
+                  : renderJobs()
+                )}
                 {!loading && activeModule === 'order-requirements' && renderOrderRequirements()}
                 {!loading && activeModule === 'inventory' && (stockListModal.open ? renderStockListPage() : (
                   <StockModule

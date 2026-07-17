@@ -81,6 +81,7 @@ function normalizeJob(j) {
     proofStatus: j.proof_status ?? j.proofStatus ?? 'none',
     proofNotes: j.proof_notes ?? j.proofNotes ?? '',
     // Production / dispatch fields
+    dispatchedAt: j.dispatched_at ?? j.dispatchedAt ?? '',
     branch: j.branch ?? 'HQ',
     shipToId: j.ship_to_id ?? j.shipToId ?? null,
     weightTotal: parseFloat(j.weight_total ?? j.weightTotal ?? 0),
