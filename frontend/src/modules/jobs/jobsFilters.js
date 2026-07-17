@@ -1,5 +1,34 @@
 import { parseD } from '../../ui/dates';
 
+// Jim2 "Auto Pick Stock": allocate on-hand stock FIFO down the list order —
+// each job claims stock for its product lines before later jobs get any.
+// Returns { [jobId]: pct } where pct = % of the job's stock requirement that
+// can be picked right now. SKUs not tracked in inventory (services,
+// decoration charge lines) count as available so they never block a pick.
+export function computeAutoPickAvailability(jobs, inventory) {
+  const pool = new Map((inventory || []).map(i => [i.sku, Math.max(0, Number(i.stock) || 0)]));
+  const out = {};
+  for (const job of jobs || []) {
+    const lines = (job.items || []).filter(
+      it => (it.displayType || 'product') === 'product' && it.stockCode
+    );
+    let need = 0;
+    let got = 0;
+    for (const line of lines) {
+      const req = Number(line.supply || line.qty || line.order || 0);
+      if (req <= 0) continue;
+      need += req;
+      if (!pool.has(line.stockCode)) { got += req; continue; } // untracked SKU
+      const avail = pool.get(line.stockCode);
+      const take = Math.min(req, avail);
+      got += take;
+      pool.set(line.stockCode, avail - take);
+    }
+    out[job.id] = need > 0 ? Math.round((got / need) * 100) : 100;
+  }
+  return out;
+}
+
 export const QUICK_FILTERS = [
   { id: 'overdue', label: 'Overdue' },
   { id: 'dueToday', label: 'Due Today' },

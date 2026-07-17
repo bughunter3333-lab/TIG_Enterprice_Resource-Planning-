@@ -1,4 +1,4 @@
-import { filterJobs, buildFilterOptions, matchJobList, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
 
 const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const today = new Date();
@@ -120,6 +120,38 @@ test('matchJobList: due-date range excludes jobs outside the window', () => {
   // only jobs due on/after today → 1002 (due tomorrow); 1001/1003 due yesterday
   const out = jobs.filter(j => matchJobList(j, { dueFrom: localYmd(today) }));
   expect(out.map(j => j.id)).toEqual(['1002']);
+});
+
+test('computeAutoPickAvailability allocates stock FIFO down the list order', () => {
+  const inv = [{ sku: 'TEE', stock: 15 }];
+  const js = [
+    { id: 'A', items: [{ displayType: 'product', stockCode: 'TEE', supply: 10 }] },
+    { id: 'B', items: [{ displayType: 'product', stockCode: 'TEE', supply: 10 }] },
+  ];
+  // A takes 10 of 15 → 100%; B gets the remaining 5 of 10 → 50%
+  expect(computeAutoPickAvailability(js, inv)).toEqual({ A: 100, B: 50 });
+  // reversed order flips who gets the stock
+  expect(computeAutoPickAvailability([js[1], js[0]], inv)).toEqual({ B: 100, A: 50 });
+});
+
+test('computeAutoPickAvailability: untracked SKUs and no-line jobs never block', () => {
+  const inv = [{ sku: 'TEE', stock: 0 }];
+  const js = [
+    { id: 'SVC', items: [{ displayType: 'product', stockCode: 'DEC-EMB', supply: 5 }] }, // not in inventory
+    { id: 'EMPTY', items: [] },
+    { id: 'OUT', items: [{ displayType: 'product', stockCode: 'TEE', supply: 4 }] },     // tracked, none on hand
+  ];
+  expect(computeAutoPickAvailability(js, inv)).toEqual({ SVC: 100, EMPTY: 100, OUT: 0 });
+});
+
+test('computeAutoPickAvailability mixes tracked + untracked lines proportionally', () => {
+  const inv = [{ sku: 'TEE', stock: 5 }];
+  const js = [{ id: 'M', items: [
+    { displayType: 'product', stockCode: 'TEE', supply: 10 },     // 5 of 10 pickable
+    { displayType: 'product', stockCode: 'DEC-EMB', supply: 10 }, // untracked → all 10
+  ] }];
+  // (5 + 10) / 20 = 75%
+  expect(computeAutoPickAvailability(js, inv)).toEqual({ M: 75 });
 });
 
 test('QUICK_FILTERS exposes the seven quick filter ids', () => {

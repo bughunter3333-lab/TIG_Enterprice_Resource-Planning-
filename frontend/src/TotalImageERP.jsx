@@ -6465,6 +6465,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         onChange={(patch) => setJobListModal(m => ({ ...m, draft: { ...m.draft, ...patch } }))}
         options={options}
         results={results}
+        inventory={inventory}
         onRun={run}
         onCancel={cancel}
         onAddJob={() => { close(); openModal('job'); }}

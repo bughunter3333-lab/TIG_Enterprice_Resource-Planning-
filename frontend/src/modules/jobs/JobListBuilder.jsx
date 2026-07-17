@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Play, X, Eye, Plus, Pencil, ClipboardList } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import DataGrid from '../../ui/DataGrid';
+import { computeAutoPickAvailability } from './jobsFilters';
 
 // Jim2-style advanced "Job List" builder. Presentational: the parent owns the
 // `draft` filter object and the live `results`. Filters are organised into
@@ -78,7 +79,7 @@ function ClassChk({ label, checked, onToggle }) {
   );
 }
 
-const RESULT_COLUMNS = (onOpen) => [
+const RESULT_COLUMNS = (onOpen, availMap = null) => [
   { key: 'id', label: 'Job#', width: 78, render: r => <span style={{ fontWeight: 700 }}>{r.id}</span> },
   { key: 'status', label: 'Status', width: 84, render: r => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{r.status}</span> },
   { key: 'projectNo', label: 'Project#', width: 92, render: r => r.projectNo || '' },
@@ -88,6 +89,14 @@ const RESULT_COLUMNS = (onOpen) => [
   { key: 'due', label: 'Date Due', width: 94 },
   { key: 'accMgr', label: 'Acc Mgr', width: 80 },
   { key: 'total', label: 'Total $', width: 84, align: 'right', render: r => Number(r.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) },
+  // Jim2 Auto Pick Stock: availability % allocated FIFO down the list order
+  ...(availMap ? [{
+    key: '_avail', label: 'Avail', width: 62, align: 'right', render: r => {
+      const pct = availMap[r.id] ?? 0;
+      const color = pct >= 100 ? T.ok : pct >= 80 ? T.accentStrong : T.danger;
+      return <span style={{ fontWeight: 700, color }}>{pct}%</span>;
+    },
+  }] : []),
   {
     key: '_open', label: '', width: 32, render: r => (
       <span role="button" tabIndex={0} aria-label={`View ${r.id}`} title="View job"
@@ -106,14 +115,16 @@ const btn = (variant) => {
   return { ...base, color: T.textMuted, background: T.hairlineSoft, border: `1px solid ${T.hairline}` };
 };
 
-export default function JobListBuilder({ draft, listName, onChange, options, results, onRun, onCancel, onAddJob, onEditJob, onViewJob }) {
+export default function JobListBuilder({ draft, listName, onChange, options, results, inventory, onRun, onCancel, onAddJob, onEditJob, onViewJob }) {
   const set = (patch) => onChange(patch);
   const o = options || {};
   const activeCount = Object.values(draft).filter(v => v !== '' && v !== false).length;
   const [selectedId, setSelectedId] = useState(null);
   const [showTotal, setShowTotal] = useState(false);
+  const [autoPick, setAutoPick] = useState(false);
   const selected = (results || []).find(r => r.id === selectedId) || null;
   const totalSum = (results || []).reduce((s, r) => s + Number(r.total || 0), 0);
+  const availMap = autoPick ? computeAutoPickAvailability(results || [], inventory || []) : null;
 
   return (
     <div style={{ fontFamily: T.font, display: 'flex', flexDirection: 'column', background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, overflow: 'hidden' }}>
@@ -194,7 +205,7 @@ export default function JobListBuilder({ draft, listName, onChange, options, res
           <span style={{ fontSize: 10.5, color: T.textFaint }}>match{results && results.length === 1 ? 'es' : ''} — click to select, double-click to view</span>
         </div>
         <DataGrid
-          columns={RESULT_COLUMNS(onViewJob)}
+          columns={RESULT_COLUMNS(onViewJob, availMap)}
           rows={results}
           rowKey="id"
           selectedKey={selectedId}
@@ -217,6 +228,11 @@ export default function JobListBuilder({ draft, listName, onChange, options, res
         <button onClick={onAddJob} style={btn()}><Plus size={13} /> Add</button>
         <button onClick={() => selected && onEditJob(selected)} disabled={!selected} style={{ ...btn(), opacity: selected ? 1 : 0.45, cursor: selected ? 'pointer' : 'not-allowed' }}><Pencil size={13} /> Edit</button>
         <button onClick={() => selected && onViewJob(selected)} disabled={!selected} style={{ ...btn(), opacity: selected ? 1 : 0.45, cursor: selected ? 'pointer' : 'not-allowed' }}><Eye size={13} /> View</button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: T.fsSmall, cursor: 'pointer', userSelect: 'none', color: autoPick ? T.accentStrong : T.textMuted, fontWeight: autoPick ? 700 : 500, marginLeft: 4 }}
+          title="Show stock availability % per job, allocated FIFO down the list (Jim2 Auto Pick Stock)">
+          <input type="checkbox" checked={autoPick} onChange={() => setAutoPick(a => !a)} style={{ accentColor: T.accentStrong }} />
+          Auto Pick Stock
+        </label>
         <div style={{ flex: 1 }} />
         <button onClick={onRun} style={btn('primary')}><Play size={13} /> Run</button>
         <button onClick={onCancel} style={{ ...btn(), color: T.danger, borderColor: T.danger }}><X size={13} /> Cancel</button>
