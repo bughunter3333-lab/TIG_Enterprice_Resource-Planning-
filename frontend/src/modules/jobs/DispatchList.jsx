@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Truck, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Truck, X, Download } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
+import { dispatchSessions } from '../../api';
 
 // Jim2 Dispatch list: all dispatchable jobs (ready + invoiced) in one screen
 // with inline-editable Ship Via / Ship Ref / Cartons (Jim2 shows these as
@@ -20,6 +21,27 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
   const [selected, setSelected] = useState(() => new Set());
   const [edits, setEdits] = useState({}); // jobId -> { shipVia, shipRef, cartons }
   const [advance, setAdvance] = useState(true);
+  // Past sessions (Jim2 "Dispatch #"): pick one to review/export its lines.
+  const [sessions, setSessions] = useState([]);
+  const [viewSessionId, setViewSessionId] = useState('');
+  const [viewSession, setViewSession] = useState(null);
+  useEffect(() => {
+    dispatchSessions.list().then(setSessions).catch(() => setSessions([]));
+  }, [busy]); // refresh after a batch completes
+  useEffect(() => {
+    if (!viewSessionId) { setViewSession(null); return; }
+    dispatchSessions.get(viewSessionId).then(setViewSession).catch(() => setViewSession(null));
+  }, [viewSessionId]);
+  const exportSession = () => {
+    if (!viewSession) return;
+    const rows = viewSession.lines.map(l => `${l.job_id},${JSON.stringify(l.customer_name || '')},${JSON.stringify(l.ship_via || '')},${JSON.stringify(l.ship_ref || '')},${l.cartons}`);
+    const csv = ['job_id,customer,ship_via,ship_ref,cartons', ...rows].join('\n');
+    const url = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dispatch-session-${viewSession.id}.csv`;
+    a.click();
+  };
 
   const editOf = (j) => edits[j.id] || {};
   const valOf = (j, key, fallback) => (editOf(j)[key] !== undefined ? editOf(j)[key] : fallback);
@@ -49,8 +71,51 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
           <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Dispatch</div>
           <div style={{ fontSize: 10.5, color: T.textFaint }}>Ready + invoiced jobs — edit Ship Via / Ref / Cartons inline, select and dispatch</div>
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: T.fsSmall, color: T.textMuted }}>
+          Dispatch #
+          <select value={viewSessionId} onChange={e => setViewSessionId(e.target.value)}
+            style={{ border: `1px solid ${T.hairline}`, borderRadius: 4, padding: '3px 6px', fontSize: T.fsSmall, fontFamily: T.font, background: T.panel, color: T.text }}>
+            <option value="">New dispatch</option>
+            {sessions.map(s => <option key={s.id} value={s.id}>#{s.id} — {s.line_count} job{s.line_count === 1 ? '' : 's'}</option>)}
+          </select>
+        </label>
+        {viewSession && (
+          <button onClick={exportSession} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: T.fsSmall, fontWeight: 600, color: T.accentStrong, background: T.accentTint, border: `1px solid ${T.accentStrong}`, borderRadius: 6, cursor: 'pointer' }}>
+            <Download size={12} /> Export CSV
+          </button>
+        )}
         <button onClick={onClose} aria-label="Close" style={{ display: 'flex', padding: 4, borderRadius: 5, border: 'none', background: 'transparent', color: T.textFaint, cursor: 'pointer' }}><X size={16} /></button>
       </div>
+
+      {viewSession && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+            <thead style={{ background: T.hairlineSoft }}>
+              <tr>
+                {['Job#', 'Customer', 'Ship Via', 'Ship Ref', 'Cartons'].map(h => (
+                  <th key={h} style={{ ...cell, textAlign: 'left', fontSize: T.fsHeader, fontWeight: 700, color: T.headerText, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {viewSession.lines.map((l, i) => (
+                <tr key={i}>
+                  <td style={{ ...cell, fontWeight: 700, fontFamily: T.mono ?? 'monospace' }}>{l.job_id}</td>
+                  <td style={cell}>{l.customer_name}</td>
+                  <td style={cell}>{l.ship_via}</td>
+                  <td style={cell}>{l.ship_ref}</td>
+                  <td style={{ ...cell, textAlign: 'right' }}>{l.cartons}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ padding: '8px 14px', fontSize: 10.5, color: T.textFaint }}>
+            Dispatched {viewSession.created_at ? new Date(viewSession.created_at).toLocaleString() : ''} — {viewSession.lines.length} job{viewSession.lines.length === 1 ? '' : 's'}
+          </div>
+        </div>
+      )}
+
+      {!viewSession && (<>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
@@ -112,6 +177,7 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
           <Truck size={13} /> {busy ? 'Dispatching…' : `Dispatch Selected (${selected.size})`}
         </button>
       </div>
+      </>)}
     </div>
   );
 }

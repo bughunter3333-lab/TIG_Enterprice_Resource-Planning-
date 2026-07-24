@@ -939,15 +939,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [dispatchListBusy, setDispatchListBusy] = useState(false);
   const dispatchBatch = async (batch) => {
     setDispatchListBusy(true);
-    const results = await Promise.allSettled(
-      batch.map(b => api.jobs.dispatch(b.id, { shipVia: b.shipVia, shipRef: b.shipRef, cartons: b.cartons, advanceStatus: b.advanceStatus }))
-    );
-    const ok = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.length - ok;
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    setDispatchListBusy(false);
-    if (failed) notify(`Dispatched ${ok} job${ok === 1 ? '' : 's'} — ${failed} failed`, { type: 'error' });
-    else { notify(`Dispatched ${ok} job${ok === 1 ? '' : 's'}`, { type: 'success' }); setDispatchListOpen(false); }
+    try {
+      // One transactional session (Jim2 Dispatch #) instead of N separate calls.
+      const session = await api.dispatchSessions.create(batch);
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      notify(`Dispatch #${session.id} recorded — ${session.line_count} job${session.line_count === 1 ? '' : 's'}`, { type: 'success' });
+      setDispatchListOpen(false);
+    } catch (e) {
+      notify(e.message || 'Dispatch failed', { type: 'error' });
+    } finally {
+      setDispatchListBusy(false);
+    }
   };
   const createEmptyPOList = async () => {
     if (listsForNode('purchases').length >= JOB_LIST_MAX) {

@@ -1194,6 +1194,19 @@ export const adminSettings = {
   }),
 };
 
+// ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
+
+export const dispatchSessions = {
+  // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus }]
+  create: (lines) =>
+    request('/dispatch-sessions', {
+      method: 'POST',
+      body: { lines: lines.map(l => ({ job_id: l.id, ship_via: l.shipVia, ship_ref: l.shipRef, cartons: l.cartons, advance_status: l.advanceStatus })) },
+    }),
+  list: () => request('/dispatch-sessions'),
+  get: (id) => request(`/dispatch-sessions/${id}`),
+};
+
 // ── Saved nav-tree lists (server-synced; Jim2 25 per node, per user) ─────────
 
 export const savedLists = {
