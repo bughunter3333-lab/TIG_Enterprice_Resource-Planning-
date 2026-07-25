@@ -12,6 +12,7 @@ from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.supplier import Supplier
+from app.models.supplier_price_list import SupplierPriceList
 from app.core.dependencies import require_any, require_staff
 from app.models.user import User
 
@@ -776,6 +777,100 @@ def get_stock_stats(
         "last_sold": last(sale_moves),
         "last_received": last(purchase_moves),
     }
+
+
+def _require_item(db: Session, sku: str):
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+
+
+@router.get("/{sku}/vendors")
+def get_stock_vendors(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    """Suppliers who list this SKU and their prices (Jim2 'Vendors' tab)."""
+    _require_item(db, sku)
+    rows = (
+        db.query(SupplierPriceList, Supplier)
+        .outerjoin(Supplier, SupplierPriceList.supplier_id == Supplier.id)
+        .filter(SupplierPriceList.sku == sku)
+        .order_by(SupplierPriceList.unit_cost.asc())
+        .all()
+    )
+    return [
+        {
+            "supplier_id": spl.supplier_id,
+            "supplier_name": sup.name if sup else spl.supplier_id,
+            "unit_cost": float(spl.unit_cost or 0),
+            "min_qty": spl.min_qty,
+            "currency": spl.currency,
+            "lead_time_days": spl.lead_time_days,
+            "valid_from": spl.valid_from,
+            "valid_to": spl.valid_to,
+        }
+        for spl, sup in rows
+    ]
+
+
+@router.get("/{sku}/buying")
+def get_stock_buying(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    """Purchase-order line history for this SKU (Jim2 'Buying' tab). Outstanding
+    lines (ordered > received) drive the 'Stock On Hand' incoming view."""
+    _require_item(db, sku)
+    rows = (
+        db.query(PurchaseOrderItem, PurchaseOrder)
+        .join(PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id)
+        .filter(PurchaseOrderItem.sku == sku)
+        .order_by(PurchaseOrder.created_at.desc())
+        .all()
+    )
+    out = []
+    for it, po in rows:
+        ordered = it.qty_ordered or 0
+        received = it.qty_received or 0
+        out.append(
+            {
+                "po_id": po.id,
+                "supplier_name": po.supplier_name,
+                "status": po.status,
+                "order_date": po.order_date,
+                "expected_date": po.expected_date,
+                "qty_ordered": ordered,
+                "qty_received": received,
+                "outstanding": max(0, ordered - received),
+                "unit_cost": float(it.unit_cost or 0),
+                "total": float(it.total or 0),
+            }
+        )
+    return out
+
+
+@router.get("/{sku}/sales")
+def get_stock_sales(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    """Sale movements for this SKU with the customer/job (Jim2 'Sales' tab)."""
+    _require_item(db, sku)
+    rows = (
+        db.query(StockMovement, Job)
+        .outerjoin(Job, StockMovement.job_id == Job.id)
+        .filter(StockMovement.sku == sku, StockMovement.type == "Sale")
+        .order_by(StockMovement.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "date": m.date,
+            "job_id": m.job_id,
+            "customer_name": job.customer_name if job else None,
+            "reference": m.reference,
+            "location_branch": m.location_branch,
+            "quantity": abs(m.quantity or 0),
+        }
+        for m, job in rows
+    ]
 
 
 @router.get("/{sku}/committed")

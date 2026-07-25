@@ -5,15 +5,24 @@ import StockDetailsTab from './tabs/StockDetailsTab';
 import StockLocationsTab from './tabs/StockLocationsTab';
 import StockPricingTab from './tabs/StockPricingTab';
 import StockStatsTab from './tabs/StockStatsTab';
+import StockOnHandTab from './tabs/StockOnHandTab';
+import StockBuyingTab from './tabs/StockBuyingTab';
+import StockVendorsTab from './tabs/StockVendorsTab';
+import StockSalesTab from './tabs/StockSalesTab';
 import StockTransactionsTab from './tabs/StockTransactionsTab';
 import StockCommittedTab from './tabs/StockCommittedTab';
 
+// Order follows Jim2's Stock detail tab row.
 const TABS = [
   { id: 'details', label: 'Details' },
   { id: 'locations', label: 'Locations' },
   { id: 'pricing', label: 'Pricing' },
+  { id: 'onhand', label: 'Stock On Hand' },
   { id: 'stats', label: 'Stats' },
+  { id: 'buying', label: 'Buying' },
+  { id: 'vendors', label: 'Vendors' },
   { id: 'transactions', label: 'Transactions' },
+  { id: 'sales', label: 'Sales' },
   { id: 'committed', label: 'Committed' },
 ];
 
@@ -41,8 +50,12 @@ export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO }) 
         {tab === 'details' && <StockDetailsTab item={item} />}
         {tab === 'locations' && <StockLocationsTab sku={item.sku} />}
         {tab === 'pricing' && <StockPricingTab sku={item.sku} />}
+        {tab === 'onhand' && <StockOnHandTab sku={item.sku} onNavigatePO={onNavigatePO} />}
         {tab === 'stats' && <StockStatsTab sku={item.sku} />}
+        {tab === 'buying' && <StockBuyingTab sku={item.sku} onNavigatePO={onNavigatePO} />}
+        {tab === 'vendors' && <StockVendorsTab sku={item.sku} />}
         {tab === 'transactions' && <StockTransactionsTab sku={item.sku} onNavigateJob={onNavigateJob} onNavigatePO={onNavigatePO} />}
+        {tab === 'sales' && <StockSalesTab sku={item.sku} onNavigateJob={onNavigateJob} />}
         {tab === 'committed' && <StockCommittedTab sku={item.sku} onNavigateJob={onNavigateJob} />}
       </div>
     </div>

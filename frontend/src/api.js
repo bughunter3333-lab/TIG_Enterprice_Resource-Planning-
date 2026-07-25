@@ -603,6 +603,15 @@ export const stock = {
 
   stats: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/stats`),
+
+  vendors: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/vendors`),
+
+  buying: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/buying`),
+
+  sales: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/sales`),
 };
 
 // ── AI Assistant ─────────────────────────────────────────────────────────────
