@@ -600,6 +600,9 @@ export const stock = {
 
   committed: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/committed`),
+
+  stats: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/stats`),
 };
 
 // ── AI Assistant ─────────────────────────────────────────────────────────────

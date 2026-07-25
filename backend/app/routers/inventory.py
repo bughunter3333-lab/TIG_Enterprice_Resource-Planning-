@@ -712,6 +712,72 @@ def get_transactions(
     ]
 
 
+@router.get("/{sku}/stats")
+def get_stock_stats(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    """Movement velocity for the Jim2 Stock 'Stats' tab.
+
+    Sales use type 'Sale' (negative qty); receipts use type 'Purchase'
+    (positive). Windows are measured against created_at (a real timestamp),
+    not the free-form `date` string. stock_cover_days answers "how many days
+    of stock remain at the trailing-year sales pace" — null when nothing sold.
+    """
+    item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    movements = db.query(StockMovement).filter(StockMovement.sku == sku).all()
+    now = datetime.now()
+
+    def age_days(m: StockMovement):
+        dt = m.created_at
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return (now - dt).total_seconds() / 86400.0
+
+    scored = [(age_days(m), m) for m in movements]
+
+    def sold_within(days):
+        return sum(
+            -(m.quantity or 0)
+            for a, m in scored
+            if m.type == "Sale" and a is not None and a <= days
+        )
+
+    units_sold_365 = sold_within(365)
+    avg_daily = units_sold_365 / 365.0 if units_sold_365 else 0.0
+    on_hand = item.stock or 0
+    sale_moves = [m for a, m in scored if m.type == "Sale"]
+    purchase_moves = [m for a, m in scored if m.type == "Purchase"]
+    last = lambda ms: (  # noqa: E731
+        max(ms, key=lambda m: m.created_at or datetime.min).date if ms else None
+    )
+
+    return {
+        "sku": sku,
+        "on_hand": on_hand,
+        "units_sold_30": sold_within(30),
+        "units_sold_90": sold_within(90),
+        "units_sold_365": units_sold_365,
+        "units_received_365": sum(
+            (m.quantity or 0)
+            for a, m in scored
+            if m.type == "Purchase" and a is not None and a <= 365
+        ),
+        "total_sold_all_time": sum(-(m.quantity or 0) for m in sale_moves),
+        "total_received_all_time": sum((m.quantity or 0) for m in purchase_moves),
+        "sale_count": len(sale_moves),
+        "avg_monthly_sold": round(units_sold_365 / 12.0, 2),
+        "avg_daily_sold": round(avg_daily, 3),
+        "stock_cover_days": round(on_hand / avg_daily, 1) if avg_daily > 0 else None,
+        "last_sold": last(sale_moves),
+        "last_received": last(purchase_moves),
+    }
+
+
 @router.get("/{sku}/committed")
 def get_committed(
     sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)

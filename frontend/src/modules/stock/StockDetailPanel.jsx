@@ -4,6 +4,7 @@ import { T } from '../../ui/tokens';
 import StockDetailsTab from './tabs/StockDetailsTab';
 import StockLocationsTab from './tabs/StockLocationsTab';
 import StockPricingTab from './tabs/StockPricingTab';
+import StockStatsTab from './tabs/StockStatsTab';
 import StockTransactionsTab from './tabs/StockTransactionsTab';
 import StockCommittedTab from './tabs/StockCommittedTab';
 
@@ -11,6 +12,7 @@ const TABS = [
   { id: 'details', label: 'Details' },
   { id: 'locations', label: 'Locations' },
   { id: 'pricing', label: 'Pricing' },
+  { id: 'stats', label: 'Stats' },
   { id: 'transactions', label: 'Transactions' },
   { id: 'committed', label: 'Committed' },
 ];
@@ -39,6 +41,7 @@ export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO }) 
         {tab === 'details' && <StockDetailsTab item={item} />}
         {tab === 'locations' && <StockLocationsTab sku={item.sku} />}
         {tab === 'pricing' && <StockPricingTab sku={item.sku} />}
+        {tab === 'stats' && <StockStatsTab sku={item.sku} />}
         {tab === 'transactions' && <StockTransactionsTab sku={item.sku} onNavigateJob={onNavigateJob} onNavigatePO={onNavigatePO} />}
         {tab === 'committed' && <StockCommittedTab sku={item.sku} onNavigateJob={onNavigateJob} />}
       </div>
