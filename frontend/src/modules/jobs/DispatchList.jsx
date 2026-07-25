@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Truck, X, Download } from 'lucide-react';
+import { Truck, X, Download, Printer } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import { dispatchSessions } from '../../api';
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Jim2 Dispatch list: all dispatchable jobs (ready + invoiced) in one screen
 // with inline-editable Ship Via / Ship Ref / Cartons (Jim2 shows these as
@@ -43,6 +45,63 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
     a.click();
   };
 
+  // Jim2 "Print" of a dispatch session — a clean A4 despatch manifest opened
+  // in its own window so the app chrome/CSS never bleeds into the printout.
+  const printSession = () => {
+    if (!viewSession) return;
+    const s = viewSession;
+    const totalCartons = s.lines.reduce((n, l) => n + Number(l.cartons || 0), 0);
+    const when = s.created_at ? new Date(s.created_at).toLocaleString() : '';
+    const bodyRows = s.lines.map(l => `
+      <tr>
+        <td class="mono">${esc(l.job_id)}</td>
+        <td>${esc(l.customer_name)}</td>
+        <td>${esc(l.ship_via)}</td>
+        <td>${esc(l.ship_ref)}</td>
+        <td class="num">${esc(l.cartons)}</td>
+        <td class="sig"></td>
+      </tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Dispatch #${s.id}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; margin: 0; padding: 24px; font-size: 12px; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1d4ed8; padding-bottom: 12px; margin-bottom: 16px; }
+        .co { font-size: 18px; font-weight: 800; }
+        .co small { display: block; font-size: 11px; font-weight: 400; color: #555; margin-top: 3px; }
+        .doc { text-align: right; }
+        .doc .title { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #1d4ed8; }
+        .doc .meta { font-size: 11px; color: #555; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        th { background: #1d4ed8; color: #fff; text-align: left; padding: 7px 8px; font-size: 11px; }
+        th.num, td.num { text-align: right; }
+        td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) td { background: #f8fafc; }
+        .mono { font-family: monospace; font-weight: 700; }
+        .sig { width: 130px; border-bottom: 1px solid #1a1a1a; }
+        th.sig { border-bottom: none; }
+        .totals { margin-top: 14px; display: flex; justify-content: flex-end; gap: 26px; font-weight: 700; }
+        .foot { margin-top: 34px; display: flex; justify-content: space-between; font-size: 11px; color: #555; }
+        .foot .line { border-top: 1px solid #1a1a1a; padding-top: 4px; width: 240px; text-align: center; }
+        @media print { @page { size: A4 portrait; margin: 14mm; } body { padding: 0; } }
+      </style></head><body>
+      <div class="head">
+        <div class="co">Total Image Group<small>Despatch Manifest &middot; info@totalimagegroup.com.au</small></div>
+        <div class="doc"><div class="title">DISPATCH #${s.id}</div><div class="meta">${esc(when)}<br>${s.lines.length} job${s.lines.length === 1 ? '' : 's'} &middot; ${totalCartons} carton${totalCartons === 1 ? '' : 's'}</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Job#</th><th>Customer</th><th>Ship Via</th><th>Ship Ref</th><th class="num">Cartons</th><th class="sig">Received</th></tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+      <div class="totals"><span>Jobs: ${s.lines.length}</span><span>Total Cartons: ${totalCartons}</span></div>
+      <div class="foot"><div class="line">Despatched by</div><div class="line">Carrier / Driver signature</div></div>
+      <script>window.onload = function(){ window.print(); }</script>
+      </body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  };
+
   const editOf = (j) => edits[j.id] || {};
   const valOf = (j, key, fallback) => (editOf(j)[key] !== undefined ? editOf(j)[key] : fallback);
   const setEdit = (jobId, key, val) => setEdits(prev => ({ ...prev, [jobId]: { ...(prev[jobId] || {}), [key]: val } }));
@@ -80,9 +139,14 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
           </select>
         </label>
         {viewSession && (
-          <button onClick={exportSession} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: T.fsSmall, fontWeight: 600, color: T.accentStrong, background: T.accentTint, border: `1px solid ${T.accentStrong}`, borderRadius: 6, cursor: 'pointer' }}>
-            <Download size={12} /> Export CSV
-          </button>
+          <>
+            <button onClick={printSession} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: T.fsSmall, fontWeight: 600, color: '#fff', background: T.accentStrong, border: 'none', borderRadius: 6, cursor: 'pointer' }}>
+              <Printer size={12} /> Print
+            </button>
+            <button onClick={exportSession} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: T.fsSmall, fontWeight: 600, color: T.accentStrong, background: T.accentTint, border: `1px solid ${T.accentStrong}`, borderRadius: 6, cursor: 'pointer' }}>
+              <Download size={12} /> Export CSV
+            </button>
+          </>
         )}
         <button onClick={onClose} aria-label="Close" style={{ display: 'flex', padding: 4, borderRadius: 5, border: 'none', background: 'transparent', color: T.textFaint, cursor: 'pointer' }}><X size={16} /></button>
       </div>
