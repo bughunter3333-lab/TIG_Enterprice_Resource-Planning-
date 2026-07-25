@@ -18,6 +18,8 @@ from app.models.customer import Customer
 from app.models.supplier import Supplier
 from app.models.inventory import InventoryItem
 from app.models.job import Job, JobItem, JobComment
+from app.models.supplier_price_list import SupplierPriceList
+from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 
 GST = Decimal("0.10")
 
@@ -288,6 +290,65 @@ INVENTORY = [
         8.50,
         "",
         0.000,
+    ),
+]
+
+# Supplier price lists → the Stock "Vendors" tab. Several SKUs list two
+# suppliers so the tab shows a price comparison (cheapest is starred).
+# supplier_id, sku, unit_cost, min_qty, lead_time_days
+SUPPLIER_PRICES = [
+    ("AS.COLOUR", "AS5026-BLK-M", 6.20, 50, 7),
+    ("BIZ.COLLEC", "AS5026-BLK-M", 6.45, 100, 10),
+    ("AS.COLOUR", "AS5026-BLK-L", 6.20, 50, 7),
+    ("AS.COLOUR", "AS5026-WHT-L", 6.20, 50, 7),
+    ("BIZ.COLLEC", "BZ-P244-NVY", 12.50, 25, 14),
+    ("AS.COLOUR", "BZ-P244-NVY", 13.10, 50, 7),
+    ("BIZ.COLLEC", "BZ-HIVIS-ORG", 15.80, 25, 14),
+    ("BIZ.COLLEC", "CAP-5PNL-BLK", 4.80, 50, 21),
+    ("AS.COLOUR", "HOODIE-AS-GRY", 24.00, 20, 10),
+    ("MADEIRA.TH", "EMB-THR-BLK", 3.20, 10, 5),
+    ("MADEIRA.TH", "DTF-FILM-A3", 1.10, 100, 5),
+]
+
+# Purchase orders → the Stock "Buying" tab; the Sent POs carry partly-received
+# lines (ordered > received) that surface as incoming on "Stock On Hand".
+# id, supplier_id, supplier_name, status, order_date, expected_date,
+#   [(sku, qty_ordered, qty_received, unit_cost)]
+PURCHASE_ORDERS = [
+    (
+        "PO-2048001",
+        "AS.COLOUR",
+        "AS Colour Wholesale",
+        "Received",
+        "12/05/2026",
+        "26/05/2026",
+        [
+            ("AS5026-BLK-M", 500, 500, 6.20),
+            ("AS5026-WHT-L", 300, 300, 6.20),
+        ],
+    ),
+    (
+        "PO-2049110",
+        "BIZ.COLLEC",
+        "Biz Collection",
+        "Sent",
+        "18/06/2026",
+        "02/07/2026",
+        [
+            ("BZ-P244-NVY", 200, 80, 12.50),
+            ("BZ-HIVIS-ORG", 150, 0, 15.80),
+        ],
+    ),
+    (
+        "PO-2050200",
+        "AS.COLOUR",
+        "AS Colour Wholesale",
+        "Sent",
+        "01/07/2026",
+        "15/07/2026",
+        [
+            ("AS5026-BLK-L", 400, 0, 6.20),
+        ],
     ),
 ]
 
@@ -772,7 +833,14 @@ def jobs_spec():
 
 def seed():
     db = SessionLocal()
-    created = {"customers": 0, "suppliers": 0, "inventory": 0, "jobs": 0}
+    created = {
+        "customers": 0,
+        "suppliers": 0,
+        "inventory": 0,
+        "jobs": 0,
+        "supplier_prices": 0,
+        "purchase_orders": 0,
+    }
     try:
         for row in CUSTOMERS:
             if not db.get(Customer, row["id"]):
@@ -803,8 +871,58 @@ def seed():
                 )
                 created["inventory"] += 1
 
-        # Customers must be flushed before jobs (FK on customer_id).
+        # Suppliers + inventory must exist before price lists / PO lines (FKs).
         db.flush()
+
+        for supplier_id, sku, cost, min_qty, lead in SUPPLIER_PRICES:
+            exists = (
+                db.query(SupplierPriceList)
+                .filter_by(supplier_id=supplier_id, sku=sku)
+                .first()
+            )
+            if not exists:
+                db.add(
+                    SupplierPriceList(
+                        supplier_id=supplier_id,
+                        sku=sku,
+                        unit_cost=money(cost),
+                        min_qty=min_qty,
+                        currency="AUD",
+                        lead_time_days=lead,
+                    )
+                )
+                created["supplier_prices"] += 1
+
+        for po_id, sup_id, sup_name, status, odate, edate, items in PURCHASE_ORDERS:
+            if db.get(PurchaseOrder, po_id):
+                continue
+            total_ex = sum(money(o * c) for _, o, _, c in items)
+            db.add(
+                PurchaseOrder(
+                    id=po_id,
+                    supplier_id=sup_id,
+                    supplier_name=sup_name,
+                    status=status,
+                    order_date=odate,
+                    expected_date=edate,
+                    total_ex=total_ex,
+                    tax_total=money(total_ex * GST),
+                    total_inc=money(total_ex * (1 + GST)),
+                    total=money(total_ex * (1 + GST)),
+                )
+            )
+            for sku, ordered, received, cost in items:
+                db.add(
+                    PurchaseOrderItem(
+                        order_id=po_id,
+                        sku=sku,
+                        qty_ordered=ordered,
+                        qty_received=received,
+                        unit_cost=money(cost),
+                        total=money(ordered * cost),
+                    )
+                )
+            created["purchase_orders"] += 1
 
         for job in jobs_spec():
             if not db.get(Job, job.id):
