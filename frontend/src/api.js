@@ -173,6 +173,10 @@ function normalizeInventory(i) {
     buy_tax_pct: i.buy_tax_pct ?? 10,
     sell_tax_pct: i.sell_tax_pct ?? 10,
     min_stock: i.min_stock ?? 0,
+    // Jim2 Descriptions tab
+    desc_extended: i.desc_extended ?? '',
+    desc_web: i.desc_web ?? '',
+    desc_care: i.desc_care ?? '',
   };
 }
 
@@ -527,6 +531,9 @@ export const inventory = {
     sell_unit: data.sell_unit,
     buy_tax_pct: data.buy_tax_pct,
     sell_tax_pct: data.sell_tax_pct,
+    desc_extended: data.desc_extended,
+    desc_web: data.desc_web,
+    desc_care: data.desc_care,
   }}).then(normalizeInventory),
 
   adjust: (sku, adjustment, reason) =>

@@ -3,6 +3,7 @@ import Tabs from '../../ui/Tabs';
 import { T } from '../../ui/tokens';
 import StockDetailsTab from './tabs/StockDetailsTab';
 import StockLocationsTab from './tabs/StockLocationsTab';
+import StockDescriptionsTab from './tabs/StockDescriptionsTab';
 import StockPricingTab from './tabs/StockPricingTab';
 import StockStatsTab from './tabs/StockStatsTab';
 import StockOnHandTab from './tabs/StockOnHandTab';
@@ -16,6 +17,7 @@ import StockCommittedTab from './tabs/StockCommittedTab';
 const TABS = [
   { id: 'details', label: 'Details' },
   { id: 'locations', label: 'Locations' },
+  { id: 'descriptions', label: 'Descriptions' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'onhand', label: 'Stock On Hand' },
   { id: 'stats', label: 'Stats' },
@@ -49,6 +51,7 @@ export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO }) 
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 10 }}>
         {tab === 'details' && <StockDetailsTab item={item} />}
         {tab === 'locations' && <StockLocationsTab sku={item.sku} />}
+        {tab === 'descriptions' && <StockDescriptionsTab item={item} />}
         {tab === 'pricing' && <StockPricingTab sku={item.sku} />}
         {tab === 'onhand' && <StockOnHandTab sku={item.sku} onNavigatePO={onNavigatePO} />}
         {tab === 'stats' && <StockStatsTab sku={item.sku} />}

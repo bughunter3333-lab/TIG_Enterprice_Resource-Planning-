@@ -53,7 +53,7 @@ black --check app tests
 - `app/routers/` — FastAPI routers (thin; business logic stays in core/)
 - `app/models/` — SQLAlchemy ORM models (incl. `stock_location.py`, `stock_pricing.py` for the Stock module)
 - `app/routers/inventory.py` — Stock API: locations CRUD, pricing (cost + qty-break levels), `/transactions`, `/committed` (`/inventory/{sku}/...`)
-- `alembic/versions/` — DB migration history; latest head: `t4u5v6w7x8y9` (dispatch_sessions)
+- `alembic/versions/` — DB migration history; latest head: `u5v6w7x8y9z0` (stock descriptions: extended/web/care)
 - `app/routers/saved_lists.py` — server-synced per-user nav-tree lists (`/saved-lists`, max 25 per node)
 - `app/routers/dispatch_sessions.py` — recorded despatch batches (Jim2 "Dispatch #"); creating one dispatches its jobs + records reviewable lines (`/dispatch-sessions`)
 - `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)

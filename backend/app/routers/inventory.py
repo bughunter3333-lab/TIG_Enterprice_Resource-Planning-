@@ -51,6 +51,10 @@ class InventoryUpdate(BaseModel):
     sell_unit: Optional[str] = None
     buy_tax_pct: Optional[float] = None
     sell_tax_pct: Optional[float] = None
+    # Jim2 Descriptions tab
+    desc_extended: Optional[str] = None
+    desc_web: Optional[str] = None
+    desc_care: Optional[str] = None
 
 
 class StockAdjust(BaseModel):

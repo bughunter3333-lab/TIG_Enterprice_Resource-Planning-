@@ -52,6 +52,11 @@ class InventoryItem(Base):
     last_effective_date = Column(String(20), nullable=True)
     price_template = Column(String(100), nullable=True)
 
+    # Jim2 "Descriptions" tab — long-form text per SKU (nullable)
+    desc_extended = Column(Text, nullable=True)
+    desc_web = Column(Text, nullable=True)
+    desc_care = Column(Text, nullable=True)
+
     # Variant matrix links (nullable — existing SKUs unaffected)
     style_id = Column(Integer, ForeignKey("styles.id"), nullable=True, index=True)
     colour_code = Column(String(20), nullable=True)
