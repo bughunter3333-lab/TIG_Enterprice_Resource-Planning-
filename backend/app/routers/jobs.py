@@ -293,6 +293,8 @@ def _commit_job_stock(job: "Job", db: Session) -> None:
         if not inv:
             continue
         inv.committed_qty = (inv.committed_qty or 0) + qty
+        # The reservation belongs to the branch that will ship it.
+        adjust_location(db, item.stock_code, job.branch, committed=qty)
         db.add(
             StockMovement(
                 sku=item.stock_code,
@@ -320,6 +322,7 @@ def _release_job_stock(job: "Job", db: Session) -> None:
         if not inv:
             continue
         inv.committed_qty = max(0, (inv.committed_qty or 0) - qty)
+        adjust_location(db, item.stock_code, job.branch, committed=-qty)
         db.add(
             StockMovement(
                 sku=item.stock_code,

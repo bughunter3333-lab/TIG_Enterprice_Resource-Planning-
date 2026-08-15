@@ -8,7 +8,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.stock_location import location_summary
+from app.core.stock_location import adjust_location, location_summary
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -61,6 +61,7 @@ class InventoryUpdate(BaseModel):
 class StockAdjust(BaseModel):
     adjustment: int
     reason: str
+    branch: str = "HQ"
 
 
 class TransferRequest(BaseModel):
@@ -69,6 +70,10 @@ class TransferRequest(BaseModel):
     quantity: int
     from_location: Optional[str] = None
     to_location: Optional[str] = None
+    # Branch is the stock-position axis (HQ/MELB/...). Kept separate from the
+    # bin-level from/to_location strings above, which are shelf codes.
+    from_branch: str = "HQ"
+    to_branch: Optional[str] = None
     reference: Optional[str] = None
     notes: Optional[str] = None
 
@@ -82,6 +87,7 @@ class StocktakeItemIn(BaseModel):
 class StocktakeRequest(BaseModel):
     reference: Optional[str] = None
     method: str = "Informed"
+    branch: str = "HQ"
     items: List[StocktakeItemIn]
 
 
@@ -344,6 +350,7 @@ def adjust_stock(
             status_code=400, detail="Adjustment would result in negative stock"
         )
     item.stock = new_stock
+    adjust_location(db, sku, body.branch, on_hand=body.adjustment)
     movement = StockMovement(
         sku=sku,
         date=datetime.now().strftime("%d/%m/%Y"),
@@ -948,19 +955,46 @@ def transfer_stock(
     ref = body.reference or f"XFER-{body.from_sku}"
     now = datetime.now().strftime("%d/%m/%Y")
 
-    from_item.stock -= body.quantity
-    out_movement = StockMovement(
-        sku=body.from_sku,
-        date=now,
-        type="Transfer Out",
-        quantity=-body.quantity,
-        reference=ref,
-        notes=body.notes
-        or f"Transfer to {body.to_location or body.to_sku or 'unknown'}",
-    )
-    db.add(out_movement)
+    is_cross_sku = bool(body.to_sku and body.to_sku != body.from_sku)
+    dest_branch = body.to_branch or body.from_branch
 
-    if body.to_sku and body.to_sku != body.from_sku:
+    # Only a cross-SKU transfer changes an item's total — it converts one SKU
+    # into another. A same-SKU move merely RELOCATES stock, so the total must
+    # not move. (This used to decrement unconditionally, so shifting stock
+    # between bins or branches silently destroyed it.)
+    if is_cross_sku:
+        from_item.stock -= body.quantity
+    adjust_location(db, body.from_sku, body.from_branch, on_hand=-body.quantity)
+
+    if is_cross_sku:
+        out_movement = StockMovement(
+            sku=body.from_sku,
+            date=now,
+            type="Transfer Out",
+            quantity=-body.quantity,
+            reference=ref,
+            notes=body.notes or f"Transfer to {body.to_sku}",
+        )
+        db.add(out_movement)
+    else:
+        # Relocation: the stock lands back on the same SKU elsewhere.
+        adjust_location(db, body.from_sku, dest_branch, on_hand=body.quantity)
+        if body.to_location:
+            from_item.location = body.to_location
+        db.add(
+            StockMovement(
+                sku=body.from_sku,
+                date=now,
+                type="Location Change",
+                quantity=body.quantity,
+                reference=ref,
+                notes=body.notes
+                or f"Moved {body.from_branch} -> {dest_branch}"
+                + (f" ({body.to_location})" if body.to_location else ""),
+            )
+        )
+
+    if is_cross_sku:
         to_item = (
             db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first()
         )
@@ -969,6 +1003,7 @@ def transfer_stock(
                 status_code=404, detail=f"Destination SKU '{body.to_sku}' not found"
             )
         to_item.stock += body.quantity
+        adjust_location(db, body.to_sku, dest_branch, on_hand=body.quantity)
         in_movement = StockMovement(
             sku=body.to_sku,
             date=now,
@@ -978,17 +1013,6 @@ def transfer_stock(
             notes=body.notes or f"Transfer from {body.from_location or body.from_sku}",
         )
         db.add(in_movement)
-    elif body.to_location:
-        from_item.location = body.to_location
-        loc_movement = StockMovement(
-            sku=body.from_sku,
-            date=now,
-            type="Location Change",
-            quantity=body.quantity,
-            reference=ref,
-            notes=f"Moved from {body.from_location or from_item.location or '?'} to {body.to_location}",
-        )
-        db.add(loc_movement)
 
     db.commit()
     return {"ok": True, "from_sku": body.from_sku, "quantity": body.quantity}
@@ -1012,6 +1036,7 @@ def stocktake(
         variance = entry.counted_qty - item.stock
         if variance != 0:
             item.stock = entry.counted_qty
+            adjust_location(db, entry.sku, body.branch, on_hand=variance)
             movement = StockMovement(
                 sku=entry.sku,
                 date=now,
