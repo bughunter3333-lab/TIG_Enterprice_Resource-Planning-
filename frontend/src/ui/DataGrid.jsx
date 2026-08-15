@@ -50,7 +50,7 @@ export default function DataGrid({
     setSort(s => (s?.key === key ? (s.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' }));
 
   return (
-    <div style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, fontFamily: T.font, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight }}>
+    <div style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radiusLg, fontFamily: T.font, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight, boxShadow: T.shadowSm }}>
       {error && (
         <div style={{ background: T.dangerTint, color: T.danger, padding: '6px 10px', fontSize: T.fsGrid, display: 'flex', alignItems: 'center', gap: 10, borderBottom: `1px solid ${T.hairline}` }}>
           <span style={{ flex: 1 }}>{error}</span>
@@ -58,13 +58,18 @@ export default function DataGrid({
         </div>
       )}
       <div role="table" style={{ overflowY: 'auto', flex: 1 }}>
-        <div role="row" style={{ display: 'flex', background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}`, position: 'sticky', top: 0, zIndex: 1 }}>
+        {/* Sticky header casts a shadow so rows read as passing *under* it. */}
+        <div role="row" style={{ display: 'flex', background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}`, position: 'sticky', top: 0, zIndex: 1, boxShadow: T.shadowHeader }}>
           {columns.map(c => (
             <div
               key={c.key}
               role="columnheader"
               onClick={() => toggleSort(c.key)}
               aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              // Headers are clickable, so they get a real hover state; the
+              // active sort column stays emphasised.
+              onMouseEnter={e => { e.currentTarget.style.color = T.accentStrong; }}
+              onMouseLeave={e => { e.currentTarget.style.color = sort?.key === c.key ? T.accentStrong : T.headerText; }}
               style={{
                 ...cellBase,
                 height: 26,
@@ -73,12 +78,13 @@ export default function DataGrid({
                 justifyContent: c.align === 'right' ? 'flex-end' : 'flex-start',
                 fontSize: T.fsHeader,
                 fontWeight: 700,
-                color: T.headerText,
+                color: sort?.key === c.key ? T.accentStrong : T.headerText,
                 textTransform: 'uppercase',
                 letterSpacing: '0.03em',
                 cursor: 'pointer',
                 userSelect: 'none',
                 gap: 3,
+                transition: `color ${T.transition}`,
               }}
             >
               {c.label}
@@ -108,6 +114,10 @@ export default function DataGrid({
                 borderBottom: `1px solid ${T.hairlineSoft}`,
                 background: selected ? T.accentTint : 'transparent',
                 cursor: onRowClick ? 'pointer' : 'default',
+                // Inset shadow, not border-left: a border would shift every
+                // cell 3px on select and make the grid jump.
+                boxShadow: selected ? `inset 3px 0 0 ${T.accentStrong}` : 'none',
+                transition: `background ${T.transition}`,
               }}
               onMouseEnter={e => { if (!selected) e.currentTarget.style.background = T.hairlineSoft; }}
               onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}

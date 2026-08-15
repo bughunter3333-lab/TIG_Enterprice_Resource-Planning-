@@ -36,8 +36,13 @@ export default function ModuleBar({
 
   return (
     <div style={{
-      height: 40, background: T.chrome, display: 'flex', alignItems: 'center',
+      height: 40, display: 'flex', alignItems: 'center',
       padding: '0 10px', gap: 2, flexShrink: 0, fontFamily: T.font,
+      // Faint top-down sheen + a cast shadow so the chrome reads as a solid
+      // bar the app sits under, rather than a flat block of colour.
+      background: `linear-gradient(180deg, ${T.chromeRaised} 0%, ${T.chrome} 55%)`,
+      boxShadow: T.shadowChrome,
+      position: 'relative', zIndex: 20,
     }}>
       {onToggleTree && (
         <div

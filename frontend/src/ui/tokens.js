@@ -46,7 +46,19 @@ export const T = {
   // Density
   rowHeight: 30,
   inputHeight: 26,
-  radius: 4,
+  radius: 4, // controls: inputs, buttons, chips
+  radiusLg: 7, // containers: panels, cards, grids — varied radius reads intentional
+
+  // Elevation — tinted with the chrome navy rather than pure black, which
+  // goes muddy on a blue-grey ground. Restrained: depth for separation, not
+  // decoration. Density is never traded away for it.
+  shadowSm: '0 1px 2px rgba(24,42,66,.06), 0 1px 1px rgba(24,42,66,.04)',
+  shadowMd: '0 2px 8px rgba(24,42,66,.10), 0 1px 2px rgba(24,42,66,.06)',
+  shadowHeader: '0 3px 5px -2px rgba(24,42,66,.10)',
+  shadowChrome: '0 1px 3px rgba(24,42,66,.28)',
+
+  // Motion — short and functional; clarifies state change, never decorative.
+  transition: '120ms cubic-bezier(.4,0,.2,1)',
 };
 
 // Real workflow statuses (verified against TotalImageERP.jsx).
