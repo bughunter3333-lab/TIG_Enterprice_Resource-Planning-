@@ -817,6 +817,13 @@ function normalizeGR(gr) {
       condition: ln.condition || 'Good',
       notes: ln.notes,
     })),
+    charges: (gr.charges || []).map(c => ({
+      id: c.id,
+      description: c.description,
+      amount: parseFloat(c.amount || 0),
+      basis: c.basis || 'value',
+    })),
+    landedTotal: parseFloat(gr.landed_total || 0),
   };
 }
 
@@ -844,6 +851,14 @@ export const goodsReceipts = {
       condition: ln.condition || 'Good',
       notes: ln.notes || null,
     })),
+    // Landed costs (freight/duty/customs) — apportioned into COG on accept.
+    charges: (data.charges || [])
+      .filter(c => c.description && Number(c.amount) > 0)
+      .map(c => ({
+        description: c.description,
+        amount: Number(c.amount) || 0,
+        basis: c.basis === 'qty' ? 'qty' : 'value',
+      })),
   }}).then(normalizeGR),
 
   update: (id, data) => request(`/goods-receipts/${id}`, { method: 'PATCH', body: {

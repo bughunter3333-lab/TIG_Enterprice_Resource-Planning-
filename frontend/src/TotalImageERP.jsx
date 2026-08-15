@@ -110,6 +110,10 @@ function POGoodsReceiptsPanel({ po }) {
 
   const [showForm, setShowForm] = React.useState(false);
   const [formLines, setFormLines] = React.useState([]);
+  // Landed costs entered with the shipment (Jim2 does these as a separate
+  // after-the-fact stock adjustment; capturing them here is fewer steps and
+  // lets us show the COG impact before saving).
+  const [charges, setCharges] = React.useState([]);
   const [grRef, setGrRef] = React.useState('');
   const [grNotes, setGrNotes] = React.useState('');
   const [saving, setSaving] = React.useState(false);
@@ -125,6 +129,7 @@ function POGoodsReceiptsPanel({ po }) {
       unitCost: item.unitCost,
       condition: 'Good',
     })));
+    setCharges([]);
     setGrRef('');
     setGrNotes('');
     setErr('');
@@ -144,6 +149,7 @@ function POGoodsReceiptsPanel({ po }) {
         reference: grRef || null,
         notes: grNotes || null,
         lines: formLines.map(l => ({ ...l })),
+        charges,
       });
       queryClient.invalidateQueries(['goods-receipts', po.id]);
       queryClient.invalidateQueries(['purchaseOrders']);
@@ -222,6 +228,73 @@ function POGoodsReceiptsPanel({ po }) {
               ))}
             </tbody>
           </table>
+          {/* Landed costs — folded into COG when the receipt is accepted */}
+          {(() => {
+            const totalLanded = charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+            const totalUnits = formLines.reduce((s, l) => s + (parseInt(l.qtyReceived, 10) || 0), 0);
+            const perUnit = totalUnits > 0 ? totalLanded / totalUnits : 0;
+            const setCharge = (idx, patch) => setCharges(cs => cs.map((c, i) => i === idx ? { ...c, ...patch } : c));
+            return (
+              <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <div className="flex items-center justify-between bg-gray-50 px-2 py-1.5 border-b">
+                  <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Landed Costs — freight, duty, customs</span>
+                  <button type="button"
+                    onClick={() => setCharges(cs => [...cs, { description: '', amount: '', basis: 'value' }])}
+                    className="text-[10px] font-semibold text-blue-800 hover:text-blue-900">+ Add charge</button>
+                </div>
+                {charges.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 px-2 py-2">None — cost of goods will equal the supplier price.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead className="border-b">
+                      <tr>
+                        {['Description', 'Amount', 'Spread by', ''].map(h => (
+                          <th key={h} className="text-left px-2 py-1 font-semibold text-gray-500 text-[10px]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {charges.map((c, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="px-2 py-1">
+                            <input value={c.description} placeholder="e.g. Sea freight"
+                              onChange={e => setCharge(idx, { description: e.target.value })}
+                              className="w-full border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input type="number" min="0" step="0.01" value={c.amount} placeholder="0.00"
+                              onChange={e => setCharge(idx, { amount: e.target.value })}
+                              className="w-24 border rounded px-1.5 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          </td>
+                          <td className="px-2 py-1">
+                            <select value={c.basis} onChange={e => setCharge(idx, { basis: e.target.value })}
+                              className="border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              title="Value spreads by line value (duty, insurance). Qty spreads per unit (freight).">
+                              <option value="value">Line value</option>
+                              <option value="qty">Units</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-1 text-right">
+                            <button type="button" onClick={() => setCharges(cs => cs.filter((_, i) => i !== idx))}
+                              className="text-gray-400 hover:text-red-600" title="Remove charge">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {totalLanded > 0 && (
+                  <div className="px-2 py-1.5 bg-blue-50 border-t text-[11px] text-blue-900 flex items-center justify-between">
+                    <span>Total landed <strong>${totalLanded.toFixed(2)}</strong> across {totalUnits} unit{totalUnits === 1 ? '' : 's'}</span>
+                    <span>adds <strong>~${perUnit.toFixed(2)}</strong>/unit to cost of goods</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800">Cancel</button>
             <button onClick={submitGR} disabled={saving}
@@ -242,6 +315,12 @@ function POGoodsReceiptsPanel({ po }) {
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusCls[gr.status] || 'bg-gray-100 text-gray-600'}`}>{gr.status}</span>
               <span className="text-xs text-gray-400">{gr.receivedDate}</span>
               {gr.reference && <span className="text-xs text-gray-500">· {gr.reference}</span>}
+              {gr.landedTotal > 0 && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-800"
+                  title={(gr.charges || []).map(c => `${c.description}: $${c.amount.toFixed(2)} (${c.basis})`).join('\n')}>
+                  +${gr.landedTotal.toFixed(2)} landed
+                </span>
+              )}
               <div className="ml-auto flex gap-1">
                 {gr.status === 'Pending' && (
                   <>
