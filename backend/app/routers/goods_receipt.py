@@ -1,11 +1,13 @@
 from datetime import date
+from decimal import Decimal
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user, require_role
-from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine
+from app.core.landed_cost import LandedCharge, ReceiptLine, apportion_landed_costs
+from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.job import Job, JobItem
@@ -25,6 +27,12 @@ class GRLineIn(BaseModel):
     notes: Optional[str] = None
 
 
+class GRChargeIn(BaseModel):
+    description: str
+    amount: float = 0
+    basis: str = "value"  # value | qty
+
+
 class GoodsReceiptIn(BaseModel):
     po_id: Optional[str] = None
     supplier_id: Optional[str] = None
@@ -33,6 +41,7 @@ class GoodsReceiptIn(BaseModel):
     reference: Optional[str] = None
     notes: Optional[str] = None
     lines: List[GRLineIn] = []
+    charges: List[GRChargeIn] = []
 
 
 class GoodsReceiptPatch(BaseModel):
@@ -67,6 +76,18 @@ def _row(gr: GoodsReceipt) -> dict:
         "notes": gr.notes,
         "created_by": gr.created_by,
         "created_at": gr.created_at.isoformat() if gr.created_at else None,
+        "charges": [
+            {
+                "id": c.id,
+                "description": c.description,
+                "amount": float(c.amount or 0),
+                "basis": c.basis or "value",
+            }
+            for c in (gr.charges or [])
+        ],
+        "landed_total": float(
+            sum(Decimal(str(c.amount or 0)) for c in (gr.charges or []))
+        ),
         "lines": [_line_row(ln) for ln in (gr.lines or [])],
     }
 
@@ -144,6 +165,20 @@ def create_receipt(
             )
         )
 
+    for c in body.charges:
+        if c.basis not in ("value", "qty"):
+            raise HTTPException(
+                status_code=422, detail="Charge basis must be 'value' or 'qty'"
+            )
+        db.add(
+            GoodsReceiptCharge(
+                receipt_id=gr.id,
+                description=c.description,
+                amount=c.amount,
+                basis=c.basis,
+            )
+        )
+
     db.commit()
     db.refresh(gr)
     return _row(gr)
@@ -189,6 +224,34 @@ def accept_receipt(
 
     today = date.today().isoformat()
 
+    # Apportion landed costs (freight/duty/customs) across the received lines so
+    # COG reflects what the stock actually cost to land, not just the supplier
+    # price (Jim2 Cost vs COG). No charges => COG == Cost.
+    received = [ln for ln in gr.lines if (ln.qty_received or 0) > 0]
+    landed_by_line = dict(
+        zip(
+            (id(ln) for ln in received),
+            apportion_landed_costs(
+                [
+                    ReceiptLine(
+                        sku=ln.sku,
+                        qty=ln.qty_received or 0,
+                        unit_cost=Decimal(str(ln.unit_cost or 0)),
+                    )
+                    for ln in received
+                ],
+                [
+                    LandedCharge(
+                        description=c.description,
+                        amount=Decimal(str(c.amount or 0)),
+                        basis=(c.basis or "value"),
+                    )
+                    for c in (gr.charges or [])
+                ],
+            ),
+        )
+    )
+
     for ln in gr.lines:
         qty = ln.qty_received or 0
         if qty <= 0:
@@ -197,9 +260,26 @@ def accept_receipt(
         # Update inventory stock
         inv = db.query(InventoryItem).filter_by(sku=ln.sku).first()
         if inv:
-            inv.stock = (inv.stock or 0) + qty
+            prev_qty = inv.stock or 0
+            inv.stock = prev_qty + qty
             if ln.unit_cost and float(ln.unit_cost) > 0:
                 inv.unit_cost = ln.unit_cost
+
+            landed = landed_by_line.get(id(ln))
+            if landed is not None:
+                # Cost = supplier price; COG = landed cost per unit.
+                inv.last_cost = landed.unit_cost
+                inv.last_cog = landed.cog_unit
+                prior_cog = Decimal(str(inv.avg_cog or inv.unit_cost or 0))
+                total_qty = prev_qty + qty
+                # Moving weighted average over the stock we now hold.
+                inv.avg_cog = (
+                    ((Decimal(prev_qty) * prior_cog) + (Decimal(qty) * landed.cog_unit))
+                    / Decimal(total_qty)
+                    if total_qty > 0
+                    else landed.cog_unit
+                )
+                inv.max_cog = max(Decimal(str(inv.max_cog or 0)), landed.cog_unit)
             db.add(
                 StockMovement(
                     sku=ln.sku,

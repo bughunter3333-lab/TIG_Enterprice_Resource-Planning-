@@ -31,7 +31,34 @@ class GoodsReceipt(Base):
     lines = relationship(
         "GoodsReceiptLine", back_populates="receipt", cascade="all, delete-orphan"
     )
+    charges = relationship(
+        "GoodsReceiptCharge", back_populates="receipt", cascade="all, delete-orphan"
+    )
     purchase_order = relationship("PurchaseOrder", foreign_keys=[po_id])
+
+
+class GoodsReceiptCharge(Base):
+    """A landed cost on a receipt — freight, duty, customs, insurance.
+
+    Apportioned across the received lines to turn Cost into COG (Jim2's
+    Cost vs Cost of Goods distinction). See app/core/landed_cost.py.
+    """
+
+    __tablename__ = "goods_receipt_charges"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    receipt_id = Column(
+        Integer,
+        ForeignKey("goods_receipts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    description = Column(String(100), nullable=False)
+    amount = Column(Numeric(10, 2), default=0)
+    # value = spread by line value (duty, insurance) | qty = per unit (freight)
+    basis = Column(String(10), default="value")
+
+    receipt = relationship("GoodsReceipt", back_populates="charges")
 
 
 class GoodsReceiptLine(Base):
