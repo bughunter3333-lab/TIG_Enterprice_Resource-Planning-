@@ -165,41 +165,41 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Style Code *</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.code} onChange={f('code')} placeholder="e.g. POLO-5230" disabled={!!initial} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.code} onChange={f('code')} placeholder="e.g. POLO-5230" disabled={!!initial} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Style Name *</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.name} onChange={f('name')} placeholder="e.g. Classic Polo Shirt" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.name} onChange={f('name')} placeholder="e.g. Classic Polo Shirt" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Category</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.category} onChange={f('category')} placeholder="Polo Shirts, Jackets, Caps…" list="cat-list" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.category} onChange={f('category')} placeholder="Polo Shirts, Jackets, Caps…" list="cat-list" />
                   <datalist id="cat-list">
                     {['Polo Shirts', 'T-Shirts', 'Jackets', 'Pants', 'Shorts', 'Caps', 'Bags', 'Hi-Vis', 'Dress Shirts', 'Fleece'].map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Brand</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.brand} onChange={f('brand')} placeholder="e.g. JB's Wear, AS Colour" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.brand} onChange={f('brand')} placeholder="e.g. JB's Wear, AS Colour" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Gender</label>
-                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.gender} onChange={f('gender')}>
+                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.gender} onChange={f('gender')}>
                     <option value="">— select —</option>
                     <option>Unisex</option><option>Mens</option><option>Womens</option><option>Kids</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Season</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.season} onChange={f('season')} placeholder="Core, AW2026, SS2026…" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.season} onChange={f('season')} placeholder="Core, AW2026, SS2026…" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Collection</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.collection} onChange={f('collection')} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.collection} onChange={f('collection')} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Status</label>
-                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.active ? 'active' : 'archived'} onChange={e => setForm(p => ({ ...p, active: e.target.value === 'active' }))}>
+                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.active ? 'active' : 'archived'} onChange={e => setForm(p => ({ ...p, active: e.target.value === 'active' }))}>
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>
                   </select>
@@ -208,11 +208,11 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Base Purchase Price (ex GST)</label>
-                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.base_purchase_price} onChange={f('base_purchase_price')} min="0" step="0.01" />
+                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.base_purchase_price} onChange={f('base_purchase_price')} min="0" step="0.01" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Base Sell Price (ex GST)</label>
-                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={form.base_sell_price} onChange={f('base_sell_price')} min="0" step="0.01" />
+                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={form.base_sell_price} onChange={f('base_sell_price')} min="0" step="0.01" />
                 </div>
               </div>
               {liveMargin !== null && (
@@ -226,7 +226,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
               )}
               <div>
                 <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Description / Notes</label>
-                <textarea className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} rows={3} value={form.description} onChange={f('description')} />
+                <textarea className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} rows={3} value={form.description} onChange={f('description')} />
               </div>
             </>
           )}
@@ -255,11 +255,11 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Code</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={colourInput.code} onChange={e => setColourInput(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="NVY" maxLength={10} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={colourInput.code} onChange={e => setColourInput(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="NVY" maxLength={10} />
                 </div>
                 <div className="flex-[2]">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Colour Name</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={colourInput.name} onChange={e => setColourInput(p => ({ ...p, name: e.target.value }))} placeholder="Navy" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={colourInput.name} onChange={e => setColourInput(p => ({ ...p, name: e.target.value }))} placeholder="Navy" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Swatch</label>
@@ -306,7 +306,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Size codes (space or comma separated)</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" style={inputStyle} value={sizeInput} onChange={e => setSizeInput(e.target.value)}
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={inputStyle} value={sizeInput} onChange={e => setSizeInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSizeInput(); } }}
                     placeholder="e.g. XS S M L XL" />
                 </div>
@@ -775,7 +775,7 @@ export default function StylesModule() {
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" style={{ color: T.textFaint }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ border: `1px solid ${T.hairline}`, color: T.text, background: T.panel }}
               placeholder="Search code, name, brand…" />
           </div>
@@ -787,7 +787,7 @@ export default function StylesModule() {
               { label: 'Season', val: filterSeason, set: setFilterSeason, opts: meta.seasons },
             ].map(({ label, val, set, opts }) => (
               <select key={label} value={val} onChange={e => set(e.target.value)}
-                className="text-xs rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="text-xs rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 style={{ border: `1px solid ${T.hairline}`, background: T.panel, color: T.text }}>
                 <option value="">{label}</option>
                 {opts.map(o => <option key={o} value={o}>{o}</option>)}

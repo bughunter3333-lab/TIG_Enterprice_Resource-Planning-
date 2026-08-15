@@ -65,7 +65,7 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
           <div style={{
             position: 'absolute', top: '110%', left: 0, zIndex: 50,
             background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius,
-            minWidth: 140, boxShadow: '0 4px 10px rgba(24,24,27,0.08)',
+            minWidth: 140, boxShadow: T.shadowMd,
           }}>
             {!picked && available.filter(a => !filters.some(f => f.key === a.key)).map(a => (
               <div key={a.key} role="button" tabIndex={0}

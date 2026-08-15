@@ -13,6 +13,11 @@ export default function Tabs({ tabs, active, onChange }) {
             aria-selected={isActive}
             onClick={() => onChange(t.id)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(t.id); } }}
+            // Tabs declared cursor:pointer but gave no feedback before the
+            // click. Inactive tabs now lift toward full text colour on hover;
+            // the active one is already at full strength.
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = T.text; }}
+            onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = T.textMuted; }}
             style={{
               padding: '6px 12px',
               fontSize: T.fsGrid,
@@ -22,6 +27,8 @@ export default function Tabs({ tabs, active, onChange }) {
               marginBottom: -1,
               cursor: 'pointer',
               userSelect: 'none',
+              borderRadius: `${T.radius}px ${T.radius}px 0 0`,
+              transition: `color ${T.transition}, background ${T.transition}`,
             }}
           >
             {t.label}

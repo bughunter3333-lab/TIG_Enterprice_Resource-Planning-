@@ -46,8 +46,8 @@ const EMPTY_JOB_LIST = {
 
 const DEC_OPTIONS = [
   { v: 'None',   l: 'None',          emoji: '',    dot: 'bg-gray-300',    pill: 'bg-gray-100 text-gray-500 border-gray-200' },
-  { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-purple-400 text-purple-700 border-purple-300', hasStitch: true },
-  { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700 border-indigo-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-indigo-400 text-indigo-700 border-indigo-300' },
+  { v: 'EMB',    l: 'Embroidery',    emoji: '🧵', dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700 border-purple-200', codeKey: 'embCode', codeHolder: 'EMB code…', codeRing: 'focus:ring-blue-500 text-purple-700 border-purple-300', hasStitch: true },
+  { v: 'TRS',    l: 'Transfer',      emoji: '♨️',  dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700 border-indigo-200', codeKey: 'trsCode', codeHolder: 'TRS code…', codeRing: 'focus:ring-blue-500 text-indigo-700 border-indigo-300' },
   { v: 'Screen', l: 'Screen Print',  emoji: '🖨️',  dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-800 border-blue-200', hasColors: true },
   { v: 'DTF',    l: 'DTF Print',     emoji: '🎨', dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700 border-teal-200', hasColors: true },
   { v: 'DTG',    l: 'DTG Print',     emoji: '👕', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', hasColors: true },
@@ -215,12 +215,12 @@ function POGoodsReceiptsPanel({ po }) {
                     <input type="number" min="0" max={ln.qtyExpected}
                       value={formLines[idx].qtyReceived}
                       onChange={e => setFormLines(lines => lines.map((l, i) => i === idx ? { ...l, qtyReceived: parseInt(e.target.value) || 0 } : l))}
-                      className="w-16 border rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-emerald-400 font-semibold text-emerald-700" />
+                      className="w-16 border rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-emerald-700" />
                   </td>
                   <td className="px-2 py-1.5">
                     <select value={formLines[idx].condition}
                       onChange={e => setFormLines(lines => lines.map((l, i) => i === idx ? { ...l, condition: e.target.value } : l))}
-                      className="border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-400">
+                      className="border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
                       {['Good','Damaged','Short','Surplus'].map(c => <option key={c}>{c}</option>)}
                     </select>
                   </td>
@@ -405,25 +405,25 @@ function SupplierPriceListPanel({ supplierId }) {
           {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">{err}</p>}
           <div className="grid grid-cols-3 gap-2">
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">SKU *</label>
-              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.sku}
+              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.sku}
                 onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} disabled={!!editId} /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Unit Cost *</label>
-              <input type="number" min="0" step="0.01" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.unitCost}
+              <input type="number" min="0" step="0.01" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.unitCost}
                 onChange={e => setForm(f => ({ ...f, unitCost: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Min Qty</label>
-              <input type="number" min="1" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.minQty}
+              <input type="number" min="1" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.minQty}
                 onChange={e => setForm(f => ({ ...f, minQty: parseInt(e.target.value) || 1 }))} /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Lead Time (days)</label>
-              <input type="number" min="0" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.leadTimeDays}
+              <input type="number" min="0" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.leadTimeDays}
                 onChange={e => setForm(f => ({ ...f, leadTimeDays: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Valid From</label>
-              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.validFrom}
+              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.validFrom}
                 onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Valid To</label>
-              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.validTo}
+              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.validTo}
                 onChange={e => setForm(f => ({ ...f, validTo: e.target.value }))} /></div>
             <div className="col-span-3"><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Description / Notes</label>
-              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" value={form.notes}
+              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <div className="flex gap-2 justify-end">
@@ -528,22 +528,22 @@ function EmailJobModal({ job, customers, onClose }) {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">To *</label>
             <input type="email" value={form.to_email} onChange={e => setForm({ ...form, to_email: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="customer@example.com" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="customer@example.com" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">CC</label>
             <input type="email" value={form.cc} onChange={e => setForm({ ...form, cc: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="optional" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="optional" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
             <input type="text" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
             <select value={form.email_type} onChange={e => setForm({ ...form, email_type: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="invoice">Invoice</option>
               <option value="quote">Quote</option>
               <option value="reminder">Payment Reminder</option>
@@ -553,7 +553,7 @@ function EmailJobModal({ job, customers, onClose }) {
             <label className="block text-xs font-medium text-gray-600 mb-1">Message (optional)</label>
             <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
               rows={4} placeholder="Add a personal note…"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
@@ -704,7 +704,7 @@ function SizeColourMatrixPopup({ current, onApply, onClose }) {
                     <td key={sz} className="border border-gray-200 p-0.5">
                       <input type="number" min="0" value={getQty(colour, sz) || ''}
                         onChange={e => setQty(colour, sz, e.target.value)}
-                        className="w-full text-center text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1 py-0.5" />
+                        className="w-full text-center text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5" />
                     </td>
                   ))}
                   <td className="px-2 py-1 border border-indigo-100 bg-indigo-50 text-center font-bold text-indigo-600">
@@ -735,7 +735,7 @@ function SizeColourMatrixPopup({ current, onApply, onClose }) {
             ))}
             <input value={newSize} onChange={e => setNewSize(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSize.trim()) { addSize(newSize.trim()); setNewSize(''); }}}
-              placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+              placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           {useColours && (
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -745,7 +745,7 @@ function SizeColourMatrixPopup({ current, onApply, onClose }) {
               ))}
               <input value={newColour} onChange={e => setNewColour(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && newColour.trim()) { addColour(newColour.trim()); setNewColour(''); }}}
-                placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
           )}
         </div>
@@ -3694,7 +3694,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                 value={receiveQtys[key]||''}
                                 onChange={e=>setReceiveQtys(prev=>({...prev,[key]:e.target.value}))}
                                 placeholder={`0–${remaining}`}
-                                className="w-20 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
+                                className="w-20 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                             ) : <span className="text-emerald-500 text-xs font-bold">✓ Complete</span>}
                           </td>
                           <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums">${(item.total||0).toFixed(2)}</td>
@@ -4494,7 +4494,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   onChange={e => setAiInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendAiMessage()}
                   placeholder="Ask about jobs, revenue, stock, forecasts…"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-gray-50"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
                 />
                 <button
                   onClick={sendAiMessage}
@@ -4982,7 +4982,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
-                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
@@ -4991,7 +4991,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Priority</span>
                       <select value={jobForm.priority} onChange={e => setJobForm({...jobForm, priority: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
                         style={jobForm.priority === 'Urgent' || jobForm.priority === 'High' ? {} : {background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Low</option><option>Normal</option><option>High</option><option>Urgent</option>
                       </select>
@@ -4999,7 +4999,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     {/* Type */}
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Type</span>
-                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Standard</option><option>Custom</option><option>Rush</option>
                       </select>
                     </div>
@@ -5008,7 +5008,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
                       <select value={jobForm.paymentStatus || 'unpaid'} onChange={e => setJobForm({...jobForm, paymentStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-300' : jobForm.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-300' : jobForm.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-red-50 text-red-600 border-red-200'}`}>
                         <option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option>
                       </select>
                     </div>
@@ -5016,7 +5016,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
                       <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-800 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-800 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
                         style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
                       </select>
@@ -5025,7 +5025,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
@@ -5477,7 +5477,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <input autoFocus type="text" value={templateSaveName}
                               onChange={e => setTemplateSaveName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); if (e.key === 'Escape') setTemplateSaveOpen(false); }}
-                              className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 mb-2" placeholder="e.g. Standard Polo Order" />
+                              className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" placeholder="e.g. Standard Polo Order" />
                             <div className="flex gap-2">
                               <button type="button" onMouseDown={() => { if (templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); }}
                                 className="flex-1 bg-green-600 text-white text-xs py-1.5 rounded hover:bg-green-700 font-medium" disabled={!templateSaveName.trim()}>Save</button>
@@ -5692,7 +5692,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                       )}
                                       <div className="flex items-center gap-0.5 mt-0.5">
                                         <input type="text" value={item.sizes || ''} onChange={e => updateJobItem(idx, 'sizes', e.target.value)}
-                                          className="flex-1 h-5 border border-gray-100 rounded px-1 text-[10px] text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-300 bg-white"
+                                          className="flex-1 h-5 border border-gray-100 rounded px-1 text-[10px] text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                                           placeholder="Sizes…" />
                                         <button type="button" onClick={() => setMatrixPopup({ idx })} title="Size/colour matrix"
                                           className="shrink-0 h-5 w-5 flex items-center justify-center border border-indigo-200 text-indigo-500 rounded hover:bg-indigo-50 text-[10px] font-bold leading-none">⊞</button>
