@@ -14,7 +14,7 @@ const DISPATCHABLE = ['FINISH', 'INVOICE'];
 const cell = { padding: '6px 8px', fontSize: T.fsGrid, borderBottom: `1px solid ${T.hairlineSoft}` };
 const editCell = {
   ...cell,
-  background: '#fefce8', // Jim2's editable-column yellow
+  background: T.editable, // Jim2's editable-column yellow
 };
 const inp = { width: '100%', border: `1px solid ${T.hairline}`, borderRadius: 4, padding: '3px 6px', fontSize: T.fsGrid, fontFamily: T.font, color: T.text, background: '#fff', outline: 'none', boxSizing: 'border-box' };
 
@@ -192,7 +192,7 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
                 <th key={h} style={{ ...cell, textAlign: 'left', fontSize: T.fsHeader, fontWeight: 700, color: T.headerText, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
               ))}
               {['Ship Via', 'Ship Ref', 'Cartons'].map(h => (
-                <th key={h} style={{ ...cell, textAlign: 'left', fontSize: T.fsHeader, fontWeight: 700, color: T.accentStrong, textTransform: 'uppercase', letterSpacing: '0.03em', background: '#fefce8' }}>{h}</th>
+                <th key={h} style={{ ...cell, textAlign: 'left', fontSize: T.fsHeader, fontWeight: 700, color: T.accentStrong, textTransform: 'uppercase', letterSpacing: '0.03em', background: T.editable }}>{h}</th>
               ))}
             </tr>
           </thead>

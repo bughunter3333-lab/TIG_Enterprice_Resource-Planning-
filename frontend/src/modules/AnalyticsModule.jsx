@@ -235,7 +235,7 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
           <div>
             <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Active Backlog</span>
-              <Clock className="w-4 h-4 text-amber-500" />
+              <Clock className="w-4 h-4 text-blue-600" />
             </div>
             <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{data.active_jobs_count} Jobs</p>
           </div>
@@ -496,9 +496,9 @@ function renderDsoTab({ dsoQuery }) {
                 <p className="text-[10px] text-green-700 font-bold">Paid</p>
                 <p className="text-sm font-semibold text-green-800">{data.paid_jobs_count}</p>
               </div>
-              <div className="bg-amber-50 p-1.5 rounded">
-                <p className="text-[10px] text-amber-700 font-bold">Partial</p>
-                <p className="text-sm font-semibold text-amber-800">{data.partially_paid_jobs_count}</p>
+              <div className="bg-blue-50 p-1.5 rounded">
+                <p className="text-[10px] text-blue-800 font-bold">Partial</p>
+                <p className="text-sm font-semibold text-blue-900">{data.partially_paid_jobs_count}</p>
               </div>
               <div className="bg-red-50 p-1.5 rounded">
                 <p className="text-[10px] text-red-700 font-bold">Unpaid</p>
@@ -644,7 +644,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                       <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
                       <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
+                        <span className="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-red-600">{j.days_open} days</td>
                     </tr>
@@ -675,10 +675,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">A Items (Top 80% Capital)</span>
+              <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">A Items (Top 80% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.a_value)}</p>
             </div>
-            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
         </div>
@@ -699,10 +699,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
+              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.c_value)}</p>
             </div>
-            <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.c_skus_count} SKUs. Low-priority stock units.</p>
         </div>

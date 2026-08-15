@@ -58,7 +58,7 @@ export default function ModuleBar({
       )}
 
       <div style={{
-        width: 22, height: 22, background: T.accent, borderRadius: 4,
+        width: 22, height: 22, background: T.panel, borderRadius: 4,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 8.5, fontWeight: 800, color: T.chrome, marginRight: 10, flexShrink: 0,
       }}>

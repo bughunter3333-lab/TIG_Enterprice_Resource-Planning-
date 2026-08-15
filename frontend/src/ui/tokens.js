@@ -2,28 +2,32 @@
 // Spec: docs/superpowers/specs/2026-06-11-ui-redesign-dense-jim2-design.md
 
 export const T = {
-  // Surfaces (zinc)
-  chrome: '#18181b',
-  chromeRaised: '#27272a',
-  chromeHover: '#3f3f46',
-  page: '#fafafa',
+  // Surfaces — Jim2 business-standard: steel-blue chrome, neutral grey page,
+  // white data panels. chrome sampled from the Jim2 title bar (#355172).
+  chrome: '#2c4a6e',
+  chromeRaised: '#375a83',
+  chromeHover: '#42699a',
+  page: '#f0f0f0',
   panel: '#ffffff',
-  hairline: '#e4e4e7',
-  hairlineSoft: '#f4f4f5',
+  hairline: '#d0d7de',
+  hairlineSoft: '#eef1f4',
 
   // Text
-  text: '#18181b',
-  textMuted: '#71717a',
-  textFaint: '#a1a1aa',
-  headerText: '#52525b',
-  chromeText: '#fafafa',
-  chromeTextMuted: '#a1a1aa',
+  text: '#1a1a1a',
+  textMuted: '#5a6570',
+  textFaint: '#8a949e',
+  headerText: '#3d4753',
+  chromeText: '#ffffff',
+  chromeTextMuted: '#b8c7da',
 
-  // Accent (amber identity)
-  accent: '#eab308',
-  accentStrong: '#ca8a04',
-  accentTint: '#fef9c3',
-  accentFocus: '#fef08a',
+  // Accent (Jim2 blue — selection, links, active tab)
+  accent: '#2b7bd4',
+  accentStrong: '#1c5fa8',
+  accentTint: '#d6e7f7',
+  accentFocus: '#9dc7ee',
+
+  // Editable grid cell (Jim2 shows editable columns in yellow)
+  editable: '#fefce8',
 
   // Feedback
   danger: '#b91c1c',
