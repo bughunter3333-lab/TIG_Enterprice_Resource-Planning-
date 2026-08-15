@@ -20,6 +20,9 @@ class GoodsReceipt(Base):
         index=True,
     )
     supplier_name = Column(String(100))
+    # Which branch the goods physically landed at — drives the per-location
+    # position when the receipt is accepted.
+    branch = Column(String(50), default="HQ")
     received_date = Column(String(20), nullable=False)
     reference = Column(String(50))
     # Pending → Inspecting → Accepted | Rejected

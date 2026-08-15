@@ -8,6 +8,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
+from app.core.stock_location import location_summary
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -786,6 +787,21 @@ def get_stock_stats(
 def _require_item(db: Session, sku: str):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
+
+
+@router.get("/{sku}/location-summary")
+def get_location_summary(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    """Per-branch positions plus how much on-hand has no location yet.
+
+    Stock received before location tracking has no branch, so `unlocated` is
+    expected to be non-zero on legacy items. Showing it is the point — a
+    Locations tab that silently fails to add up to the item is worse than one
+    that admits the gap.
+    """
+    _require_item(db, sku)
+    return location_summary(db, sku)
 
 
 @router.get("/{sku}/vendors")

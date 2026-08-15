@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user, require_role
 from app.core.landed_cost import LandedCharge, ReceiptLine, apportion_landed_costs
+from app.core.stock_location import adjust_location
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem, StockMovement
@@ -37,6 +38,7 @@ class GoodsReceiptIn(BaseModel):
     po_id: Optional[str] = None
     supplier_id: Optional[str] = None
     supplier_name: Optional[str] = None
+    branch: str = "HQ"
     received_date: str
     reference: Optional[str] = None
     notes: Optional[str] = None
@@ -70,6 +72,7 @@ def _row(gr: GoodsReceipt) -> dict:
         "po_id": gr.po_id,
         "supplier_id": gr.supplier_id,
         "supplier_name": gr.supplier_name,
+        "branch": gr.branch or "HQ",
         "received_date": gr.received_date,
         "reference": gr.reference,
         "status": gr.status,
@@ -142,6 +145,7 @@ def create_receipt(
         po_id=body.po_id,
         supplier_id=supplier_id,
         supplier_name=supplier_name,
+        branch=body.branch or "HQ",
         received_date=body.received_date,
         reference=body.reference,
         status="Pending",
@@ -262,6 +266,9 @@ def accept_receipt(
         if inv:
             prev_qty = inv.stock or 0
             inv.stock = prev_qty + qty
+            # Stock lands somewhere, not just in a global total — keep the
+            # per-location position true (Jim2 Qty by Locations).
+            adjust_location(db, ln.sku, gr.branch or "HQ", on_hand=qty)
             if ln.unit_cost and float(ln.unit_cost) > 0:
                 inv.unit_cost = ln.unit_cost
 

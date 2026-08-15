@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
+from app.core.stock_location import adjust_location
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.customer import Customer
@@ -354,6 +355,9 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
         if not inv:
             continue
         inv.stock = (inv.stock or 0) - qty
+        # Goods leave the branch that shipped them, so the per-location
+        # position falls with the total (Jim2 Qty by Locations).
+        adjust_location(db, item.stock_code, job.branch, on_hand=-qty)
         db.add(
             StockMovement(
                 sku=item.stock_code,
