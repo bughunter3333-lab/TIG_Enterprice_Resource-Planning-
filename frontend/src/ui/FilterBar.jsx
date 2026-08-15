@@ -35,7 +35,7 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
         <span key={f.key} style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           background: T.hairlineSoft, border: `1px solid ${T.hairline}`,
-          borderRadius: T.radius - 1, padding: '2px 7px', fontSize: T.fsSmall, color: T.text,
+          borderRadius: T.radius, padding: '2px 7px', fontSize: T.fsSmall, color: T.text,
         }}>
           {f.label}: {f.display ?? String(f.value)}
           <span
@@ -64,7 +64,7 @@ export default function FilterBar({ filters = [], available = [], onAdd, onRemov
         {menuOpen && (
           <div style={{
             position: 'absolute', top: '110%', left: 0, zIndex: 50,
-            background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius,
+            background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radiusLg,
             minWidth: 140, boxShadow: T.shadowMd,
           }}>
             {!picked && available.filter(a => !filters.some(f => f.key === a.key)).map(a => (

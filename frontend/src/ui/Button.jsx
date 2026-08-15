@@ -28,6 +28,14 @@ export default function Button({
 
   const base = VARIANTS[variant] ?? VARIANTS.secondary;
   const hovered = !disabled && hover ? (HOVER[variant] ?? HOVER.secondary) : null;
+  // An explicit disabled palette rather than blanket translucency: opacity
+  // lets the panel/grid behind show through fill and border unevenly, so a
+  // disabled button reads as half-loaded instead of deliberately inactive.
+  const off = disabled
+    ? (variant === 'ghost'
+        ? { color: T.textFaint }
+        : { background: T.hairlineSoft, color: T.textFaint, border: `1px solid ${T.hairline}` })
+    : null;
 
   return (
     <button
@@ -42,13 +50,13 @@ export default function Button({
       style={{
         ...base,
         ...(hovered ?? {}),
+        ...(off ?? {}),
         fontFamily: T.font,
         fontSize: size === 'sm' ? T.fsSmall : T.fsGrid,
         fontWeight: 600,
         borderRadius: T.radius,
         padding: size === 'sm' ? '3px 8px' : '5px 12px',
         cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5,

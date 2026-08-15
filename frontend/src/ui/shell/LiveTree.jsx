@@ -53,6 +53,7 @@ function TreeRow({ depth = 0, caret = null, onCaretClick, icon = null, label, co
         display: 'flex', alignItems: 'center', gap: 4,
         padding: `3px 10px 3px ${10 + depth * 12}px`,
         fontSize: T.fsSmall, cursor: 'pointer', color: T.text,
+        transition: `background ${T.transition}`,
       }}
       onMouseEnter={e => (e.currentTarget.style.background = T.hairlineSoft)}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -85,7 +86,7 @@ function OpenJobRow({ job, onOpen, onUnpin }) {
       tabIndex={0}
       onClick={() => onOpen(job)}
       onKeyDown={e => { if (e.key === 'Enter') onOpen(job); }}
-      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 22px', fontSize: T.fsSmall, cursor: 'pointer', color: T.text }}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 22px', fontSize: T.fsSmall, cursor: 'pointer', color: T.text, transition: `background ${T.transition}` }}
       onMouseEnter={e => (e.currentTarget.style.background = T.hairlineSoft)}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
@@ -100,7 +101,9 @@ function OpenJobRow({ job, onOpen, onUnpin }) {
           aria-label={`Close ${job.id}`}
           onClick={e => { e.stopPropagation(); onUnpin(job.id); }}
           onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onUnpin(job.id); } }}
-          style={{ color: T.textFaint, display: 'flex' }}
+          onMouseEnter={e => { e.currentTarget.style.color = T.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = T.textFaint; }}
+                      style={{ color: T.textFaint, display: 'flex', transition: `color ${T.transition}` }}
         >
           <X size={11} />
         </span>
@@ -179,7 +182,9 @@ export default function LiveTree({
                       aria-label={`Delete list ${list.name}`}
                       onClick={e => { e.stopPropagation(); onDeleteList(list.id); }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeleteList(list.id); } }}
-                      style={{ color: T.textFaint, display: 'flex' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = T.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = T.textFaint; }}
+                      style={{ color: T.textFaint, display: 'flex', transition: `color ${T.transition}` }}
                     >
                       <Trash2 size={11} />
                     </span>
@@ -239,7 +244,9 @@ export default function LiveTree({
                       aria-label={`Delete list ${list.name}`}
                       onClick={e => { e.stopPropagation(); onDeleteStockList(list.id); }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeleteStockList(list.id); } }}
-                      style={{ color: T.textFaint, display: 'flex' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = T.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = T.textFaint; }}
+                      style={{ color: T.textFaint, display: 'flex', transition: `color ${T.transition}` }}
                     >
                       <Trash2 size={11} />
                     </span>
@@ -292,7 +299,9 @@ export default function LiveTree({
                       aria-label={`Delete list ${list.name}`}
                       onClick={e => { e.stopPropagation(); onDeleteQuoteList(list.id); }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeleteQuoteList(list.id); } }}
-                      style={{ color: T.textFaint, display: 'flex' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = T.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = T.textFaint; }}
+                      style={{ color: T.textFaint, display: 'flex', transition: `color ${T.transition}` }}
                     >
                       <Trash2 size={11} />
                     </span>
@@ -345,7 +354,9 @@ export default function LiveTree({
                       aria-label={`Delete list ${list.name}`}
                       onClick={e => { e.stopPropagation(); onDeletePOList(list.id); }}
                       onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onDeletePOList(list.id); } }}
-                      style={{ color: T.textFaint, display: 'flex' }}
+                      onMouseEnter={e => { e.currentTarget.style.color = T.danger; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = T.textFaint; }}
+                      style={{ color: T.textFaint, display: 'flex', transition: `color ${T.transition}` }}
                     >
                       <Trash2 size={11} />
                     </span>

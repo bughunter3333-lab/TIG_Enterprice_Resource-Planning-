@@ -5,7 +5,9 @@ export default function StatusBadge({ status, size = 'md' }) {
   return (
     <span style={{
       color: statusColor(status),
-      fontWeight: 600,
+      // 700 to match the hand-rolled status spans in DispatchList/JobListBuilder
+      // and to give 11px uppercase micro-type enough presence.
+      fontWeight: 700,
       fontSize: size === 'sm' ? 10 : T.fsHeader,
       textTransform: 'uppercase',
       letterSpacing: '0.02em',

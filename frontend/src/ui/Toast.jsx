@@ -38,6 +38,8 @@ export function ToastProvider({ children }) {
             fontSize: T.fsGrid,
             fontWeight: 600,
             maxWidth: 380,
+            // Floats over the grids, so it must out-elevate them.
+            boxShadow: T.shadowMd,
           }}>
             {t.message}
           </div>
