@@ -17,6 +17,7 @@ from app.database import SessionLocal
 from app.models.customer import Customer
 from app.models.supplier import Supplier
 from app.models.inventory import InventoryItem
+from app.models.stock_location import StockLocation
 from app.models.job import Job, JobItem, JobComment
 from app.models.supplier_price_list import SupplierPriceList
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -839,6 +840,7 @@ def seed():
         "inventory": 0,
         "jobs": 0,
         "supplier_prices": 0,
+        "stock_locations": 0,
         "purchase_orders": 0,
     }
     try:
@@ -873,6 +875,43 @@ def seed():
 
         # Suppliers + inventory must exist before price lists / PO lines (FKs).
         db.flush()
+
+        # Put stock away into branches. Anything with no location at all reads
+        # as 100% unlocated on the Locations tab — true, but it makes a working
+        # demo look broken. This walks every item rather than the spec above,
+        # so items seeded by other scripts are placed too; a SKU that already
+        # has a position is left alone, and placement uses live stock so
+        # re-seeding a DB whose stock has moved still reconciles.
+        unplaced = (
+            db.query(InventoryItem)
+            .outerjoin(StockLocation, StockLocation.sku == InventoryItem.sku)
+            .filter(StockLocation.id.is_(None))
+            .order_by(InventoryItem.sku)
+            .all()
+        )
+        for idx, item in enumerate(unplaced):
+            on_hand = item.stock or 0
+            bin_code = item.location or None
+            zone = bin_code.split("-")[0] if bin_code else None
+            # A few well-stocked lines are held in both branches so the grid
+            # shows a real multi-branch position rather than one row each.
+            melb = (on_hand * 3) // 10 if (idx % 5 == 0 and on_hand >= 40) else 0
+            db.add(
+                StockLocation(
+                    sku=item.sku,
+                    branch="HQ",
+                    zone=zone,
+                    qty_on_hand=on_hand - melb,
+                    primary_bin_1=bin_code,
+                )
+            )
+            if melb:
+                db.add(
+                    StockLocation(
+                        sku=item.sku, branch="MELB", zone=zone, qty_on_hand=melb
+                    )
+                )
+            created["stock_locations"] += 1
 
         for supplier_id, sku, cost, min_qty, lead in SUPPLIER_PRICES:
             exists = (

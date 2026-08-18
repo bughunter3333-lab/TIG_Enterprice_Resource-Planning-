@@ -7,7 +7,7 @@ import StockTransactionsTab from '../tabs/StockTransactionsTab';
 import StockCommittedTab from '../tabs/StockCommittedTab';
 
 vi.mock('../../../api', () => ({
-  stock: { locations: vi.fn(), pricing: vi.fn(), transactions: vi.fn(), committed: vi.fn() },
+  stock: { locations: vi.fn(), locationSummary: vi.fn(), pricing: vi.fn(), transactions: vi.fn(), committed: vi.fn() },
 }));
 import { stock } from '../../../api';
 
@@ -29,10 +29,34 @@ test('StockLocationsTab fetches and renders branch rows', async () => {
   stock.locations.mockResolvedValue([
     { id: 1, branch: 'HQ', zone: 'A', qty_on_hand: 30, committed_qty: 5, available_qty: 25, backorder_qty: 0, on_po_qty: 10, primary_bin_1: 'A-03' },
   ]);
+  stock.locationSummary.mockResolvedValue({ total_on_hand: 30, located: 30, unlocated: 0, in_sync: true });
   wrap(<StockLocationsTab sku="MR.PS60.NAV" />);
   await waitFor(() => expect(screen.getByText('HQ')).toBeInTheDocument());
   expect(screen.getByText('A-03')).toBeInTheDocument();
   expect(stock.locations).toHaveBeenCalledWith('MR.PS60.NAV');
+});
+
+test('StockLocationsTab reconciles branch totals against the item and reports the gap', async () => {
+  // Legacy item: 120 on hand but only 80 put away to a branch.
+  stock.locations.mockResolvedValue([
+    { id: 1, branch: 'HQ', zone: 'A', qty_on_hand: 80, committed_qty: 0, available_qty: 80, backorder_qty: 0, on_po_qty: 0 },
+  ]);
+  stock.locationSummary.mockResolvedValue({ total_on_hand: 120, located: 80, unlocated: 40, in_sync: false });
+  wrap(<StockLocationsTab sku="LEGACY" />);
+  await waitFor(() => expect(screen.getByText('Not yet located')).toBeInTheDocument());
+  expect(screen.getByText('120')).toBeInTheDocument();
+  expect(screen.getByText('40')).toBeInTheDocument();
+  expect(screen.getByText(/put it away/i)).toBeInTheDocument();
+});
+
+test('StockLocationsTab flags branches holding more than the item total', async () => {
+  stock.locations.mockResolvedValue([
+    { id: 1, branch: 'HQ', zone: 'A', qty_on_hand: 60, committed_qty: 0, available_qty: 60, backorder_qty: 0, on_po_qty: 0 },
+  ]);
+  stock.locationSummary.mockResolvedValue({ total_on_hand: 50, located: 60, unlocated: -10, in_sync: false });
+  wrap(<StockLocationsTab sku="OVER" />);
+  await waitFor(() => expect(screen.getByText('Over-allocated')).toBeInTheDocument());
+  expect(screen.getByText(/stocktake/i)).toBeInTheDocument();
 });
 
 test('StockPricingTab shows cost fields and a price level breakpoint', async () => {

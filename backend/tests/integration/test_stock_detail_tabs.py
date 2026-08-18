@@ -3,9 +3,11 @@ Integration tests for the remaining Jim2 Stock detail tabs:
   GET /inventory/{sku}/vendors  — supplier price lists for this SKU
   GET /inventory/{sku}/buying   — PO line history (with outstanding qty)
   GET /inventory/{sku}/sales     — sale movements with customer/job
+  GET /inventory/{sku}/location-summary — per-branch positions vs the item total
 """
 
 import pytest
+from app.core.stock_location import adjust_location
 from app.models.inventory import StockMovement
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.supplier import Supplier
@@ -156,3 +158,32 @@ class TestStockSales:
 
     def test_404(self, client):
         assert client.get("/inventory/NOPE/sales").status_code == 404
+
+
+@pytest.mark.integration
+class TestStockLocationSummary:
+    """The Locations tab reads this to reconcile branches against the item."""
+
+    def test_reports_branches_and_the_unlocated_gap(self, client, db, make_inventory):
+        make_inventory(sku="LS1", stock=100)
+        adjust_location(db, "LS1", "HQ", on_hand=60)
+        adjust_location(db, "LS1", "MELB", on_hand=15, committed=5)
+        db.commit()
+
+        body = client.get("/inventory/LS1/location-summary").json()
+        assert body["total_on_hand"] == 100
+        assert body["located"] == 75
+        assert body["unlocated"] == 25  # legacy stock with no branch yet
+        assert body["in_sync"] is False
+        melb = next(b for b in body["branches"] if b["branch"] == "MELB")
+        assert melb["qty_on_hand"] == 15 and melb["available_qty"] == 10
+
+    def test_in_sync_once_every_unit_is_placed(self, client, db, make_inventory):
+        make_inventory(sku="LS2", stock=40)
+        adjust_location(db, "LS2", "HQ", on_hand=40)
+        db.commit()
+        body = client.get("/inventory/LS2/location-summary").json()
+        assert body["unlocated"] == 0 and body["in_sync"] is True
+
+    def test_404(self, client):
+        assert client.get("/inventory/NOPE/location-summary").status_code == 404

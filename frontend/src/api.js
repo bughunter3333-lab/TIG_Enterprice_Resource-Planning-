@@ -611,6 +611,11 @@ export const stock = {
   stats: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/stats`),
 
+  // Per-branch positions reconciled against the item total — `unlocated` is
+  // on-hand that predates location tracking and has no branch yet.
+  locationSummary: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/location-summary`),
+
   vendors: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/vendors`),
 
