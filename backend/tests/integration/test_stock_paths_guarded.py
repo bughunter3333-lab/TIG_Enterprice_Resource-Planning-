@@ -250,3 +250,57 @@ class TestPurchaseOrderReceipt:
 
         db.expire_all()
         assert _inv(db, "SP10").stock == 10
+
+
+@pytest.mark.integration
+class TestOnOrderIsDerived:
+    """`on_order_qty` has no writer, but the list endpoint returns raw ORM rows
+    with no response_model, so it reached the client as a constant zero and the
+    stock grid rendered it as the "On PO" figure. It is now derived like
+    committed_qty is, from the outstanding quantity on open POs."""
+
+    def _po(self, db, po_id, sku, ordered, received=0, status="Sent"):
+        db.add(
+            PurchaseOrder(
+                id=po_id,
+                supplier_id="S1",
+                supplier_name="Acme",
+                status=status,
+                order_date="01/08/2026",
+            )
+        )
+        db.add(
+            PurchaseOrderItem(
+                order_id=po_id,
+                sku=sku,
+                qty_ordered=ordered,
+                qty_received=received,
+            )
+        )
+        db.commit()
+
+    def _row(self, client, sku):
+        return next(r for r in client.get("/inventory").json() if r["sku"] == sku)
+
+    def test_reports_outstanding_quantity_on_open_pos(self, client, db, make_inventory):
+        make_inventory(sku="OO1", stock=5)
+        self._po(db, "PO-OO1", "OO1", 100, received=40)
+        assert self._row(client, "OO1")["on_order_qty"] == 60
+
+    def test_sums_across_open_pos(self, client, db, make_inventory):
+        make_inventory(sku="OO2", stock=0)
+        self._po(db, "PO-OO2a", "OO2", 30)
+        self._po(db, "PO-OO2b", "OO2", 20, received=5)
+        assert self._row(client, "OO2")["on_order_qty"] == 45
+
+    def test_ignores_fully_received_and_cancelled_orders(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="OO3", stock=0)
+        self._po(db, "PO-OO3a", "OO3", 10, received=10, status="Received")
+        self._po(db, "PO-OO3b", "OO3", 25, status="Cancelled")
+        assert self._row(client, "OO3")["on_order_qty"] == 0
+
+    def test_zero_when_nothing_is_on_order(self, client, db, make_inventory):
+        make_inventory(sku="OO4", stock=3)
+        assert self._row(client, "OO4")["on_order_qty"] == 0

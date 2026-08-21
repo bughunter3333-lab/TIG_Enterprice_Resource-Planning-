@@ -1,14 +1,11 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {  screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockDescriptionsTab from '../tabs/StockDescriptionsTab';
 
 const update = vi.fn().mockResolvedValue({});
 vi.mock('../../../api', () => ({ stock: { update: (...a) => update(...a) } }));
 
-const wrap = (ui) => {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
-};
+const wrap = renderWithQuery;
 
 const item = { sku: 'CAP-1', desc_extended: 'orig', desc_web: '', desc_care: '' };
 

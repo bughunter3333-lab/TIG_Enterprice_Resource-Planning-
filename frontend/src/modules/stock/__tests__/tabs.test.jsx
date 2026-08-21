@@ -1,5 +1,5 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {  screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockDetailsTab from '../tabs/StockDetailsTab';
 import StockLocationsTab from '../tabs/StockLocationsTab';
 import StockPricingTab from '../tabs/StockPricingTab';
@@ -11,10 +11,7 @@ vi.mock('../../../api', () => ({
 }));
 import { stock } from '../../../api';
 
-const wrap = (ui) => {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
-};
+const wrap = renderWithQuery;
 
 const item = { sku: 'MR.PS60.NAV', name: 'Navy Polo', item_type: 'Depleting', gl_group: 'Apparel', barcode: '123', buy_unit: 'UNIT', sell_unit: 'UNIT', stock: 50, committed_qty: 10, on_order_qty: 5 };
 

@@ -183,8 +183,33 @@ def list_inventory(
                 .group_by(JobItem.stock_code)
                 .all()
             )
+            # Same treatment for on-order. The stored column has never had a
+            # writer, but this endpoint returns raw ORM rows with no
+            # response_model, so it shipped to the client anyway — the grid's
+            # "On PO" column and its filter have been reading a constant zero.
+            on_order = dict(
+                db.query(
+                    PurchaseOrderItem.sku,
+                    func.coalesce(
+                        func.sum(
+                            PurchaseOrderItem.qty_ordered
+                            - PurchaseOrderItem.qty_received
+                        ),
+                        0,
+                    ),
+                )
+                .join(PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id)
+                .filter(
+                    PurchaseOrderItem.sku.in_(skus),
+                    PurchaseOrder.status.in_(["Draft", "Sent", "Partial"]),
+                    PurchaseOrderItem.qty_ordered > PurchaseOrderItem.qty_received,
+                )
+                .group_by(PurchaseOrderItem.sku)
+                .all()
+            )
             for it in items:
                 it.committed_qty = int(committed.get(it.sku, 0) or 0)
+                it.on_order_qty = int(on_order.get(it.sku, 0) or 0)
         return items
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to retrieve inventory")

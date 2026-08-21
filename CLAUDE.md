@@ -1,5 +1,38 @@
 # Total Image Group ERP — Claude Code Guide
 
+## Always
+
+- Check `docs/superpowers/plans/` and `docs/superpowers/specs/` before changing a module. The plans carry verified API shapes and line references — trust them rather than re-deriving.
+- Follow the shape of `frontend/src/modules/stock/` when building a module: `<Name>Module.jsx`, a list, a pure filters module, `__tests__/`.
+- Route stock changes through the shared paths. Anything that changes `InventoryItem.stock` must also call `adjust_location`, and anything that changes a job's status must go through `_apply_status_transition`. Both have been forgotten on individual paths before, and both times it corrupted the ledger silently.
+- Run the validation gate below before reporting work as done.
+
+## Never
+
+- Never sweep a colour across files with a regex. A palette sweep once rewrote 11 traffic-light lines where amber meant *warning*, not brand — and missed `index.css` entirely because the sweep only covered `.jsx`/`.js`.
+- Never add a model `Column` with no writer. `tests/unit/test_schema_conventions.py` fails on one; if it is genuinely deliberate, add it to `unwritten_columns.json` with a real reason. Endpoints that return ORM rows without a `response_model` ship the column to the client, where a permanent zero reads as data.
+- Never mock `../api` with a partial object literal in a component test. Use `renderWithQuery` from `src/test/renderWithQuery.jsx` — TanStack Query turns a missing method into an empty render, so the test passes while covering nothing.
+- Never leave a second Alembic head. A deploy runs `upgrade head` and applies one branch only.
+- Never add a *new* surface to `frontend/src/TotalImageERP.jsx`. Carve it into `frontend/src/modules/<name>/` instead; the monolith is shrinking, not growing.
+
+## Ask First
+
+- Changing `frontend/src/ui/tokens.js` or `STATUS_COLORS` — the palette cascades to ~47 files and the status colours are semantic.
+- Changing an API response shape that `frontend/src/api.js` normalises.
+- Adding a production dependency.
+- Applying a migration to the live database. Commits should contain the migration file; running it is a deploy step.
+
+## Validation Commands
+
+Run in this order; stop at the first failure.
+
+```bash
+cd backend && python -m pytest --no-cov -q
+cd backend && ruff check app tests && black --check app tests
+cd frontend && npm test
+cd frontend && npm run build
+```
+
 ## Project layout
 
 ```text
@@ -53,7 +86,7 @@ black --check app tests
 - `app/routers/` — FastAPI routers (thin; business logic stays in core/)
 - `app/models/` — SQLAlchemy ORM models (incl. `stock_location.py`, `stock_pricing.py` for the Stock module)
 - `app/routers/inventory.py` — Stock API: locations CRUD, pricing (cost + qty-break levels), `/transactions`, `/committed` (`/inventory/{sku}/...`)
-- `alembic/versions/` — DB migration history; latest head: `u5v6w7x8y9z0` (stock descriptions: extended/web/care)
+- `alembic/versions/` — DB migration history; latest head: `w7x8y9z0a1b2` (goods_receipts.branch)
 - `app/routers/saved_lists.py` — server-synced per-user nav-tree lists (`/saved-lists`, max 25 per node)
 - `app/routers/dispatch_sessions.py` — recorded despatch batches (Jim2 "Dispatch #"); creating one dispatches its jobs + records reviewable lines (`/dispatch-sessions`)
 - `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)
@@ -97,3 +130,4 @@ GitHub Actions: `.github/workflows/test.yml`
 
 - Runs lint (ruff + black) then unit + integration tests on Python 3.11 and 3.12
 - Coverage uploaded to Codecov
+- A separate `frontend` job runs `npm ci`, the vitest suite, and the production build
