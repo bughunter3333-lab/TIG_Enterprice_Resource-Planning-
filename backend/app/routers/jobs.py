@@ -267,6 +267,14 @@ _COMMITTED_STATUSES = {
     "INVOICE",
 }
 
+# Statuses where the stock has physically left the building. Depletion happens on
+# the way in and is reversed on the way out, so a recalled invoice puts the goods
+# back rather than leaving them written off.
+_DEPLETED_STATUSES = {
+    "INVOICE",
+    "PAID",
+}
+
 # Fuel levy rate: 13% of freight (derived from sticky note: $30→$3.90, $20→$2.60, $15→$1.95)
 _FUEL_LEVY_RATE = 0.13
 
@@ -386,7 +394,69 @@ def _restore_on_hand(job: "Job", db: Session) -> None:
         if inv:
             # mv.quantity is negative → subtracting it adds the stock back
             inv.stock = (inv.stock or 0) - (mv.quantity or 0)
+            # ...and the branch position has to rise with it, or the Locations
+            # tab stops adding up to the item the moment an invoice is recalled.
+            adjust_location(db, mv.sku, job.branch, on_hand=-(mv.quantity or 0))
         db.delete(mv)
+
+
+def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
+    """Move `job` to `new_status` and run every side effect that implies.
+
+    Every path that changes a job's status must come through here. Three used to
+    do it themselves and disagreed with each other: `PATCH /jobs/{id}` applied
+    the status with a bare setattr and ran no stock effects at all, and unprint
+    dropped a PAID job into FINISH — a committed status — without re-reserving
+    anything, leaving the stored committed quantity understated.
+
+    Stock moves on two independent boundaries rather than per-status branches:
+
+      committed — reserved for this job; released when it leaves those statuses
+      depleted  — physically shipped; restored when it comes back out
+
+    The boundary form is what makes the reverse transitions right. The old
+    per-status form depleted on entering INVOICE and had no matching restore, so
+    a job sent INVOICE -> FINISH kept its stock written off — only `unprint`
+    put it back, and only on its own path.
+
+    Validation stays with the caller: each entry point has its own rules about
+    who may make which move, and this function is only concerned with what has
+    to be true afterwards.
+    """
+    old_status = job.status
+    if old_status == new_status:
+        return
+
+    job.status = new_status
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    was_committed = old_status in _COMMITTED_STATUSES
+    now_committed = new_status in _COMMITTED_STATUSES
+    if not was_committed and now_committed:
+        _commit_job_stock(job, db)
+    elif was_committed and not now_committed:
+        _release_job_stock(job, db)
+
+    was_depleted = old_status in _DEPLETED_STATUSES
+    now_depleted = new_status in _DEPLETED_STATUSES
+    if not was_depleted and now_depleted:
+        _deplete_on_hand(job, db)
+    elif was_depleted and not now_depleted:
+        _restore_on_hand(job, db)
+
+    # Compliance timestamps
+    if new_status == "INVOICE" and not job.invoice_date:
+        job.invoice_date = today
+        job.invoice_status = "invoiced"
+    if new_status == "PAID":
+        job.payment_status = "paid"
+        if not job.payment_date:
+            job.payment_date = today
+    if new_status == "FINISH" and not job.dispatched_at:
+        job.dispatched_at = today
+
+    if new_status in ("INVOICE", "PAID", "CANCEL"):
+        _recalculate_customer_balance(job.customer_id, db)
 
 
 def _recalculate_weight(job: "Job", db: Session) -> None:
@@ -689,7 +759,10 @@ def update_job(
         _validate_transition(job, body.status, current_user)
         _validate_required_fields(job, body.status)
 
-    update_data = body.model_dump(exclude_none=True, exclude={"items"})
+    # Status is applied last, through the shared transition, so it is never just
+    # another field in this setattr loop — that is how this endpoint used to move
+    # a job into ORDER while reserving no stock at all.
+    update_data = body.model_dump(exclude_none=True, exclude={"items", "status"})
     for field, value in update_data.items():
         setattr(job, field, value)
 
@@ -699,7 +772,19 @@ def update_job(
         db.flush()
         for item_data in body.items:
             job.items.append(JobItem(**item_data.model_dump()))
+        db.flush()
+        # Deleting a row does not remove it from the loaded collection, so until
+        # this expiry `job.items` holds the old lines *and* the new ones — and
+        # everything below iterates it.
+        db.expire(job, ["items"])
         _recalculate_weight(job, db)
+
+    if body.status and body.status != job.status:
+        if body.status == "ORDER":
+            _check_credit_limit(job, db)
+        # After the lines are in place: what gets reserved is what the job now
+        # holds, not what it held when the request arrived.
+        _apply_status_transition(job, body.status, db)
 
     db.commit()
     return _job_with_relations(db, job_id)
@@ -723,37 +808,9 @@ def update_status(
     if body.status == "ORDER":
         _check_credit_limit(job, db)
 
-    old_status = job.status
-    job.status = body.status
     now = datetime.now()
-    today = now.strftime("%Y-%m-%d")
+    _apply_status_transition(job, body.status, db)
 
-    # Committed stock management
-    was_committed = old_status in _COMMITTED_STATUSES
-    now_committed = body.status in _COMMITTED_STATUSES
-    if not was_committed and now_committed:
-        _commit_job_stock(job, db)
-    elif was_committed and not now_committed:
-        _release_job_stock(job, db)
-
-    # On-hand depletion: stock physically leaves when the job is invoiced (Jim2 model)
-    if body.status == "INVOICE" and old_status != "INVOICE":
-        _deplete_on_hand(job, db)
-
-    # Set compliance timestamps automatically
-    if body.status == "INVOICE" and not job.invoice_date:
-        job.invoice_date = today
-        job.invoice_status = "invoiced"
-    if body.status == "PAID":
-        job.payment_status = "paid"
-        if not job.payment_date:
-            job.payment_date = today
-    if body.status == "FINISH":
-        if not job.dispatched_at:
-            job.dispatched_at = today
-    # Recalculate AR balance for the customer
-    if body.status in ("INVOICE", "PAID", "CANCEL"):
-        _recalculate_customer_balance(job.customer_id, db)
     comment = JobComment(
         job_id=job_id,
         date=now.strftime("%d/%m/%Y"),
@@ -1015,9 +1072,10 @@ def unprint_job(
             status_code=400, detail="Can only unprint INVOICE or PAID jobs"
         )
     prev_status = job.status
-    job.status = "FINISH"
-    # Recalling the invoice puts the shipped stock back on hand
-    _restore_on_hand(job, db)
+    # Recalling the invoice puts the shipped stock back on hand — and FINISH is a
+    # committed status, so coming back from PAID (which is not) has to re-reserve
+    # it too. Doing that by hand here is what left committed understated.
+    _apply_status_transition(job, "FINISH", db)
     now = datetime.now()
     comment = JobComment(
         job_id=job_id,

@@ -8,6 +8,7 @@ from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.job import JobItem
 from app.core.dependencies import require_any, require_staff
+from app.core.stock_location import DEFAULT_BRANCH, adjust_location
 from app.models.user import User
 from datetime import datetime
 
@@ -309,12 +310,24 @@ def receive_items(
 
     for item in po.items:
         if item.id in receive_map:
-            qty = receive_map[item.id]
-            item.qty_received = min(item.qty_ordered, item.qty_received + qty)
-            # Update inventory
-            inv = db.query(InventoryItem).filter(InventoryItem.sku == item.sku).first()
+            # The received count is clamped to what was ordered, so stock has to
+            # move by the clamped delta, not by the requested quantity — sending
+            # 999 against an order of 10 used to record 10 received and add 999
+            # to the shelf.
+            previously = item.qty_received or 0
+            item.qty_received = min(item.qty_ordered, previously + receive_map[item.id])
+            qty = item.qty_received - previously
+            inv = (
+                db.query(InventoryItem).filter(InventoryItem.sku == item.sku).first()
+                if qty > 0
+                else None
+            )
             if inv:
                 inv.stock += qty
+                # Goods land in a branch. Without this the item total rises while
+                # every per-location position stays put, so the Locations tab
+                # reports the difference as stock that has no home.
+                adjust_location(db, item.sku, DEFAULT_BRANCH, on_hand=qty)
                 movement = StockMovement(
                     sku=item.sku,
                     date=datetime.now().strftime("%d/%m/%Y"),
