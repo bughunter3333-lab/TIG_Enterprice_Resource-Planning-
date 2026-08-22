@@ -168,3 +168,57 @@ class TestMovementsCarryTheirBranch:
             for p in (BACKEND / "app" / "routers").rglob("*.py")
         )
         assert found >= 10, f"expected the known movement sites, found {found}"
+
+
+@pytest.mark.unit
+class TestJobStatusHasOneWriter:
+    """A job's status may only change inside `_apply_status_transition`.
+
+    A status change is never only a status change: it reserves or releases
+    stock, depletes or restores on-hand, stamps compliance dates and
+    recalculates the customer's balance. Five separate paths set it by hand and
+    each forgot a different part of that — the PATCH handler ran no stock
+    effects at all, unprint left a committed status with nothing reserved, and
+    both dispatch paths skipped invoice_status and the AR recalculation.
+
+    The pattern is not that those five were careless; it is that a bare
+    assignment looks complete. This makes a sixth one fail.
+    """
+
+    ASSIGNMENT = re.compile(r"^[^#\n]*\bjob\.status\s*=(?!=)", re.M)
+
+    def _transition_span(self, source: str) -> tuple:
+        start = source.index("def _apply_status_transition")
+        following = re.search(r"^def \w+", source[start + 1 :], re.M)
+        return start, (start + 1 + following.start() if following else len(source))
+
+    def test_only_the_shared_transition_assigns_job_status(self):
+        offenders = []
+        for path in sorted((BACKEND / "app" / "routers").rglob("*.py")):
+            source = path.read_text(encoding="utf-8", errors="replace")
+            if not self.ASSIGNMENT.search(source):
+                continue
+            span = (
+                self._transition_span(source)
+                if "def _apply_status_transition" in source
+                else (-1, -1)
+            )
+            for match in self.ASSIGNMENT.finditer(source):
+                if span[0] <= match.start() < span[1]:
+                    continue
+                line = source[: match.start()].count("\n") + 1
+                offenders.append(f"{path.name}:{line}")
+        assert not offenders, (
+            f"job.status is assigned outside _apply_status_transition at {offenders}. "
+            "Call it instead — a status change also moves stock, stamps "
+            "compliance dates and recalculates the customer balance."
+        )
+
+    def test_the_shared_transition_is_where_it_says_it_is(self):
+        """Guards the span logic: if the function moved, the scan above is blind."""
+        source = (BACKEND / "app" / "routers" / "jobs.py").read_text(encoding="utf-8")
+        start, end = self._transition_span(source)
+        assert self.ASSIGNMENT.search(source[start:end]), (
+            "_apply_status_transition no longer assigns job.status — the "
+            "exemption above is now pointing at the wrong code."
+        )

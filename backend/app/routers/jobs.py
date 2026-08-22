@@ -993,10 +993,9 @@ def dispatch_job(
     )
     db.add(comment)
     if body.advance_status and job.status == "FINISH":
-        job.status = "INVOICE"
-        if not job.invoice_date:
-            job.invoice_date = today
-        _deplete_on_hand(job, db)
+        # Hand-rolling this missed invoice_status and the customer's AR balance,
+        # which the status endpoint sets on the same move.
+        _apply_status_transition(job, "INVOICE", db)
     db.commit()
     db.refresh(job)
     return job

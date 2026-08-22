@@ -18,7 +18,7 @@ from app.core.dependencies import require_staff
 from app.models.dispatch_session import DispatchSession, DispatchSessionLine
 from app.models.job import Job, JobComment
 from app.models.user import User
-from app.routers.jobs import _deplete_on_hand, _get_initials
+from app.routers.jobs import _apply_status_transition, _get_initials
 
 router = APIRouter(prefix="/dispatch-sessions", tags=["dispatch"])
 
@@ -95,10 +95,9 @@ def create_dispatch_session(
             )
         )
         if ln.advance_status and job.status == "FINISH":
-            job.status = "INVOICE"
-            if not job.invoice_date:
-                job.invoice_date = today
-            _deplete_on_hand(job, db)
+            # Same transition the status endpoint runs — hand-rolling it here
+            # missed invoice_status and the customer's AR balance.
+            _apply_status_transition(job, "INVOICE", db)
         session.lines.append(
             DispatchSessionLine(
                 job_id=job.id,
