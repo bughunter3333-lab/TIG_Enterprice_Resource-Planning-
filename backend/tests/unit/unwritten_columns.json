@@ -2,7 +2,6 @@
   "customer.credit_hold": "Declared for a hard credit stop. _check_credit_limit reads credit_limit and the AR balance only, so nothing sets this yet; wire it there before exposing it in the UI.",
   "customer.gst_registered": "ABN/GST parity field. ABN validation exists (app/core/abn.py) but registration status is not captured on the customer form yet.",
   "supplier.gst_registered": "Same as customer.gst_registered — declared for supplier ABN parity, no writer or UI.",
-  "inventory.location_branch": "The branch on StockMovement. Read in three places but never written, so the ledger cannot say which branch a movement hit — this is what stops per-branch positions being re-derivable from movements. Stamping it is the first step of the stock-ledger work.",
   "inventory.qty_bal": "Jim2 movement parity: running balance after the movement. We compute balances by summing instead, so nothing writes it.",
   "inventory.pack_num": "Jim2 movement parity: pack/carton reference on a receipt line. No receiving UI captures it.",
   "inventory.bin": "Jim2 movement parity: bin the movement touched. Bins live on StockLocation (primary_bin_1/2) rather than per movement.",

@@ -292,6 +292,7 @@ def accept_receipt(
                     sku=ln.sku,
                     date=today,
                     type="GR",
+                    location_branch=gr.branch,
                     quantity=qty,
                     reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
                     notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",

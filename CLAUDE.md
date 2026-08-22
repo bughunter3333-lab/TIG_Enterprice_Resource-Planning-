@@ -4,7 +4,7 @@
 
 - Check `docs/superpowers/plans/` and `docs/superpowers/specs/` before changing a module. The plans carry verified API shapes and line references — trust them rather than re-deriving.
 - Follow the shape of `frontend/src/modules/stock/` when building a module: `<Name>Module.jsx`, a list, a pure filters module, `__tests__/`.
-- Route stock changes through the shared paths. Anything that changes `InventoryItem.stock` must also call `adjust_location`, and anything that changes a job's status must go through `_apply_status_transition`. Both have been forgotten on individual paths before, and both times it corrupted the ledger silently.
+- Route stock changes through the shared paths. Anything that changes `InventoryItem.stock` must also call `adjust_location`; every `StockMovement` must be constructed with `location_branch` (the value is already in scope — it is what the adjacent `adjust_location` uses); and anything that changes a job's status must go through `_apply_status_transition`. Each has been forgotten on an individual path before, and each time it corrupted the ledger silently.
 - Run the validation gate below before reporting work as done.
 
 ## Never

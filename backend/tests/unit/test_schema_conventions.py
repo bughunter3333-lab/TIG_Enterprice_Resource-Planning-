@@ -117,3 +117,54 @@ class TestSingleMigrationHead:
             "A deploy runs `alembic upgrade head` and would apply only one "
             "branch, leaving the other's tables missing."
         )
+
+
+def _call_arguments(source: str, callee: str):
+    """Yield the argument text of each `callee(...)` call, parens balanced."""
+    for match in re.finditer(rf"\b{re.escape(callee)}\(", source):
+        depth, start = 0, match.end() - 1
+        for index in range(start, len(source)):
+            char = source[index]
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0:
+                    yield source[start + 1 : index]
+                    break
+
+
+@pytest.mark.unit
+class TestMovementsCarryTheirBranch:
+    """A movement without a branch cannot be attributed to a location.
+
+    `location_branch` sat on StockMovement unwritten while three endpoints read
+    it, so the ledger could say what moved and never where. Per-branch balances
+    can only be re-derived from movements if every movement records one, and the
+    way that guarantee decays is one new endpoint that forgets — so it is pinned
+    at every construction site rather than trusted to review.
+    """
+
+    def test_every_stock_movement_is_constructed_with_a_branch(self):
+        offenders = []
+        for path in sorted((BACKEND / "app" / "routers").rglob("*.py")):
+            source = path.read_text(encoding="utf-8", errors="replace")
+            for arguments in _call_arguments(source, "StockMovement"):
+                if "location_branch=" not in arguments:
+                    sku = re.search(r"sku=([^,\n]+)", arguments)
+                    offenders.append(
+                        f"{path.name}: StockMovement(sku={sku.group(1).strip() if sku else '?'}, ...)"
+                    )
+        assert not offenders, (
+            "these stock movements are created without a branch: "
+            f"{offenders}. Pass location_branch — the value is already in scope "
+            "at every site, since it is what the adjacent adjust_location call uses."
+        )
+
+    def test_the_scan_finds_the_call_sites(self):
+        """Guards the scan: a regex that matches nothing would pass vacuously."""
+        found = sum(
+            len(list(_call_arguments(p.read_text(encoding="utf-8"), "StockMovement")))
+            for p in (BACKEND / "app" / "routers").rglob("*.py")
+        )
+        assert found >= 10, f"expected the known movement sites, found {found}"

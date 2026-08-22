@@ -380,6 +380,7 @@ def adjust_stock(
         sku=sku,
         date=datetime.now().strftime("%d/%m/%Y"),
         type="Adjustment",
+        location_branch=body.branch,
         quantity=body.adjustment,
         notes=body.reason,
     )
@@ -996,6 +997,7 @@ def transfer_stock(
             sku=body.from_sku,
             date=now,
             type="Transfer Out",
+            location_branch=body.from_branch,
             quantity=-body.quantity,
             reference=ref,
             notes=body.notes or f"Transfer to {body.to_sku}",
@@ -1011,6 +1013,7 @@ def transfer_stock(
                 sku=body.from_sku,
                 date=now,
                 type="Location Change",
+                location_branch=dest_branch,
                 quantity=body.quantity,
                 reference=ref,
                 notes=body.notes
@@ -1033,6 +1036,7 @@ def transfer_stock(
             sku=body.to_sku,
             date=now,
             type="Transfer In",
+            location_branch=dest_branch,
             quantity=body.quantity,
             reference=ref,
             notes=body.notes or f"Transfer from {body.from_location or body.from_sku}",
@@ -1066,6 +1070,7 @@ def stocktake(
                 sku=entry.sku,
                 date=now,
                 type="Stocktake",
+                location_branch=body.branch,
                 quantity=variance,
                 reference=ref,
                 notes=entry.notes

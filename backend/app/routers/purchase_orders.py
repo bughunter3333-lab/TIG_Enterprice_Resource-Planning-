@@ -332,6 +332,7 @@ def receive_items(
                     sku=item.sku,
                     date=datetime.now().strftime("%d/%m/%Y"),
                     type="Purchase Receipt",
+                    location_branch=DEFAULT_BRANCH,
                     quantity=qty,
                     reference=po_id,
                     notes=f"Received from PO {po_id}",
