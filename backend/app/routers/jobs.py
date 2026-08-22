@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
+from app.core.reservations import COMMITTED_STATUSES
 from app.core.stock_ledger import post_movement, reverse_job_movements
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
@@ -256,17 +257,6 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
             )
 
 
-# Statuses where stock is actively reserved (committed)
-_COMMITTED_STATUSES = {
-    "ORDER",
-    "In Progress",
-    "PROOF",
-    "PRINT",
-    "Pick/Pack",
-    "FINISH",
-    "INVOICE",
-}
-
 # Statuses where the stock has physically left the building. Depletion happens on
 # the way in and is reversed on the way out, so a recalled invoice puts the goods
 # back rather than leaving them written off.
@@ -395,8 +385,8 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     job.status = new_status
     today = datetime.now().strftime("%Y-%m-%d")
 
-    was_committed = old_status in _COMMITTED_STATUSES
-    now_committed = new_status in _COMMITTED_STATUSES
+    was_committed = old_status in COMMITTED_STATUSES
+    now_committed = new_status in COMMITTED_STATUSES
     if not was_committed and now_committed:
         _commit_job_stock(job, db)
     elif was_committed and not now_committed:

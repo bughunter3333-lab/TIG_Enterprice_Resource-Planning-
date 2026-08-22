@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user, require_role
 from app.core.landed_cost import LandedCharge, ReceiptLine, apportion_landed_costs
+from app.core.reservations import committed_total
 from app.core.stock_ledger import post_movement
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -339,8 +340,11 @@ def _auto_allocate_backorders(gr: GoodsReceipt, db: Session) -> None:
         inv = db.query(InventoryItem).filter_by(sku=ln.sku).first()
         if not inv:
             continue
-        # Available = on-hand minus committed
-        available = max(0, (inv.stock or 0) - (inv.committed_qty or 0))
+        # Available = on-hand minus committed, where committed is derived from
+        # the open jobs rather than read off the stored counter. Reading the
+        # counter understated availability for anything sitting between INVOICE
+        # and PAID, so a backorder could be refused stock that was free.
+        available = max(0, (inv.stock or 0) - committed_total(db, ln.sku))
         if available <= 0:
             continue
         # Find active job items with back-orders for this SKU, oldest due first

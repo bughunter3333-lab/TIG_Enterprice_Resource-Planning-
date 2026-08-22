@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
 from typing import Optional, List
@@ -8,8 +7,16 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.stock_location import location_summary
+from app.core.stock_location import DEFAULT_BRANCH, location_summary
 from app.core.stock_ledger import post_movement, post_relocation
+from app.core.reservations import (
+    UNCOMMITTED_STATUSES,
+    backordered_by_branch,
+    committed_by_branch,
+    committed_by_sku,
+    on_order_by_sku,
+    on_order_total,
+)
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -166,51 +173,16 @@ def list_inventory(
         if low_stock:
             q = q.filter(InventoryItem.stock <= InventoryItem.min_stock)
         items = q.order_by(InventoryItem.name).offset(offset).limit(limit).all()
-        # Live committed qty = supply on OPEN job lines. Quotes/paid/cancelled jobs
-        # don't reserve stock (Jim2). Overrides the stored column so available =
-        # on-hand − committed is real across all jobs. Not persisted (no commit).
+        # Committed and on-order are derived from the open jobs and purchase
+        # orders themselves, overriding the stored columns, so what the grid
+        # shows cannot drift from the documents it describes. Not persisted.
         skus = [it.sku for it in items]
         if skus:
-            committed = dict(
-                db.query(
-                    JobItem.stock_code,
-                    func.coalesce(func.sum(JobItem.supply_qty), 0),
-                )
-                .join(Job, JobItem.job_id == Job.id)
-                .filter(
-                    JobItem.stock_code.in_(skus),
-                    Job.status.notin_(["QUOTE", "INVOICE", "PAID", "CANCEL"]),
-                )
-                .group_by(JobItem.stock_code)
-                .all()
-            )
-            # Same treatment for on-order. The stored column has never had a
-            # writer, but this endpoint returns raw ORM rows with no
-            # response_model, so it shipped to the client anyway — the grid's
-            # "On PO" column and its filter have been reading a constant zero.
-            on_order = dict(
-                db.query(
-                    PurchaseOrderItem.sku,
-                    func.coalesce(
-                        func.sum(
-                            PurchaseOrderItem.qty_ordered
-                            - PurchaseOrderItem.qty_received
-                        ),
-                        0,
-                    ),
-                )
-                .join(PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id)
-                .filter(
-                    PurchaseOrderItem.sku.in_(skus),
-                    PurchaseOrder.status.in_(["Draft", "Sent", "Partial"]),
-                    PurchaseOrderItem.qty_ordered > PurchaseOrderItem.qty_received,
-                )
-                .group_by(PurchaseOrderItem.sku)
-                .all()
-            )
+            committed = committed_by_sku(db, skus)
+            on_order = on_order_by_sku(db, skus)
             for it in items:
-                it.committed_qty = int(committed.get(it.sku, 0) or 0)
-                it.on_order_qty = int(on_order.get(it.sku, 0) or 0)
+                it.committed_qty = committed.get(it.sku, 0)
+                it.on_order_qty = on_order.get(it.sku, 0)
         return items
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to retrieve inventory")
@@ -412,6 +384,13 @@ def get_locations(
         .order_by(StockLocation.branch)
         .all()
     )
+    # Reserved quantity is derived from the open jobs themselves rather than
+    # read off the stored counter, so it cannot drift from the jobs it claims to
+    # describe. On PO is derived the same way from outstanding purchase orders,
+    # against the branch that receives them.
+    committed = committed_by_branch(db, sku)
+    backordered = backordered_by_branch(db, sku)
+    on_po = on_order_total(db, sku)
     return [
         {
             "id": loc.id,
@@ -419,10 +398,12 @@ def get_locations(
             "branch": loc.branch,
             "zone": loc.zone,
             "qty_on_hand": loc.qty_on_hand,
-            "committed_qty": loc.committed_qty,
-            "available_qty": loc.available_qty,
-            "backorder_qty": loc.backorder_qty,
-            "on_po_qty": loc.on_po_qty,
+            "committed_qty": committed.get(loc.branch, 0),
+            "available_qty": max(
+                0, (loc.qty_on_hand or 0) - committed.get(loc.branch, 0)
+            ),
+            "backorder_qty": backordered.get(loc.branch, 0),
+            "on_po_qty": on_po if loc.branch == DEFAULT_BRANCH else 0,
             "primary_bin_1": loc.primary_bin_1,
             "max_qty_bin_1": loc.max_qty_bin_1,
             "primary_bin_2": loc.primary_bin_2,
@@ -936,7 +917,7 @@ def get_committed(
         .filter(
             JobItem.stock_code == sku,
             JobItem.supply_qty > 0,
-            Job.status.notin_(["QUOTE", "INVOICE", "PAID", "CANCEL"]),
+            Job.status.notin_(UNCOMMITTED_STATUSES),
         )
         .all()
     )
