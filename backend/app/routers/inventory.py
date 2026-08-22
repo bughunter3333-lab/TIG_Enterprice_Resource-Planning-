@@ -8,7 +8,8 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.stock_location import adjust_location, location_summary
+from app.core.stock_location import location_summary
+from app.core.stock_ledger import post_movement, post_relocation
 from app.models.stock_pricing import StockPriceLevel, StockPriceBreakpoint
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
@@ -374,17 +375,14 @@ def adjust_stock(
         raise HTTPException(
             status_code=400, detail="Adjustment would result in negative stock"
         )
-    item.stock = new_stock
-    adjust_location(db, sku, body.branch, on_hand=body.adjustment)
-    movement = StockMovement(
+    post_movement(
+        db,
         sku=sku,
-        date=datetime.now().strftime("%d/%m/%Y"),
-        type="Adjustment",
-        location_branch=body.branch,
+        movement_type="Adjustment",
+        branch=body.branch,
         quantity=body.adjustment,
         notes=body.reason,
     )
-    db.add(movement)
     db.commit()
     db.refresh(item)
     return item
@@ -984,64 +982,52 @@ def transfer_stock(
     is_cross_sku = bool(body.to_sku and body.to_sku != body.from_sku)
     dest_branch = body.to_branch or body.from_branch
 
-    # Only a cross-SKU transfer changes an item's total — it converts one SKU
-    # into another. A same-SKU move merely RELOCATES stock, so the total must
-    # not move. (This used to decrement unconditionally, so shifting stock
-    # between bins or branches silently destroyed it.)
+    # A cross-SKU transfer converts one product into another, so both totals
+    # move. A same-SKU move only RELOCATES stock and must leave the total alone —
+    # it used to decrement unconditionally, which silently destroyed stock every
+    # time someone shifted it between bins.
     if is_cross_sku:
-        from_item.stock -= body.quantity
-    adjust_location(db, body.from_sku, body.from_branch, on_hand=-body.quantity)
-
-    if is_cross_sku:
-        out_movement = StockMovement(
-            sku=body.from_sku,
-            date=now,
-            type="Transfer Out",
-            location_branch=body.from_branch,
-            quantity=-body.quantity,
-            reference=ref,
-            notes=body.notes or f"Transfer to {body.to_sku}",
-        )
-        db.add(out_movement)
-    else:
-        # Relocation: the stock lands back on the same SKU elsewhere.
-        adjust_location(db, body.from_sku, dest_branch, on_hand=body.quantity)
-        if body.to_location:
-            from_item.location = body.to_location
-        db.add(
-            StockMovement(
-                sku=body.from_sku,
-                date=now,
-                type="Location Change",
-                location_branch=dest_branch,
-                quantity=body.quantity,
-                reference=ref,
-                notes=body.notes
-                or f"Moved {body.from_branch} -> {dest_branch}"
-                + (f" ({body.to_location})" if body.to_location else ""),
-            )
-        )
-
-    if is_cross_sku:
-        to_item = (
-            db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first()
-        )
-        if not to_item:
+        # Checked before anything moves: a transfer to a SKU that does not exist
+        # should fail without having taken stock off the source.
+        if not db.query(InventoryItem).filter(InventoryItem.sku == body.to_sku).first():
             raise HTTPException(
                 status_code=404, detail=f"Destination SKU '{body.to_sku}' not found"
             )
-        to_item.stock += body.quantity
-        adjust_location(db, body.to_sku, dest_branch, on_hand=body.quantity)
-        in_movement = StockMovement(
-            sku=body.to_sku,
+        post_movement(
+            db,
+            sku=body.from_sku,
+            movement_type="Transfer Out",
+            branch=body.from_branch,
+            quantity=-body.quantity,
             date=now,
-            type="Transfer In",
-            location_branch=dest_branch,
+            reference=ref,
+            notes=body.notes or f"Transfer to {body.to_sku}",
+        )
+        post_movement(
+            db,
+            sku=body.to_sku,
+            movement_type="Transfer In",
+            branch=dest_branch,
             quantity=body.quantity,
+            date=now,
             reference=ref,
             notes=body.notes or f"Transfer from {body.from_location or body.from_sku}",
         )
-        db.add(in_movement)
+    else:
+        if body.to_location:
+            from_item.location = body.to_location
+        post_relocation(
+            db,
+            sku=body.from_sku,
+            quantity=body.quantity,
+            from_branch=body.from_branch,
+            to_branch=dest_branch,
+            date=now,
+            reference=ref,
+            notes=body.notes
+            or f"Moved {body.from_branch} -> {dest_branch}"
+            + (f" ({body.to_location})" if body.to_location else ""),
+        )
 
     db.commit()
     return {"ok": True, "from_sku": body.from_sku, "quantity": body.quantity}
@@ -1062,25 +1048,24 @@ def stocktake(
         if not item:
             results.append({"sku": entry.sku, "error": "Not found"})
             continue
-        variance = entry.counted_qty - item.stock
+        previous = item.stock or 0
+        variance = entry.counted_qty - previous
         if variance != 0:
-            item.stock = entry.counted_qty
-            adjust_location(db, entry.sku, body.branch, on_hand=variance)
-            movement = StockMovement(
+            post_movement(
+                db,
                 sku=entry.sku,
-                date=now,
-                type="Stocktake",
-                location_branch=body.branch,
+                movement_type="Stocktake",
+                branch=body.branch,
                 quantity=variance,
+                date=now,
                 reference=ref,
                 notes=entry.notes
-                or f"Stocktake ({body.method}): counted {entry.counted_qty}, was {item.stock + (-variance)}",
+                or f"Stocktake ({body.method}): counted {entry.counted_qty}, was {previous}",
             )
-            db.add(movement)
         results.append(
             {
                 "sku": entry.sku,
-                "previous": item.stock - variance if variance != 0 else item.stock,
+                "previous": previous,
                 "counted": entry.counted_qty,
                 "variance": variance,
             }

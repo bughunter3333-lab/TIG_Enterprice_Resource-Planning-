@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user, require_role
 from app.core.landed_cost import LandedCharge, ReceiptLine, apportion_landed_costs
-from app.core.stock_location import adjust_location
+from app.core.stock_ledger import post_movement
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
-from app.models.inventory import InventoryItem, StockMovement
+from app.models.inventory import InventoryItem
 from app.models.job import Job, JobItem
 
 router = APIRouter(prefix="/goods-receipts", tags=["goods-receipts"])
@@ -264,11 +264,9 @@ def accept_receipt(
         # Update inventory stock
         inv = db.query(InventoryItem).filter_by(sku=ln.sku).first()
         if inv:
+            # Captured before the movement lands, because the moving average
+            # below weights the new cost against the stock held until now.
             prev_qty = inv.stock or 0
-            inv.stock = prev_qty + qty
-            # Stock lands somewhere, not just in a global total — keep the
-            # per-location position true (Jim2 Qty by Locations).
-            adjust_location(db, ln.sku, gr.branch or "HQ", on_hand=qty)
             if ln.unit_cost and float(ln.unit_cost) > 0:
                 inv.unit_cost = ln.unit_cost
 
@@ -287,16 +285,15 @@ def accept_receipt(
                     else landed.cog_unit
                 )
                 inv.max_cog = max(Decimal(str(inv.max_cog or 0)), landed.cog_unit)
-            db.add(
-                StockMovement(
-                    sku=ln.sku,
-                    date=today,
-                    type="GR",
-                    location_branch=gr.branch,
-                    quantity=qty,
-                    reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
-                    notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",
-                )
+            post_movement(
+                db,
+                sku=ln.sku,
+                movement_type="GR",
+                branch=gr.branch,
+                quantity=qty,
+                date=today,
+                reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
+                notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",
             )
 
         # Update PO line qty_received if linked

@@ -5,10 +5,11 @@ from typing import Optional, List
 
 from app.database import get_db
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
-from app.models.inventory import InventoryItem, StockMovement
+from app.models.inventory import InventoryItem
 from app.models.job import JobItem
 from app.core.dependencies import require_any, require_staff
-from app.core.stock_location import DEFAULT_BRANCH, adjust_location
+from app.core.stock_location import DEFAULT_BRANCH
+from app.core.stock_ledger import post_movement
 from app.models.user import User
 from datetime import datetime
 
@@ -317,27 +318,18 @@ def receive_items(
             previously = item.qty_received or 0
             item.qty_received = min(item.qty_ordered, previously + receive_map[item.id])
             qty = item.qty_received - previously
-            inv = (
-                db.query(InventoryItem).filter(InventoryItem.sku == item.sku).first()
-                if qty > 0
-                else None
-            )
-            if inv:
-                inv.stock += qty
-                # Goods land in a branch. Without this the item total rises while
-                # every per-location position stays put, so the Locations tab
-                # reports the difference as stock that has no home.
-                adjust_location(db, item.sku, DEFAULT_BRANCH, on_hand=qty)
-                movement = StockMovement(
+            if qty > 0:
+                post_movement(
+                    db,
                     sku=item.sku,
-                    date=datetime.now().strftime("%d/%m/%Y"),
-                    type="Purchase Receipt",
-                    location_branch=DEFAULT_BRANCH,
+                    movement_type="Purchase Receipt",
+                    branch=DEFAULT_BRANCH,
                     quantity=qty,
+                    date=datetime.now().strftime("%d/%m/%Y"),
                     reference=po_id,
+                    po_id=po_id,
                     notes=f"Received from PO {po_id}",
                 )
-                db.add(movement)
         if item.qty_received < item.qty_ordered:
             all_received = False
 

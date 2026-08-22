@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from app.database import get_db
-from app.core.stock_location import adjust_location
+from app.core.stock_ledger import post_movement, reverse_job_movements
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.customer import Customer
@@ -295,24 +295,16 @@ def _commit_job_stock(job: "Job", db: Session) -> None:
         qty = item.qty or item.order_qty or 0
         if qty <= 0:
             continue
-        inv = (
-            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
-        )
-        if not inv:
-            continue
-        inv.committed_qty = (inv.committed_qty or 0) + qty
         # The reservation belongs to the branch that will ship it.
-        adjust_location(db, item.stock_code, job.branch, committed=qty)
-        db.add(
-            StockMovement(
-                sku=item.stock_code,
-                date=today,
-                type="Committed",
-                location_branch=job.branch,
-                quantity=qty,
-                reference=job.id,
-                notes=f"Committed for Job {job.id}",
-            )
+        post_movement(
+            db,
+            sku=item.stock_code,
+            movement_type="Committed",
+            branch=job.branch,
+            committed=qty,
+            date=today,
+            reference=job.id,
+            notes=f"Committed for Job {job.id}",
         )
 
 
@@ -325,23 +317,15 @@ def _release_job_stock(job: "Job", db: Session) -> None:
         qty = item.qty or item.order_qty or 0
         if qty <= 0:
             continue
-        inv = (
-            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
-        )
-        if not inv:
-            continue
-        inv.committed_qty = max(0, (inv.committed_qty or 0) - qty)
-        adjust_location(db, item.stock_code, job.branch, committed=-qty)
-        db.add(
-            StockMovement(
-                sku=item.stock_code,
-                date=today,
-                type="Released",
-                location_branch=job.branch,
-                quantity=-qty,
-                reference=job.id,
-                notes=f"Released from Job {job.id}",
-            )
+        post_movement(
+            db,
+            sku=item.stock_code,
+            movement_type="Released",
+            branch=job.branch,
+            committed=-qty,
+            date=today,
+            reference=job.id,
+            notes=f"Released from Job {job.id}",
         )
 
 
@@ -362,45 +346,23 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
         qty = item.supply_qty or 0  # only what was actually supplied from stock ships
         if qty <= 0:
             continue
-        inv = (
-            db.query(InventoryItem).filter(InventoryItem.sku == item.stock_code).first()
-        )
-        if not inv:
-            continue
-        inv.stock = (inv.stock or 0) - qty
-        # Goods leave the branch that shipped them, so the per-location
-        # position falls with the total (Jim2 Qty by Locations).
-        adjust_location(db, item.stock_code, job.branch, on_hand=-qty)
-        db.add(
-            StockMovement(
-                sku=item.stock_code,
-                date=today,
-                type="Sale",
-                location_branch=job.branch,
-                quantity=-qty,
-                reference=job.id,
-                job_id=job.id,
-                notes=f"Invoiced — shipped on Job {job.id}",
-            )
+        # Goods leave the branch that shipped them.
+        post_movement(
+            db,
+            sku=item.stock_code,
+            movement_type="Sale",
+            branch=job.branch,
+            quantity=-qty,
+            date=today,
+            reference=job.id,
+            job_id=job.id,
+            notes=f"Invoiced — shipped on Job {job.id}",
         )
 
 
 def _restore_on_hand(job: "Job", db: Session) -> None:
     """Reverse invoice depletion (e.g. on unprint): add stock back, drop Sale rows."""
-    sales = (
-        db.query(StockMovement)
-        .filter(StockMovement.job_id == job.id, StockMovement.type == "Sale")
-        .all()
-    )
-    for mv in sales:
-        inv = db.query(InventoryItem).filter(InventoryItem.sku == mv.sku).first()
-        if inv:
-            # mv.quantity is negative → subtracting it adds the stock back
-            inv.stock = (inv.stock or 0) - (mv.quantity or 0)
-            # ...and the branch position has to rise with it, or the Locations
-            # tab stops adding up to the item the moment an invoice is recalled.
-            adjust_location(db, mv.sku, job.branch, on_hand=-(mv.quantity or 0))
-        db.delete(mv)
+    reverse_job_movements(db, job_id=job.id, movement_type="Sale", branch=job.branch)
 
 
 def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:

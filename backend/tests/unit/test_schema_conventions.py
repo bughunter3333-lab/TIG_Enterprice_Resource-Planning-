@@ -135,39 +135,69 @@ def _call_arguments(source: str, callee: str):
 
 
 @pytest.mark.unit
-class TestMovementsCarryTheirBranch:
-    """A movement without a branch cannot be attributed to a location.
+class TestStockChangesOnlyThroughTheLedger:
+    """`app/core/stock_ledger.py` is the only place stock may change.
 
-    `location_branch` sat on StockMovement unwritten while three endpoints read
-    it, so the ledger could say what moved and never where. Per-branch balances
-    can only be re-derived from movements if every movement records one, and the
-    way that guarantee decays is one new endpoint that forgets — so it is pinned
-    at every construction site rather than trusted to review.
+    Eight call sites used to update stock directly, and each had to remember
+    three things: the item total, the branch position, and a ledger row. Every
+    stock bug in this codebase was a site that remembered some of them — which
+    is not carelessness, because `inv.stock += qty` looks complete on its own.
+
+    Two rules make that structural rather than remembered: nothing outside the
+    ledger constructs a movement, and nothing outside it assigns stock. Both are
+    checked against the source, because the failure mode is a *new* path that
+    never runs an existing test.
     """
 
-    def test_every_stock_movement_is_constructed_with_a_branch(self):
-        offenders = []
-        for path in sorted((BACKEND / "app" / "routers").rglob("*.py")):
-            source = path.read_text(encoding="utf-8", errors="replace")
-            for arguments in _call_arguments(source, "StockMovement"):
-                if "location_branch=" not in arguments:
-                    sku = re.search(r"sku=([^,\n]+)", arguments)
-                    offenders.append(
-                        f"{path.name}: StockMovement(sku={sku.group(1).strip() if sku else '?'}, ...)"
-                    )
+    LEDGER = "app/core/stock_ledger.py"
+
+    def _app_sources(self):
+        for path in sorted((BACKEND / "app").rglob("*.py")):
+            relative = path.relative_to(BACKEND).as_posix()
+            yield relative, path.read_text(encoding="utf-8", errors="replace")
+
+    def test_movements_are_only_constructed_in_the_ledger(self):
+        offenders = [
+            relative
+            for relative, source in self._app_sources()
+            if relative != self.LEDGER
+            and not relative.endswith("models/inventory.py")
+            and list(_call_arguments(source, "StockMovement("[:-1]))
+        ]
         assert not offenders, (
-            "these stock movements are created without a branch: "
-            f"{offenders}. Pass location_branch — the value is already in scope "
-            "at every site, since it is what the adjacent adjust_location call uses."
+            f"{offenders} construct a StockMovement directly. Call post_movement "
+            "or post_relocation — a movement row on its own records that "
+            "something happened without making it happen."
         )
 
-    def test_the_scan_finds_the_call_sites(self):
-        """Guards the scan: a regex that matches nothing would pass vacuously."""
-        found = sum(
-            len(list(_call_arguments(p.read_text(encoding="utf-8"), "StockMovement")))
-            for p in (BACKEND / "app" / "routers").rglob("*.py")
+    def test_every_movement_the_ledger_builds_carries_a_branch(self):
+        source = (BACKEND / self.LEDGER).read_text(encoding="utf-8")
+        built = list(_call_arguments(source, "StockMovement"))
+        assert (
+            built
+        ), "the ledger builds no movements — this scan is looking at the wrong file"
+        missing = [a for a in built if "location_branch=" not in a]
+        assert not missing, (
+            f"{len(missing)} of {len(built)} movements in the ledger are built "
+            "without a branch. A movement with no branch cannot be attributed "
+            "to a location, which is what makes per-branch balances derivable."
         )
-        assert found >= 10, f"expected the known movement sites, found {found}"
+
+    def test_stock_is_only_assigned_in_the_ledger(self):
+        assignment = re.compile(r"^[^#\n]*\.stock\s*(?:=(?!=)|[-+]=)", re.M)
+        offenders = []
+        for relative, source in self._app_sources():
+            if relative == self.LEDGER or relative.startswith("app/models/"):
+                continue
+            for match in assignment.finditer(source):
+                line = source[: match.start()].count("\n") + 1
+                offenders.append(f"{relative}:{line}")
+        assert not offenders, (
+            f"stock is assigned outside the ledger at {offenders}. Use "
+            "post_movement — assigning the total alone leaves the branch "
+            "position and the ledger behind, which is every stock bug this "
+            "codebase has had."
+        )
 
 
 @pytest.mark.unit
