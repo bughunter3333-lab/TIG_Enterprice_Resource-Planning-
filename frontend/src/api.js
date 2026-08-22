@@ -17,8 +17,15 @@ async function request(path, options = {}) {
     const detail = err.detail;
     const msg = Array.isArray(detail)
       ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
-      : (typeof detail === 'string' ? detail : `Request failed: ${res.status}`);
-    throw new Error(msg);
+      : typeof detail === 'string'
+        ? detail
+        // A structured detail carries a written message — flattening it to the
+        // status code throws away the only part a person can act on.
+        : (detail && detail.message) || `Request failed: ${res.status}`;
+    const error = new Error(msg);
+    error.status = res.status;
+    error.detail = detail;
+    throw error;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -31,6 +38,9 @@ function normalizeJob(j) {
   const totalInc = parseFloat(j.total_inc ?? j.total ?? 0);
   const tax = parseFloat(j.tax ?? (totalInc - totalEx) ?? 0);
   const rawItems = j.items ?? [];
+  // The version this copy was loaded at, sent back on save so a concurrent
+  // edit conflicts instead of being silently overwritten.
+  const updatedAt = j.updated_at ?? j.updatedAt ?? null;
   const cost = rawItems
     .filter(i => (i.display_type ?? i.displayType ?? 'product') === 'product')
     .reduce((s, i) => s + parseFloat(i.purchase_price ?? i.purchasePrice ?? 0) * (i.qty ?? 0), 0);
@@ -38,6 +48,7 @@ function normalizeJob(j) {
   const marginPct = totalEx > 0 ? Math.round((marginTotal / totalEx) * 100) : 0;
   return {
     id: j.id,
+    updatedAt,
     customer: j.customer_name ?? j.customer,
     customerId: j.customer_id ?? j.customerId,
     status: j.status,
@@ -365,7 +376,10 @@ export const jobs = {
     })),
   }}).then(normalizeJob),
 
-  update: (id, data) => request(`/jobs/${id}`, { method: 'PATCH', body: {
+  update: (id, data) => request(`/jobs/${id}`, {
+    method: 'PATCH',
+    headers: data.updatedAt ? { 'If-Match': data.updatedAt } : undefined,
+    body: {
     customer_id: data.customerId,
     customer_name: data.customer,
     date_in: data.dateIn,
@@ -410,6 +424,9 @@ export const jobs = {
     ship_to_id: data.shipToId ?? undefined,
     fuel_levy: data.fuelLevy,
     items: data.items ? data.items.map((i, idx) => ({
+      // Sent back so the server updates the existing row instead of replacing
+      // it — line identity is referenced by order requirements and picking.
+      id: i.id ?? undefined,
       sort: idx,
       display_type: i.displayType || 'product',
       description: i.description,

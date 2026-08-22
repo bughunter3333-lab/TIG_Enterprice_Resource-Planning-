@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.core.reservations import COMMITTED_STATUSES
@@ -59,6 +59,9 @@ REQUIRED_FIELDS_FOR_STATUS: dict[str, list[tuple[str, str]]] = {
 
 
 class JobItemSchema(BaseModel):
+    # Present on a line that already exists, so a save can update it in place
+    # rather than replacing it with a new row. Absent on lines being added.
+    id: Optional[int] = None
     sort: int = 0
     display_type: str = "product"
     description: Optional[str] = None
@@ -353,6 +356,86 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
 def _restore_on_hand(job: "Job", db: Session) -> None:
     """Reverse invoice depletion (e.g. on unprint): add stock back, drop Sale rows."""
     reverse_job_movements(db, job_id=job.id, movement_type="Sale", branch=job.branch)
+
+
+def job_version(job: "Job") -> str:
+    """The token a client holds to say which version of a job it edited.
+
+    A job that has never been saved has no `updated_at`, so its version is the
+    empty string rather than nothing at all — that way a first edit is checkable
+    on the same terms as any other.
+    """
+    return job.updated_at.isoformat() if job.updated_at else ""
+
+
+def _require_current_version(job: "Job", if_match: Optional[str]) -> None:
+    """Refuse a save built on a version of the job that has since moved on.
+
+    Saving overwrites the whole job, so without this two people editing the same
+    job means the second save silently discards the first's work — no error, no
+    trace, and the loser finds out when something they typed is missing.
+
+    The check is opt-in: a client that sends no token is not held to one. That
+    keeps every existing caller working, and means adopting it is a change to
+    the client rather than a flag day.
+    """
+    if if_match is None:
+        return
+    current = job_version(job)
+    if if_match.strip('"') != current:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "conflict",
+                "message": (
+                    "This job was changed by someone else while you were "
+                    "editing it. Reload to see their changes before saving."
+                ),
+                "current_version": current,
+            },
+        )
+
+
+def _reconcile_items(job: "Job", incoming: List["JobItemSchema"], db: Session) -> None:
+    """Update the job's lines in place, matching by id.
+
+    Saving used to delete every line and rebuild the list, which threw away line
+    identity on every save. That identity is referenced elsewhere while a job is
+    being worked: order requirements hand out `item_id` so a purchase order can
+    be raised against a specific line, and the picking screen posts quantities
+    back against it. Rebuilding the rows left those references pointing at ids
+    that no longer existed.
+
+    It also made a save destructive under concurrency — two people editing one
+    job meant the second save discarded the first's lines wholesale rather than
+    conflicting on the line they both touched.
+
+    Lines carrying an id are updated, lines without one are added, and lines the
+    payload no longer mentions are removed.
+    """
+    existing = {item.id: item for item in job.items}
+    seen = set()
+
+    for line in incoming:
+        current = existing.get(line.id) if line.id is not None else None
+        if current is not None:
+            # Only what the caller actually sent. A full dump would fill every
+            # omitted field with its schema default, which puts back the same
+            # wipe the delete-and-recreate caused — po_no and qty_pick are
+            # written by other screens and rarely appear in a save payload.
+            for name, value in line.model_dump(
+                exclude={"id"}, exclude_unset=True
+            ).items():
+                setattr(current, name, value)
+            seen.add(current.id)
+        else:
+            # No id, or an id this job does not own — either way it is new here,
+            # and a new row does want the defaults.
+            job.items.append(JobItem(**line.model_dump(exclude={"id"})))
+
+    for item_id, item in existing.items():
+        if item_id not in seen:
+            db.delete(item)
 
 
 def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
@@ -704,10 +787,12 @@ def update_job(
     body: JobUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff),
+    if_match: Optional[str] = Header(default=None, alias="If-Match"),
 ):
     job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    _require_current_version(job, if_match)
     if body.status and body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
     if body.status and body.status != job.status:
@@ -722,15 +807,11 @@ def update_job(
         setattr(job, field, value)
 
     if body.items is not None:
-        for item in job.items:
-            db.delete(item)
+        _reconcile_items(job, body.items, db)
         db.flush()
-        for item_data in body.items:
-            job.items.append(JobItem(**item_data.model_dump()))
-        db.flush()
-        # Deleting a row does not remove it from the loaded collection, so until
-        # this expiry `job.items` holds the old lines *and* the new ones — and
-        # everything below iterates it.
+        # A deleted row lingers in the loaded collection until it is reloaded,
+        # so until this expiry `job.items` can hold removed lines alongside the
+        # current ones — and everything below iterates it.
         db.expire(job, ["items"])
         _recalculate_weight(job, db)
 
@@ -741,6 +822,10 @@ def update_job(
         # holds, not what it held when the request arrived.
         _apply_status_transition(job, body.status, db)
 
+    # Bumped explicitly: `onupdate` fires only when a column on the job itself
+    # changes, and a save that only touches lines changes none of them — which
+    # would leave the version stale and every later conflict undetected.
+    job.updated_at = datetime.now(timezone.utc)
     db.commit()
     return _job_with_relations(db, job_id)
 
