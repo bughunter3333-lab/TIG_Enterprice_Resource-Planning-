@@ -55,6 +55,34 @@ def adjust_location(
     return row
 
 
+def position_qty(db: Session, sku: str, branch: str) -> int:
+    """What is on hand for this SKU at this branch, zero if it has no position.
+
+    A count is always a count of one shelf. Anything that measures a physical
+    count has to difference it against this, never against the item total —
+    the two are only the same while a SKU lives at a single branch.
+    """
+    row = (
+        db.query(StockLocation)
+        .filter(
+            StockLocation.sku == sku, StockLocation.branch == (branch or DEFAULT_BRANCH)
+        )
+        .first()
+    )
+    return (row.qty_on_hand or 0) if row else 0
+
+
+def unlocated_qty(db: Session, sku: str) -> int:
+    """On-hand that has no branch yet — the item total less every position."""
+    item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    total = (item.stock or 0) if item else 0
+    located = sum(
+        r.qty_on_hand or 0
+        for r in db.query(StockLocation).filter(StockLocation.sku == sku).all()
+    )
+    return total - located
+
+
 def location_summary(db: Session, sku: str) -> dict:
     """Reconcile the per-location positions against the item's total on hand.
 

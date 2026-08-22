@@ -181,3 +181,44 @@ def reverse_job_movements(
             )
         db.delete(movement)
     return len(movements)
+
+
+def place_unlocated(
+    db: Session,
+    *,
+    sku: str,
+    branch: str,
+    quantity: int,
+    reference: Optional[str] = None,
+    notes: Optional[str] = None,
+    date: Optional[str] = None,
+) -> Optional[StockMovement]:
+    """Give a branch to stock that had none, without changing how much there is.
+
+    Stock received before location tracking has a total but no position, which
+    the Locations tab reports as "not yet located". Counting a shelf is the
+    moment that gets resolved: the units are in front of you, so they stop being
+    unlocated and start being at this branch. The item total does not move —
+    nothing arrived, it was always there.
+
+    The movement type is deliberately outside ON_HAND_TYPES: this places stock,
+    it does not receive it, and the ledger's on-hand total must not count it.
+    """
+    if quantity <= 0:
+        return None
+    item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    if item is None:
+        return None
+
+    adjust_location(db, sku, branch, on_hand=quantity)
+    movement = StockMovement(
+        sku=sku,
+        date=date or _today(),
+        type="Put Away",
+        quantity=quantity,
+        reference=reference,
+        notes=notes,
+        location_branch=branch,
+    )
+    db.add(movement)
+    return movement

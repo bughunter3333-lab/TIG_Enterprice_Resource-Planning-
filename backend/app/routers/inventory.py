@@ -7,8 +7,13 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.stock_location import DEFAULT_BRANCH, location_summary
-from app.core.stock_ledger import post_movement, post_relocation
+from app.core.stock_location import (
+    DEFAULT_BRANCH,
+    location_summary,
+    position_qty,
+    unlocated_qty,
+)
+from app.core.stock_ledger import place_unlocated, post_movement, post_relocation
 from app.core.reservations import (
     UNCOMMITTED_STATUSES,
     backordered_by_branch,
@@ -1029,8 +1034,31 @@ def stocktake(
         if not item:
             results.append({"sku": entry.sku, "error": "Not found"})
             continue
-        previous = item.stock or 0
+        # A count is a count of one shelf, so it is measured against what the
+        # system believes is on that shelf — never the company-wide total.
+        # Differencing against the total and applying the result to one branch
+        # destroyed what the others held: counting 38 at MELB on an item holding
+        # 60 at HQ set the total to 38 and emptied MELB.
+        #
+        # Stock with no branch at all counts towards this shelf. It physically
+        # sits somewhere, and the shelf in front of the counter is the only
+        # evidence available; sweeping it in here is also what finally clears
+        # the "not yet located" figure for legacy stock. On a two-branch item
+        # that means whichever branch is counted first claims it — which the
+        # second count then corrects, since by then nothing is unlocated.
+        unlocated = max(0, unlocated_qty(db, entry.sku))
+        previous = position_qty(db, entry.sku, body.branch) + unlocated
         variance = entry.counted_qty - previous
+
+        place_unlocated(
+            db,
+            sku=entry.sku,
+            branch=body.branch,
+            quantity=unlocated,
+            date=now,
+            reference=ref,
+            notes=f"Located by stocktake {ref}",
+        )
         if variance != 0:
             post_movement(
                 db,

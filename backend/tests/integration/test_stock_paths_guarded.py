@@ -304,3 +304,75 @@ class TestOnOrderIsDerived:
     def test_zero_when_nothing_is_on_order(self, client, db, make_inventory):
         make_inventory(sku="OO4", stock=3)
         assert self._row(client, "OO4")["on_order_qty"] == 0
+
+
+@pytest.mark.integration
+class TestStocktakeCountsOneShelf:
+    """A count is a count of one branch, so its variance must be measured
+    against that branch's position — not the company-wide total.
+
+    Differencing against the total and applying the result to a single branch
+    destroyed whatever the other branches held. This was invisible to the
+    existing tests because they all held an item's stock at a single branch,
+    where the total and the position are the same number.
+    """
+
+    def test_counting_one_branch_leaves_the_other_alone(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="STB1", stock=100)
+        _place(db, "STB1", 60, branch="HQ")
+        _place(db, "STB1", 40, branch="MELB")
+
+        r = client.post(
+            "/inventory/stocktake",
+            json={
+                "reference": "ST-B1",
+                "branch": "MELB",
+                "items": [{"sku": "STB1", "counted_qty": 38}],
+            },
+        )
+        assert r.status_code == 200
+
+        db.expire_all()
+        assert _loc(db, "STB1", "HQ").qty_on_hand == 60, "HQ was not counted"
+        assert _loc(db, "STB1", "MELB").qty_on_hand == 38
+        assert _inv(db, "STB1").stock == 98, "only the two missing units are gone"
+        assert location_summary(db, "STB1")["in_sync"] is True
+
+    def test_the_reported_variance_is_the_branch_variance(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="STB2", stock=100)
+        _place(db, "STB2", 60, branch="HQ")
+        _place(db, "STB2", 40, branch="MELB")
+
+        body = client.post(
+            "/inventory/stocktake",
+            json={
+                "reference": "ST-B2",
+                "branch": "MELB",
+                "items": [{"sku": "STB2", "counted_qty": 45}],
+            },
+        ).json()
+        row = body["results"][0]
+        assert (row["previous"], row["counted"], row["variance"]) == (40, 45, 5)
+
+    def test_counting_a_branch_holding_nothing_yet(self, client, db, make_inventory):
+        """Found stock at a branch with no position — the variance is the count."""
+        make_inventory(sku="STB3", stock=20)
+        _place(db, "STB3", 20, branch="HQ")
+
+        client.post(
+            "/inventory/stocktake",
+            json={
+                "reference": "ST-B3",
+                "branch": "MELB",
+                "items": [{"sku": "STB3", "counted_qty": 7}],
+            },
+        )
+
+        db.expire_all()
+        assert _loc(db, "STB3", "MELB").qty_on_hand == 7
+        assert _inv(db, "STB3").stock == 27
+        assert location_summary(db, "STB3")["in_sync"] is True

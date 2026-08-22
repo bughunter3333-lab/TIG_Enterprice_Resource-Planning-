@@ -141,6 +141,30 @@ class TestAdjustmentsHoldInvariants:
         after = assert_invariants(db, "IV5", before, what="a stocktake variance")
         assert after.stock == 74
 
+    def test_stocktake_on_a_two_branch_item(self, client, db, make_inventory):
+        """Every fixture above holds an item at one branch, where the position
+        and the total are the same number — so a path that differences against
+        the wrong one still reconciles. Splitting the stock is what exposes it."""
+        make_inventory(sku="IV5B", stock=90)
+        adjust_location(db, "IV5B", "HQ", on_hand=50)
+        adjust_location(db, "IV5B", "MELB", on_hand=40)
+        db.commit()
+        before = snapshot(db, "IV5B")
+
+        client.post(
+            "/inventory/stocktake",
+            json={
+                "reference": "ST-IV5B",
+                "branch": "MELB",
+                "items": [{"sku": "IV5B", "counted_qty": 36}],
+            },
+        )
+
+        after = assert_invariants(
+            db, "IV5B", before, what="counting one branch of a two-branch item"
+        )
+        assert after.stock == 86, "four units short at MELB, HQ untouched"
+
 
 @pytest.mark.integration
 class TestTransfersHoldInvariants:
