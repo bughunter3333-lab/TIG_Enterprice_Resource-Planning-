@@ -570,14 +570,23 @@ export const inventory = {
       quantity: data.quantity,
       from_location: data.fromLocation || null,
       to_location: data.toLocation || null,
+      // Which branch the stock leaves and which it arrives at. Omitting these
+      // made every transfer a same-branch move against HQ, whatever the user
+      // picked, and moved nothing at the branch actually holding the stock.
+      from_branch: data.fromBranch || 'HQ',
+      to_branch: data.toBranch || null,
       reference: data.reference || null,
       notes: data.notes || null,
     }}),
 
-  stocktake: (items, reference, method = 'Informed') =>
+  // Branch is not optional in practice: the server defaults to HQ, and a count
+  // also claims any stock that has no branch yet — so a Melbourne count sent
+  // without one sweeps every unlocated unit in the business into HQ.
+  stocktake: (items, reference, method = 'Informed', branch = 'HQ') =>
     request('/inventory/stocktake', { method: 'POST', body: {
       reference: reference || null,
       method,
+      branch,
       items: items.map(i => ({ sku: i.sku, counted_qty: i.countedQty, notes: i.notes || null })),
     }}),
 

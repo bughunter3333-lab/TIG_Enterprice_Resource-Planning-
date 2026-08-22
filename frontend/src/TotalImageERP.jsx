@@ -15,6 +15,7 @@ import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
 import { T } from './ui/tokens';
+import { BRANCHES, DEFAULT_BRANCH } from './branches';
 import StatusBadge from './ui/StatusBadge';
 import Dashboard from './components/dashboard/Dashboard';
 import JobsBoard from './components/jobs/JobsBoard';
@@ -918,8 +919,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [dispatchModal, setDispatchModal] = useState({ open: false, job: null, shipVia: '', shipRef: '', cartons: 1, notes: '', advanceStatus: false, loading: false, error: '' });
   const [unprintModal, setUnprintModal] = useState({ open: false, job: null, loading: false, error: '' });
   const [salesRegModal, setSalesRegModal] = useState({ open: false, loading: false, dateFrom: '', dateTo: '', data: null, error: '' });
-  const [transferModal, setTransferModal] = useState({ open: false, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', loading: false, error: '' });
-  const [stocktakeModal, setStocktakeModal] = useState({ open: false, method: 'Informed', reference: '', items: [], loading: false, error: '', results: null });
+  const [transferModal, setTransferModal] = useState({ open: false, fromSku: '', toSku: '', toLocation: '', quantity: 1, fromBranch: DEFAULT_BRANCH, toBranch: DEFAULT_BRANCH, reference: '', notes: '', loading: false, error: '' });
+  const [stocktakeModal, setStocktakeModal] = useState({ open: false, method: 'Informed', branch: DEFAULT_BRANCH, reference: '', items: [], loading: false, error: '', results: null });
   const [stockFlowModal, setStockFlowModal] = useState({ open: false, loading: false, data: null, search: '' });
   const [pickPackModal, setPickPackModal] = useState({ open: false, job: null });
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
@@ -7050,7 +7051,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       if (!transferModal.toSku && !transferModal.toLocation) return setTransferModal(m => ({ ...m, error: 'Destination SKU or Location is required.' }));
       setTransferModal(m => ({ ...m, loading: true, error: '' }));
       try {
-        await api.inventory.transfer({ fromSku: transferModal.fromSku, toSku: transferModal.toSku || null, toLocation: transferModal.toLocation || null, quantity: transferModal.quantity, reference: transferModal.reference, notes: transferModal.notes });
+        await api.inventory.transfer({ fromSku: transferModal.fromSku, toSku: transferModal.toSku || null, toLocation: transferModal.toLocation || null, quantity: transferModal.quantity, fromBranch: transferModal.fromBranch, toBranch: transferModal.toBranch, reference: transferModal.reference, notes: transferModal.notes });
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         queryClient.invalidateQueries({ queryKey: ['stockMovements'] });
         close();
@@ -7076,6 +7077,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Quantity *</label>
             <input type="number" min="1" max={fromItem?.stock || 9999} value={transferModal.quantity} onChange={e => setTransferModal(m => ({ ...m, quantity: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>From branch</label>
+              <select value={transferModal.fromBranch} onChange={e => setTransferModal(m => ({ ...m, fromBranch: e.target.value }))} className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>To branch</label>
+              <select value={transferModal.toBranch} onChange={e => setTransferModal(m => ({ ...m, toBranch: e.target.value }))} className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
           </div>
           <div className="pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
             <p className="text-xs mb-2 font-medium" style={{ color: T.textMuted }}>DESTINATION — fill one:</p>
@@ -7121,7 +7136,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const submit = async () => {
       setStocktakeModal(m => ({ ...m, loading: true, error: '' }));
       try {
-        const result = await api.inventory.stocktake(stocktakeModal.items, stocktakeModal.reference, stocktakeModal.method);
+        const result = await api.inventory.stocktake(stocktakeModal.items, stocktakeModal.reference, stocktakeModal.method, stocktakeModal.branch);
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         queryClient.invalidateQueries({ queryKey: ['stockMovements'] });
         setStocktakeModal(m => ({ ...m, loading: false, results: result }));
@@ -7164,10 +7179,20 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Branch counted</label>
+                <select value={stocktakeModal.branch} onChange={e => setStocktakeModal(m => ({ ...m, branch: e.target.value }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Reference</label>
                 <input value={stocktakeModal.reference} onChange={e => setStocktakeModal(m => ({ ...m, reference: e.target.value }))} placeholder="auto-generated if blank" className="rounded px-3 py-1.5 text-sm w-44" style={{ border: `1px solid ${T.hairline}` }} />
               </div>
             </div>
+            <p className="text-xs mb-3" style={{ color: T.textMuted }}>
+              Counting a branch also claims any stock that has no branch yet — the
+              units are in front of you, so they stop being unlocated.
+            </p>
             {stocktakeModal.error && <p className="text-sm mb-3" style={{ color: T.danger }}>{stocktakeModal.error}</p>}
             <div className="overflow-auto flex-1 rounded mb-4" style={{ border: `1px solid ${T.hairline}` }}>
               <table className="w-full text-xs">

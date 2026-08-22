@@ -7,6 +7,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
+from app.core.branches import normalize_branch
 from app.core.stock_location import (
     DEFAULT_BRANCH,
     location_summary,
@@ -959,14 +960,51 @@ def transfer_stock(
     )
     if not from_item:
         raise HTTPException(status_code=404, detail=f"SKU '{body.from_sku}' not found")
-    if from_item.stock < body.quantity:
-        raise HTTPException(status_code=400, detail="Insufficient stock for transfer")
+    now_date = datetime.now().strftime("%d/%m/%Y")
+    from_branch = normalize_branch(body.from_branch)
+    dest_branch = normalize_branch(body.to_branch or body.from_branch)
+
+    # You can only move what is at the branch you are moving it from. Checking
+    # the company-wide total instead let a 10-unit move off a branch holding 3
+    # succeed: the position floored at zero and the destination gained 10, so
+    # the branches then held more than the item did.
+    #
+    # Stock that has no branch yet counts as available here, on the same reading
+    # the stocktake uses — the operator has it in front of them. It is placed at
+    # the source first so the move works on a real position rather than on a
+    # figure that exists only in the item total.
+    available_at_source = position_qty(db, body.from_sku, from_branch)
+    if available_at_source < body.quantity:
+        shortfall = body.quantity - available_at_source
+        place_unlocated(
+            db,
+            sku=body.from_sku,
+            branch=from_branch,
+            quantity=min(max(0, unlocated_qty(db, body.from_sku)), shortfall),
+            date=now_date,
+            reference=body.reference,
+            notes=f"Located at {from_branch} by transfer",
+        )
+        available_at_source = position_qty(db, body.from_sku, from_branch)
+    if available_at_source < body.quantity:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Only {available_at_source} at {from_branch} — "
+                f"cannot transfer {body.quantity}"
+            ),
+        )
 
     ref = body.reference or f"XFER-{body.from_sku}"
-    now = datetime.now().strftime("%d/%m/%Y")
+    now = now_date
 
     is_cross_sku = bool(body.to_sku and body.to_sku != body.from_sku)
-    dest_branch = body.to_branch or body.from_branch
+
+    # Moving stock to where it already is is not a move. Running it anyway takes
+    # the quantity off the position and puts it back, which is harmless only
+    # while nothing floors in between.
+    if not is_cross_sku and dest_branch == from_branch and not body.to_location:
+        return {"ok": True, "from_sku": body.from_sku, "quantity": 0}
 
     # A cross-SKU transfer converts one product into another, so both totals
     # move. A same-SKU move only RELOCATES stock and must leave the total alone —
@@ -983,7 +1021,7 @@ def transfer_stock(
             db,
             sku=body.from_sku,
             movement_type="Transfer Out",
-            branch=body.from_branch,
+            branch=from_branch,
             quantity=-body.quantity,
             date=now,
             reference=ref,
@@ -1006,12 +1044,12 @@ def transfer_stock(
             db,
             sku=body.from_sku,
             quantity=body.quantity,
-            from_branch=body.from_branch,
+            from_branch=from_branch,
             to_branch=dest_branch,
             date=now,
             reference=ref,
             notes=body.notes
-            or f"Moved {body.from_branch} -> {dest_branch}"
+            or f"Moved {from_branch} -> {dest_branch}"
             + (f" ({body.to_location})" if body.to_location else ""),
         )
 

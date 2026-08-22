@@ -376,3 +376,82 @@ class TestStocktakeCountsOneShelf:
         assert _loc(db, "STB3", "MELB").qty_on_hand == 7
         assert _inv(db, "STB3").stock == 27
         assert location_summary(db, "STB3")["in_sync"] is True
+
+
+@pytest.mark.integration
+class TestTransferMovesWhatIsActuallyThere:
+    """A transfer takes stock off a branch, so the branch has to have it.
+
+    Checking the company-wide total let a move off a branch holding 3 succeed:
+    the source position floored at zero, the destination still gained the full
+    quantity, and the branches ended up holding more than the item did.
+    """
+
+    def test_moving_more_than_the_source_branch_holds_is_refused(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="TB1", stock=60)
+        _place(db, "TB1", 3, branch="HQ")
+        _place(db, "TB1", 57, branch="Melbourne")
+
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "TB1",
+                "quantity": 10,
+                "from_branch": "HQ",
+                "to_branch": "Melbourne",
+            },
+        )
+        assert r.status_code == 400
+        assert "Only 3 at HQ" in r.json()["detail"]
+
+        db.expire_all()
+        assert location_summary(db, "TB1")["in_sync"] is True
+
+    def test_a_move_within_one_branch_changes_nothing(self, client, db, make_inventory):
+        make_inventory(sku="TB2", stock=40)
+        _place(db, "TB2", 40, branch="HQ")
+
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "TB2",
+                "quantity": 15,
+                "from_branch": "HQ",
+                "to_branch": "HQ",
+            },
+        )
+        assert r.status_code == 200
+
+        db.expire_all()
+        assert _loc(db, "TB2", "HQ").qty_on_hand == 40
+        assert location_summary(db, "TB2")["in_sync"] is True
+
+    def test_unlocated_stock_is_placed_at_the_source_then_moved(
+        self, client, db, make_inventory
+    ):
+        """Legacy stock has a total and no position. Refusing to move it would
+        block every transfer of anything received before location tracking."""
+        make_inventory(sku="TB3", stock=50)  # no position at all
+
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "TB3",
+                "quantity": 20,
+                "from_branch": "HQ",
+                "to_branch": "Melbourne",
+            },
+        )
+        assert r.status_code == 200
+
+        db.expire_all()
+        # Only what was needed is placed. A transfer is a statement about the
+        # units moved, not about the whole shelf — unlike a count, which is —
+        # so the remaining 30 stay honestly unlocated rather than being claimed
+        # for a branch nobody looked at.
+        assert _loc(db, "TB3", "HQ").qty_on_hand == 0
+        assert _loc(db, "TB3", "Melbourne").qty_on_hand == 20
+        assert _inv(db, "TB3").stock == 50, "relocating never changes the total"
+        assert location_summary(db, "TB3")["unlocated"] == 30
