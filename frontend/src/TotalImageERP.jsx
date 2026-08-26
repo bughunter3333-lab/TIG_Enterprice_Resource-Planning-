@@ -32,6 +32,7 @@ import POModule from './modules/purchase-orders/POModule';
 import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
+import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -3108,14 +3109,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-blue-50 hover:bg-blue-100 text-blue-800' },
+                          { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-blue-50 hover:bg-blue-100 text-blue-800', disabled: !isJobEditable(activeJob), title: jobLockReason(activeJob) },
                           { label: 'Clone',     icon: Copy,          action: () => cloneJob(activeJob),                                        color: 'bg-gray-50 hover:bg-gray-100 text-gray-700' },
                           { label: 'Job Sheet', icon: Printer,       action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }),      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
                           { label: 'Invoice',   icon: FileText,      action: () => openInvoiceDoc(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                           { label: 'Delivery',  icon: Package,       action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }), color: 'bg-teal-50 hover:bg-teal-100 text-teal-700' },
                           { label: 'Picking',   icon: ClipboardList, action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }),  color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
                         ].map(a => (
-                          <button key={a.label} onClick={a.action} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[11px] font-medium transition-colors ${a.color}`}>
+                          <button key={a.label} onClick={a.action} disabled={a.disabled} title={a.title || undefined} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[11px] font-medium transition-colors ${a.disabled ? 'opacity-40 cursor-not-allowed' : a.color}`}>
                             <a.icon className="w-4 h-4" />{a.label}
                           </button>
                         ))}

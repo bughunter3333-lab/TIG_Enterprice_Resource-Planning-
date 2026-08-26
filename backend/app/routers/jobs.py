@@ -297,6 +297,7 @@ def _commit_job_stock(job: "Job", db: Session) -> None:
             committed=qty,
             date=today,
             reference=job.id,
+            job_id=job.id,
             notes=f"Committed for Job {job.id}",
         )
 
@@ -318,6 +319,7 @@ def _release_job_stock(job: "Job", db: Session) -> None:
             committed=-qty,
             date=today,
             reference=job.id,
+            job_id=job.id,
             notes=f"Released from Job {job.id}",
         )
 
@@ -356,6 +358,54 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
 def _restore_on_hand(job: "Job", db: Session) -> None:
     """Reverse invoice depletion (e.g. on unprint): add stock back, drop Sale rows."""
     reverse_job_movements(db, job_id=job.id, movement_type="Sale", branch=job.branch)
+
+
+# A job stops being freely editable once it has been locked by hand, or once it
+# has been invoiced — at that point its numbers are on a document the customer
+# has, and the bookkeeper has taken them.
+_SETTLED_STATUSES = frozenset({"INVOICE", "PAID"})
+
+
+def _require_mutable(job: "Job", *, allow_settled: bool = False) -> None:
+    """Refuse a write to a job that is locked or already invoiced.
+
+    Both states were decorative. `locked` was written by its toggle and read
+    nowhere, so the padlock in the UI promised a protection the server did not
+    honour, and an invoiced job could be edited as freely as a quote.
+
+    Two concrete harms, not hypotheticals. Depletion is idempotent per job — a
+    Sale movement already on the ledger means done — so a line ADDED to an
+    invoiced job never depletes, and the shelf count silently overstates by that
+    line forever. And the customer's balance is recalculated only inside a
+    status transition, so editing an invoiced job's totals leaves their AR
+    saying something the invoice does not.
+
+    `unprint` is the way back: it returns the job to FINISH and restores the
+    stock properly. Pass `allow_settled` for the writers that are meant to work
+    on an invoiced job — recording a payment, adding a comment, unprinting.
+    """
+    if job.locked:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "locked",
+                "message": (
+                    f"Job {job.id} is locked. Unlock it before making changes."
+                ),
+            },
+        )
+    if not allow_settled and job.status in _SETTLED_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "settled",
+                "message": (
+                    f"Job {job.id} is {job.status} and cannot be edited. "
+                    "Unprint it first — that puts the stock back and returns it "
+                    "to FINISH."
+                ),
+            },
+        )
 
 
 def job_version(job: "Job") -> str:
@@ -793,6 +843,7 @@ def update_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     _require_current_version(job, if_match)
+    _require_mutable(job)
     if body.status and body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
     if body.status and body.status != job.status:
@@ -995,6 +1046,30 @@ def delete_job(
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    _require_mutable(job)
+
+    # A job that has moved stock cannot simply vanish. Its movements carry a FK
+    # to it with no ON DELETE, so this used to fail as a 500 from the database
+    # rather than a refusal anyone could read — and deleting a committed job
+    # would strand its reservation, since nothing releases it on the way out.
+    # CANCEL is the supported exit: it goes through the shared transition, which
+    # releases the stock and leaves the ledger explaining what happened.
+    posted = db.query(StockMovement).filter(StockMovement.job_id == job_id).first()
+    if posted is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "has_stock_history",
+                "message": (
+                    f"Job {job_id} has moved stock and cannot be deleted. "
+                    "Set it to CANCEL instead — that releases what it reserved "
+                    "and keeps the history."
+                ),
+            },
+        )
+    if job.status in COMMITTED_STATUSES:
+        _release_job_stock(job, db)
+
     db.delete(job)
     db.commit()
     return {"ok": True}
@@ -1053,6 +1128,9 @@ def pick_job_items(
     job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    # Locked only: correcting what was picked after the invoice went out is
+    # bookkeeping, not a change to what the customer was charged.
+    _require_mutable(job, allow_settled=True)
 
     def target(i: JobItem) -> int:
         return i.supply_qty or i.qty or i.order_qty or 0

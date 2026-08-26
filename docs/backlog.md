@@ -67,6 +67,27 @@ trains you to ignore lint output.
 
 *Touches:* `frontend/src/ui/tokens.js`, `frontend/src/ui/__tests__/tokens.test.jsx`.
 
+### D4. An ESLint `no-undef` pass over the frontend
+
+A name used inside a component but never imported is invisible to everything we
+run. `npm run build` emits the reference happily — esbuild does not resolve
+identifiers — and the monolith import smoke test in
+`frontend/src/__tests__/monolithImports.test.js` only proves the module graph
+resolves, because the reference is not evaluated until the component renders.
+
+That is not hypothetical: it happened while wiring the job-edit guard. The build
+passed on a `TotalImageERP.jsx` calling two functions that did not exist.
+
+The narrow fix is ESLint with `no-undef` at error, and nothing else turned on.
+That rule has close to no false positives and catches exactly this. It is
+explicitly *not* the broader design-system lint rollout, which the open-mercato
+study argued against and still argues against: the repo has ~1,700 raw colour
+utilities, and a warn-level rule nobody can clear in one sitting trains people
+to ignore lint output.
+
+*Touches:* `frontend/eslint.config.mjs`, `frontend/package.json`,
+`.github/workflows/test.yml`.
+
 ---
 
 ## Known gaps, deliberately open
