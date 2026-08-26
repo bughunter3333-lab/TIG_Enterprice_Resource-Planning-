@@ -870,6 +870,9 @@ export const goodsReceipts = {
     po_id: data.poId || null,
     supplier_id: data.supplierId || null,
     supplier_name: data.supplierName || null,
+    // Where the goods physically landed. Omitting it silently shelved every
+    // delivery at the server's default branch.
+    branch: data.branch || 'HQ',
     received_date: data.receivedDate,
     reference: data.reference || null,
     notes: data.notes || null,

@@ -88,6 +88,33 @@ to ignore lint output.
 *Touches:* `frontend/eslint.config.mjs`, `frontend/package.json`,
 `.github/workflows/test.yml`.
 
+### D5. Decide whether the inline PO receive should exist at all
+
+Two paths still receive stock against a purchase order: the "Confirm Receipt"
+button on the PO card, and the goods-receipt panel below it. Both are now
+truthful — the shelf and the order agree either way — so the double-receive no
+longer goes unflagged. What remains is a product decision rather than a defect.
+
+The case for retiring the inline button: it touches no cost field, so anything
+received through it stops `last_cost` and `avg_cog` tracking, and the landed
+costing built to make COG truthful never sees those deliveries. The goods-receipt
+panel also pre-fills each line with its outstanding quantity, while the inline
+form starts empty and needs a figure typed per line — so the ergonomics argument
+runs the other way from what you would expect.
+
+The case for keeping it: it is one click for the common "the whole order turned
+up" case, and people may be used to it.
+
+Note the two paths deliberately differ on over-delivery. The receipt records
+what arrived, because it is a document someone reviews. The inline button clamps
+at the quantity ordered, because it is a number typed straight into a button
+with no review step — the clamp is a guard against a fat-fingered 999, not an
+accounting rule. If the inline path is retired, that distinction goes with it.
+
+*Touches:* `backend/app/routers/purchase_orders.py`,
+`frontend/src/TotalImageERP.jsx`,
+`backend/tests/integration/test_stock_paths_guarded.py`.
+
 ---
 
 ## Known gaps, deliberately open

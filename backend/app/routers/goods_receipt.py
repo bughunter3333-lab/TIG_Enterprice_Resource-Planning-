@@ -305,10 +305,16 @@ def accept_receipt(
                 .first()
             )
             if po_line:
-                po_line.qty_received = min(
-                    (po_line.qty_received or 0) + qty,
-                    po_line.qty_ordered or 0,
-                )
+                # Credit the line with what actually arrived.
+                #
+                # This used to clamp at the quantity ordered while the movement
+                # above shelved the full amount, so a supplier who over-delivered
+                # left the shelf and the order disagreeing and nothing flagged
+                # it. Recording the over-delivery keeps the two in step and
+                # makes it visible; a line that has received more than it
+                # ordered simply drops out of the outstanding calculation,
+                # which is what "nothing left to come" means.
+                po_line.qty_received = (po_line.qty_received or 0) + qty
 
     gr.status = "Accepted"
 

@@ -455,3 +455,107 @@ class TestTransferMovesWhatIsActuallyThere:
         assert _loc(db, "TB3", "Melbourne").qty_on_hand == 20
         assert _inv(db, "TB3").stock == 50, "relocating never changes the total"
         assert location_summary(db, "TB3")["unlocated"] == 30
+
+
+@pytest.mark.integration
+class TestReceivingKeepsShelfAndOrderInStep:
+    """The two receiving paths must never leave the shelf and the order
+    disagreeing.
+
+    Accepting a goods receipt posted the movement unconditionally while
+    clamping the order line at the quantity ordered, so a supplier who
+    over-delivered left the shelf holding more than the PO ever admitted, and
+    nothing flagged it. The receipt is a reviewed document, so it now records
+    what actually arrived on both sides — an over-delivery is visible rather
+    than truncated.
+
+    The inline PO receive keeps its clamp deliberately: it is a quantity typed
+    straight into a button with no review step, so refusing to shelve more than
+    was ordered is a guard against a fat-fingered 999, not an accounting rule.
+    """
+
+    def _po(self, db, po_id, sku, ordered):
+        db.add(
+            PurchaseOrder(
+                id=po_id,
+                supplier_id="S1",
+                supplier_name="Acme",
+                status="Sent",
+                order_date="01/08/2026",
+            )
+        )
+        db.add(
+            PurchaseOrderItem(
+                order_id=po_id, sku=sku, qty_ordered=ordered, qty_received=0
+            )
+        )
+        db.commit()
+
+    def _receipt(self, client, po_id, sku, qty, branch="HQ"):
+        receipt = client.post(
+            "/goods-receipts",
+            json={
+                "po_id": po_id,
+                "supplier_name": "Acme",
+                "received_date": "2026-08-15",
+                "branch": branch,
+                "lines": [
+                    {
+                        "sku": sku,
+                        "qty_expected": qty,
+                        "qty_received": qty,
+                        "unit_cost": 5,
+                    }
+                ],
+            },
+        ).json()
+        return client.post(f"/goods-receipts/{receipt['id']}/accept")
+
+    def test_an_over_delivery_is_recorded_on_both_sides(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="RC1", stock=0)
+        self._po(db, "PO-RC1", "RC1", 10)
+
+        assert self._receipt(client, "PO-RC1", "RC1", 14).status_code == 200
+
+        db.expire_all()
+        line = db.query(PurchaseOrderItem).filter_by(order_id="PO-RC1").one()
+        assert _inv(db, "RC1").stock == 14, "the shelf holds what arrived"
+        assert line.qty_received == 14, "and so does the order — visibly over"
+        assert location_summary(db, "RC1")["in_sync"] is True
+
+    def test_receiving_twice_does_not_hide_the_second_delivery(
+        self, client, db, make_inventory
+    ):
+        """The scenario that used to go unflagged: both paths run against the
+        same order, and the order quietly stopped counting."""
+        make_inventory(sku="RC2", stock=0)
+        self._po(db, "PO-RC2", "RC2", 10)
+        item_id = db.query(PurchaseOrderItem).filter_by(order_id="PO-RC2").one().id
+
+        client.post(
+            "/purchase-orders/PO-RC2/receive",
+            json={"items": [{"id": item_id, "qty_received": 10}]},
+        )
+        self._receipt(client, "PO-RC2", "RC2", 10)
+
+        db.expire_all()
+        line = db.query(PurchaseOrderItem).filter_by(order_id="PO-RC2").one()
+        assert _inv(db, "RC2").stock == 20
+        assert line.qty_received == 20, (
+            "the order must show both deliveries — it used to stop at 10 while "
+            "the shelf held 20"
+        )
+
+    def test_an_over_received_line_has_nothing_outstanding(
+        self, client, db, make_inventory
+    ):
+        make_inventory(sku="RC3", stock=0)
+        self._po(db, "PO-RC3", "RC3", 10)
+        self._receipt(client, "PO-RC3", "RC3", 12)
+
+        db.expire_all()
+        from app.core.reservations import on_order_total
+
+        assert on_order_total(db, "RC3") == 0

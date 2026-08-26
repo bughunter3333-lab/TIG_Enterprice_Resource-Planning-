@@ -117,6 +117,9 @@ function POGoodsReceiptsPanel({ po }) {
   // lets us show the COG impact before saving).
   const [charges, setCharges] = React.useState([]);
   const [grRef, setGrRef] = React.useState('');
+  // Which branch the delivery landed at. Without it every receipt took the
+  // server default, so a Melbourne delivery shelved itself at HQ.
+  const [grBranch, setGrBranch] = React.useState(DEFAULT_BRANCH);
   const [grNotes, setGrNotes] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
@@ -134,6 +137,7 @@ function POGoodsReceiptsPanel({ po }) {
     setCharges([]);
     setGrRef('');
     setGrNotes('');
+    setGrBranch(DEFAULT_BRANCH);
     setErr('');
     setShowForm(true);
   }
@@ -148,6 +152,7 @@ function POGoodsReceiptsPanel({ po }) {
         supplierName: po.supplier,
         supplierId: po.supplierCode,
         receivedDate: today,
+        branch: grBranch,
         reference: grRef || null,
         notes: grNotes || null,
         lines: formLines.map(l => ({ ...l })),
@@ -195,7 +200,11 @@ function POGoodsReceiptsPanel({ po }) {
 
       {showForm && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Landed at</label>
+              <select className="w-full border rounded px-2 py-1 text-xs" value={grBranch} onChange={e => setGrBranch(e.target.value)}>
+                {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+              </select></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Delivery Reference</label>
               <input className="w-full border rounded px-2 py-1 text-xs" value={grRef} onChange={e => setGrRef(e.target.value)} placeholder="e.g. DEL-001234" /></div>
             <div><label className="text-[10px] font-medium text-gray-500 block mb-0.5">Notes</label>
