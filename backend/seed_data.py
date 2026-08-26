@@ -908,7 +908,7 @@ def seed():
             if melb:
                 db.add(
                     StockLocation(
-                        sku=item.sku, branch="MELB", zone=zone, qty_on_hand=melb
+                        sku=item.sku, branch="Melbourne", zone=zone, qty_on_hand=melb
                     )
                 )
             created["stock_locations"] += 1

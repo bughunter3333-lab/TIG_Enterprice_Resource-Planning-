@@ -49,3 +49,20 @@ class TestBranchVocabulary:
     def test_no_branch_means_the_default(self):
         assert normalize_branch(None) == DEFAULT_BRANCH
         assert normalize_branch("") == DEFAULT_BRANCH
+
+
+@pytest.mark.unit
+class TestSeedUsesTheVocabulary:
+    def test_the_seed_only_places_stock_at_known_branches(self):
+        """A seed writing a branch the picker cannot select recreates exactly the
+        fragmentation this list exists to prevent — positions under a name
+        nothing else reads."""
+        seed = (pathlib.Path(__file__).resolve().parents[2] / "seed_data.py").read_text(
+            encoding="utf-8"
+        )
+        used = set(re.findall(r'branch="([^"]+)"', seed))
+        unknown = sorted(used - set(BRANCHES))
+        assert not unknown, (
+            f"seed_data.py places stock at {unknown}, which is not in BRANCHES. "
+            "Either add the branch to the vocabulary or use one that is in it."
+        )
