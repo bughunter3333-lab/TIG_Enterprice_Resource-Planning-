@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 import re
 
+from app.core.replenishment import replenishment_rows
 from app.database import get_db
 from app.core.dependencies import require_any
 from app.core.config import settings
@@ -65,15 +66,15 @@ def get_overdue_jobs(db: Session) -> list:
 
 
 def get_low_stock(db: Session) -> list:
-    return (
-        db.query(InventoryItem)
-        .filter(
-            InventoryItem.stock <= InventoryItem.min_stock,
-            InventoryItem.min_stock > 0,
-            InventoryItem.status == "Active",
-        )
-        .all()
-    )
+    """Items needing replenishment, on the one shared definition.
+
+    Nets off what is already on order, so a blank covered by a purchase order
+    placed a fortnight ago no longer counts as short.
+    """
+    flagged = [row["sku"] for row in replenishment_rows(db)]
+    if not flagged:
+        return []
+    return db.query(InventoryItem).filter(InventoryItem.sku.in_(flagged)).all()
 
 
 def get_jobs_due_soon(db: Session, days: int = 7) -> list:

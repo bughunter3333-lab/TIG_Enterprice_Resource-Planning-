@@ -97,9 +97,23 @@ def committed_total(db: Session, sku: str) -> int:
 # expected.
 OPEN_PO_STATUSES = ("Draft", "Sent", "Partial")
 
+# What has actually been ordered from a supplier. A Draft has not been sent, so
+# nothing is coming — counting it as incoming stock would let an unsent draft
+# suppress a reorder alert indefinitely, which is worse than the noise the alert
+# makes. Kept separate from OPEN_PO_STATUSES, which answers the different
+# question of what is still outstanding on the order.
+ORDERED_PO_STATUSES = ("Sent", "Partial")
 
-def on_order_by_sku(db: Session, skus: Iterable[str]) -> Dict[str, int]:
-    """Outstanding quantity per SKU across every open purchase order."""
+
+def on_order_by_sku(
+    db: Session, skus: Iterable[str], statuses: Iterable[str] = OPEN_PO_STATUSES
+) -> Dict[str, int]:
+    """Outstanding quantity per SKU across purchase orders in `statuses`.
+
+    Defaults to every open order, which is what "on order" means on a stock
+    screen. Replenishment passes ORDERED_PO_STATUSES instead, because a draft is
+    not incoming stock.
+    """
     skus = list(skus)
     if not skus:
         return {}
@@ -116,7 +130,7 @@ def on_order_by_sku(db: Session, skus: Iterable[str]) -> Dict[str, int]:
         .join(PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id)
         .filter(
             PurchaseOrderItem.sku.in_(skus),
-            PurchaseOrder.status.in_(OPEN_PO_STATUSES),
+            PurchaseOrder.status.in_(tuple(statuses)),
             PurchaseOrderItem.qty_ordered > PurchaseOrderItem.qty_received,
         )
         .group_by(PurchaseOrderItem.sku)

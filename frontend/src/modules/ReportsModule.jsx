@@ -9,6 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   PieChart as RechartsPie, Pie,
 } from 'recharts';
+import { countNeedingReorder } from './stock/lowStock';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1100,7 +1101,7 @@ function OverviewTab({ jobs = [], inventory = [] }) {
         {[
           { label: 'Total Revenue', value: fmt$(jobs.reduce((s,j)=>s+(j.total||0),0)), color: 'text-green-600' },
           { label: 'Active Jobs', value: jobs.filter(j=>!['FINISH','CANCEL'].includes(j.status)).length, color: 'text-blue-800' },
-          { label: 'Low Stock Items', value: inventory.filter(i=>i.stock<=i.reorderLevel).length, color: 'text-red-600' },
+          { label: 'Low Stock Items', value: countNeedingReorder(inventory), color: 'text-red-600' },
           { label: 'Inventory Value', value: fmt$(inventory.reduce((s,i)=>s+i.stock*(i.unitCost||0),0)), color: 'text-purple-600' },
         ].map(kpi => (
           <div key={kpi.label} className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>

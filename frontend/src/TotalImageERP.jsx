@@ -33,6 +33,7 @@ import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
+import { countNeedingReorder, needsReorder } from './modules/stock/lowStock';
 
 
 const parseD = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
@@ -1181,7 +1182,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const notifications = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const lowStockItems = inventory.filter(item => item.stock < item.reorderLevel);
+    const lowStockItems = inventory.filter(needsReorder);
     const overdueJobs = jobs.filter(job => {
       if (['FINISH','PAID','CANCEL'].includes(job.status)) return false;
       try { const d = parseD(job.due); return d && d < now; } catch { return false; }
@@ -1996,7 +1997,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       activeJobs: jobs.filter(j => !['FINISH','PAID','CANCEL'].includes(j.status)).length,
       completedToday: jobs.filter(j => j.status === 'FINISH' && j.out === now.toLocaleDateString('en-GB')).length,
       pendingInvoices: jobs.filter(j => j.balanceDue > 0).length,
-      lowStock: inventory.filter(i => i.stock < i.reorderLevel).length,
+      lowStock: countNeedingReorder(inventory),
       totalRevenue: jobs.reduce((sum, j) => sum + (j.total || 0), 0),
       outstandingPayments: jobs.reduce((sum, j) => sum + (j.balanceDue || 0), 0),
       warehouseCapacity: Math.round((WAREHOUSE_ZONES.reduce((sum, z) => sum + (z.capacity * z.utilization / 100), 0) / (WAREHOUSE_ZONES.reduce((sum, z) => sum + z.capacity, 0) || 1)) * 100),
@@ -2033,7 +2034,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setAiLoading(true);
     try {
       const context = `Jobs: ${jobs.length} total, ${jobs.filter(j => j.status === 'FINISH').length} finished. ` +
-        `Inventory: ${inventory.length} SKUs, ${inventory.filter(i => i.stock <= i.reorderLevel).length} low stock. ` +
+        `Inventory: ${inventory.length} SKUs, ${countNeedingReorder(inventory)} low stock. ` +
         `Customers: ${customers.length}. Suppliers: ${suppliers.length}. ` +
         `Purchase Orders: ${purchaseOrders.length} total, ${purchaseOrders.filter(p => p.status === 'Draft').length} drafts. ` +
         `Revenue this period: $${jobs.reduce((s, j) => s + (j.total || 0), 0).toLocaleString()}.`;

@@ -15,6 +15,7 @@ from app.core.stock_location import (
     unlocated_qty,
 )
 from app.core.stock_ledger import place_unlocated, post_movement, post_relocation
+from app.core.replenishment import needs_replenishment, replenishment_rows
 from app.core.reservations import (
     UNCOMMITTED_STATUSES,
     backordered_by_branch,
@@ -176,9 +177,13 @@ def list_inventory(
             q = q.filter(InventoryItem.sku.ilike(term) | InventoryItem.name.ilike(term))
         if category:
             q = q.filter(InventoryItem.category == category)
-        if low_stock:
-            q = q.filter(InventoryItem.stock <= InventoryItem.min_stock)
         items = q.order_by(InventoryItem.name).offset(offset).limit(limit).all()
+        if low_stock:
+            # Filtered after loading rather than in SQL, because whether an item
+            # needs buying depends on open jobs and purchase orders and not on
+            # its own row. This endpoint is capped at 5,000 items.
+            flagged = needs_replenishment(db, [it.sku for it in items])
+            items = [it for it in items if it.sku in flagged]
         # Committed and on-order are derived from the open jobs and purchase
         # orders themselves, overriding the stored columns, so what the grid
         # shows cannot drift from the documents it describes. Not persisted.
@@ -199,34 +204,15 @@ def low_stock_alert(
     db: Session = Depends(get_db),
     _: User = Depends(require_any),
 ):
-    """Return all active SKUs where stock <= min_stock, sorted by urgency."""
-    items = (
-        db.query(InventoryItem)
-        .filter(
-            InventoryItem.min_stock > 0,
-            InventoryItem.stock <= InventoryItem.min_stock,
-            InventoryItem.status == "Active",
-        )
-        .order_by(InventoryItem.stock)
-        .all()
-    )
+    """What needs buying, once what is coming and what is promised are counted.
 
-    rows = [
-        {
-            "sku": i.sku,
-            "name": i.name,
-            "category": i.category or "",
-            "supplier": i.supplier or "",
-            "stock": i.stock,
-            "min_stock": i.min_stock,
-            "reorder_qty": i.reorder_qty or 0,
-            "shortfall": max(0, (i.min_stock or 0) - (i.stock or 0)),
-            "unit_cost": float(i.unit_cost or 0),
-            "reorder_value": float(i.unit_cost or 0)
-            * max(0, (i.reorder_qty or i.min_stock or 0)),
-        }
-        for i in items
-    ]
+    The rows carry on-order and committed alongside the projected position, so
+    the list can show why something is absent from it — a quieter list is only
+    trustworthy if the working is visible.
+    """
+    rows = replenishment_rows(db)
+    for row in rows:
+        row["reorder_value"] = round(row["unit_cost"] * row["suggested_qty"], 2)
     total_value = round(sum(r["reorder_value"] for r in rows), 2)
     return {"count": len(rows), "reorder_value": total_value, "rows": rows}
 
@@ -1126,14 +1112,13 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
     """Find all low-stock items and create draft purchase orders grouped by supplier."""
     from datetime import date
 
+    # Against the projected position, so running this two days running does not
+    # raise a second order for something the first one already covered.
+    needed = {row["sku"]: row for row in replenishment_rows(db)}
     low_stock = (
-        db.query(InventoryItem)
-        .filter(
-            InventoryItem.stock <= InventoryItem.min_stock,
-            InventoryItem.min_stock > 0,
-            InventoryItem.status == "Active",
-        )
-        .all()
+        db.query(InventoryItem).filter(InventoryItem.sku.in_(list(needed))).all()
+        if needed
+        else []
     )
 
     if not low_stock:
