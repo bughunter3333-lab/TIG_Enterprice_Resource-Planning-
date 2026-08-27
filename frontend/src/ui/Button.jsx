@@ -52,14 +52,20 @@ export default function Button({
         ...(hovered ?? {}),
         ...(off ?? {}),
         fontFamily: T.font,
-        fontSize: size === 'sm' ? T.fsSmall : T.fsGrid,
+        fontSize: size === 'sm' || size === 'tile' ? T.fsSmall : T.fsGrid,
         fontWeight: 600,
         borderRadius: T.radius,
-        padding: size === 'sm' ? '3px 8px' : '5px 12px',
+        padding: size === 'sm' ? '3px 8px' : size === 'tile' ? '9px 6px' : '5px 12px',
         cursor: disabled ? 'default' : 'pointer',
-        display: 'inline-flex',
+        // `tile` stacks an icon over its label for a grid of actions. It is a
+        // shape, not a new palette — the same four variants apply, so a row of
+        // tiles says which action is primary instead of being six decorative
+        // pastels that happen to sit together.
+        display: size === 'tile' ? 'flex' : 'inline-flex',
+        flexDirection: size === 'tile' ? 'column' : 'row',
+        justifyContent: 'center',
         alignItems: 'center',
-        gap: 5,
+        gap: size === 'tile' ? 4 : 5,
         // Pressed reads as an inset, never a lift — controls don't elevate.
         boxShadow: !disabled && pressed ? 'inset 0 1px 2px rgba(24,42,66,.18)' : 'none',
         transition: `background ${T.transition}, color ${T.transition}, box-shadow ${T.transition}`,

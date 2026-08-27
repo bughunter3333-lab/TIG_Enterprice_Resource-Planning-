@@ -29,9 +29,14 @@ export const T = {
   // Editable grid cell (Jim2 shows editable columns in yellow)
   editable: '#fefce8',
 
-  // Feedback
+  // Feedback — a full traffic light. `warn` was the missing tier: with only ok
+  // and danger defined, every "needs attention" state reached for a raw amber
+  // Tailwind class instead, which is how the middle of the scale ended up
+  // spelled six different ways across the app.
   danger: '#b91c1c',
   dangerTint: '#fef2f2',
+  warn: '#b45309',
+  warnTint: '#fef3c7',
   ok: '#15803d',
   okTint: '#dcfce7',
 

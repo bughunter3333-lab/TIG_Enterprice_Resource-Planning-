@@ -15,6 +15,7 @@ import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
 import { T } from './ui/tokens';
+import Button from './ui/Button';
 import { BRANCHES, DEFAULT_BRANCH } from './branches';
 import StatusBadge from './ui/StatusBadge';
 import Dashboard from './components/dashboard/Dashboard';
@@ -3119,16 +3120,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: 'Edit Job',  icon: Edit,          action: () => openModal('job', activeJob),                                color: 'bg-blue-50 hover:bg-blue-100 text-blue-800', disabled: !isJobEditable(activeJob), title: jobLockReason(activeJob) },
-                          { label: 'Clone',     icon: Copy,          action: () => cloneJob(activeJob),                                        color: 'bg-gray-50 hover:bg-gray-100 text-gray-700' },
-                          { label: 'Job Sheet', icon: Printer,       action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }),      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700' },
-                          { label: 'Invoice',   icon: FileText,      action: () => openInvoiceDoc(activeJob),                                   color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
-                          { label: 'Delivery',  icon: Package,       action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }), color: 'bg-teal-50 hover:bg-teal-100 text-teal-700' },
-                          { label: 'Picking',   icon: ClipboardList, action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }),  color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700' },
+                          // Colour says what kind of action this is, not which
+                          // button it happens to be. Editing the job is the one
+                          // that changes it, so it is the only accented tile;
+                          // the four documents below print what is already
+                          // there and read as one quiet group.
+                          { label: 'Edit Job',  icon: Edit,          variant: 'primary',   action: () => openModal('job', activeJob),                               disabled: !isJobEditable(activeJob), title: jobLockReason(activeJob) },
+                          { label: 'Clone',     icon: Copy,          variant: 'secondary', action: () => cloneJob(activeJob) },
+                          { label: 'Job Sheet', icon: Printer,       variant: 'secondary', action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
+                          { label: 'Invoice',   icon: FileText,      variant: 'secondary', action: () => openInvoiceDoc(activeJob) },
+                          { label: 'Delivery',  icon: Package,       variant: 'secondary', action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
+                          { label: 'Picking',   icon: ClipboardList, variant: 'secondary', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
                         ].map(a => (
-                          <button key={a.label} onClick={a.action} disabled={a.disabled} title={a.title || undefined} className={`flex flex-col items-center gap-1 p-2 rounded-lg text-[11px] font-medium transition-colors ${a.disabled ? 'opacity-40 cursor-not-allowed' : a.color}`}>
+                          <Button key={a.label} variant={a.variant} size="tile" onClick={a.action} disabled={a.disabled} title={a.title || undefined}>
                             <a.icon className="w-4 h-4" />{a.label}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
