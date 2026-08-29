@@ -268,9 +268,12 @@ threaded through it:
 prop surface was four `import*` state pairs plus the query client. The state
 moved down with it, the client comes from context, and
 `src/modules/import/ImportModule.jsx` takes **no props at all** — which is what
-makes it mountable in a test with no scaffolding. The same reading applies to
-`renderOpenFreightModal` (five `of*` pairs) and `renderCardFiles` (three
-`cardFile*` pairs).
+makes it mountable in a test with no scaffolding. The same reading was applied to the next
+two, with different outcomes. `renderCardFiles` gave up its 131-line create/edit
+dialog to `src/modules/card-files/CardFileFormModal.jsx`; what is left there is
+the detail panel, whose state really is shared with the monolith.
+`renderOpenFreightModal` was **not** extracted — it turned out to be
+unreachable, which is F6.
 
 **Remaining, by prop surface:**
 
@@ -402,6 +405,36 @@ The ids were generated mechanically, which is safe for *presence* and not for
 field is looked up by its visible label and checked to be holding that field's
 data, 33 assertions across the four forms. Crossing two `htmlFor` values fails
 exactly those two tests, which is how it was checked.
+
+### F6. Open Freight is built, fetched, and unreachable
+
+`renderOpenFreightModal` is 453 lines in `TotalImageERP.jsx` and nothing can
+open it. `setOfModalOpen(true)` appears nowhere in `src`: the flag is declared
+`useState(false)`, and its only other uses are the early return and the two
+close handlers inside the modal itself.
+
+This is not a small orphan. Behind it sits a complete feature:
+
+- `api.openFreight` exposes six endpoints — `getAccount`, `saveAccount`,
+  `listParcels`, `createParcel`, `updateParcel`, `deleteParcel` — against
+  `/open-freight/*` on the backend.
+- The app **fetches on every load**: a `useQuery(['ofParcels'])` at
+  `TotalImageERP.jsx:833`, and a `useEffect` calling `openFreight.getAccount()`
+  at 1158. Every consumer of that data is inside the modal that cannot open.
+- The parcels query carries an `onError` that sets `apiError` and raises a
+  toast. So if `/open-freight/parcels` fails, every user sees an error on load
+  for a feature none of them can reach.
+
+The shape of it says the entry point was lost rather than never written — a
+toolbar button or menu item that stopped being rendered at some point. Given a
+working API and a finished UI, wiring it back is probably a smaller change than
+removing it, but that is a product call: either put the button back, or delete
+the modal, the two fetches and the `of*` state with it.
+
+It was deliberately **not** extracted during the monolith work. Carving 453
+lines of unreachable code into its own module would promote dead code to a
+first-class surface, which is the mistake already recorded for `DispatchModal`
+in F3 at a twelfth of the size.
 
 ## Known gaps, deliberately open
 
