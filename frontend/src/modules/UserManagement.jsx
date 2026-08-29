@@ -32,6 +32,7 @@ export default function UserManagement({ currentUser }) {
   const [deleteUser, setDeleteUser] = useState(null);
   const [resetUser, setResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [clear2fa, setClear2fa] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState({});
   const [error, setError] = useState('');
@@ -62,7 +63,7 @@ export default function UserManagement({ currentUser }) {
   });
 
   const { mutate: resetPassword, isPending: resetting } = useMutation({
-    mutationFn: ({ id, password }) => api.users.resetPassword(id, password),
+    mutationFn: ({ id, password, clear2fa }) => api.users.resetPassword(id, password, clear2fa),
     onSuccess: () => { setResetUser(null); setNewPassword(''); setError(''); },
     onError: (e) => { const m = e?.message || String(e); setError(m); notify(m, { type: 'error' }); },
   });
@@ -303,10 +304,27 @@ export default function UserManagement({ currentUser }) {
               className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          {resetUser?.totp_enabled && (
+            <label className="flex items-start gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={clear2fa}
+                onChange={e => setClear2fa(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Also remove two-factor authentication.
+                <span className="block text-gray-500">
+                  Only for a lost authenticator — it leaves the account with a password alone
+                  until they enrol again.
+                </span>
+              </span>
+            </label>
+          )}
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => { setResetUser(null); setError(''); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+            <button onClick={() => { setResetUser(null); setError(''); setClear2fa(false); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
             <button
-              onClick={() => resetPassword({ id: resetUser.id, password: newPassword })}
+              onClick={() => resetPassword({ id: resetUser.id, password: newPassword, clear2fa })}
               disabled={resetting || newPassword.length < 8}
               className="flex items-center gap-2 bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-50"
             >

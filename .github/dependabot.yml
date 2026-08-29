@@ -1,22 +1,28 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for more information:
-# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-# https://containers.dev/guide/dependabot
-
+# Keep dependencies current.
+#
+# This file was previously rejected in full: the first list item was indented
+# one space and the others two, so YAML would not parse it and Dependabot had
+# never opened a single pull request. That is why the backend stack sat months
+# behind with nobody told about it. If it stops running again, GitHub shows the
+# parse error under Insights → Dependency graph → Dependabot.
+#
+# Note that security alerts are a separate repository setting from this file —
+# this schedules routine version bumps; alerts are what tell you about a CVE.
 version: 2
 updates:
- - package-ecosystem: "devcontainers"
-   directory: "/"
-   schedule:
-     interval: weekly
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: weekly
-    # Use the requirements.txt file for updates
     open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly

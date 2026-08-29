@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models.settings import CompanySettings
-from app.core.dependencies import require_admin, require_any, require_staff
+from app.core.dependencies import require_admin, require_any
 from app.core.config import settings as app_settings
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
@@ -89,7 +89,7 @@ def update_company_settings(
 
 
 @router.post("/smtp-test")
-def test_smtp(db: Session = Depends(get_db), _: User = Depends(require_staff)):
+def test_smtp(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     s = _get_or_create_settings(db)
     if not s.smtp_host:
         raise HTTPException(

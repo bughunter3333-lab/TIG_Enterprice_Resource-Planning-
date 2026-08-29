@@ -1198,7 +1198,10 @@ export const users = {
   create: (data) => request('/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),
-  resetPassword: (id, newPassword) => request(`/users/${id}/reset-password`, { method: 'POST', body: { new_password: newPassword } }),
+  // clear2fa is opt-in: resetting a password no longer removes the second
+  // factor as a side effect, so recovering a lost authenticator has to say so.
+  resetPassword: (id, newPassword, clear2fa = false) =>
+    request(`/users/${id}/reset-password`, { method: 'POST', body: { new_password: newPassword, clear_2fa: clear2fa } }),
 };
 
 // ── Data Import ───────────────────────────────────────────────────────────────

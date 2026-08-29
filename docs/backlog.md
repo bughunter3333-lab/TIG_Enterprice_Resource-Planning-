@@ -117,6 +117,71 @@ accounting rule. If the inline path is retired, that distinction goes with it.
 
 ---
 
+## Security follow-ups
+
+From the audit of 2026-08-27. The confirmed findings were fixed in `88063a7`;
+these are the ones that need more than an edit.
+
+### S1. Per-account login lockout
+
+The only brute-force control is slowapi's 10/minute on login and 5/minute on
+2FA verify, keyed on IP. That key is now taken from a value the client cannot
+set, but IP is the wrong axis regardless: staff reach the API through one Vercel
+rewrite and share an egress address, so tightening the limit throttles the whole
+team together. Nothing anywhere counts failures against an *account* — there is
+no `failed_logins` or `locked_until` column.
+
+Two details make it matter more than it looks. 2FA is optional, so for anyone
+who never enrolled the password is the entire barrier. And a wrong TOTP code
+costs nothing: the pre-MFA cookie is not deleted on failure, so one 300-second
+window absorbs unlimited attempts, and a fresh window can be minted by calling
+login again.
+
+One migration adding `failed_logins` and `locked_until` to `users`, then the
+counter in `login()` and `verify_2fa()`. Return the *same* generic 401 for a
+locked account as for a wrong password — a distinct 429 would be a new
+account-existence oracle. Database-backed, so it survives the free-plan cold
+starts that reset the in-memory limiter. Do not add Redis for this.
+
+### S2. Escape job text before it reaches ReportLab and the invoice email
+
+`Paragraph()` parses a mini-XML markup language and `escape` appears nowhere in
+`backend/app/routers/pdf.py`. A line-item description containing font or anchor
+markup alters a tax invoice; an unclosed tag raises and 500s that job's PDF
+permanently.
+
+The path that makes this a real boundary crossing rather than "staff can type
+things": a supplier CSV goes through `POST /import/inventory` into
+`InventoryItem.name`, the frontend copies that into a job line description, and
+`pdf.py` renders it. The person who prints the invoice is not the person who
+wrote the string. `email_router.py` builds its whole HTML body as an f-string
+with the same exposure.
+
+Escape the DB-derived values only. Do **not** apply a blanket helper across all
+call sites — several pass intentional literal markup, and a sweep would render
+those as visible tag text.
+
+### S3. Confirm which X-Forwarded-For entry the platform sets
+
+`88063a7` changed the rate-limit key from the leftmost entry to the rightmost,
+which is correct if the platform appends exactly one hop. That could not be
+confirmed without sending traffic at production. Send a request carrying a junk
+X-Forwarded-For and check which value arrives last. If the platform replaces the
+header rather than appending, leftmost and rightmost are the same value and the
+change is still correct.
+
+### S4. CI hardening
+
+`.github/workflows/test.yml` declares no `permissions:` block, so the default
+GITHUB_TOKEN scope applies, and all four actions are pinned to floating major
+tags. A compromised upstream action would run with whatever the repo default is
+on a push to main — which is what Render and Vercel deploy from. Add
+`permissions: contents: read` and pin the actions to commit SHAs. The workflow
+correctly uses `pull_request` rather than `pull_request_target`, and references
+no secrets, so a fork PR has nothing to steal today.
+
+---
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.
