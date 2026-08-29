@@ -411,11 +411,12 @@ def _require_mutable(job: "Job", *, allow_settled: bool = False) -> None:
 def job_version(job: "Job") -> str:
     """The token a client holds to say which version of a job it edited.
 
-    A job that has never been saved has no `updated_at`, so its version is the
-    empty string rather than nothing at all — that way a first edit is checkable
-    on the same terms as any other.
+    Backed by `Job.version`, a counter the mapper increments on every UPDATE.
+    It used to be `updated_at`, which is a wall clock with roughly 10ms of
+    resolution — two saves inside one tick shared a token, so the second was
+    read as current and overwrote the first. See the note on the column.
     """
-    return job.updated_at.isoformat() if job.updated_at else ""
+    return str(job.version if job.version is not None else 1)
 
 
 def _require_current_version(job: "Job", if_match: Optional[str]) -> None:
@@ -873,9 +874,9 @@ def update_job(
         # holds, not what it held when the request arrived.
         _apply_status_transition(job, body.status, db)
 
-    # Bumped explicitly: `onupdate` fires only when a column on the job itself
-    # changes, and a save that only touches lines changes none of them — which
-    # would leave the version stale and every later conflict undetected.
+    # Assigned explicitly so the job row is always part of the UPDATE: a save
+    # that only touches lines changes no column on the job itself, and without
+    # this the mapper would see nothing to write and the version would not move.
     job.updated_at = datetime.now(timezone.utc)
     db.commit()
     return _job_with_relations(db, job_id)

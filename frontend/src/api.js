@@ -36,10 +36,13 @@ function normalizeJob(j) {
   if (!j) return j;
   const totalEx = parseFloat(j.total_ex ?? j.subtotal ?? 0);
   const totalInc = parseFloat(j.total_inc ?? j.total ?? 0);
-  const tax = parseFloat(j.tax ?? (totalInc - totalEx) ?? 0);
+  const tax = parseFloat(j.tax ?? (totalInc - totalEx));
   const rawItems = j.items ?? [];
   // The version this copy was loaded at, sent back on save so a concurrent
-  // edit conflicts instead of being silently overwritten.
+  // edit conflicts instead of being silently overwritten. A counter, not a
+  // timestamp: `updated_at` moves about once every 10ms, so two saves in one
+  // tick shared a token and the stale one was accepted as current.
+  const version = j.version ?? j.jobVersion ?? null;
   const updatedAt = j.updated_at ?? j.updatedAt ?? null;
   const cost = rawItems
     .filter(i => (i.display_type ?? i.displayType ?? 'product') === 'product')
@@ -48,6 +51,7 @@ function normalizeJob(j) {
   const marginPct = totalEx > 0 ? Math.round((marginTotal / totalEx) * 100) : 0;
   return {
     id: j.id,
+    version,
     updatedAt,
     customer: j.customer_name ?? j.customer,
     customerId: j.customer_id ?? j.customerId,
@@ -378,7 +382,7 @@ export const jobs = {
 
   update: (id, data) => request(`/jobs/${id}`, {
     method: 'PATCH',
-    headers: data.updatedAt ? { 'If-Match': data.updatedAt } : undefined,
+    headers: data.version != null ? { 'If-Match': String(data.version) } : undefined,
     body: {
     customer_id: data.customerId,
     customer_name: data.customer,

@@ -146,7 +146,7 @@ def keep_ids(items):
 @pytest.mark.integration
 class TestConcurrentEditsConflict:
     def _version(self, client, job_id="J-SV"):
-        return client.get(f"/jobs/{job_id}").json().get("updated_at") or ""
+        return str(client.get(f"/jobs/{job_id}").json().get("version") or "")
 
     def test_a_stale_save_is_refused(self, client, db):
         _job(db, lines=1)
@@ -190,8 +190,8 @@ class TestConcurrentEditsConflict:
         assert r.status_code == 200
 
     def test_the_version_moves_when_only_lines_change(self, client, db):
-        """`onupdate` fires on a column change, and an items-only save makes
-        none — so without an explicit bump every later conflict goes undetected."""
+        """An items-only save changes no column on the job itself, so nothing
+        would mark the row dirty and the version would sit still."""
         _job(db, lines=1)
         client.patch("/jobs/J-SV", json={"description": "seed"})
         before = self._version(client)
@@ -203,6 +203,34 @@ class TestConcurrentEditsConflict:
         )
 
         assert self._version(client) != before
+
+    def test_back_to_back_saves_each_get_their_own_version(self, client, db):
+        """The version used to be `updated_at`, which advances about once every
+        10ms — far slower than saves arrive. Two landing in one tick shared a
+        token, so the second was read as current and overwrote the first.
+
+        The loop is the point: a single pair usually straddles a tick and passes
+        either way. Run against the timestamp token this returned 16 accepted
+        out of 40 — the lock failing at the one case it exists for.
+        """
+        _job(db, lines=1)
+        accepted = []
+        for i in range(40):
+            stale = self._version(client)
+            # Someone else saves first, so our token is now one behind.
+            client.patch("/jobs/J-SV", json={"description": f"theirs-{i}"})
+            r = client.patch(
+                "/jobs/J-SV",
+                json={"description": f"mine-{i}"},
+                headers={"If-Match": stale},
+            )
+            if r.status_code != 409:
+                accepted.append(i)
+
+        assert not accepted, (
+            f"{len(accepted)} of 40 stale saves were accepted instead of "
+            f"refused — each one silently discards the other editor's work"
+        )
 
     def test_a_client_that_sends_no_token_is_not_held_to_one(self, client, db):
         """Opt-in by design: existing callers keep working unchanged."""

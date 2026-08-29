@@ -77,6 +77,22 @@ class Job(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # The token a client holds to prove which version of this job it edited.
+    #
+    # An integer, not `updated_at`. That column is a wall clock and it advances
+    # about once every 10ms, so two saves landing inside one tick carried an
+    # identical token and the second was accepted as current: 16 of 40
+    # back-to-back stale saves went through when this was measured. A lock that
+    # fails on simultaneous saves fails at the only thing it is for.
+    #
+    # The increment lives in the mapper rather than in a save path, so it fires
+    # on every UPDATE of this row whichever endpoint issued it. A counter bumped
+    # by hand in one endpoint would be precisely the shape of bug it exists to
+    # prevent — and narrower than the `onupdate` above that it replaces.
+    version = Column(Integer, nullable=False, default=1, server_default="1")
+
+    __mapper_args__ = {"version_id_col": version}
+
     items = relationship("JobItem", back_populates="job", cascade="all, delete-orphan")
     comments = relationship(
         "JobComment",

@@ -1,15 +1,16 @@
 {
   "customer.credit_hold": "Declared for a hard credit stop. _check_credit_limit reads credit_limit and the AR balance only, so nothing sets this yet; wire it there before exposing it in the UI.",
   "customer.gst_registered": "ABN/GST parity field. ABN validation exists (app/core/abn.py) but registration status is not captured on the customer form yet.",
-  "supplier.gst_registered": "Same as customer.gst_registered — declared for supplier ABN parity, no writer or UI.",
-  "inventory.qty_bal": "Jim2 movement parity: running balance after the movement. We compute balances by summing instead, so nothing writes it.",
-  "inventory.pack_num": "Jim2 movement parity: pack/carton reference on a receipt line. No receiving UI captures it.",
   "inventory.bin": "Jim2 movement parity: bin the movement touched. Bins live on StockLocation (primary_bin_1/2) rather than per movement.",
-  "inventory.link_tran_id": "Jim2 movement parity: self-FK linking a movement to the one it reverses. Reversals currently delete the original row instead of linking to it.",
   "inventory.link_gl": "Jim2 movement parity: GL account the movement posts to. No GL integration exists.",
+  "inventory.link_tran_id": "Jim2 movement parity: self-FK linking a movement to the one it reverses. Reversals currently delete the original row instead of linking to it.",
+  "inventory.pack_num": "Jim2 movement parity: pack/carton reference on a receipt line. No receiving UI captures it.",
+  "inventory.qty_bal": "Jim2 movement parity: running balance after the movement. We compute balances by summing instead, so nothing writes it.",
   "job.pinned_at": "Normalised to `pinnedAt` in frontend/src/api.js and read by nothing. Either build pinning or drop the column and the normalisation together.",
+  "job.version": "The optimistic-lock token. Written by SQLAlchemy itself via __mapper_args__ = {'version_id_col': version} on Job, not by any assignment this scan can see \u2014 which is the point: the mapper increments it on every UPDATE of the row whichever endpoint issued it, where a hand written bump would only cover the one save path someone remembered. It is meant to reach the client; job_version() serves it as the If-Match token.",
   "purchase_order.bill_no": "Supplier bill reference. SupplierBill exists as its own table, so this denormalised copy has no writer.",
   "stock_pricing.price_level_id": "False positive worth keeping visible: it is the FK behind the StockPriceLevel.breakpoints relationship, so it is written by appending to that collection rather than by name.",
+  "supplier.gst_registered": "Same as customer.gst_registered \u2014 declared for supplier ABN parity, no writer or UI.",
   "user.sso_provider": "Forward declaration for SSO. Login is local password + TOTP; no provider flow exists.",
-  "user.sso_subject": "Forward declaration for SSO — the subject id from the provider named in sso_provider."
+  "user.sso_subject": "Forward declaration for SSO \u2014 the subject id from the provider named in sso_provider."
 }

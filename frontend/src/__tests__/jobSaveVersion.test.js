@@ -3,7 +3,8 @@
  * loaded at, and the id of each line.
  *
  * Without the version, two people editing one job means the second save
- * silently overwrites the first. Without the line ids, the server cannot match
+ * silently overwrites the first. The version is a counter rather than the
+ * job's `updated_at`, which moves too slowly to tell two quick saves apart. Without the line ids, the server cannot match
  * lines and falls back to replacing them all — which is what discarded
  * `po_no` and `qty_pick`, written by the requirements and picking screens.
  *
@@ -14,6 +15,7 @@ import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 
 const JOB = {
   id: 'J-1',
+  version: 7,
   updated_at: '2026-08-22T01:02:03.456789+00:00',
   customer_name: 'Zephyr Co',
   customer_id: 'ZEPH',
@@ -44,12 +46,36 @@ describe('saving a job', () => {
   test('carries the version it was loaded at', async () => {
     const { jobs } = await import('../api');
     const loaded = await jobs.get('J-1');
-    expect(loaded.updatedAt).toBe(JOB.updated_at);
+    expect(loaded.version).toBe(JOB.version);
 
     calls.length = 0;
     await jobs.update('J-1', loaded);
 
-    expect(calls[0].options.headers['If-Match']).toBe(JOB.updated_at);
+    expect(calls[0].options.headers['If-Match']).toBe('7');
+  });
+
+  test('the token is the counter, not the timestamp', async () => {
+    // These were the same value until `updated_at` turned out to advance only
+    // about once every 10ms: two saves inside one tick shared a token, so the
+    // stale one matched and overwrote the other editor's work. The job still
+    // carries `updated_at` for display, which is exactly why this is pinned.
+    const { jobs } = await import('../api');
+    const loaded = await jobs.get('J-1');
+
+    calls.length = 0;
+    await jobs.update('J-1', loaded);
+
+    expect(calls[0].options.headers['If-Match']).not.toBe(JOB.updated_at);
+  });
+
+  test('version zero is still a version', async () => {
+    // A falsy-but-present token has to be sent. Dropping it would make the
+    // save unconditional, which is the failure this whole file guards.
+    const { jobs } = await import('../api');
+    calls.length = 0;
+    await jobs.update('J-1', { id: 'J-1', version: 0, items: [] });
+
+    expect(calls[0].options.headers['If-Match']).toBe('0');
   });
 
   test('sends each line back with its id', async () => {
