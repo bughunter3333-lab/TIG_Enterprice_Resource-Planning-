@@ -1,0 +1,447 @@
+/* ── Press Room ────────────────────────────────────────────────────────────
+   The sign-in screen for a business that puts ink and thread onto garments,
+   so it is built as a press sheet rather than a login card: newsprint stock,
+   registration marks at the trim, a CMYK colour bar, and a wordmark that
+   resolves out of misregistration the way a press comes into register.
+
+   Scoped under .press so none of it reaches the dense application behind it.
+   Everything below is transform/opacity only, and the whole reveal collapses
+   to a plain fade under prefers-reduced-motion. */
+
+.press {
+  --paper: #efece4;
+  --paper-lit: #f7f5f0;
+  --ink: #16161a;
+  --ink-soft: #4a4a52;
+  --ink-faint: #8c8c96;
+  --cyan: #0090c8;
+  --magenta: #d6006e;
+  --yellow: #f5c400;
+  --rule: #cdc8bc;
+
+  min-height: 100vh;
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* Halftone. Two offset dot grids at low opacity read as printed tone rather
+   than as a pattern — a single grid looks like a texture overlay. */
+.press::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(22, 22, 26, 0.055) 1px, transparent 1.4px),
+    radial-gradient(circle at 50% 50%, rgba(22, 22, 26, 0.035) 1px, transparent 1.4px);
+  background-size: 7px 7px, 7px 7px;
+  background-position: 0 0, 3.5px 3.5px;
+}
+
+/* Paper is never evenly lit. */
+.press::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 22% 8%, rgba(255, 255, 255, 0.55), transparent 60%),
+              radial-gradient(90% 80% at 100% 100%, rgba(22, 22, 26, 0.07), transparent 55%);
+}
+
+.press-sheet {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: clamp(2rem, 6vw, 7rem);
+  align-items: center;
+  padding: clamp(1.75rem, 5vw, 4.5rem);
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+/* ── Trim marks ─────────────────────────────────────────────────────────── */
+
+.press-trim {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  z-index: 3;
+  opacity: 0;
+  animation: press-trim-in 0.5s ease forwards;
+}
+.press-trim span {
+  position: absolute;
+  background: var(--ink);
+  opacity: 0.42;
+}
+.press-trim span:first-child { width: 100%; height: 1px; top: 0; }
+.press-trim span:last-child { width: 1px; height: 100%; left: 0; }
+
+.press-trim--tl { top: 18px; left: 18px; }
+.press-trim--tr { top: 18px; right: 18px; transform: scaleX(-1); }
+.press-trim--bl { bottom: 18px; left: 18px; transform: scaleY(-1); }
+.press-trim--br { bottom: 18px; right: 18px; transform: scale(-1); }
+
+@keyframes press-trim-in { to { opacity: 1; } }
+
+/* ── Colour bar ─────────────────────────────────────────────────────────── */
+
+.press-bar {
+  display: flex;
+  gap: 3px;
+  margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+.press-bar i {
+  display: block;
+  width: clamp(30px, 4.2vw, 52px);
+  height: 11px;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: press-swatch 0.42s cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
+}
+@keyframes press-swatch { to { transform: scaleX(1); } }
+
+/* ── Wordmark ───────────────────────────────────────────────────────────────
+   Three overprinted copies. The cyan and magenta plates start off-register and
+   slide home; multiply makes the overlap behave like ink on stock rather than
+   like stacked translucent boxes. */
+
+.press-mark {
+  position: relative;
+  display: inline-block;
+}
+.press-mark h1 {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(3.4rem, 10.5vw, 9.5rem);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.press-plate {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  font-weight: 900;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-transform: uppercase;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.press-plate--c {
+  color: var(--cyan);
+  animation: press-register-c 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
+}
+.press-plate--m {
+  color: var(--magenta);
+  animation: press-register-m 1.05s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both;
+}
+.press-plate--k {
+  position: relative;
+  color: var(--ink);
+  animation: press-register-k 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+/* The plates do not land dead flush. Screen printing onto textile never quite
+   registers, and stopping a couple of pixels out leaves a permanent chromatic
+   edge on the mark — the alternative is that cyan and magenta sit exactly under
+   the black, cancel to solid ink, and the whole idea is only visible for the
+   second the animation runs. */
+@keyframes press-register-c {
+  from { transform: translate3d(-15px, -9px, 0); opacity: 0; }
+  60%  { opacity: 0.9; }
+  to   { transform: translate3d(-2.5px, -1.5px, 0); opacity: 0.85; }
+}
+@keyframes press-register-m {
+  from { transform: translate3d(13px, 8px, 0); opacity: 0; }
+  60%  { opacity: 0.9; }
+  to   { transform: translate3d(2.5px, 1.5px, 0); opacity: 0.8; }
+}
+@keyframes press-register-k {
+  from { transform: translate3d(0, 14px, 0); opacity: 0; }
+  to   { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+
+/* ── Standfirst ─────────────────────────────────────────────────────────── */
+
+.press-rule {
+  height: 2px;
+  background: var(--ink);
+  margin: clamp(1.5rem, 3vw, 2.25rem) 0 1rem;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: press-rule-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.72s forwards;
+}
+@keyframes press-rule-in { to { transform: scaleX(1); } }
+
+.press-standfirst {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  line-height: 2;
+  margin: 0;
+}
+.press-standfirst b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ── Form panel — a spec sheet, not a card ──────────────────────────────── */
+
+.press-panel {
+  background: var(--paper-lit);
+  border: 1px solid var(--ink);
+  padding: clamp(1.5rem, 2.6vw, 2.25rem);
+  box-shadow: 7px 7px 0 rgba(22, 22, 26, 0.9);
+  max-width: 430px;
+  width: 100%;
+  justify-self: end;
+}
+
+.press-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+.press-panel-head h2 {
+  margin: 0;
+  font-size: 1.32rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+.press-docket {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+/* Garment-tag labels: small, wide, quiet. */
+.press-label {
+  display: block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.45rem;
+}
+
+/* A ruled line, not a box. The rule thickens and inks over on focus. */
+.press-field {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+.press-field input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.5rem 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  transition: border-color 0.18s ease;
+}
+.press-field input::placeholder { color: #b4afa3; }
+.press-field input:focus { outline: none; }
+/* index.css gives every focusable control the old steel-blue ring and, on the
+   same rule, border-color: #2b7bd4. Nulling only the ring left that blue on the
+   one border these fields have, so keyboard focus was painting the previous
+   palette's accent into this one. The cyan bar below is the focus signal here,
+   so the rule itself stays neutral. */
+.press-field input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-bottom-color: var(--rule);
+}
+.press-field::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--cyan);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.press-field:focus-within::after { transform: scaleX(1); }
+
+.press-reveal {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink-faint);
+  padding: 2px;
+  transition: color 0.15s ease;
+}
+.press-reveal:hover { color: var(--ink); }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.press-btn {
+  width: 100%;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-lit);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 4px 4px 0 rgba(22, 22, 26, 0.85);
+  transition: transform 0.11s ease, box-shadow 0.11s ease, background 0.16s ease;
+}
+.press-btn:hover:not(:disabled) { background: var(--cyan); border-color: var(--cyan); }
+/* It is a press. */
+.press-btn:active:not(:disabled) { transform: translate(4px, 4px); box-shadow: 0 0 0 rgba(22, 22, 26, 0); }
+.press-btn:disabled { opacity: 0.32; cursor: not-allowed; box-shadow: none; }
+
+.press-link {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 0;
+  border-bottom: 1px solid var(--rule);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.press-link:hover { color: var(--magenta); border-color: var(--magenta); }
+
+/* ── Error — an overprint stamp ─────────────────────────────────────────── */
+
+.press-error {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  border-left: 3px solid var(--magenta);
+  background: rgba(214, 0, 110, 0.07);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.82rem;
+  color: #9c0050;
+  animation: press-stamp 0.26s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+@keyframes press-stamp {
+  from { transform: scale(0.97); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Code entry ─────────────────────────────────────────────────────────── */
+
+.press-code {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--ink);
+  padding: 0.9rem;
+  text-align: center;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 1.9rem;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--ink);
+}
+.press-code:focus,
+.press-code:focus-visible {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 3px 3px 0 var(--cyan);
+}
+
+.press-pips { display: flex; justify-content: center; gap: 5px; margin-top: 0.85rem; }
+.press-pips i {
+  width: 20px;
+  height: 3px;
+  background: var(--rule);
+  transition: background 0.18s ease;
+}
+.press-pips i.on { background: var(--ink); }
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.press-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(1.1rem, 2.5vw, 2rem);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 clamp(2.6rem, 5vw, 4.5rem);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── Entrance ───────────────────────────────────────────────────────────── */
+
+.press-in {
+  opacity: 0;
+  animation: press-rise 0.62s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes press-rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@media (max-width: 900px) {
+  .press-sheet {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    padding-top: 3.5rem;
+    padding-bottom: 5rem;
+  }
+  .press-panel { justify-self: stretch; max-width: none; }
+  .press-foot { position: static; margin-top: 2rem; padding: 0 1.75rem; flex-direction: column; gap: 0.4rem; }
+  .press { overflow-y: auto; }
+}
+
+/* Registration is the whole idea, so it still resolves — it just does not
+   travel. Everything else becomes a plain fade. */
+@media (prefers-reduced-motion: reduce) {
+  .press-trim,
+  .press-bar i,
+  .press-mark h1,
+  .press-plate,
+  .press-rule,
+  .press-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transform: none !important;
+    opacity: 1;
+  }
+  .press-plate--c { opacity: 0.85; transform: translate3d(-2.5px, -1.5px, 0) !important; }
+  .press-plate--m { opacity: 0.8; transform: translate3d(2.5px, 1.5px, 0) !important; }
+  .press-bar i { transform: scaleX(1) !important; }
+  .press-rule { transform: scaleX(1) !important; }
+}

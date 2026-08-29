@@ -98,4 +98,12 @@ export default [
       globals: { ...globals.node },
     },
   },
+  {
+    // Playwright specs run under node, not the browser, and read process.env
+    // for the credentials of the authenticated flow.
+    files: ['e2e/**'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ];

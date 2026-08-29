@@ -1,7 +1,18 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { auth } from './api';
-import { T } from './ui/tokens';
+import './LoginScreen.css';
 
+/**
+ * Sign-in, built as a press sheet.
+ *
+ * The business puts ink and thread onto garments, so the screen borrows the
+ * print floor rather than the SaaS login card it used to be: newsprint stock,
+ * trim marks, a CMYK colour bar, and a wordmark that resolves out of
+ * misregistration on load the way a press comes into register.
+ *
+ * All four steps of the auth flow are unchanged — credentials, 2FA verify, 2FA
+ * setup, and the errors between them. Only the presentation moved.
+ */
 export default function LoginScreen({ onLogin }) {
   const [step, setStep] = useState('credentials');
   const [username, setUsername] = useState('');
@@ -41,219 +52,210 @@ export default function LoginScreen({ onLogin }) {
     catch (err) { setError(err.message); setCode(''); } finally { setLoading(false); }
   };
 
-  const inputCls = 'w-full rounded px-3 py-2 text-sm focus:outline-none transition-colors';
-  const btnPrimary = 'w-full py-2.5 rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm text-white';
-  const errBox = (
-    <div className="flex items-start gap-2 text-sm px-3 py-2.5 rounded"
-      style={{ background: T.dangerTint, border: `1px solid ${T.danger}`, color: T.danger }}>
-      <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      {error}
+  const trim = (pos) => (
+    <div className={`press-trim press-trim--${pos}`} style={{ animationDelay: '80ms' }}>
+      <span /><span />
     </div>
   );
 
+  const errBox = error && (
+    <div className="press-error" role="alert">
+      <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>{error}</span>
+    </div>
+  );
+
+  const spinner = (
+    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+    </svg>
+  );
+
+  const pips = (
+    <div className="press-pips">
+      {[0, 1, 2, 3, 4, 5].map(i => <i key={i} className={i < code.length ? 'on' : undefined} />)}
+    </div>
+  );
+
+  const codeInput = (
+    <input
+      type="text" inputMode="numeric" value={code}
+      onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+      placeholder="000000" maxLength={6} autoFocus
+      className="press-code" aria-label="Six digit authentication code"
+    />
+  );
+
   return (
-    <div className="min-h-screen flex" style={{ background: T.hairlineSoft }}>
-      {/* Left brand panel */}
-      <div className="hidden lg:flex lg:w-2/5 flex-col items-center justify-center p-12 relative overflow-hidden"
-        style={{ background: T.chrome }}>
-        {/* Subtle grid overlay */}
-        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
+    <div className="press">
+      {trim('tl')}{trim('tr')}{trim('bl')}{trim('br')}
 
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <img src="/logo.svg" alt="Total Image Group" className="h-16 w-auto object-contain brightness-0 invert mb-10"
-            onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }} />
-          <div className="hidden flex-col items-center mb-10">
-            <div className="w-14 h-14 rounded flex items-center justify-center font-black text-xl mb-4"
-              style={{ border: `1px solid rgba(255,255,255,0.2)`, background: 'rgba(255,255,255,0.1)', color: T.chromeText }}>TIG</div>
-          </div>
-
-          <h2 className="text-2xl font-bold leading-snug mb-2" style={{ color: T.chromeText }}>Enterprise Resource<br />Planning</h2>
-          <p className="text-sm max-w-xs leading-relaxed" style={{ color: T.chromeTextMuted }}>
-            Jobs · Inventory · Customers · Suppliers · Purchasing · Reports
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-1.5 mt-8">
-            {['Job Tracking','Stock Control','Purchase Orders','Invoicing','Reporting','Warehouse'].map(f => (
-              <span key={f} className="text-xs px-2.5 py-0.5 rounded-full"
-                style={{ color: T.chromeTextMuted, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                {f}
-              </span>
+      <div className="press-sheet">
+        {/* ── Plate ─────────────────────────────────────────────────────── */}
+        <div>
+          <div className="press-bar" aria-hidden="true">
+            {[
+              ['var(--cyan)', '160ms'],
+              ['var(--magenta)', '230ms'],
+              ['var(--yellow)', '300ms'],
+              ['var(--ink)', '370ms'],
+            ].map(([c, d]) => (
+              <i key={c} style={{ background: c, animationDelay: d }} />
             ))}
           </div>
-        </div>
 
-        <p className="absolute bottom-5 text-xs tracking-widest uppercase" style={{ color: 'rgba(250,250,250,0.18)' }}>
-          Total Image Group
-        </p>
-      </div>
-
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-
-          {/* Mobile logo */}
-          <div className="flex lg:hidden justify-center mb-6">
-            <img src="/logo.svg" alt="Total Image Group" className="h-10 w-auto object-contain"
-              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
-            <span className="hidden text-lg font-bold" style={{ color: T.text }}>Total Image Group</span>
+          <div className="press-mark">
+            <h1 className="press-plate press-plate--c" aria-hidden="true">Total<br />Image<br />Group</h1>
+            <h1 className="press-plate press-plate--m" aria-hidden="true">Total<br />Image<br />Group</h1>
+            <h1 className="press-plate press-plate--k">Total<br />Image<br />Group</h1>
           </div>
 
-          <div className="rounded-lg shadow-sm p-7"
-            style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+          <div className="press-rule" />
 
-            {/* Credentials Step */}
-            {step === 'credentials' && (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="mb-5 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <h2 className="text-xl font-bold" style={{ color: T.text }}>Sign In</h2>
-                  <p className="text-sm mt-0.5" style={{ color: T.textMuted }}>Total Image Group ERP</p>
-                </div>
-
-                {error && errBox}
-
-                <div>
-                  <label className="block text-sm font-semibold mb-1" style={{ color: T.text }}>Username</label>
-                  <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); passwordRef.current?.focus(); } }}
-                    required autoFocus autoComplete="username" placeholder="Enter your username"
-                    className={inputCls}
-                    style={{ border: `1px solid ${T.hairline}`, background: T.panel, color: T.text }} />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-1" style={{ color: T.text }}>Password</label>
-                  <div className="relative">
-                    <input ref={passwordRef} type={showPassword ? 'text' : 'password'} value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required autoComplete="current-password" placeholder="Enter your password"
-                      className={inputCls + ' pr-10'}
-                      style={{ border: `1px solid ${T.hairline}`, background: T.panel, color: T.text }} />
-                    <button type="button" onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: T.textMuted }}>
-                      {showPassword ? (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <button type="submit" disabled={loading || !username || !password}
-                  className={btnPrimary}
-                  style={{ background: T.accentStrong }}>
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                      </svg>
-                      Signing in…
-                    </span>
-                  ) : 'Sign In'}
-                </button>
-
-                <div className="pt-2 text-center" style={{ borderTop: `1px solid ${T.hairline}` }}>
-                  <button type="button" onClick={handleSetup2FA}
-                    className="text-xs font-medium transition-colors"
-                    style={{ color: T.accentStrong }}>
-                    Set up two-factor authentication
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* 2FA Verify Step */}
-            {step === '2fa' && (
-              <form onSubmit={handle2FA} className="space-y-4">
-                <div className="mb-5 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <div className="w-10 h-10 rounded flex items-center justify-center mb-3"
-                    style={{ background: T.accentTint, border: `1px solid ${T.accentFocus}` }}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: T.accentStrong }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-xl font-bold" style={{ color: T.text }}>Two-Factor Authentication</h2>
-                  <p className="text-sm mt-0.5" style={{ color: T.textMuted }}>Enter the 6-digit code from your authenticator app</p>
-                </div>
-
-                {error && errBox}
-
-                <input type="text" inputMode="numeric" value={code}
-                  onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000 000" maxLength={6} autoFocus
-                  className="w-full rounded px-4 py-4 text-center text-3xl tracking-[0.5em] font-mono focus:outline-none transition-colors"
-                  style={{ border: `2px solid ${T.hairline}`, background: T.hairlineSoft, color: T.text }} />
-
-                <div className="flex justify-center gap-2">
-                  {[0,1,2,3,4,5].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full transition-colors"
-                      style={{ background: i < code.length ? T.accentStrong : T.hairline }} />
-                  ))}
-                </div>
-
-                <button type="submit" disabled={loading || code.length !== 6}
-                  className={btnPrimary}
-                  style={{ background: T.accentStrong }}>
-                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Verifying…</span> : 'Verify Code'}
-                </button>
-
-                <button type="button" onClick={() => { setStep('credentials'); setCode(''); setError(''); }}
-                  className="w-full text-sm py-1 transition-colors"
-                  style={{ color: T.textMuted }}>
-                  ← Back to sign in
-                </button>
-              </form>
-            )}
-
-            {/* 2FA Setup Step */}
-            {step === 'setup2fa' && (
-              <form onSubmit={handleConfirm2FA} className="space-y-4">
-                <div className="mb-4 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <h2 className="text-xl font-bold" style={{ color: T.text }}>Set Up 2FA</h2>
-                  <p className="text-sm mt-0.5" style={{ color: T.textMuted }}>Scan with Google Authenticator or Authy, then enter the confirmation code.</p>
-                </div>
-
-                {qrCode && (
-                  <div className="flex justify-center">
-                    <div className="p-3 rounded shadow-sm"
-                      style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <img src={`data:image/png;base64,${qrCode}`} alt="2FA QR Code" className="w-44 h-44 rounded" />
-                    </div>
-                  </div>
-                )}
-
-                {error && errBox}
-
-                <input type="text" inputMode="numeric" value={code}
-                  onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000 000" maxLength={6} autoFocus
-                  className="w-full rounded px-4 py-4 text-center text-3xl tracking-[0.5em] font-mono focus:outline-none transition-colors"
-                  style={{ border: `2px solid ${T.hairline}`, background: T.hairlineSoft, color: T.text }} />
-
-                <div className="flex justify-center gap-2">
-                  {[0,1,2,3,4,5].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full transition-colors"
-                      style={{ background: i < code.length ? T.accentStrong : T.hairline }} />
-                  ))}
-                </div>
-
-                <button type="submit" disabled={loading || code.length !== 6}
-                  className={btnPrimary}
-                  style={{ background: T.accentStrong }}>
-                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Activating…</span> : 'Activate 2FA'}
-                </button>
-              </form>
-            )}
-          </div>
-
-          <p className="text-center text-xs mt-5" style={{ color: T.textFaint }}>
-            Total Image Group ERP · Internal Use Only
+          <p className="press-standfirst press-in" style={{ animationDelay: '820ms' }}>
+            <b>Decorated apparel</b> — production control<br />
+            Jobs · Stock · Purchasing · Despatch · Invoicing
           </p>
         </div>
+
+        {/* ── Docket ────────────────────────────────────────────────────── */}
+        <div className="press-panel press-in" style={{ animationDelay: '560ms' }}>
+
+          {step === 'credentials' && (
+            <form onSubmit={handleLogin}>
+              <div className="press-panel-head">
+                <h2>Sign in</h2>
+                {/* No logo here on purpose. It is itself a wordmark reading
+                    "Total Image Group", so next to the 9.5rem one on the left it
+                    says the same thing twice, in an indigo that fights the CMYK
+                    palette. The docket keeps this head consistent with the two
+                    2FA steps. */}
+                <span className="press-docket">Access</span>
+              </div>
+
+              {errBox}
+
+              <div className="press-field">
+                <label className="press-label" htmlFor="press-user">Operator</label>
+                <input
+                  id="press-user" type="text" value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); passwordRef.current?.focus(); } }}
+                  required autoFocus autoComplete="username" placeholder="username"
+                />
+              </div>
+
+              <div className="press-field">
+                <label className="press-label" htmlFor="press-pass">Passphrase</label>
+                <input
+                  id="press-pass" ref={passwordRef} type={showPassword ? 'text' : 'password'}
+                  value={password} onChange={e => setPassword(e.target.value)}
+                  required autoComplete="current-password" placeholder="••••••••"
+                  style={{ paddingRight: '2rem' }}
+                />
+                <button
+                  type="button" className="press-reveal" onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  )}
+                </button>
+              </div>
+
+              <button type="submit" className="press-btn" disabled={loading || !username || !password}>
+                {loading
+                  ? <span className="flex items-center justify-center gap-2">{spinner}Signing in</span>
+                  : 'Run job'}
+              </button>
+
+              <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
+                <button type="button" className="press-link" onClick={handleSetup2FA}>
+                  Set up two-factor
+                </button>
+              </div>
+            </form>
+          )}
+
+          {step === '2fa' && (
+            <form onSubmit={handle2FA}>
+              <div className="press-panel-head">
+                <h2>Verify</h2>
+                <span className="press-docket">2FA</span>
+              </div>
+
+              <p className="press-label" style={{ marginBottom: '1.1rem', letterSpacing: '0.12em' }}>
+                Six-digit code from your authenticator
+              </p>
+
+              {errBox}
+              {codeInput}
+              {pips}
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <button type="submit" className="press-btn" disabled={loading || code.length !== 6}>
+                  {loading
+                    ? <span className="flex items-center justify-center gap-2">{spinner}Verifying</span>
+                    : 'Verify'}
+                </button>
+              </div>
+
+              <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
+                <button
+                  type="button" className="press-link"
+                  onClick={() => { setStep('credentials'); setCode(''); setError(''); }}
+                >
+                  Back to sign in
+                </button>
+              </div>
+            </form>
+          )}
+
+          {step === 'setup2fa' && (
+            <form onSubmit={handleConfirm2FA}>
+              <div className="press-panel-head">
+                <h2>Enrol</h2>
+                <span className="press-docket">2FA setup</span>
+              </div>
+
+              <p className="press-label" style={{ marginBottom: '1.1rem', letterSpacing: '0.12em' }}>
+                Scan, then enter the confirmation code
+              </p>
+
+              {qrCode && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+                  <div style={{ padding: 10, background: '#fff', border: '1px solid var(--ink)' }}>
+                    <img src={`data:image/png;base64,${qrCode}`} alt="Two-factor setup QR code"
+                      style={{ width: 168, height: 168, display: 'block' }} />
+                  </div>
+                </div>
+              )}
+
+              {errBox}
+              {codeInput}
+              {pips}
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <button type="submit" className="press-btn" disabled={loading || code.length !== 6}>
+                  {loading
+                    ? <span className="flex items-center justify-center gap-2">{spinner}Activating</span>
+                    : 'Activate'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+
+      <div className="press-foot">
+        <span>Total Image Group — internal system</span>
+        <span>Sydney · AU</span>
       </div>
     </div>
   );

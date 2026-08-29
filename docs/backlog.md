@@ -337,6 +337,42 @@ a render function and was not counted. `confirmModal`, `paymentModal`,
 additional cases of exactly the same thing. The real figure is nearer forty, and
 the eleven already extracted are the cheapest ones to finish.
 
+### F4. A new palette cannot reach the app through tokens.js alone
+
+The sign-in screen now runs a different design direction — "press room": CMYK
+process colours, newsprint stock, trim marks, Archivo. It is scoped entirely
+under `.press` in `src/LoginScreen.css` and changes nothing behind it.
+
+Taking that direction app-wide was asked for and is not yet done, because
+`tokens.js` is not actually the single source of truth its docstring claims:
+
+| | count | follows `tokens.js`? |
+| --- | --- | --- |
+| `T.*` token references | 2,952 | yes |
+| hardcoded Tailwind colour utilities (`bg-blue-600`, `text-zinc-500`, …) | 2,151 | **no** |
+
+Changing the tokens moves **58%** of the app. The other 42% keeps the
+steel-blue palette, and the result is not a new direction — it is two palettes
+at once, which is worse than either. So the token swap is not the first step;
+it is the second.
+
+The first step is converting those 2,151 utilities to tokens, and it cannot be
+a regex sweep. That has already gone wrong here once: a sweep rewrote eleven
+traffic-light lines where amber meant *warning* rather than brand, and missed
+`index.css` completely because it only covered `.jsx`/`.js`. The conversion has
+to read each one and decide whether it is semantic (a status, a warning, an
+error) or decorative, because only the decorative ones map onto a brand token.
+
+Note also that `index.css` hardcodes the old accent in the app-wide focus rule
+(`#2b7bd4`, plus `#9dc7ee` for the ring). That leaked into the new screen —
+keyboard focus painted the old steel-blue onto a field in the new palette until
+it was overridden explicitly. Any surface in a new direction will hit the same
+thing until those two values come from tokens.
+
+Suggested order: convert the utilities (mechanically listed, decided by hand,
+in reviewable batches) → move `index.css`'s focus colours onto tokens → then
+change `tokens.js`, at which point the swap actually lands everywhere at once.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.

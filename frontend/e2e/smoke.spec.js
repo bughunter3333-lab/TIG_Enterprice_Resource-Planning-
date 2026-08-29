@@ -3,20 +3,22 @@ import { test, expect } from '@playwright/test';
 // ── Boot smoke ──────────────────────────────────────────────────────────────
 // Runs against the built frontend with no backend. Catches white-screen /
 // bundle / render regressions: the SPA must boot and present the login form.
+// Bound to labels and roles, not placeholder copy — placeholders are decorative
+// on this screen and pinning them made the smoke break on a wording change.
 test.describe('app boot', () => {
   test('login screen renders with credential fields', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await expect(page.getByPlaceholder('Enter your username')).toBeVisible();
-    await expect(page.getByPlaceholder('Enter your password')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByLabel('Operator')).toBeVisible();
+    await expect(page.getByLabel('Passphrase')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run job' })).toBeVisible();
   });
 
   test('no uncaught JavaScript errors on load', async ({ page }) => {
     const pageErrors = [];
     page.on('pageerror', (e) => pageErrors.push(String(e)));
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 });
@@ -37,14 +39,14 @@ test.describe('authenticated core flow', () => {
 
   test('sign in reaches the application shell', async ({ page }) => {
     await page.goto('/');
-    await page.getByPlaceholder('Enter your username').fill(process.env.E2E_USERNAME);
-    await page.getByPlaceholder('Enter your password').fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    await page.getByLabel('Operator').fill(process.env.E2E_USERNAME);
+    await page.getByLabel('Passphrase').fill(process.env.E2E_PASSWORD);
+    await page.getByRole('button', { name: 'Run job' }).click();
 
     // Land on either the 2FA challenge or the module bar (Jobs is the default surface).
     await expect(
       page
-        .getByRole('heading', { name: 'Two-Factor Authentication' })
+        .getByRole('heading', { name: 'Verify' })
         .or(page.getByText('Jobs').first()),
     ).toBeVisible({ timeout: 15_000 });
   });
