@@ -105,6 +105,9 @@ def update_user(
 
 class PasswordReset(BaseModel):
     new_password: str
+    # Off by default: resetting a password should not remove a working second
+    # factor as a side effect.
+    clear_2fa: bool = False
 
     @field_validator("new_password")
     @classmethod
@@ -123,8 +126,23 @@ def reset_user_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = hash_password(body.new_password)
-    user.totp_enabled = False
-    user.totp_secret = None
+    # Revoke every token already issued to this account.
+    #
+    # Without this the reset does not do what an admin thinks it does. The
+    # obvious move when someone leaves or an account is suspected compromised is
+    # to reset their password — but their existing access token kept working,
+    # and their refresh token kept minting new ones for the rest of its seven
+    # day life. The self-service change at auth.py has always bumped this; the
+    # admin path, which is the one used in an actual incident, did not.
+    user.token_version = (user.token_version or 0) + 1
+
+    # Clearing the second factor is a separate decision from resetting the
+    # password, and doing it silently left the account weaker than before the
+    # reset ran. A lost authenticator and a stolen password are different
+    # incidents; the caller has to say which one this is.
+    if body.clear_2fa:
+        user.totp_enabled = False
+        user.totp_secret = None
     db.commit()
     return {"ok": True}
 

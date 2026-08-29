@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models.settings import CompanySettings
-from app.core.dependencies import require_any, require_staff
+from app.core.dependencies import require_admin, require_any, require_staff
 from app.core.config import settings as app_settings
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
@@ -68,7 +68,11 @@ def get_company_settings(
 def update_company_settings(
     body: CompanySettingsUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    # Admin only. These settings include the BSB and account number printed
+    # on every invoice PDF and payment email, the GST rate that feeds the BAS
+    # figures, and the SMTP credentials. Changing the bank details silently
+    # redirects where customers send money, which is not a staff-level action.
+    _: User = Depends(require_admin),
 ):
     s = _get_or_create_settings(db)
     data = body.model_dump(exclude_none=True)
