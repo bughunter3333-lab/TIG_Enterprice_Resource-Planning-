@@ -387,20 +387,17 @@ anywhere. The component test pins the rule; nothing pins the wiring. This is
 the concrete argument for the TypeScript phase, more than type safety in the
 abstract.
 
-**35 labels, none associated.** Across the four extracted forms:
+**35 labels, none associated — done.** All four extracted forms carried bare
+`<label>` elements with no `htmlFor`, inherited from the monolith: clicking a
+label focused nothing and a screen reader announced the inputs unlabelled. All
+35 now carry an id and a matching `htmlFor`.
 
-| file | labels | with `htmlFor` |
-| --- | --- | --- |
-| `CustomerForm.jsx` | 11 | 0 |
-| `InventoryForm.jsx` | 11 | 0 |
-| `SupplierForm.jsx` | 9 | 0 |
-| `PurchaseOrderForm.jsx` | 4 | 0 |
-
-Clicking a label does not focus its field, and a screen reader announces the
-inputs unlabelled. Inherited from the monolith rather than introduced here, but
-it is now isolated in four small files where fixing it is cheap and reviewable —
-and it is why the tests query by displayed value instead of by label, which is
-the weaker query.
+The ids were generated mechanically, which is safe for *presence* and not for
+*correctness* — a label wired to the wrong field is still associated. So
+`__tests__/labelAssociation.test.jsx` asserts the association by value: each
+field is looked up by its visible label and checked to be holding that field's
+data, 33 assertions across the four forms. Crossing two `htmlFor` values fails
+exactly those two tests, which is how it was checked.
 
 ## Known gaps, deliberately open
 

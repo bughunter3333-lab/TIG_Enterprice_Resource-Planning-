@@ -7,8 +7,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>SKU</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-sku">SKU</label>
+                  <input id="inventory-sku"
                     type="text"
                     value={inventoryForm.sku}
                     onChange={(e) => setInventoryForm({...inventoryForm, sku: e.target.value})}
@@ -20,8 +20,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Category</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-category">Category</label>
+                  <input id="inventory-category"
                     type="text"
                     value={categoryDropdown.open ? categoryDropdown.query : inventoryForm.category}
                     onChange={(e) => { setCategoryDropdown({ open: true, query: e.target.value, highlighted: 0 }); setInventoryForm({...inventoryForm, category: e.target.value}); }}
@@ -67,8 +67,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Item Name</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-item-name">Item Name</label>
+                  <input id="inventory-item-name"
                     type="text"
                     value={inventoryForm.name}
                     onChange={(e) => setInventoryForm({...inventoryForm, name: e.target.value})}
@@ -79,8 +79,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Stock Quantity</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-stock-quantity">Stock Quantity</label>
+                  <input id="inventory-stock-quantity"
                     type="number"
                     value={inventoryForm.stock}
                     onChange={(e) => setInventoryForm({...inventoryForm, stock: parseInt(e.target.value) || 0})}
@@ -91,8 +91,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Reorder Level</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-reorder-level">Reorder Level</label>
+                  <input id="inventory-reorder-level"
                     type="number"
                     value={inventoryForm.reorderLevel}
                     onChange={(e) => setInventoryForm({...inventoryForm, reorderLevel: parseInt(e.target.value) || 0})}
@@ -103,8 +103,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Location</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-location">Location</label>
+                  <input id="inventory-location"
                     type="text"
                     value={locationDropdown.open ? locationDropdown.query : inventoryForm.location}
                     onChange={(e) => { setLocationDropdown({ open: true, query: e.target.value, highlighted: 0 }); setInventoryForm({...inventoryForm, location: e.target.value}); }}
@@ -150,8 +150,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Supplier</label>
-                  <select
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-supplier">Supplier</label>
+                  <select id="inventory-supplier"
                     value={inventoryForm.supplierCode}
                     onChange={(e) => {
                       const selectedSupplier = suppliers.find(s => s.code === e.target.value);
@@ -172,8 +172,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Unit Cost ($)</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-unit-cost">Unit Cost ($)</label>
+                  <input id="inventory-unit-cost"
                     type="number"
                     step="0.01"
                     value={inventoryForm.unitCost}
@@ -185,8 +185,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Unit Price ($)</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-unit-price">Unit Price ($)</label>
+                  <input id="inventory-unit-price"
                     type="number"
                     step="0.01"
                     value={inventoryForm.unitPrice}
@@ -198,8 +198,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Minimum Order Qty</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-minimum-order-qty">Minimum Order Qty</label>
+                  <input id="inventory-minimum-order-qty"
                     type="number"
                     value={inventoryForm.minOrder}
                     onChange={(e) => setInventoryForm({...inventoryForm, minOrder: parseInt(e.target.value) || 1})}
@@ -210,8 +210,8 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Lead Time (days)</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-lead-time-days">Lead Time (days)</label>
+                  <input id="inventory-lead-time-days"
                     type="number"
                     value={inventoryForm.leadTime}
                     onChange={(e) => setInventoryForm({...inventoryForm, leadTime: parseInt(e.target.value) || 7})}

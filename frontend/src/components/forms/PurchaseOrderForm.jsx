@@ -7,8 +7,8 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Supplier</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-supplier">Supplier</label>
+                  <input id="po-supplier"
                     type="text"
                     value={supplierDropdown.open ? supplierDropdown.query : (poForm.supplier || '')}
                     onChange={(e) => { setSupplierDropdown({ open: true, query: e.target.value, highlighted: 0 }); setPoForm({...poForm, supplier: e.target.value, supplierCode: ''}); }}
@@ -64,16 +64,16 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                   })()}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Order Date</label>
-                  <input type="date" value={poForm.date} onChange={e => setPoForm({...poForm, date: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-order-date">Order Date</label>
+                  <input id="po-order-date" type="date" value={poForm.date} onChange={e => setPoForm({...poForm, date: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Expected Delivery</label>
-                  <input type="date" value={poForm.expectedDate} onChange={e => setPoForm({...poForm, expectedDate: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-expected-delivery">Expected Delivery</label>
+                  <input id="po-expected-delivery" type="date" value={poForm.expectedDate} onChange={e => setPoForm({...poForm, expectedDate: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Notes</label>
-                  <textarea value={poForm.notes} onChange={e => setPoForm({...poForm, notes: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} rows="2" />
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-notes">Notes</label>
+                  <textarea id="po-notes" value={poForm.notes} onChange={e => setPoForm({...poForm, notes: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} rows="2" />
                 </div>
               </div>
               <div>

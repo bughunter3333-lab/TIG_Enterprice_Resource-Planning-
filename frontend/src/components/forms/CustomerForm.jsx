@@ -7,8 +7,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Customer Name</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-name">Customer Name</label>
+                  <input id="customer-name"
                     type="text"
                     value={customerForm.name}
                     onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})}
@@ -19,8 +19,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Account Type</label>
-                  <select
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-account-type">Account Type</label>
+                  <select id="customer-account-type"
                     value={customerForm.accountType || 'Account'}
                     onChange={(e) => setCustomerForm({...customerForm, accountType: e.target.value})}
                     className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -33,8 +33,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Contact Person</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-contact-person">Contact Person</label>
+                  <input id="customer-contact-person"
                     type="text"
                     value={customerForm.contact}
                     onChange={(e) => setCustomerForm({...customerForm, contact: e.target.value})}
@@ -44,8 +44,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Email</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-email">Email</label>
+                  <input id="customer-email"
                     type="email"
                     value={customerForm.email}
                     onChange={(e) => setCustomerForm({...customerForm, email: e.target.value})}
@@ -56,8 +56,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Phone</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-phone">Phone</label>
+                  <input id="customer-phone"
                     type="tel"
                     value={customerForm.phone}
                     onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})}
@@ -67,8 +67,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Mobile</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-mobile">Mobile</label>
+                  <input id="customer-mobile"
                     type="tel"
                     value={customerForm.mobile}
                     onChange={(e) => setCustomerForm({...customerForm, mobile: e.target.value})}
@@ -78,8 +78,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Address</label>
-                  <textarea
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-address">Address</label>
+                  <textarea id="customer-address"
                     value={customerForm.address}
                     onChange={(e) => setCustomerForm({...customerForm, address: e.target.value})}
                     className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -89,8 +89,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>ABN</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-abn">ABN</label>
+                  <input id="customer-abn"
                     type="text"
                     value={customerForm.abn}
                     onChange={(e) => setCustomerForm({...customerForm, abn: e.target.value})}
@@ -100,8 +100,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Payment Terms</label>
-                  <select
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-payment-terms">Payment Terms</label>
+                  <select id="customer-payment-terms"
                     value={customerForm.paymentTerms}
                     onChange={(e) => setCustomerForm({...customerForm, paymentTerms: e.target.value})}
                     className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -116,8 +116,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Credit Limit ($)</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-credit-limit">Credit Limit ($)</label>
+                  <input id="customer-credit-limit"
                     type="number"
                     step="1000"
                     value={customerForm.creditLimit}
@@ -129,8 +129,8 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}}>Account Manager</label>
-                  <input
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-account-manager">Account Manager</label>
+                  <input id="customer-account-manager"
                     type="text"
                     value={customerForm.accountManager}
                     onChange={(e) => setCustomerForm({...customerForm, accountManager: e.target.value})}

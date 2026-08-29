@@ -32,14 +32,13 @@ const setup = (over = {}) => {
 
 test('renders the customer it was given', () => {
   setup();
-  expect(screen.getByDisplayValue('Zephyr Apparel')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('Dana Reyes')).toBeInTheDocument();
-  expect(screen.getByText('Customer Name')).toBeInTheDocument();
+  expect(screen.getByLabelText('Customer Name')).toHaveValue('Zephyr Apparel');
+  expect(screen.getByLabelText('Contact Person')).toHaveValue('Dana Reyes');
 });
 
 test('an edit keeps the rest of the customer', () => {
   const { setCustomerForm } = setup();
-  fireEvent.change(screen.getByDisplayValue('Zephyr Apparel'), {
+  fireEvent.change(screen.getByLabelText('Customer Name'), {
     target: { value: 'Zephyr Apparel Pty Ltd' },
   });
   expect(setCustomerForm).toHaveBeenCalledWith({
@@ -60,5 +59,5 @@ test('a missing optional field does not crash the form', () => {
   // The monolith seeds this object in several places and they do not all agree
   // on which keys exist.
   expect(() => setup({ customerForm: { name: 'Bare Minimum' } })).not.toThrow();
-  expect(screen.getByDisplayValue('Bare Minimum')).toBeInTheDocument();
+  expect(screen.getByLabelText('Customer Name')).toHaveValue('Bare Minimum');
 });

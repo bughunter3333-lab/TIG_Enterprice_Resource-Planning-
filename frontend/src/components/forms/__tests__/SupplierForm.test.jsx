@@ -35,23 +35,23 @@ const setup = (over = {}) => {
 
 test('renders the supplier it was given', () => {
   setup();
-  expect(screen.getByDisplayValue('Northbound Blanks')).toBeInTheDocument();
-  expect(screen.getByDisplayValue('SUP-014')).toBeInTheDocument();
+  expect(screen.getByLabelText('Supplier Name')).toHaveValue('Northbound Blanks');
+  expect(screen.getByLabelText('Supplier Code')).toHaveValue('SUP-014');
 });
 
 test('the code is editable when creating a supplier', () => {
   setup({ editingItem: null });
-  expect(screen.getByDisplayValue('SUP-014')).not.toBeDisabled();
+  expect(screen.getByLabelText('Supplier Code')).not.toBeDisabled();
 });
 
 test('the code is locked once the supplier exists', () => {
   setup({ editingItem: { id: 14 } });
-  expect(screen.getByDisplayValue('SUP-014')).toBeDisabled();
+  expect(screen.getByLabelText('Supplier Code')).toBeDisabled();
 });
 
 test('an edit keeps the rest of the supplier', () => {
   const { setSupplierForm } = setup();
-  fireEvent.change(screen.getByDisplayValue('Alex Tan'), {
+  fireEvent.change(screen.getByLabelText('Contact Person'), {
     target: { value: 'Alexandra Tan' },
   });
   expect(setSupplierForm).toHaveBeenCalledWith({ ...form, contact: 'Alexandra Tan' });
