@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { styles as stylesApi, inventory as inventoryApi } from '../api';
 import { T } from '../ui/tokens';
+import { notify } from '../lib/notify';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

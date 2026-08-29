@@ -67,7 +67,7 @@ trains you to ignore lint output.
 
 *Touches:* `frontend/src/ui/tokens.js`, `frontend/src/ui/__tests__/tokens.test.jsx`.
 
-### D4. An ESLint `no-undef` pass over the frontend
+### D4. An ESLint `no-undef` pass over the frontend — done
 
 A name used inside a component but never imported is invisible to everything we
 run. `npm run build` emits the reference happily — esbuild does not resolve
@@ -87,6 +87,16 @@ to ignore lint output.
 
 *Touches:* `frontend/eslint.config.mjs`, `frontend/package.json`,
 `.github/workflows/test.yml`.
+
+**Outcome.** Done as described. The first run over `src` reported 11 errors
+against 401 warnings, and four of the errors were live crashes:
+`ReportsModule.jsx` called `useQueryClient()` without importing it, so the Back
+Orders tab threw on render and its refresh-after-mutation had never worked, and
+`StylesModule.jsx` called `notify` at three sites with no import. The remaining
+errors were three `catch {}` blocks swallowing real API failures — bulk status
+change and bulk delete discarded every per-job rejection, which had become
+wrong the moment jobs were made lockable in `b4f6671` — plus one dead `??`
+operand and one redundant escape. The rule earned its place on the first run.
 
 ### D5. Decide whether the inline PO receive should exist at all
 
@@ -181,6 +191,42 @@ correctly uses `pull_request` rather than `pull_request_target`, and references
 no secrets, so a fork PR has nothing to steal today.
 
 ---
+
+## Frontend tooling — open decisions
+
+### F1. Whether to adopt Prettier at all
+
+Prettier is installed and configured (`.prettierrc.json`, `npm run format`), but
+is deliberately *not* wired into the pre-commit hook. The hook runs ESLint only.
+
+The reason is measured, not stylistic. This codebase is dense, and Prettier
+rewrites roughly 2.3 lines for every line in a file it touches:
+
+| file | lines | lines Prettier changes |
+| --- | --- | --- |
+| `src/modules/ReportsModule.jsx` | 1,222 | 3,275 |
+| `src/modules/StylesModule.jsx` | 895 | 2,476 |
+| `src/api.js` | 1,301 | 1,239 |
+| `src/TotalImageERP.jsx` | 9,849 | 19,807 |
+
+All 110 source files are affected. Print width is not the cause — widening it
+from 100 to 200 only moves ReportsModule from 3,275 to 2,815 — so there is no
+configuration that makes this cheap.
+
+That leaves two honest options, and no middle one:
+
+- **Adopt it in a single dedicated formatting commit**, recorded in a
+  `.git-blame-ignore-revs` file so `git blame` and GitHub both skip it. Best
+  done *before* the monolith is decomposed, not after, since the extracted
+  modules would otherwise each need their own reformat.
+- **Leave it off**, and keep ESLint as the only enforced gate. The existing
+  style is internally consistent; it is dense rather than untidy.
+
+What is not viable is per-file adoption on touch, which was the original plan:
+it would put a 3x reformat on top of every one-line fix, permanently.
+
+This is a judgement call about a public repository's history, so it is recorded
+rather than taken.
 
 ## Known gaps, deliberately open
 

@@ -1704,12 +1704,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   };
 
   const bulkStatusChange = async (status) => {
-    for (const id of selectedJobIds) {
-      try { await api.jobs.updateStatus(id, status); } catch {}
+    const ids = [...selectedJobIds];
+    const failed = [];
+    for (const id of ids) {
+      try {
+        await api.jobs.updateStatus(id, status);
+      } catch (e) {
+        failed.push(`#${id} ${e?.message || 'refused'}`);
+      }
     }
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
     setSelectedJobIds(new Set());
     setBulkActionOpen(false);
+    if (failed.length) {
+      notify(`${failed.length} of ${ids.length} jobs did not move to ${status} — ${failed.join('; ')}`, { type: 'error' });
+    }
   };
 
   const bulkDelete = () => {
@@ -1718,8 +1727,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       show: true,
       message: `Delete ${ids.length} selected jobs? This cannot be undone.`,
       onConfirm: async () => {
+        const failed = [];
         for (const id of ids) {
-          try { await api.jobs.delete(id); } catch {}
+          try {
+            await api.jobs.delete(id);
+          } catch (e) {
+            failed.push(`#${id} ${e?.message || 'refused'}`);
+          }
+        }
+        if (failed.length) {
+          notify(`${failed.length} of ${ids.length} jobs were not deleted — ${failed.join('; ')}`, { type: 'error' });
         }
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
         setSelectedJobIds(new Set());
@@ -4311,7 +4328,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           });
         };
         if (!line.trim()) return <div key={i} className="h-1.5" />;
-        const bulletMatch = line.match(/^(\s*)[•\-]\s(.+)/);
+        const bulletMatch = line.match(/^(\s*)[•-]\s(.+)/);
         if (bulletMatch) {
           const indent = bulletMatch[1].length;
           return (
@@ -7647,7 +7664,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       try {
         const preview = await api.importData.preview(file);
         setImportPreviews(p => ({ ...p, [key]: preview }));
-      } catch {}
+      } catch (e) {
+        notify(`Could not read ${file.name}: ${e?.message || 'preview failed'}`, { type: 'error' });
+      }
     };
 
     const handleImport = async (key) => {

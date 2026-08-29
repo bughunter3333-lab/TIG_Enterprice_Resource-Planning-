@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, DollarSign, Package, Users, Download, RefreshCw, Clock, AlertTriangle, Layers } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
@@ -1070,13 +1070,11 @@ function OverviewTab({ jobs = [], inventory = [] }) {
   const revenueByMonth = (() => {
     const map = {};
     jobs.forEach(j => {
-      try {
-        const parts = (j.dateIn || '').split('/');
-        if (parts.length === 3) {
-          const key = `${parts[2]}-${parts[1]}`;
-          map[key] = (map[key] || 0) + (j.total || 0);
-        }
-      } catch {}
+      const parts = (j.dateIn || '').split('/');
+      if (parts.length === 3) {
+        const key = `${parts[2]}-${parts[1]}`;
+        map[key] = (map[key] || 0) + (j.total || 0);
+      }
     });
     return Object.entries(map).sort(([a],[b]) => a.localeCompare(b)).slice(-6)
       .map(([month, revenue]) => ({ month, revenue: parseFloat(revenue.toFixed(2)) }));

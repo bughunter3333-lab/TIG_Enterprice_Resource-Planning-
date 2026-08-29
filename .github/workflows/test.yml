@@ -97,7 +97,18 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        # husky's prepare script only sets a local git hooks path, which does
+        # nothing useful on a runner that makes one commit and disappears.
         run: npm ci
+        env:
+          HUSKY: 0
+
+      # First, because it is the cheapest check and catches the failure the
+      # build cannot: esbuild resolves no identifiers, so a reference to a name
+      # that was never imported builds clean and throws in the browser. That
+      # shipped here twice.
+      - name: Lint
+        run: npm run lint
 
       - name: Unit tests
         run: npm test

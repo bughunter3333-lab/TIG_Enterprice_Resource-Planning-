@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write",
+    "format:check": "prettier --check",
+    "prepare": "cd .. && husky frontend/.husky"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",
@@ -21,15 +26,28 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.61.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.5",
+    "globals": "^17.11.0",
+    "husky": "^9.1.7",
     "jsdom": "^25.0.1",
+    "lint-staged": "^17.4.1",
     "postcss": "^8.4.38",
+    "prettier": "^3.9.6",
     "tailwindcss": "^3.4.4",
     "vite": "^5.2.11",
     "vitest": "^2.1.9"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix"
+    ]
   }
 }
