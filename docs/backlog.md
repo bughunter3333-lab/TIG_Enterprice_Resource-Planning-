@@ -228,6 +228,115 @@ it would put a 3x reformat on top of every one-line fix, permanently.
 This is a judgement call about a public repository's history, so it is recorded
 rather than taken.
 
+### F2. The rest of the monolith, measured
+
+`TotalImageERP.jsx` held 28 zero-argument render functions — `const renderX =
+() => {...}` closing over the component scope. Eleven were converted to real
+components; what remains is listed here with the numbers that decide the order,
+so the next pass does not start by re-deriving them.
+
+Two of the 28 (`renderReports`, `renderScheduling`) are thin wrappers around
+`ReportsModule` and `SchedulingModule` and are indirection, not candidates. So
+is `renderDashboard`, which is nine lines around `<Dashboard>`.
+
+**Method.** Prop counts below are not estimates. Each function was written to a
+temporary standalone module and linted; `no-undef` plus `react/jsx-no-undef`
+name exactly the identifiers it takes from an enclosing scope, and anything the
+monolith imports is separated out as an import rather than a prop. The same
+pass is what makes the extraction checkable: drop a prop and the new file fails
+`no-undef` before it ever renders.
+
+**A prop count overstates coupling where the state is private.** Thirty of the
+component's 131 `useState` pairs are read by exactly one render function and
+nowhere else, so they should move down into the component rather than be
+threaded through it:
+
+| function | private state |
+| --- | --- |
+| `renderJobs` | commentInput, jobDetailTab, jobsViewMode, pickState, printDropdownOpen |
+| `renderOpenFreightModal` | ofAccountDirty, ofModalOpen, ofParcelForm, ofParcelModal, ofTab |
+| `renderImport` | importFiles, importLoading, importPreviews, importResults |
+| `renderModal` | openDecIdx, skuDropdown, supplierDropdown |
+| `renderCardFiles` | cardFileForm, cardFileGroup, cardFileSearch |
+| `renderOrderRequirements` | orderReqPoModal, orderReqSelected, orderReqTab |
+| `renderAIAssistant` | aiOpen, aiPos |
+| `renderWarehouse` | selectedBin, selectedWarehouseZone |
+| `renderCustomers` | custDetailTab, selectedCustomer |
+| `renderSuppliers` | suppTab |
+
+`renderImport` is the clearest case: 287 lines whose entire prop surface is four
+`import*` state pairs plus the query client. Moving the state with it leaves a
+component that takes almost nothing.
+
+**Remaining, by prop surface:**
+
+| function | lines | props |
+| --- | --- | --- |
+| `renderWarehouse` | 251 | 8 |
+| `renderPOListPage` | 35 | 9 |
+| `renderStockListPage` | 41 | 9 |
+| `renderImport` | 287 | 9 |
+| `renderJobListPage` | 48 | 13 |
+| `renderPurchaseOrders` | 126 | 13 |
+| `renderSuppliers` | 183 | 13 |
+| `renderCustomers` | 245 | 14 |
+| `renderOpenFreightModal` | 453 | 14 |
+| `renderCardFiles` | 285 | 15 |
+| `renderOrderRequirements` | 307 | 15 |
+| `renderAIAssistant` | 230 | 19 |
+| `renderJobs` | 998 | 48 |
+| `renderModal` | 1,757 | 71 |
+
+**`renderModal`'s 71 is an artefact of the union.** It is one modal shell around
+five mutually exclusive `modalType` branches, and measured separately four of
+the five are clean:
+
+| branch | lines | props |
+| --- | --- | --- |
+| `customer` | 154 | 4 |
+| `supplier` | 53 | 5 |
+| `po` | 152 | 10 |
+| `inventory` | 236 | 11 |
+| `job` | 1,126 | 48 |
+
+So splitting the shell yields four form modals totalling 595 lines at 11 props
+or fewer, and isolates the job editor as the one piece that genuinely needs
+decomposing before it can move. `renderJobs` at 48 props is the same shape of
+problem and should be read the same way before anyone tries to lift it whole.
+
+### F3. Two things the extraction audit turned up
+
+**`DispatchModal` is unreachable.** `dispatchModal` is declared in
+`TotalImageERP.jsx` and passed to the component, but nothing anywhere sets
+`open: true`, so it never renders. That was already true while it was
+`renderDispatchModal` inside the monolith — the extraction did not cause it, but
+it did give dead code its own file alongside ten live ones, which is worse than
+leaving it buried. Dispatch really runs through `dispatchBatch` →
+`api.dispatchSessions.create`, with the UI in `src/modules/jobs/DispatchList.jsx`;
+the dead modal still calls the older single-job `api.jobs.dispatch`. The file
+carries a header saying so. Delete it and its state, or wire it and retire the
+batch path — keeping both is what gets the wrong one edited.
+
+**The prop shape is the halfway house, not the destination.** Nine of the eleven
+take a state object plus its setter (`stocktakeModal` / `setStocktakeModal`), so
+every keystroke inside an extracted modal still writes to state that lives in
+the monolith. Worth being precise about what that does and does not mean: it is
+*not* a regression, because before the extraction the same state lived in the
+same place and the same setters ran, so the re-render cost is unchanged. What it
+means is that the extraction bought explicit dependencies and a testable unit,
+and has not yet bought isolation. The end shape is `<StocktakeModal open
+inventory onClose={...} />` — the monolith owning `open` and the seed data
+because that is what the menu item that opens it needs, and the modal owning its
+own form fields.
+
+**Correction to F2's count.** The "30 state variables can move down" measurement
+was taken *after* the eleven were extracted, so their state no longer sat inside
+a render function and was not counted. `confirmModal`, `paymentModal`,
+`stockAdjustModal`, `unprintModal`, `salesRegModal`, `transferModal`,
+`stocktakeModal`, `stockFlowModal`, `invoiceJob` and `documentPrint` are all
+additional cases of exactly the same thing. The real figure is nearer forty, and
+the eleven already extracted are the cheapest ones to finish.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.
