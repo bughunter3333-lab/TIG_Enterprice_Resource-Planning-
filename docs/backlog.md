@@ -264,9 +264,13 @@ threaded through it:
 | `renderCustomers` | custDetailTab, selectedCustomer |
 | `renderSuppliers` | suppTab |
 
-`renderImport` is the clearest case: 287 lines whose entire prop surface is four
-`import*` state pairs plus the query client. Moving the state with it leaves a
-component that takes almost nothing.
+`renderImport` was the clearest case and is now done: 287 lines whose entire
+prop surface was four `import*` state pairs plus the query client. The state
+moved down with it, the client comes from context, and
+`src/modules/import/ImportModule.jsx` takes **no props at all** — which is what
+makes it mountable in a test with no scaffolding. The same reading applies to
+`renderOpenFreightModal` (five `of*` pairs) and `renderCardFiles` (three
+`cardFile*` pairs).
 
 **Remaining, by prop surface:**
 
