@@ -52,20 +52,20 @@ export default function DispatchModal({ dispatchModal, onJobUpdated, setDispatch
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Via *</label>
-            <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
+            <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Reference *</label>
-            <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+            <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>No. of Cartons</label>
-          <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+          <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Notes</label>
-          <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ border: `1px solid ${T.hairline}` }} />
+          <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
         </div>
         {dispatchModal.job?.status === 'FINISH' && (
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: T.text }}>

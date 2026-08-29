@@ -12,7 +12,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="text"
                     value={customerForm.name}
                     onChange={(e) => setCustomerForm({...customerForm, name: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     required
                   />
@@ -23,7 +23,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                   <select id="customer-account-type"
                     value={customerForm.accountType || 'Account'}
                     onChange={(e) => setCustomerForm({...customerForm, accountType: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   >
                     <option value="Account">Account</option>
@@ -38,7 +38,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="text"
                     value={customerForm.contact}
                     onChange={(e) => setCustomerForm({...customerForm, contact: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   />
                 </div>
@@ -49,7 +49,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="email"
                     value={customerForm.email}
                     onChange={(e) => setCustomerForm({...customerForm, email: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     required
                   />
@@ -61,7 +61,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="tel"
                     value={customerForm.phone}
                     onChange={(e) => setCustomerForm({...customerForm, phone: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   />
                 </div>
@@ -72,7 +72,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="tel"
                     value={customerForm.mobile}
                     onChange={(e) => setCustomerForm({...customerForm, mobile: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   />
                 </div>
@@ -82,7 +82,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                   <textarea id="customer-address"
                     value={customerForm.address}
                     onChange={(e) => setCustomerForm({...customerForm, address: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     rows="2"
                   />
@@ -94,7 +94,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="text"
                     value={customerForm.abn}
                     onChange={(e) => setCustomerForm({...customerForm, abn: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   />
                 </div>
@@ -104,7 +104,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                   <select id="customer-payment-terms"
                     value={customerForm.paymentTerms}
                     onChange={(e) => setCustomerForm({...customerForm, paymentTerms: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   >
                     <option value="Net 7">Net 7</option>
@@ -122,7 +122,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     step="1000"
                     value={customerForm.creditLimit}
                     onChange={(e) => setCustomerForm({...customerForm, creditLimit: parseFloat(e.target.value) || 0})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
@@ -134,7 +134,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     type="text"
                     value={customerForm.accountManager}
                     onChange={(e) => setCustomerForm({...customerForm, accountManager: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   />
                 </div>
@@ -143,7 +143,7 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
               <div className="flex justify-end space-x-2 pt-4" style={{borderTop: `1px solid ${T.hairline}`}}>
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 rounded hover:bg-gray-50"
+                  className="px-4 py-2 rounded hover:bg-panel-alt"
                   style={{border: `1px solid ${T.hairline}`, color: T.textMuted}}
                 >
                   Cancel

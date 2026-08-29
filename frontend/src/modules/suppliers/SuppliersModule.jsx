@@ -22,10 +22,10 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
       {/* KPI Strip */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total Suppliers', value: suppliers.length, sub: `${suppActive} active`, icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Active', value: suppActive, sub: `${suppliers.length - suppActive} inactive`, icon: CheckSquare, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Total PO Spend', value: `$${totalSpend.toLocaleString('en-AU',{maximumFractionDigits:0})}`, sub: 'All purchase orders', icon: DollarSign, color: 'text-blue-700', bg: 'bg-blue-50' },
-          { label: 'Linked SKUs', value: inventory.filter(i=>i.supplier).length, sub: 'Items with supplier', icon: Package, color: 'text-blue-800', bg: 'bg-blue-50' },
+          { label: 'Total Suppliers', value: suppliers.length, sub: `${suppActive} active`, icon: Truck, color: 'text-accent-strong', bg: 'bg-accent-tint' },
+          { label: 'Active', value: suppActive, sub: `${suppliers.length - suppActive} inactive`, icon: CheckSquare, color: 'text-ok', bg: 'bg-ok-tint' },
+          { label: 'Total PO Spend', value: `$${totalSpend.toLocaleString('en-AU',{maximumFractionDigits:0})}`, sub: 'All purchase orders', icon: DollarSign, color: 'text-accent-strong', bg: 'bg-accent-tint' },
+          { label: 'Linked SKUs', value: inventory.filter(i=>i.supplier).length, sub: 'Items with supplier', icon: Package, color: 'text-accent-strong', bg: 'bg-accent-tint' },
         ].map(k => (
           <div key={k.label} className="rounded-lg p-4 flex items-start gap-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className={`w-9 h-9 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
@@ -44,7 +44,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
         <div className="relative flex-1 min-w-48">
           <Search className="w-4 h-4 absolute left-3 top-2.5" style={{ color: T.textFaint }} />
           <input type="text" placeholder="Search by name, code, contact…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}`, color: T.text }}
             value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoComplete="off" />
         </div>
@@ -70,18 +70,18 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                 <div key={sup.code} onClick={() => { setSelectedSupplier(sup); setSuppTab('details'); }}
                   className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-4"
                   style={{ background: isSel ? T.hairlineSoft : T.panel, borderLeftColor: isSel ? T.accentStrong : 'transparent', borderBottom: `1px solid ${T.hairline}` }}>
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-black text-sm flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-accent-strong text-white font-black text-sm flex items-center justify-center shrink-0">
                     {(sup.name||'?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-sm truncate" style={{ color: T.text }}>{sup.name}</p>
-                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sup.status==='Active'?'bg-emerald-100 text-emerald-700':'bg-gray-100 text-gray-500'}`}>{sup.status}</span>
+                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sup.status==='Active'?'bg-ok-tint text-ok':'bg-hairline-soft text-muted'}`}>{sup.status}</span>
                     </div>
                     <p className="text-[11px] font-mono mt-0.5" style={{ color: T.textFaint }}>{sup.code}</p>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-[11px]" style={{ color: T.textMuted }}>{poCount} PO{poCount!==1?'s':''}</span>
-                      {spend>0 && <span className="text-[11px] font-semibold text-indigo-600">${spend.toLocaleString('en-AU',{maximumFractionDigits:0})}</span>}
+                      {spend>0 && <span className="text-[11px] font-semibold text-accent-strong">${spend.toLocaleString('en-AU',{maximumFractionDigits:0})}</span>}
                     </div>
                   </div>
                 </div>
@@ -99,7 +99,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
           ) : (
             <div className="rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
               <div className="px-6 py-4 flex items-start gap-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-black text-lg flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-accent-strong text-white font-black text-lg flex items-center justify-center shrink-0">
                   {(sel.name||'?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -108,11 +108,11 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => { setActiveModule('purchase-orders'); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 border border-indigo-200">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-tint text-accent-strong text-xs font-semibold hover:bg-accent-tint border border-accent">
                     <Plus className="w-3 h-3"/>New PO
                   </button>
                   <button onClick={() => openModal('supplier',sel)} className="p-1.5 rounded-lg" style={{ color: T.accentStrong }}><Edit className="w-4 h-4"/></button>
-                  <button onClick={() => deleteSupplier(sel.code)} className="p-1.5 rounded-lg"><Trash2 className="w-4 h-4 text-red-500"/></button>
+                  <button onClick={() => deleteSupplier(sel.code)} className="p-1.5 rounded-lg"><Trash2 className="w-4 h-4 text-danger"/></button>
                 </div>
               </div>
               <div className="grid grid-cols-3" style={{ borderBottom: `1px solid ${T.hairline}` }}>
@@ -152,7 +152,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                   <div className="space-y-2">
                     {suppPOs(sel).length===0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No purchase orders for this supplier</p>
                     : suppPOs(sel).map(po => {
-                      const cls = {Draft:'bg-gray-100 text-gray-600',Sent:'bg-amber-100 text-amber-700',Partial:'bg-amber-100 text-amber-700',Received:'bg-emerald-100 text-emerald-700',Cancelled:'bg-red-100 text-red-600'}[po.status]||'bg-gray-100 text-gray-600';
+                      const cls = {Draft:'bg-hairline-soft text-muted',Sent:'bg-warn-tint text-warn',Partial:'bg-warn-tint text-warn',Received:'bg-ok-tint text-ok',Cancelled:'bg-danger-tint text-danger'}[po.status]||'bg-hairline-soft text-muted';
                       return (
                         <div key={po.id} className="flex items-center gap-3 p-3 rounded-lg transition-colors" style={{ border: `1px solid ${T.hairline}` }}>
                           <div className="flex-1 min-w-0">
@@ -175,7 +175,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                       <div key={item.sku} className="flex items-center gap-3 p-3 rounded-lg" style={{ border: `1px solid ${T.hairline}` }}>
                         <span className="font-mono text-xs font-bold px-2 py-0.5 rounded w-24 shrink-0" style={{ color: T.accentStrong, background: T.hairlineSoft }}>{item.sku}</span>
                         <span className="flex-1 text-sm truncate" style={{ color: T.text }}>{item.name}</span>
-                        <span className={`text-xs font-semibold ${item.stock<=0?'text-red-600':item.stock<item.reorderLevel?'text-amber-600':'text-emerald-600'}`}>{item.stock} on hand</span>
+                        <span className={`text-xs font-semibold ${item.stock<=0?'text-danger':item.stock<item.reorderLevel?'text-warn':'text-ok'}`}>{item.stock} on hand</span>
                       </div>
                     ))}
                   </div>

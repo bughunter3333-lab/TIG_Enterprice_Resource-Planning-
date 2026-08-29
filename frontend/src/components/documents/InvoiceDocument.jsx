@@ -24,25 +24,25 @@ export default function InvoiceDocument({ customers, invoiceJob, invoiceVariant,
     <DraggableModal onClose={() => setInvoiceJob(null)} cardClass="w-full max-w-3xl max-h-[95vh] overflow-y-auto print:shadow-none print:rounded-none print:max-h-none print:overflow-visible" overlayClass="print:hidden">
 
         {/* Screen-only toolbar */}
-        <div className="flex items-center justify-between px-6 py-3 border-b bg-gray-50 print:hidden rounded-t-lg">
+        <div className="flex items-center justify-between px-6 py-3 border-b bg-panel-alt print:hidden rounded-t-lg">
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-bold px-2 py-1 rounded ${isQuote ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-800'}`}>{docTitle}</span>
-            <span className="text-sm text-gray-600 font-mono">#{j.invoice || j.id}</span>
-            <span className={`text-xs px-2 py-0.5 rounded font-medium ${balance <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>{balance <= 0 ? 'PAID' : `Balance $${balance.toFixed(2)}`}</span>
+            <span className={`text-xs font-bold px-2 py-1 rounded ${isQuote ? 'bg-emphasis-tint text-emphasis' : 'bg-accent-tint text-accent-strong'}`}>{docTitle}</span>
+            <span className="text-sm text-muted font-mono">#{j.invoice || j.id}</span>
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${balance <= 0 ? 'bg-ok-tint text-ok' : 'bg-danger-tint text-danger'}`}>{balance <= 0 ? 'PAID' : `Balance $${balance.toFixed(2)}`}</span>
           </div>
           <div className="flex gap-2">
             <a
               href={`/api/jobs/${j.id}/pdf?type=${j.status === 'QUOTE' ? 'quote' : 'invoice'}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 flex items-center gap-1 no-underline"
+              className="bg-ok text-white px-4 py-1.5 rounded text-sm hover:bg-ok flex items-center gap-1 no-underline"
             >
               <Download className="w-3.5 h-3.5" />Download PDF
             </a>
-            <button onClick={() => window.print()} className="bg-blue-700 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-800 flex items-center gap-1">
+            <button onClick={() => window.print()} className="bg-accent-strong text-white px-4 py-1.5 rounded text-sm hover:bg-accent-strong flex items-center gap-1">
               <Printer className="w-3.5 h-3.5" />Print
             </button>
-            <button onClick={() => setInvoiceJob(null)} className="p-1.5 hover:bg-gray-200 rounded"><X className="w-4 h-4" /></button>
+            <button onClick={() => setInvoiceJob(null)} className="p-1.5 hover:bg-hairline rounded"><X className="w-4 h-4" /></button>
           </div>
         </div>
 

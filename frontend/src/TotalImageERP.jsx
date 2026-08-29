@@ -133,7 +133,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Admin-managed custom decoration methods (added via the line-item picker's "+ Add method").
   const { data: customDecRaw } = useQuery({ queryKey: ['custom_dec_types'], queryFn: () => api.adminSettings.get('custom_dec_types'), staleTime: 300000, onError: () => {} });
   const customDecTypes = (() => { try { const arr = customDecRaw?.value ? JSON.parse(customDecRaw.value) : []; return Array.isArray(arr) ? arr : []; } catch { return []; } })();
-  const decMethods = [...DEC_OPTIONS, ...customDecTypes.filter(c => c && c.v && !DEC_OPTIONS.some(d => d.v === c.v)).map(c => ({ v: c.v, l: c.l || c.v, emoji: '🏷️', dot: 'bg-zinc-400', pill: 'bg-zinc-100 text-zinc-700 border-zinc-300' }))];
+  const decMethods = [...DEC_OPTIONS, ...customDecTypes.filter(c => c && c.v && !DEC_OPTIONS.some(d => d.v === c.v)).map(c => ({ v: c.v, l: c.l || c.v, emoji: '🏷️', dot: 'bg-faint', pill: 'bg-hairline-soft text-header border-hairline' }))];
   const addDecMethod = async () => {
     const name = (window.prompt('New decoration method code (e.g. UV, Foil, DTG):') || '').trim();
     if (!name) return null;
@@ -1513,10 +1513,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Render Jobs Module
   const renderJobs = () => {
     const jStatusColors = {
-      QUOTE:'bg-gray-100 text-gray-700', New:'bg-blue-100 text-blue-800', ORDER:'bg-indigo-100 text-indigo-700',
-      'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-indigo-100 text-indigo-700',
-      'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700',
-      PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700',
+      QUOTE:'bg-hairline-soft text-header', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong',
+      'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong',
+      'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong',
+      PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger',
     };
 
     return (
@@ -1564,21 +1564,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <span className="font-medium truncate" style={{ color: T.text }}>{activeJob.customer}</span>
               <span className="shrink-0"><StatusBadge status={activeJob.status} size="sm" /></span>
               {activeJob.locked && <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</span>}
-              {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
+              {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-danger-tint text-danger px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
               <div className="flex-1" />
               {activeJob.status === 'QUOTE' && (
-                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-800 text-white rounded-lg hover:bg-blue-800 font-medium">
+                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
                   Convert to Order →
                 </button>
               )}
-              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
                 <Edit className="w-3.5 h-3.5" />Edit
               </button>
-              <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
+              <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
                 <Copy className="w-3.5 h-3.5" />Clone
               </button>
               <div className="relative shrink-0">
-                <button onClick={() => setPrintDropdownOpen(o => !o)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
+                <button onClick={() => setPrintDropdownOpen(o => !o)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
                   <Printer className="w-3.5 h-3.5" />Print<ChevronDown className="w-3 h-3" />
                 </button>
                 {printDropdownOpen && (
@@ -1592,8 +1592,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { type:'jobSheet',     label:'Job Sheet',      action:()=>{ setDocumentPrint({ type:'jobSheet',     job:activeJob }); setPrintDropdownOpen(false); } },
                       { type:'shipLabel',    label:'Ship Label',     action:()=>{ setDocumentPrint({ type:'shipLabel',    job:activeJob }); setPrintDropdownOpen(false); } },
                     ].map(d => (
-                      <button key={d.type} onClick={d.action} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                        <Printer className="w-3.5 h-3.5 text-gray-400" />{d.label}
+                      <button key={d.type} onClick={d.action} className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
+                        <Printer className="w-3.5 h-3.5 text-faint" />{d.label}
                       </button>
                     ))}
                     <div className="border-t mx-2 my-1" />
@@ -1602,14 +1602,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => setPrintDropdownOpen(false)}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-green-50 flex items-center gap-2 text-green-700 no-underline"
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-ok-tint flex items-center gap-2 text-ok no-underline"
                     >
                       <Download className="w-3.5 h-3.5" />Download PDF
                     </a>
                   </div>
                 )}
               </div>
-              <button onClick={() => setEmailModalJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
+              <button onClick={() => setEmailModalJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
                 <Mail className="w-3.5 h-3.5" />Email
               </button>
             </div>
@@ -1679,12 +1679,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Financial</div>
                     <F label="Payment" value={activeJob.paymentMethod} />
                     <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
-                      badge={activeJob.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : activeJob.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-50 text-red-600'} />
+                      badge={activeJob.paymentStatus === 'paid' ? 'bg-ok-tint text-ok' : activeJob.paymentStatus === 'partial' ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'} />
                     <F label="Inv. Status" value={(activeJob.invoiceStatus || 'not_invoiced').replace(/_/g, ' ')}
-                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-800' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'} />
+                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong' : 'bg-hairline-soft text-muted'} />
                     {activeJob.proofStatus && activeJob.proofStatus !== 'none' && (
                       <F label="Proof" value={activeJob.proofStatus}
-                        badge={activeJob.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : activeJob.proofStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} />
+                        badge={activeJob.proofStatus === 'approved' ? 'bg-ok-tint text-ok' : activeJob.proofStatus === 'rejected' ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'} />
                     )}
                     <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
                       <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
@@ -1788,8 +1788,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           <td className="px-2 py-1 text-center">
                             {comment.inc ? <span className="font-bold" style={{ color: T.ok }}>✓</span> : <span style={{ color: T.textFaint }}>—</span>}
                           </td>
-                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-blue-900' : ''}`} style={comment.isInternal ? {} : { color: T.text }}>
-                            {comment.isInternal && <span className="mr-1 text-blue-700 font-semibold">[int]</span>}
+                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-accent-strong' : ''}`} style={comment.isInternal ? {} : { color: T.text }}>
+                            {comment.isInternal && <span className="mr-1 text-accent-strong font-semibold">[int]</span>}
                             {comment.comment}
                           </td>
                         </tr>
@@ -1813,12 +1813,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     }
                   }}
                   placeholder="Add a comment or note… (Enter to submit)"
-                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus"
                   style={{ border: `1px solid ${T.hairline}` }}
                 />
                 <button
                   onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                  className="text-xs px-2 py-1 rounded hover:bg-gray-200 whitespace-nowrap"
+                  className="text-xs px-2 py-1 rounded hover:bg-hairline whitespace-nowrap"
                   style={{ background: T.hairlineSoft, color: T.textMuted, border: `1px solid ${T.hairline}` }}
                   title="Add as internal note (not visible to customer)"
                 >Internal</button>
@@ -1883,12 +1883,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           </tr>
                         );
                         if (isNote) return (
-                          <tr key={idx} className="bg-yellow-50">
-                            <td colSpan={14} className="px-3 py-1.5 italic text-yellow-700 text-xs">{item.description}</td>
+                          <tr key={idx} className="bg-warn-tint">
+                            <td colSpan={14} className="px-3 py-1.5 italic text-warn text-xs">{item.description}</td>
                           </tr>
                         );
                         return (
-                        <tr key={idx} className={`hover:bg-blue-50 ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
+                        <tr key={idx} className={`hover:bg-accent-tint ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
                           <td className="px-2 py-1.5">
                             {item.itemStatus
                               ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
@@ -1915,12 +1915,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               {item.supply}
                             </span>
                           </td>
-                          <td className="px-2 py-1.5 text-right text-indigo-600 font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 text-right text-purple-700 font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 text-right text-accent-strong font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
+                          <td className="px-2 py-1.5 text-right text-emphasis font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceEx || 0).toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-right">${(item.priceInc || 0).toFixed(2)}</td>
                           <td className="px-2 py-1.5 text-center" style={{ color: T.textMuted }}>{item.taxType || 'G'}</td>
-                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-indigo-500 font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
+                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-accent font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
                           <td className="px-2 py-1.5 text-right font-semibold">${(item.total || 0).toFixed(2)}</td>
                         </tr>
                         );
@@ -1930,7 +1930,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <tr>
                         <td colSpan={13} className="px-3 py-1.5 text-right text-xs" style={{ color: T.textMuted }}>
                           {activeJob.weightTotal > 0 && (
-                            <span className="mr-4 text-indigo-600"><strong>Weight: {Number(activeJob.weightTotal).toFixed(2)} kg</strong></span>
+                            <span className="mr-4 text-accent-strong"><strong>Weight: {Number(activeJob.weightTotal).toFixed(2)} kg</strong></span>
                           )}
                           <span className="mr-4">Subtotal: <strong>${(activeJob.subtotal || 0).toFixed(2)}</strong></span>
                           <span className="mr-4">GST: <strong>${(activeJob.tax || 0).toFixed(2)}</strong></span>
@@ -2071,7 +2071,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           </thead>
                           <tbody className="divide-y">
                             {related.map(j => (
-                              <tr key={j.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => pinJob(j)}>
+                              <tr key={j.id} className="hover:bg-panel-alt cursor-pointer" onClick={() => pinJob(j)}>
                                 <td className="px-3 py-2 font-mono" style={{ color: T.accentStrong }}>#{j.id}</td>
                                 <td className="px-3 py-2"><StatusBadge status={j.status} size="sm" /></td>
                                 <td className="px-3 py-2" style={{ color: T.text }}>{j.due || '—'}</td>
@@ -2135,7 +2135,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     </button>
                     <button
                       onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
-                      className="text-sm bg-indigo-500 text-white px-3 py-1.5 rounded hover:bg-indigo-600 flex items-center"
+                      className="text-sm bg-accent-strong text-white px-3 py-1.5 rounded hover:bg-accent-strong flex items-center"
                     >
                       <Printer className="w-3 h-3 mr-1" />Picking Slip
                     </button>
@@ -2164,7 +2164,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const done = t > 0 && p >= t;
                           const binLoc = inventory.find(i => i.sku === item.stockCode)?.location || '—';
                           return (
-                            <tr key={item.id} style={done ? { background: T.okTint } : {}} className={done ? '' : 'hover:bg-gray-50'}>
+                            <tr key={item.id} style={done ? { background: T.okTint } : {}} className={done ? '' : 'hover:bg-panel-alt'}>
                               <td className="px-3 py-2">
                                 {done
                                   ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: T.okTint, color: T.ok }}>Picked</span>
@@ -2184,7 +2184,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   max={t}
                                   value={p}
                                   onChange={e => setDraft(item.id, Math.max(0, Math.min(t, parseInt(e.target.value, 10) || 0)))}
-                                  className="w-16 text-right border rounded px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="w-16 text-right border rounded px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                                   style={{ borderColor: done ? T.ok : T.hairline }}
                                 />
                               </td>
@@ -2224,11 +2224,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <p className="text-sm mb-4" style={{ color: T.textMuted }}>Generate and print documents for Job #{activeJob.id}.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-800' },
-                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700' },
-                    { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700' },
-                    { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700' },
-                    { type: 'shipLabel', label: 'Ship Label', desc: 'Large-format shipping label with recipient address and job number', icon: Tag, color: 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700' },
+                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
+                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
+                    { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-ok-tint hover:bg-ok-tint border-ok text-ok' },
+                    { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-emphasis-tint hover:bg-emphasis-tint border-emphasis text-emphasis' },
+                    { type: 'shipLabel', label: 'Ship Label', desc: 'Large-format shipping label with recipient address and job number', icon: Tag, color: 'bg-danger-tint hover:bg-danger-tint border-danger text-danger' },
                   ].map(doc => {
                     const Icon = doc.icon;
                     return (
@@ -2267,7 +2267,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       {(hasCostData ? [
                         { label: 'Total Cost', value: totalCost.toFixed(2), tokenColor: T.text, note: 'From line item costs' },
                         { label: 'Gross Margin', value: grossMargin.toFixed(2), tokenColor: grossMargin >= 0 ? T.ok : T.danger, note: `${marginPct.toFixed(1)}% of revenue` },
-                        { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, tokenColor: marginPct >= 30 ? T.ok : marginPct >= 15 ? 'text-yellow-600' : T.danger, note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
+                        { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, tokenColor: marginPct >= 30 ? T.ok : marginPct >= 15 ? 'text-warn' : T.danger, note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
                       ] : [
                         { label: 'Est. Materials', value: ((activeJob.subtotal || 0) * 0.55).toFixed(2), tokenColor: T.text, note: '~55% estimate' },
                         { label: 'Est. Labour', value: ((activeJob.subtotal || 0) * 0.30).toFixed(2), tokenColor: T.text, note: '~30% estimate' },
@@ -2275,7 +2275,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       ]).map(row => (
                         <div key={row.label} className="rounded-lg p-4 text-center" style={{ background: T.hairlineSoft }}>
                           <p className="text-xs mb-1" style={{ color: T.textMuted }}>{row.label}</p>
-                          <p className={`text-2xl font-bold${row.tokenColor === 'text-yellow-600' ? ' text-yellow-600' : ''}`} style={row.tokenColor !== 'text-yellow-600' ? { color: row.tokenColor } : {}}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
+                          <p className={`text-2xl font-bold${row.tokenColor === 'text-warn' ? ' text-warn' : ''}`} style={row.tokenColor !== 'text-warn' ? { color: row.tokenColor } : {}}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
                           <p className="text-xs mt-1" style={{ color: T.textFaint }}>{row.note}</p>
                         </div>
                       ))}
@@ -2304,7 +2304,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <p className="font-medium mb-2" style={{ color: T.text }}>Decoration Types</p>
                       {entries.map(([type, v]) => (
                         <div key={type} className="flex justify-between py-1 text-xs last:border-0" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                          <span className="text-purple-700 font-medium">{type}</span>
+                          <span className="text-emphasis font-medium">{type}</span>
                           <span>{v.count} line{v.count > 1 ? 's' : ''}</span>
                           <span className="font-medium">${v.total.toFixed(2)}</span>
                         </div>
@@ -2326,7 +2326,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="relative ml-4 space-y-0" style={{ borderLeft: `2px solid ${T.hairline}` }}>
                       {[...statusChanges].reverse().map((c, i) => (
                         <div key={c.id || i} className="relative pl-6 pb-4">
-                          <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-blue-600' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
+                          <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-accent-strong' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>
@@ -2349,7 +2349,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); e.preventDefault(); } }}
                       placeholder="Add a note or comment… (Enter to submit, Shift+Enter for new line)"
                       rows={2}
-                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none"
                     />
                     <div className="flex flex-col gap-1">
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
@@ -2362,12 +2362,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* All comments unified */}
                 <h4 className="font-semibold pt-3" style={{ borderTop: `1px solid ${T.hairline}`, color: T.text }}>All Comments</h4>
                 {[...(activeJob.comments || [])].sort((a, b) => b.id - a.id).map((c, i) => (
-                  <div key={c.id || i} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'bg-blue-50 border border-blue-200' : ''}`} style={c.isInternal ? {} : { background: T.hairlineSoft }}>
+                  <div key={c.id || i} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'bg-accent-tint border border-accent' : ''}`} style={c.isInternal ? {} : { background: T.hairlineSoft }}>
                     <div className="flex items-center justify-between mb-1 gap-2">
                       <div className="flex items-center gap-1.5">
                         <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: T.accentTint, color: T.accentStrong }}>{(c.initials || '?').slice(0, 2)}</div>
                         <span className="font-medium text-xs" style={{ color: T.text }}>{c.authorName || c.initials}</span>
-                        {c.isInternal && <span className="text-[10px] bg-blue-200 text-blue-800 px-1 rounded font-medium">Internal</span>}
+                        {c.isInternal && <span className="text-[10px] bg-accent-strong text-accent-strong px-1 rounded font-medium">Internal</span>}
                       </div>
                       <span className="text-xs shrink-0" style={{ color: T.textFaint }}>{c.date} {c.time}</span>
                     </div>
@@ -2421,14 +2421,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       {activeJob.total > 0 && (
                         <div className="mt-2.5">
                           <div className="w-full rounded-full h-1.5" style={{ background: T.hairlineSoft }}>
-                            <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${balPct}%` }} />
+                            <div className="bg-ok h-1.5 rounded-full transition-all" style={{ width: `${balPct}%` }} />
                           </div>
                           <p className="text-[10px] mt-0.5 text-right" style={{ color: T.textFaint }}>{balPct.toFixed(0)}% paid</p>
                         </div>
                       )}
                       {activeJob.balanceDue > 0 && (
                         <button onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                          className="w-full mt-2 text-xs bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 font-semibold">
+                          className="w-full mt-2 text-xs bg-ok text-white py-1.5 rounded-lg hover:bg-ok font-semibold">
                           Record Payment
                         </button>
                       )}
@@ -2582,7 +2582,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[custDropdown.highlighted]) { e.preventDefault(); setJobForm(f => ({ ...f, ...applyCustomerToJobForm(hits[custDropdown.highlighted]) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none font-medium w-full text-xs placeholder-gray-300"
+                        className="bg-transparent border-0 p-0 focus:outline-none font-medium w-full text-xs placeholder-faint"
                         style={{color: T.text}}
                         placeholder="Type to search…" autoComplete="off" required />
                       {custDropdown.open && (() => {
@@ -2594,8 +2594,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />{q ? `"${custDropdown.query}"` : 'All customers'}</div>
                             {hits.map((c, i) => (
                               <div key={c.id||c.name} onMouseDown={() => { setJobForm(f => ({ ...f, ...applyCustomerToJobForm(c) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 font-bold text-[10px] flex items-center justify-center shrink-0">{c.name.charAt(0).toUpperCase()}</div>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
+                                <div className="w-6 h-6 rounded-full bg-accent-tint text-accent-strong font-bold text-[10px] flex items-center justify-center shrink-0">{c.name.charAt(0).toUpperCase()}</div>
                                 <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{c.name}</div>{c.id && <div className="text-xs font-mono" style={{color:T.textFaint}}>{c.id}</div>}</div>
                               </div>
                             ))}
@@ -2660,8 +2660,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b flex items-center gap-1" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}><Search className="w-3 h-3" />Card files</div>
                             {hits.map((cf, i) => { const addr = [cf.suburb, cf.state, cf.postcode].filter(Boolean).join(' '); return (
                               <div key={cf.shipCode} onMouseDown={() => { const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <div className="shrink-0 bg-green-100 text-green-700 text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">{cf.shipCode}</div>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
+                                <div className="shrink-0 bg-ok-tint text-ok text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">{cf.shipCode}</div>
                                 <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{cf.companyName||cf.shipCode}</div>{addr && <div className="text-xs truncate" style={{color:T.textFaint}}>{addr}</div>}</div>
                               </div>
                             ); })}
@@ -2711,8 +2711,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <div className="px-3 py-1.5 text-xs border-b" style={{color:T.textFaint,background:T.hairlineSoft,borderColor:T.hairline}}>Previous assignees</div>
                             {hits.map((name, i) => (
                               <div key={name} onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">{name.charAt(0).toUpperCase()}</div>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
+                                <div className="w-5 h-5 rounded-full bg-accent-tint text-accent-strong font-bold text-[10px] flex items-center justify-center shrink-0">{name.charAt(0).toUpperCase()}</div>
                                 <span className="text-xs" style={{color:T.text}}>{name}</span>
                               </div>
                             ))}
@@ -2755,7 +2755,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
-                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
@@ -2764,7 +2764,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Priority</span>
                       <select value={jobForm.priority} onChange={e => setJobForm({...jobForm, priority: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs ${jobForm.priority === 'Urgent' ? 'bg-red-100 text-red-700 border-red-300' : jobForm.priority === 'High' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs ${jobForm.priority === 'Urgent' ? 'bg-danger-tint text-danger border-danger' : jobForm.priority === 'High' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
                         style={jobForm.priority === 'Urgent' || jobForm.priority === 'High' ? {} : {background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Low</option><option>Normal</option><option>High</option><option>Urgent</option>
                       </select>
@@ -2772,7 +2772,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     {/* Type */}
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Type</span>
-                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Standard</option><option>Custom</option><option>Rush</option>
                       </select>
                     </div>
@@ -2781,7 +2781,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
                       <select value={jobForm.paymentStatus || 'unpaid'} onChange={e => setJobForm({...jobForm, paymentStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-300' : jobForm.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : 'bg-danger-tint text-danger border-danger'}`}>
                         <option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option>
                       </select>
                     </div>
@@ -2789,7 +2789,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
                       <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-blue-100 text-blue-800 border-blue-300' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
                         style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
                       </select>
@@ -2798,7 +2798,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : jobForm.proofStatus === 'sent' ? 'bg-amber-100 text-amber-700 border-amber-300' : jobForm.proofStatus === 'rejected' ? 'bg-red-100 text-red-700 border-red-300' : ''}`}
+                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-ok-tint text-ok border-ok' : jobForm.proofStatus === 'sent' ? 'bg-warn-tint text-warn border-warn' : jobForm.proofStatus === 'rejected' ? 'bg-danger-tint text-danger border-danger' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
@@ -2806,7 +2806,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="w-px h-4" style={{background: T.hairline}} />
                     {/* Lock — amber kept as identity colour */}
                     <button type="button" onClick={() => setJobForm(f => ({ ...f, locked: !f.locked }))}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : ''}`}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-accent-tint text-accent-strong border-accent hover:bg-accent-strong' : ''}`}
                       style={jobForm.locked ? {} : {background: T.panel, color: T.textMuted, borderColor: T.hairline}}>
                       {jobForm.locked ? '🔒 Locked' : '🔓 Unlocked'}
                     </button>
@@ -2832,7 +2832,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
                       if (util < 80) return null;
                       return (
-                        <div className={`flex items-center gap-2 px-3 py-2 text-xs ${overLimit ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'}`} style={{minWidth:200}}>
+                        <div className={`flex items-center gap-2 px-3 py-2 text-xs ${overLimit ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'}`} style={{minWidth:200}}>
                           <span className="text-base">{overLimit ? '🚫' : '⚠️'}</span>
                           <div>
                             <div className="font-semibold">{overLimit ? 'Over Credit Limit' : 'Near Limit'}</div>
@@ -2938,7 +2938,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type to search customers…"
                         autoComplete="off"
                         required
@@ -2960,9 +2960,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   setCustDropdown({ open: false, query: '', highlighted: 0 });
                                 }}
                                 onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}
                               >
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center flex-shrink-0">
                                   {c.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -2983,7 +2983,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const c = customers.find(c => c.id === e.target.value);
                           setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                       >
                         <option value="">Select Customer</option>
                         {customers.map(c => (
@@ -2999,7 +2999,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
                       if (util < 80) return null;
                       return (
-                        <div className={`rounded-lg px-3 py-2 text-sm flex items-start gap-2 ${overLimit ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                        <div className={`rounded-lg px-3 py-2 text-sm flex items-start gap-2 ${overLimit ? 'bg-danger-tint border border-danger text-danger' : 'bg-warn-tint border border-warn text-warn'}`}>
                           <span className="text-lg leading-tight">{overLimit ? '🚫' : '⚠️'}</span>
                           <div>
                             <span className="font-semibold">{overLimit ? 'Over Credit Limit' : 'Near Credit Limit'}</span>
@@ -3012,24 +3012,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Date In</label>
                         <input type="date" value={jobForm.dateIn} onChange={(e) => setJobForm({...jobForm, dateIn: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Due Date <span className="font-normal text-xs" style={{color: T.textFaint}}>(auto from terms)</span></label>
                         <input type="date" value={jobForm.due} onChange={(e) => setJobForm({...jobForm, due: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Out Date</label>
                         <input type="date" value={jobForm.out || ''} onChange={(e) => setJobForm({...jobForm, out: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Commitment Date</label>
                         <input type="date" value={jobForm.commitmentDate || ''} onChange={(e) => setJobForm({...jobForm, commitmentDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
                       </div>
                     </div>
                   </div>
@@ -3039,34 +3039,34 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Cust Ref #</label>
                       <input type="text" value={jobForm.custRef || ''} onChange={(e) => setJobForm({...jobForm, custRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Our Ref #</label>
                       <input type="text" value={jobForm.ourRef || ''} onChange={(e) => setJobForm({...jobForm, ourRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Quote Ref</label>
                         <input type="text" value={jobForm.quote} onChange={(e) => setJobForm({...jobForm, quote: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Valid Until</label>
                         <input type="date" value={jobForm.validityDate || ''} onChange={(e) => setJobForm({...jobForm, validityDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
+                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
                       </div>
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Description</label>
                       <input type="text" value={jobForm.description || ''} onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Project #</label>
                       <input type="text" value={jobForm.projectNo || ''} onChange={(e) => setJobForm({...jobForm, projectNo: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}} />
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                     </div>
                     <div className="relative">
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Assigned To</label>
@@ -3085,7 +3085,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type or pick…"
                         autoComplete="off"
                       />
@@ -3101,8 +3101,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <div key={name}
                                 onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
-                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">{name.charAt(0).toUpperCase()}</div>
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
+                                <div className="w-6 h-6 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center flex-shrink-0">{name.charAt(0).toUpperCase()}</div>
                                 <span className="text-xs" style={{color: T.text}}>{name}</span>
                               </div>
                             ))}
@@ -3139,7 +3139,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Ship-to code or address"
                         autoComplete="off"
                       />
@@ -3163,9 +3163,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     setShipDropdown({ open: false, query: '', highlighted: 0 });
                                   }}
                                   onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
-                                  className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                  className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}
                                 >
-                                  <div className="flex-shrink-0 bg-green-100 text-green-700 text-xs font-bold font-mono px-2 py-0.5 rounded">
+                                  <div className="flex-shrink-0 bg-ok-tint text-ok text-xs font-bold font-mono px-2 py-0.5 rounded">
                                     {cf.shipCode}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -3184,7 +3184,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <textarea
                         value={jobForm.shippingAddress}
                         onChange={(e) => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                       />
                     </div>
@@ -3193,7 +3193,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       <textarea
                         value={jobForm.notes || ''}
                         onChange={(e) => setJobForm({...jobForm, notes: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                         placeholder="Special instructions, artwork notes..."
                       />
@@ -3211,7 +3211,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <div className="flex items-center gap-1 flex-wrap">
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateModalOpen(true)}
-                          className="text-xs px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
+                          className="text-xs px-2 py-1 rounded hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <BookOpen className="w-3 h-3" />Load
                         </button>
                         {templateModalOpen && (
@@ -3225,11 +3225,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             ) : (
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {jobTemplates.map(tpl => (
-                                  <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-gray-50 group">
-                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-blue-800" style={{ color: T.text }}>
+                                  <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-panel-alt group">
+                                    <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-accent-strong" style={{ color: T.text }}>
                                       {tpl.name} <span className="text-xs font-normal" style={{ color: T.textFaint }}>({tpl.items?.length || 0} items)</span>
                                     </button>
-                                    <button type="button" onMouseDown={() => deleteJobTemplate(tpl.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button type="button" onMouseDown={() => deleteJobTemplate(tpl.id)} className="text-danger hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
@@ -3241,7 +3241,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </div>
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateSaveOpen(o => !o)}
-                          className="text-xs px-2 py-1 rounded hover:bg-slate-50 flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
+                          className="text-xs px-2 py-1 rounded hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <Save className="w-3 h-3" />Save
                         </button>
                         {templateSaveOpen && (
@@ -3250,24 +3250,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             <input autoFocus type="text" value={templateSaveName}
                               onChange={e => setTemplateSaveName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); if (e.key === 'Escape') setTemplateSaveOpen(false); }}
-                              className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" placeholder="e.g. Standard Polo Order" />
+                              className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus mb-2" placeholder="e.g. Standard Polo Order" />
                             <div className="flex gap-2">
                               <button type="button" onMouseDown={() => { if (templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); }}
-                                className="flex-1 bg-green-600 text-white text-xs py-1.5 rounded hover:bg-green-700 font-medium" disabled={!templateSaveName.trim()}>Save</button>
-                              <button type="button" onMouseDown={() => setTemplateSaveOpen(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                                className="flex-1 bg-ok text-white text-xs py-1.5 rounded hover:bg-ok font-medium" disabled={!templateSaveName.trim()}>Save</button>
+                              <button type="button" onMouseDown={() => setTemplateSaveOpen(false)} className="text-xs text-muted hover:text-header">Cancel</button>
                             </div>
                           </div>
                         )}
                       </div>
                       <button type="button" onClick={() => setJobForm(f => ({ ...f, items: [...f.items, { ...blankItem(), displayType: 'note' }] }))}
-                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Note</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Note</button>
                       <button type="button" onClick={addJobItem}
                         className="text-xs px-3 py-1 rounded flex items-center gap-0.5" style={{ background: T.accentStrong, color: T.panel }}>
                         <Plus className="w-3 h-3" />Add Item
                       </button>
                       <button type="button"
                         onClick={() => setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Freight', stockCode: 'FREIGHT', priceEx: 0, priceInc: 0, qty: 1, order: 1 }] }))}
-                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Freight</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Freight</button>
                       <button type="button"
                         onClick={() => {
                           const freightItem = jobForm.items.find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
@@ -3275,7 +3275,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           const levy = freightAmt > 0 ? Math.round(freightAmt * 0.13 * 100) / 100 : 0;
                           setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Fuel Levy', stockCode: 'FUEL-LEVY', priceEx: levy, priceInc: levy * 1.1, qty: 1, order: 1 }] }));
                         }}
-                        className="text-xs px-2 py-1 rounded hover:bg-slate-50" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Fuel Levy</button>
+                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Fuel Levy</button>
                     </div>
                   </div>
 
@@ -3292,11 +3292,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               { key: 'desc', label: 'Description', align: 'left' },
                               { key: 'order', label: 'Ord', align: 'right' },
                               { key: 'supply', label: 'Sup', align: 'right' },
-                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-indigo-500' },
+                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-accent' },
                               { key: 'priceEx', label: 'Price Ex', align: 'right' },
                               { key: 'priceInc', label: 'Price Inc', align: 'right' },
-                              { key: 'margin', label: 'M%', align: 'right', color: 'text-green-600' },
-                              { key: 'total', label: 'Total', align: 'right', color: 'text-gray-700' },
+                              { key: 'margin', label: 'M%', align: 'right', color: 'text-ok' },
+                              { key: 'total', label: 'Total', align: 'right', color: 'text-header' },
                               { key: 'hide', label: 'H', align: 'center' },
                             ].map(col => (
                               <th key={col.key} className={`text-${col.align} px-1 py-1 text-[11px] font-semibold relative ${col.color || ''}`} style={{ width: colWidths[col.key], borderRight: `1px solid ${T.hairline}`, color: col.color ? undefined : T.textMuted }}>
@@ -3317,13 +3317,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             const decOpt = decMethods.find(o => o.v === (item.decorationType || 'None')) || DEC_OPTIONS[0];
                             const hasDecoration = !isSec && !isNote && item.decorationType && item.decorationType !== 'None';
 
-                            const rowBg = isSec ? 'bg-blue-50' : isNote ? 'bg-yellow-50'
-                              : isOutOfStock ? 'bg-indigo-50' : isLowMargin ? 'bg-red-50'
-                              : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+                            const rowBg = isSec ? 'bg-accent-tint' : isNote ? 'bg-warn-tint'
+                              : isOutOfStock ? 'bg-accent-tint' : isLowMargin ? 'bg-danger-tint'
+                              : idx % 2 === 0 ? 'bg-white' : 'bg-panel-alt/50';
                             const borderLeft = isSec ? 'border-l-2 border-l-blue-500' : isNote ? 'border-l-2 border-l-yellow-300'
                               : isOutOfStock ? 'border-l-2 border-l-indigo-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
 
-                            const ci = 'w-full h-6 border border-gray-200 rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white';
+                            const ci = 'w-full h-6 border border-hairline rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white';
                             const ciR = ci + ' text-right tabular-nums';
 
                             const dIsOpen = descDropdown.idx === idx;
@@ -3354,7 +3354,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               return { inv, score: 0 };
                             }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 8) : [];
 
-                            const hl = (text, term) => { if (!term) return text; const i = (text || '').toLowerCase().indexOf(term.toLowerCase()); if (i === -1) return text; return <>{text.slice(0, i)}<strong className="text-gray-900">{text.slice(i, i + term.length)}</strong>{text.slice(i + term.length)}</>; };
+                            const hl = (text, term) => { if (!term) return text; const i = (text || '').toLowerCase().indexOf(term.toLowerCase()); if (i === -1) return text; return <>{text.slice(0, i)}<strong className="text-fg">{text.slice(i, i + term.length)}</strong>{text.slice(i + term.length)}</>; };
 
                             const selectInvItem = (inv) => {
                               setJobForm(f => {
@@ -3379,18 +3379,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                             return (
                               <React.Fragment key={idx}>
                                 <tr
-                                  className={`hover:bg-blue-50/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-blue-300' : ''}`}
+                                  className={`hover:bg-accent-tint/30 ${rowBg} ${borderLeft} ${ctxMenu.rowIdx === idx && ctxMenu.visible ? 'ring-1 ring-inset ring-accent-focus' : ''}`}
                                   style={{ borderBottom: `1px solid ${T.hairline}` }}
                                   onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ visible: true, x: e.clientX, y: e.clientY, rowIdx: idx }); }}
                                 >
                                   <td className="px-1 py-0.5 text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>
-                                    <span className={isSec ? 'text-blue-800 font-bold' : isNote ? 'text-yellow-600' : ''}>{isSec ? '§' : isNote ? '¶' : idx + 1}</span>
+                                    <span className={isSec ? 'text-accent-strong font-bold' : isNote ? 'text-warn' : ''}>{isSec ? '§' : isNote ? '¶' : idx + 1}</span>
                                   </td>
 
                                   {isSec || isNote ? (
                                     <td colSpan={11} className="px-2 py-0.5">
                                       <input type="text" value={item.description || ''} onChange={e => updateJobItem(idx, 'description', e.target.value)}
-                                        className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-blue-900' : 'italic text-yellow-700'}`}
+                                        className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-accent-strong' : 'italic text-warn'}`}
                                         placeholder={isSec ? 'Section heading…' : 'Note or instruction…'} />
                                     </td>
                                   ) : (<>
@@ -3414,15 +3414,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-center" style={{ color: T.textFaint }}>No matches</div>
                                             : skuScored.map(({ inv }, i) => (
                                               <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setSkuDropdown(s => ({ ...s, highlighted: i }))}
-                                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50`}
+                                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt`}
                                                 style={{ borderBottom: `1px solid ${T.hairline}`, background: i === skuDropdown.highlighted ? T.accentTint : undefined }}>
                                                 <div className="flex-1 min-w-0">
                                                   <div className="font-mono font-bold text-xs" style={{ color: T.accentStrong }}>{hl(inv.sku, skuQ)}</div>
                                                   <div className="text-xs truncate" style={{ color: T.textMuted }}>{inv.name}</div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                  <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-red-500' : 'text-green-600'}`}>{(inv.stock || 0) === 0 ? 'Out' : inv.stock}</div>
-                                                  {inv.unitPrice > 0 && <div className="text-gray-400 text-xs">${inv.unitPrice.toFixed(2)}</div>}
+                                                  <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-danger' : 'text-ok'}`}>{(inv.stock || 0) === 0 ? 'Out' : inv.stock}</div>
+                                                  {inv.unitPrice > 0 && <div className="text-faint text-xs">${inv.unitPrice.toFixed(2)}</div>}
                                                 </div>
                                               </div>
                                             ))}
@@ -3449,14 +3449,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{dq ? `"${dq}"` : 'All items'}</div>
                                           {dScored.map(({ inv }, i) => (
                                             <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setDescDropdown(s => ({ ...s, highlighted: i }))}
-                                              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                                              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt"
                                               style={{ borderBottom: `1px solid ${T.hairline}`, background: i === descDropdown.highlighted ? T.accentTint : undefined }}>
                                               <div className="flex-1 min-w-0">
                                                 <div className="font-semibold text-xs" style={{ color: T.text }}>{hl(inv.name || '', dq)}</div>
                                                 <div className="font-mono text-xs" style={{ color: T.accentStrong }}>{inv.sku}{inv.category && <span className="ml-1.5" style={{ color: T.textFaint }}>· {inv.category}</span>}</div>
                                               </div>
                                               <div className="text-right shrink-0">
-                                                <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-red-500' : 'text-green-600'}`}>{(inv.stock || 0) === 0 ? 'Out' : `${inv.stock}`}</div>
+                                                <div className={`text-xs font-semibold ${(inv.stock || 0) === 0 ? 'text-danger' : 'text-ok'}`}>{(inv.stock || 0) === 0 ? 'Out' : `${inv.stock}`}</div>
                                                 {inv.unitPrice > 0 && <div className="text-xs" style={{ color: T.textFaint }}>${inv.unitPrice.toFixed(2)}</div>}
                                               </div>
                                             </div>
@@ -3465,10 +3465,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                       )}
                                       <div className="flex items-center gap-0.5 mt-0.5">
                                         <input type="text" value={item.sizes || ''} onChange={e => updateJobItem(idx, 'sizes', e.target.value)}
-                                          className="flex-1 h-5 border border-gray-100 rounded px-1 text-[10px] text-gray-400 placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                          className="flex-1 h-5 border border-hairline-soft rounded px-1 text-[10px] text-faint placeholder-faint focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white"
                                           placeholder="Sizes…" />
                                         <button type="button" onClick={() => setMatrixPopup({ idx })} title="Size/colour matrix"
-                                          className="shrink-0 h-5 w-5 flex items-center justify-center border border-indigo-200 text-indigo-500 rounded hover:bg-indigo-50 text-[10px] font-bold leading-none">⊞</button>
+                                          className="shrink-0 h-5 w-5 flex items-center justify-center border border-accent text-accent rounded hover:bg-accent-tint text-[10px] font-bold leading-none">⊞</button>
                                       </div>
                                     </td>
 
@@ -3480,14 +3480,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {/* Supply */}
                                     <td className="px-0.5 py-0.5" style={{ width: colWidths.supply, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={isOutOfStock ? 0 : (item.supply || '')} onChange={e => updateJobItem(idx, 'supply', e.target.value)}
-                                        className={`${ciR} ${isOutOfStock ? 'bg-gray-100 text-gray-400 pointer-events-none' : ''}`}
+                                        className={`${ciR} ${isOutOfStock ? 'bg-hairline-soft text-faint pointer-events-none' : ''}`}
                                         min="0" readOnly={isOutOfStock} title={invItem != null ? `${invItem.stock} on hand` : ''} />
                                     </td>
 
                                     {/* B.Ord */}
                                     <td className="px-0.5 py-0.5" style={{ width: colWidths.bord, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="number" value={item.bOrd || ''} onChange={e => updateJobItem(idx, 'bOrd', e.target.value)}
-                                        className={`${ciR} ${item.bOrd > 0 ? 'text-indigo-600 font-semibold border-indigo-300 bg-indigo-50' : ''}`}
+                                        className={`${ciR} ${item.bOrd > 0 ? 'text-accent-strong font-semibold border-accent bg-accent-tint' : ''}`}
                                         min="0" placeholder="0" />
                                     </td>
 
@@ -3504,7 +3504,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                     {/* Margin % */}
                                     <td className="px-1 py-0.5 text-right" style={{ width: colWidths.margin, borderRight: `1px solid ${T.hairline}` }}
                                       title={isLowMargin ? `Low margin: ${(item.marginPercent || 0).toFixed(1)}% < 15%` : ''}>
-                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-red-600' : item.marginPercent > 0 ? 'text-green-600' : item.marginPercent < 0 ? 'text-red-500' : ''}`}
+                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-danger' : item.marginPercent > 0 ? 'text-ok' : item.marginPercent < 0 ? 'text-danger' : ''}`}
                                         style={!isLowMargin && item.marginPercent === 0 ? { color: T.textFaint } : undefined}>
                                         {item.priceEx > 0 && item.purchasePrice > 0 ? `${isLowMargin ? '⚠' : ''}${(item.marginPercent || 0).toFixed(0)}%` : '—'}
                                       </span>
@@ -3517,12 +3517,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                                     {/* Hide */}
                                     <td className="px-0.5 py-0.5 text-center" style={{ width: colWidths.hide, borderRight: `1px solid ${T.hairline}` }}>
-                                      <input type="checkbox" className="w-3 h-3 accent-blue-700 cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
+                                      <input type="checkbox" className="w-3 h-3 accent-accent-strong cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
                                     </td>
                                   </>)}
 
                                   <td className="px-0.5 py-0.5 text-center" style={{ width: 24 }}>
-                                    <button type="button" onClick={() => removeJobItem(idx)} className="text-red-200 hover:text-red-500 transition-colors">
+                                    <button type="button" onClick={() => removeJobItem(idx)} className="text-danger hover:text-danger transition-colors">
                                       <X className="w-3 h-3" />
                                     </button>
                                   </td>
@@ -3530,7 +3530,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                                 {/* Decoration sub-row */}
                                 {hasDecoration && (
-                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-purple-50/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-indigo-50/50' : decOpt.v === 'DTF' ? 'bg-cyan-50/50' : decOpt.v === 'SCR' ? 'bg-rose-50/50' : 'bg-gray-50/50'}`}
+                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
                                     style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
                                     <td colSpan={10} className="px-2 py-0.5">
@@ -3542,11 +3542,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         {openDecIdx === idx && (
                                           <>
                                             <div className="fixed inset-0 z-40" onClick={() => setOpenDecIdx(null)} />
-                                            <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden" style={{ minWidth: 148 }}>
+                                            <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-hairline rounded-lg shadow-xl overflow-hidden" style={{ minWidth: 148 }}>
                                               {decMethods.map(opt => (
                                                 <button key={opt.v} type="button"
                                                   onMouseDown={() => { updateJobItem(idx, 'decorationType', opt.v); setOpenDecIdx(null); }}
-                                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-gray-50 ${opt.v === (item.decorationType || 'None') ? 'font-semibold bg-gray-50' : 'text-gray-700'}`}>
+                                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-panel-alt ${opt.v === (item.decorationType || 'None') ? 'font-semibold bg-panel-alt' : 'text-header'}`}>
                                                   <span className={`w-2 h-2 rounded-full shrink-0 ${opt.dot}`} /> {opt.emoji} {opt.l}
                                                 </button>
                                               ))}
@@ -3560,12 +3560,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         )}
                                         {/* Generic decoration code — works for any method (EMB/TRS/SP/DTF…) */}
                                         <input type="text" value={item.decCode || item.embCode || item.trsCode || ''} onChange={e => updateJobItem(idx, 'decCode', e.target.value)}
-                                          className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
+                                          className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
                                         {/* EMB: stitch count */}
                                         {decOpt.v === 'EMB' && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="0" value={item.stitchCount || ''} onChange={e => updateJobItem(idx, 'stitchCount', e.target.value)}
-                                              className="h-5 w-20 border rounded px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white" style={{ borderColor: T.hairline }} placeholder="Stitches" />
+                                              className="h-5 w-20 border rounded px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white" style={{ borderColor: T.hairline }} placeholder="Stitches" />
                                             <span className="text-[10px] shrink-0" style={{ color: T.textFaint }}>sts</span>
                                           </div>
                                         )}
@@ -3573,13 +3573,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         {decOpt.hasColors && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="1" max="16" value={item.colorCount || ''} onChange={e => updateJobItem(idx, 'colorCount', e.target.value)}
-                                              className="h-5 w-12 border border-gray-200 rounded px-1.5 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white" placeholder="#" />
-                                            <span className="text-[10px] text-gray-400 shrink-0">col</span>
+                                              className="h-5 w-12 border border-hairline rounded px-1.5 text-[11px] text-muted focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white" placeholder="#" />
+                                            <span className="text-[10px] text-faint shrink-0">col</span>
                                           </div>
                                         )}
                                         {/* Position for all decoration types */}
                                         <select value={item.decPosition || ''} onChange={e => updateJobItem(idx, 'decPosition', e.target.value)}
-                                          className="h-5 border border-gray-200 rounded px-1 text-[11px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                                          className="h-5 border border-hairline rounded px-1 text-[11px] text-muted focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white">
                                           <option value="">Position…</option>
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
@@ -3601,25 +3601,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     const totalCost = productItems.reduce((s, i) => s + ((parseFloat(i.purchasePrice) || 0) * (parseFloat(i.order) || 0)), 0);
                     const grossMargin = (jobForm.subtotal || 0) - totalCost;
                     const marginPct = jobForm.subtotal > 0 ? (grossMargin / jobForm.subtotal * 100) : 0;
-                    const marginColor = marginPct >= 30 ? 'text-green-600' : marginPct >= 15 ? 'text-yellow-600' : 'text-red-500';
+                    const marginColor = marginPct >= 30 ? 'text-ok' : marginPct >= 15 ? 'text-warn' : 'text-danger';
                     return (
                       <div className="mt-2 pt-2 border-t flex justify-between items-start gap-4">
                         {totalCost > 0 && (
-                          <div className={`flex-1 rounded-lg p-2.5 text-xs border ${marginPct < 0 ? 'bg-red-50 border-red-200' : marginPct < 15 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className={`flex-1 rounded-lg p-2.5 text-xs border ${marginPct < 0 ? 'bg-danger-tint border-danger' : marginPct < 15 ? 'bg-warn-tint border-warn' : 'bg-panel-alt border-hairline'}`}>
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-1">
-                                {marginPct < 0 && <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-                                <span className="font-semibold text-gray-600">Profitability</span>
+                                {marginPct < 0 && <AlertCircle className="w-3.5 h-3.5 text-danger shrink-0" />}
+                                <span className="font-semibold text-muted">Profitability</span>
                               </div>
                               <span className={`font-bold text-sm ${marginColor}`}>{marginPct.toFixed(1)}%</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1 overflow-hidden">
+                            <div className="w-full bg-hairline rounded-full h-1.5 mb-1 overflow-hidden">
                               {marginPct >= 0
-                                ? <div className={`h-1.5 rounded-full ${marginPct >= 30 ? 'bg-green-500' : marginPct >= 15 ? 'bg-yellow-400' : 'bg-red-500'}`} style={{ width: `${Math.min(100, marginPct)}%` }} />
-                                : <div className="h-1.5 w-full bg-red-500 rounded-full animate-pulse" />
+                                ? <div className={`h-1.5 rounded-full ${marginPct >= 30 ? 'bg-ok' : marginPct >= 15 ? 'bg-warn' : 'bg-danger'}`} style={{ width: `${Math.min(100, marginPct)}%` }} />
+                                : <div className="h-1.5 w-full bg-danger rounded-full animate-pulse" />
                               }
                             </div>
-                            <div className="flex justify-between text-gray-500">
+                            <div className="flex justify-between text-muted">
                               <span>Cost: ${totalCost.toFixed(2)}</span>
                               <span className={marginColor}>Profit: ${grossMargin.toFixed(2)}</span>
                             </div>
@@ -3628,7 +3628,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         <div className="w-56 space-y-0.5 text-xs flex-shrink-0">
                           {totalCost > 0 && <div className="flex justify-between" style={{ color: T.textFaint }}><span>Total Cost:</span><span>${totalCost.toFixed(2)}</span></div>}
                           {totalCost > 0 && (
-                            <div className={`flex justify-between font-medium ${grossMargin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            <div className={`flex justify-between font-medium ${grossMargin >= 0 ? 'text-ok' : 'text-danger'}`}>
                               <span>Gross Margin:</span><span>${grossMargin.toFixed(2)} ({marginPct.toFixed(1)}%)</span>
                             </div>
                           )}
@@ -3649,24 +3649,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* Drag handle */}
                 <div
                   onMouseDown={startLineItemsResize}
-                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-blue-100 group flex-shrink-0"
+                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-accent-tint group flex-shrink-0"
                   style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}
                   title="Drag to resize"
                 >
-                  <div className="w-8 h-0.5 rounded-full group-hover:bg-blue-600" style={{ background: T.hairline }} />
+                  <div className="w-8 h-0.5 rounded-full group-hover:bg-accent-strong" style={{ background: T.hairline }} />
                 </div>
               </div>
 
               {apiError && (
-                <div className="mt-2 flex items-center justify-between bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-lg">
+                <div className="mt-2 flex items-center justify-between bg-danger-tint border border-danger text-danger text-xs px-3 py-2 rounded-lg">
                   <span>{apiError}</span>
-                  <button onClick={() => setApiError('')} className="ml-3 text-red-400 hover:text-red-600 text-sm font-bold">✕</button>
+                  <button onClick={() => setApiError('')} className="ml-3 text-danger hover:text-danger text-sm font-bold">✕</button>
                 </div>
               )}
               <div className="flex justify-end space-x-2 pt-4 border-t">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
+                  className="px-4 py-2 border rounded hover:bg-panel-alt"
                 >
                   Cancel
                 </button>
@@ -3675,7 +3675,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 )}
                 <button
                   onClick={saveJob}
-                  className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 flex items-center"
+                  className="px-4 py-2 bg-accent-strong text-white rounded hover:bg-accent-strong flex items-center"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Job
@@ -3811,7 +3811,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* Right: detail */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {!card ? (
-              <div className="bg-white rounded-lg shadow flex items-center justify-center h-64 text-gray-400">
+              <div className="bg-white rounded-lg shadow flex items-center justify-center h-64 text-faint">
                 <div className="text-center">
                   <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p>Select a card file to view details</p>
@@ -3823,18 +3823,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b">
                   <div>
                     <div className="flex items-center space-x-3">
-                      <span className="font-mono font-black text-2xl text-blue-800">{card.shipCode}</span>
-                      <span className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono">Group: {card.group}</span>
+                      <span className="font-mono font-black text-2xl text-accent-strong">{card.shipCode}</span>
+                      <span className="text-sm bg-hairline-soft text-muted px-2 py-1 rounded font-mono">Group: {card.group}</span>
                     </div>
-                    <p className="text-gray-500 text-sm mt-1">Customer Code: <span className="font-mono font-semibold text-gray-700">{card.customerCode}</span></p>
+                    <p className="text-muted text-sm mt-1">Customer Code: <span className="font-mono font-semibold text-header">{card.customerCode}</span></p>
                   </div>
                   <div className="flex space-x-2">
                     <button onClick={() => openEdit(card)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm">
+                      className="flex items-center space-x-1 px-3 py-2 bg-hairline-soft hover:bg-hairline rounded text-sm">
                       <Edit className="w-4 h-4" /><span>Edit</span>
                     </button>
                     <button onClick={() => deleteCard(card.shipCode)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded text-sm">
+                      className="flex items-center space-x-1 px-3 py-2 bg-danger-tint hover:bg-danger-tint text-danger rounded text-sm">
                       <Trash2 className="w-4 h-4" /><span>Delete</span>
                     </button>
                   </div>
@@ -3843,30 +3843,30 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {/* Address + contact */}
                 <div className="grid grid-cols-2 gap-6 px-6 py-5">
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Ship-To Address</p>
+                    <p className="text-xs font-semibold text-faint uppercase mb-3">Ship-To Address</p>
                     <div className="space-y-1">
-                      {card.companyName && <p className="font-semibold text-gray-800">{card.companyName}</p>}
-                      {card.address1 && <p className="text-sm text-gray-600">{card.address1}</p>}
-                      {card.address2 && <p className="text-sm text-gray-600">{card.address2}</p>}
+                      {card.companyName && <p className="font-semibold text-fg">{card.companyName}</p>}
+                      {card.address1 && <p className="text-sm text-muted">{card.address1}</p>}
+                      {card.address2 && <p className="text-sm text-muted">{card.address2}</p>}
                       {(card.suburb || card.state || card.postcode) && (
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted">
                           {[card.suburb, card.state, card.postcode].filter(Boolean).join('  ')}
                         </p>
                       )}
-                      {card.country && card.country !== 'AU' && <p className="text-sm text-gray-600">{card.country}</p>}
+                      {card.country && card.country !== 'AU' && <p className="text-sm text-muted">{card.country}</p>}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Contact</p>
+                    <p className="text-xs font-semibold text-faint uppercase mb-3">Contact</p>
                     <div className="space-y-2">
-                      {card.contactName && <p className="text-sm text-gray-700 flex items-center"><User className="w-4 h-4 mr-2 text-gray-400" />{card.contactName}</p>}
-                      {card.phone && <p className="text-sm text-gray-700 flex items-center"><Phone className="w-4 h-4 mr-2 text-gray-400" />{card.phone}</p>}
-                      {card.email && <p className="text-sm text-gray-700 flex items-center"><Mail className="w-4 h-4 mr-2 text-gray-400" />{card.email}</p>}
+                      {card.contactName && <p className="text-sm text-header flex items-center"><User className="w-4 h-4 mr-2 text-faint" />{card.contactName}</p>}
+                      {card.phone && <p className="text-sm text-header flex items-center"><Phone className="w-4 h-4 mr-2 text-faint" />{card.phone}</p>}
+                      {card.email && <p className="text-sm text-header flex items-center"><Mail className="w-4 h-4 mr-2 text-faint" />{card.email}</p>}
                     </div>
                     {card.notes && (
                       <div className="mt-4">
-                        <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Notes</p>
-                        <p className="text-sm text-gray-600 bg-gray-50 rounded p-2">{card.notes}</p>
+                        <p className="text-xs font-semibold text-faint uppercase mb-1">Notes</p>
+                        <p className="text-sm text-muted bg-panel-alt rounded p-2">{card.notes}</p>
                       </div>
                     )}
                   </div>
@@ -3874,29 +3874,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
                 {/* Related jobs */}
                 <div className="px-6 pb-5 border-t pt-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-3">Jobs shipping to {card.shipCode} ({relatedJobs.length})</p>
+                  <p className="text-xs font-semibold text-faint uppercase mb-3">Jobs shipping to {card.shipCode} ({relatedJobs.length})</p>
                   {relatedJobs.length === 0 ? (
-                    <p className="text-sm text-gray-400">No jobs found for this ship code.</p>
+                    <p className="text-sm text-faint">No jobs found for this ship code.</p>
                   ) : (
                     <div className="divide-y rounded border overflow-hidden">
                       {relatedJobs.slice(0, 10).map(j => (
                         <button key={j.id} onClick={() => { pinJob(j); setActiveModule('jobs'); }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between">
+                          className="w-full text-left px-4 py-2.5 hover:bg-accent-tint flex items-center justify-between">
                           <div>
-                            <span className="font-mono text-blue-800 font-semibold text-sm">#{j.id}</span>
-                            <span className="ml-3 text-sm text-gray-600">{j.customer}</span>
-                            {j.invoice && <span className="ml-2 text-xs text-gray-400">Inv: {j.invoice}</span>}
+                            <span className="font-mono text-accent-strong font-semibold text-sm">#{j.id}</span>
+                            <span className="ml-3 text-sm text-muted">{j.customer}</span>
+                            {j.invoice && <span className="ml-2 text-xs text-faint">Inv: {j.invoice}</span>}
                           </div>
                           <div className="flex items-center space-x-3">
-                            <span className="text-xs text-gray-500">{j.due}</span>
+                            <span className="text-xs text-muted">{j.due}</span>
                             <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                              { QUOTE:'bg-gray-100 text-gray-700', New:'bg-amber-100 text-amber-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-700' }[j.status] || 'bg-gray-100 text-gray-600'
+                              { QUOTE:'bg-hairline-soft text-header', New:'bg-warn-tint text-warn', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' }[j.status] || 'bg-hairline-soft text-muted'
                             }`}>{j.status}</span>
                           </div>
                         </button>
                       ))}
                       {relatedJobs.length > 10 && (
-                        <div className="px-4 py-2 text-xs text-gray-400 text-center">+{relatedJobs.length - 10} more — use job filter to see all</div>
+                        <div className="px-4 py-2 text-xs text-faint text-center">+{relatedJobs.length - 10} more — use job filter to see all</div>
                       )}
                     </div>
                   )}
@@ -3939,13 +3939,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const PARCEL_TYPES = ['Satchel', 'Box', 'Envelope', 'Pallet', 'Bag', 'Tube', 'Other'];
     const SERVICES = ['Standard', 'Express', 'Overnight', 'Same Day', 'Economy'];
     const TYPE_COLORS = {
-      Satchel: 'bg-blue-100 text-blue-800',
-      Box: 'bg-indigo-100 text-indigo-700',
-      Envelope: 'bg-yellow-100 text-yellow-800',
-      Pallet: 'bg-gray-100 text-gray-700',
-      Bag: 'bg-green-100 text-green-700',
-      Tube: 'bg-purple-100 text-purple-700',
-      Other: 'bg-gray-100 text-gray-600',
+      Satchel: 'bg-accent-tint text-accent-strong',
+      Box: 'bg-accent-tint text-accent-strong',
+      Envelope: 'bg-warn-tint text-warn',
+      Pallet: 'bg-hairline-soft text-header',
+      Bag: 'bg-ok-tint text-ok',
+      Tube: 'bg-emphasis-tint text-emphasis',
+      Other: 'bg-hairline-soft text-muted',
     };
 
     const openAddParcel = () => {
@@ -4085,7 +4085,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                               <p className="font-semibold truncate" style={{ color: T.text }}>{p.name}</p>
                               <div className="flex items-center space-x-2 mt-1">
                                 {p.parcelType && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[p.parcelType] || 'bg-gray-100 text-gray-600'}`}>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[p.parcelType] || 'bg-hairline-soft text-muted'}`}>
                                     {p.parcelType}
                                   </span>
                                 )}
@@ -4270,7 +4270,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                           onClick={() => setOfParcelForm(f => ({ ...f, parcelType: t }))}
                           className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                             ofParcelForm.parcelType === t
-                              ? (TYPE_COLORS[t] || 'bg-gray-200 text-gray-700') + ' border-current'
+                              ? (TYPE_COLORS[t] || 'bg-hairline text-header') + ' border-current'
                               : ''
                           }`}
                           style={ofParcelForm.parcelType === t ? {} : {
@@ -4446,97 +4446,97 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     >
 
       {/* ── Contextual Action Toolbar ── */}
-      <div className="shrink-0 bg-white border-b border-gray-200 overflow-x-auto">
+      <div className="shrink-0 bg-white border-b border-hairline overflow-x-auto">
         <div className="flex items-center h-11 px-3 gap-0.5">
 
           {/* ── JOBS ribbon (also used by Quotes) ── */}
           {(activeModule === 'jobs' || activeModule === 'quotes') && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Job</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Job</span>
               </button>
-              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View Job</span>
+              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View Job</span>
               </button>
-              <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
+              <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Return</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return</span>
               </button>
-              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Sales Reg.</span>
+              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Sales Reg.</span>
               </button>
-              <button onClick={() => { setShowJobDetail(false); setDispatchListOpen(true); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Dispatch</span>
+              <button onClick={() => { setShowJobDetail(false); setDispatchListOpen(true); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dispatch</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Payment</span>
+              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Jobs</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Jobs</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               <button
                 disabled={!activeJob || !['INVOICE','PAID'].includes(activeJob?.status)}
                 onClick={() => activeJob && setUnprintModal({ open: true, job: activeJob, loading: false, error: '' })}
                 title={!activeJob ? 'Open a job first' : !['INVOICE','PAID'].includes(activeJob?.status) ? `Only available on INVOICE or PAID jobs (current: ${activeJob?.status})` : 'Revert this job from invoiced back to FINISH'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
               >
-                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
+                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && openInvoiceDoc(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <FileText className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Invoice Job</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Copy className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Clone</span>
+              <button disabled={!activeJob} onClick={() => activeJob && openInvoiceDoc(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Invoice Job</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reply</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Forward</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Preview</span>
+              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Clone</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Print</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
-              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Excel</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reply</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Forward</span>
+              </button>
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Preview</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
+              </button>
+              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
               </button>
               <div className="relative">
                 <button
                   disabled={!activeJob}
                   onClick={() => setReportDropdownOpen(o => !o)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
                   title={activeJob ? 'Print a report for this job' : 'Open a job first'}
                 >
-                  <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
+                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
                 </button>
                 {reportDropdownOpen && activeJob && (
                   <div
-                    className="absolute left-0 top-full z-[9999] bg-white border border-gray-200 shadow-2xl min-w-[230px] py-1 text-[13px] rounded-lg"
+                    className="absolute left-0 top-full z-[9999] bg-white border border-hairline shadow-2xl min-w-[230px] py-1 text-[13px] rounded-lg"
                     onMouseLeave={() => setReportDropdownOpen(false)}
                     onClick={() => setReportDropdownOpen(false)}
                   >
@@ -4556,13 +4556,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { type: 'pdf-invoice',      label: 'Download Invoice (PDF)',      action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=${activeJob?.status === 'QUOTE' ? 'quote' : 'invoice'}`, '_blank') },
                     ].map((r, i) =>
                       r === null
-                        ? <div key={i} className="border-t border-gray-200 my-0.5" />
+                        ? <div key={i} className="border-t border-hairline my-0.5" />
                         : (
                           <button
                             key={i}
                             disabled={r.disabled}
                             onClick={r.action}
-                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-gray-300 cursor-default' : 'hover:bg-blue-600 hover:text-white text-gray-700'}`}
+                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-faint cursor-default' : 'hover:bg-accent-strong hover:text-white text-header'}`}
                           >
                             <FileText className="w-3.5 h-3.5 shrink-0" />{r.label}
                           </button>
@@ -4577,201 +4577,201 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 disabled={!activeJob}
                 title={activeJob ? 'View job notes & internal comments' : 'Open a job first'}
                 onClick={() => { if (activeJob) { pinJob(activeJob); setShowJobDetail(true); } }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
               >
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
+                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── PURCHASES ribbon ── */}
           {activeModule === 'purchase-orders' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('po')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Purchase</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('po')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Purchase</span>
               </button>
-              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit</span>
+              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
+              <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Return to Vendor</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">PO Other</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return to Vendor</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Pick/Pack</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">PO Other</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Job Reports</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Job Reports</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── CARDFILES ribbon ── */}
           {activeModule === 'card-files' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add CardFile</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add CardFile</span>
               </button>
-              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit</span>
+              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Time Sheets</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Time Sheets</span>
               </button>
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Quick Add</span>
+              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Quick Add</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Merge</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Merge</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reassign</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reassign</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Payment</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">CF Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">CF Other</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Print</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <FileSpreadsheet className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Excel</span>
+            </div>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── ITEMS (order-requirements) ribbon ── */}
           {activeModule === 'order-requirements' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Item</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Item</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit Item</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Item</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create Item List</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create Item List</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── STOCK (inventory) ribbon ── */}
           {activeModule === 'inventory' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Stock</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Stock</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">View/Edit Stock</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Stock</span>
               </button>
-              <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Create List</span>
+              <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <RefreshCw className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Transfer Stock</span>
+              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <RefreshCw className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Transfer Stock</span>
               </button>
-              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Adjustments</span>
+              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Adjustments</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ShoppingCart className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Procurement</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <ShoppingCart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Procurement</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Packaging</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Packaging</span>
               </button>
-              <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Warehouse className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Warehouse Mgmt</span>
+              <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Warehouse Mgmt</span>
               </button>
-              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <CheckSquare className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stocktake</span>
+              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <CheckSquare className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stocktake</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Tag className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Promo Pricing</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Tag className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Promo Pricing</span>
               </button>
-              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Flow</span>
+              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Flow</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Unprint</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Other</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Pick/Pack</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               <div className="relative">
-                <button onClick={() => setStockReportOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                  <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report ▾</span>
+                <button onClick={() => setStockReportOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
                 </button>
                 {stockReportOpen && (
                   <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-64 py-1.5 overflow-hidden" onMouseLeave={() => setStockReportOpen(false)}>
@@ -4812,8 +4812,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       ];
                       return reports.map(r => (
                         <button key={r.label} onClick={() => { if (!inv.length) { notify('No stock data loaded yet.', { type: 'error' }); return; } r.run(); setStockReportOpen(false); notify(`Exported ${r.label} (CSV)`, { type: 'success' }); }}
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-gray-400" />{r.label}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-faint" />{r.label}
                         </button>
                       ));
                     })()}
@@ -4822,21 +4822,21 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
           </>)}
 
           {/* ── ACCOUNTS ribbon ── */}
           {activeModule === 'accounts' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-indigo-600" /><span className="text-[9px] text-indigo-700 whitespace-nowrap font-semibold">AP Bills</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <DollarSign className="w-5 h-5 text-accent-strong" /><span className="text-[9px] text-accent-strong whitespace-nowrap font-semibold">AP Bills</span>
               </button>
               {[['Users','Debtors (AR)'],['BarChart3','GST/BAS']].map(([, lbl]) => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                  <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                  <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
@@ -4844,259 +4844,259 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
           {/* ── MANAGEMENT (reports) ribbon ── */}
           {activeModule === 'reports' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Reports</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reports</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <PieChart className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Business Analysis</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <PieChart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Business Analysis</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Budgets</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Budgets</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Cash Flow</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Cash Flow</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Commission Rates</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Commission Rates</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Management</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Management</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── DASHBOARD ribbon ── */}
           {activeModule === 'dashboard' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Security</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Dashboard Board</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dashboard Board</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Edit</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Trash2 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Delete</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Trash2 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Delete</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Select Layout</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Select Layout</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Combine Layout</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Combine Layout</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Add Widget</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Widget</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Manage Widget</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Widget</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Widgets</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Widgets</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── SCHEDULING ribbon ── */}
           {activeModule === 'scheduling' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Schedule','Task','Day','Work Week','Week','Month','Year','Timeline','Current Job','Scheduler View'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                  <Calendar className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                  <Calendar className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Group By</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Group By</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Search className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Filters</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Search className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Filters</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Resources</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Resources</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Manage Views</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Views</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Views</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Views</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
             </div>
           </>)}
 
           {/* ── EMAIL ribbon ── */}
           {activeModule === 'email' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Create List','Email Rules','Templates','Editor','Archive','Email Security','Send/Receive','Delete','Unread/Read','Move'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                  <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                  <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Other</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Other</span>
               </button>
             </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Email Actions</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── eBUSINESS ribbon ── */}
           {activeModule === 'ebusiness' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Vendor Prices</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Vendor Prices</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Customer Feeds</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Customer Feeds</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">eBusiness Trans.</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">eBusiness Trans.</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── DOCUMENTS ribbon ── */}
           {activeModule === 'documents' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Add Document','View/Edit','Create List','Open','Save Properties','Delete','Actions','Checkout','Cancel Checkout','Large Icons','Show Hidden','List Layout'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                  <FileText className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                  <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Related</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
           </>)}
 
           {/* ── TOOLS (import) ribbon ── */}
           {activeModule === 'import' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Options</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Options</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Setup</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Setup</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Status</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Status</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Watchouts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Watchouts</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Currency Rates</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Currency Rates</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Groups</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Groups</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Security</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">History</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">History</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Integration Config</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Integration Config</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Scripting Engine</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripting Engine</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Report Designer</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report Designer</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Download className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Import Data</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Data</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools Other</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Other</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Tools Accounts</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Accounts</span>
               </button>
             </div>
           </>)}
 
           {/* ── SETTINGS ribbon ── */}
           {activeModule === 'settings' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Company','Bank & Payments','SMTP'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                  <Settings className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">{lbl}</span>
+                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                  <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
@@ -5104,39 +5104,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
           {/* ── USER MANAGEMENT ribbon ── */}
           {activeModule === 'user-management' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => {}} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Users className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Users</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => {}} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Users</span>
               </button>
             </div>
           </>)}
 
           {/* ── CUSTOMERS ribbon (hidden tab, accessible via nav) ── */}
           {activeModule === 'customers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('customer')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New Customer</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('customer')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Customer</span>
               </button>
             </div>
           </>)}
 
           {/* ── SUPPLIERS ribbon ── */}
           {activeModule === 'suppliers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">New Supplier</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Supplier</span>
               </button>
             </div>
           </>)}
 
           {/* ── WAREHOUSE ribbon ── */}
           {activeModule === 'warehouse' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors">
-                <Package className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Stock Items</span>
+            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
+              <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
+                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Items</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
-                <Warehouse className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Bin Map</span>
+              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Bin Map</span>
               </button>
             </div>
           </>)}
@@ -5145,29 +5145,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       </div>
 
       {/* ── Live KPI Bar ── */}
-      <div className="shrink-0 bg-white border-b border-gray-100 flex items-center h-8 select-none overflow-x-auto shadow-sm">
+      <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
-          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-red-500',    bg: 'hover:bg-red-50',    text: 'text-red-600',    border: 'border-red-100',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-indigo-500', bg: 'hover:bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', action: () => { setActiveModule('jobs'); } },
-          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-purple-500', bg: 'hover:bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', action: () => { setActiveModule('jobs'); setFilterStatus('FINISH'); } },
-          { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-amber-500',  bg: 'hover:bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-100',  action: () => setActiveModule('inventory') },
-          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-blue-500',   bg: 'hover:bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-100',   action: () => setActiveModule('jobs') },
+          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
+          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => { setActiveModule('jobs'); } },
+          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => { setActiveModule('jobs'); setFilterStatus('FINISH'); } },
+          { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-warn',  bg: 'hover:bg-warn-tint',  text: 'text-warn',  border: 'border-warn',  action: () => setActiveModule('inventory') },
+          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => setActiveModule('jobs') },
         ].map((item) => {
           const Icon = item.icon;
           return (
             <button key={item.label} onClick={item.action}
-              className={`flex items-center gap-1.5 px-3 h-full border-r border-gray-200 text-[11px] font-medium transition-colors whitespace-nowrap ${item.bg} ${item.urgent ? item.text : 'text-gray-500'}`}>
-              <Icon className={`w-3 h-3 shrink-0 ${item.urgent ? item.iconColor : 'text-gray-300'}`} />
-              <span className={`font-bold tabular-nums ${item.urgent ? '' : 'text-gray-400'}`}>{item.count}</span>
+              className={`flex items-center gap-1.5 px-3 h-full border-r border-hairline text-[11px] font-medium transition-colors whitespace-nowrap ${item.bg} ${item.urgent ? item.text : 'text-muted'}`}>
+              <Icon className={`w-3 h-3 shrink-0 ${item.urgent ? item.iconColor : 'text-faint'}`} />
+              <span className={`font-bold tabular-nums ${item.urgent ? '' : 'text-faint'}`}>{item.count}</span>
               <span className={item.urgent ? 'opacity-90' : 'opacity-60'}>{item.label}</span>
             </button>
           );
         })}
         <div className="flex-1" />
         {dashboardStats.overdueJobs.length === 0 && dashboardStats.dueToday.length === 0 && dashboardStats.toInvoice === 0 && (
-          <span className="text-[10px] text-emerald-600 font-medium px-3 flex items-center gap-1"><CheckSquare className="w-3 h-3" />All caught up</span>
+          <span className="text-[10px] text-ok font-medium px-3 flex items-center gap-1"><CheckSquare className="w-3 h-3" />All caught up</span>
         )}
-        <span className="text-[10px] text-gray-400 px-3 border-l border-gray-200 whitespace-nowrap hidden lg:block">
+        <span className="text-[10px] text-faint px-3 border-l border-hairline whitespace-nowrap hidden lg:block">
           {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       </div>
@@ -5179,12 +5179,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <main className="flex-1 p-5 overflow-auto bg-[#f8fafc]">
             {loading && (
-              <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Loading data...</div>
+              <div className="flex items-center justify-center py-20 text-faint text-sm">Loading data...</div>
             )}
             {apiError && (
-              <div className="mb-4 flex items-center justify-between bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+              <div className="mb-4 flex items-center justify-between bg-danger-tint border border-danger text-danger text-sm px-4 py-3 rounded-lg">
                 <span>{apiError}</span>
-                <button onClick={() => setApiError('')} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+                <button onClick={() => setApiError('')} className="ml-4 text-danger hover:text-danger">✕</button>
               </div>
             )}
             {adminMode ? (
@@ -5224,12 +5224,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   <AccountsPayableModule suppliers={suppliers} />
                 )}
                 {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
-                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                      <Settings className="w-8 h-8 text-gray-300" />
+                  <div className="flex flex-col items-center justify-center h-64 text-faint">
+                    <div className="w-16 h-16 bg-hairline-soft rounded-full flex items-center justify-center mb-4">
+                      <Settings className="w-8 h-8 text-faint" />
                     </div>
-                    <p className="text-lg font-medium text-gray-500 capitalize">{activeModule.replace(/-/g,' ')}</p>
-                    <p className="text-sm text-gray-400 mt-1">This module is coming soon</p>
+                    <p className="text-lg font-medium text-muted capitalize">{activeModule.replace(/-/g,' ')}</p>
+                    <p className="text-sm text-faint mt-1">This module is coming soon</p>
                   </div>
                 )}
               </>
@@ -5239,8 +5239,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       </div>
 
       {/* ── Status Bar ── */}
-      <div className="shrink-0 bg-white border-t border-gray-100 flex items-center px-4 gap-4 text-[11px] text-gray-400" style={{ height: 24 }}>
-        <span className="text-gray-500 font-medium">{currentUser?.full_name || currentUser?.username}</span>
+      <div className="shrink-0 bg-white border-t border-hairline-soft flex items-center px-4 gap-4 text-[11px] text-faint" style={{ height: 24 }}>
+        <span className="text-muted font-medium">{currentUser?.full_name || currentUser?.username}</span>
         <span>·</span>
         <span>TIG ERP v1.0</span>
         <div className="flex-1" />
@@ -5250,25 +5250,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       {/* ── Nav context menu ── */}
       {navCtxMenu.open && (
         <div
-          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[180px] text-sm"
+          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-hairline py-1 min-w-[180px] text-sm"
           style={{ left: navCtxMenu.x, top: navCtxMenu.y }}
           onClick={e => e.stopPropagation()}
         >
           {navCtxMenu.itemId === 'jobs' && navCtxMenu.pinnedJobId && (
             <button
               onClick={() => { unpinJob(navCtxMenu.pinnedJobId); setNavCtxMenu(m => ({ ...m, open: false })); }}
-              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-xs text-header hover:bg-panel-alt flex items-center gap-2"
             >
-              <X className="w-3.5 h-3.5 text-gray-400" />
+              <X className="w-3.5 h-3.5 text-faint" />
               Close #{navCtxMenu.pinnedJobId}
             </button>
           )}
           {navCtxMenu.itemId === 'jobs' && pinnedJobs.length > 0 && (
             <button
               onClick={() => { setPinnedJobs([]); setActiveJob(null); setShowJobDetail(false); setNavCtxMenu(m => ({ ...m, open: false })); }}
-              className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-xs text-header hover:bg-panel-alt flex items-center gap-2"
             >
-              <X className="w-3.5 h-3.5 text-gray-400" />
+              <X className="w-3.5 h-3.5 text-faint" />
               Close all nodes
             </button>
           )}
@@ -5307,10 +5307,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               }}
             >
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-500" />
-                <span className="text-sm font-semibold text-gray-700">Quick Job Lookup</span>
+                <FileText className="w-4 h-4 text-accent" />
+                <span className="text-sm font-semibold text-header">Quick Job Lookup</span>
               </div>
-              <button onMouseDown={e => e.stopPropagation()} onClick={() => setF12Open(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+              <button onMouseDown={e => e.stopPropagation()} onClick={() => setF12Open(false)} className="p-1 rounded-lg hover:bg-hairline-soft text-faint hover:text-muted">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -5318,7 +5318,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {/* Input */}
             <div className="px-5 pb-4">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-faint" />
                 <input
                   ref={f12Ref}
                   type="text"
@@ -5343,7 +5343,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     }
                   }}
                   placeholder="Job #, invoice, or ref…"
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-9 pr-4 py-2.5 border border-hairline rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus focus:border-transparent"
                   autoComplete="off"
                 />
               </div>
@@ -5357,28 +5357,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   (j.invoice || '').toLowerCase().includes(q) ||
                   (j.custRef || '').toLowerCase().includes(q)
                 ).slice(0, 6);
-                const statusColors = { QUOTE:'bg-gray-100 text-gray-600', New:'bg-blue-100 text-blue-700', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-yellow-100 text-yellow-800', PROOF:'bg-purple-100 text-purple-700', PRINT:'bg-indigo-100 text-indigo-700', 'Pick/Pack':'bg-cyan-100 text-cyan-700', FINISH:'bg-green-100 text-green-800', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-800', CANCEL:'bg-red-100 text-red-600' };
+                const statusColors = { QUOTE:'bg-hairline-soft text-muted', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
                 return hits.length > 0 ? (
-                  <div className="mt-2 rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                  <div className="mt-2 rounded-xl border border-hairline-soft overflow-hidden shadow-sm">
                     {hits.map(j => (
                       <button key={j.id}
                         onMouseDown={() => { pinJob(j); setActiveModule('jobs'); setF12Open(false); setF12Input(''); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 text-left border-b border-gray-50 last:border-0 transition-colors">
-                        <span className="font-mono text-xs font-bold text-indigo-600 w-24 shrink-0">#{j.id}</span>
-                        <span className="flex-1 text-sm text-gray-700 truncate">{j.customer}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColors[j.status] || 'bg-gray-100 text-gray-600'}`}>{j.status}</span>
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent-tint text-left border-b border-hairline-soft last:border-0 transition-colors">
+                        <span className="font-mono text-xs font-bold text-accent-strong w-24 shrink-0">#{j.id}</span>
+                        <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColors[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 text-xs text-gray-400 text-center">No jobs match "{f12Input}"</p>
+                  <p className="mt-3 text-xs text-faint text-center">No jobs match "{f12Input}"</p>
                 );
               })()}
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-xs text-gray-400">Press <kbd className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Enter</kbd> to open · <kbd className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Esc</kbd> to close</span>
+            <div className="px-5 py-3 bg-panel-alt border-t border-hairline-soft flex items-center justify-between">
+              <span className="text-xs text-faint">Press <kbd className="bg-white border border-hairline rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Enter</kbd> to open · <kbd className="bg-white border border-hairline rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Esc</kbd> to close</span>
               <button
                 onMouseDown={() => {
                   const q = f12Input.trim().toLowerCase();
@@ -5386,7 +5386,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   const hit = jobs.find(j => (j.id || '').toLowerCase().includes(q) || (j.customer || '').toLowerCase().includes(q));
                   if (hit) { pinJob(hit); setActiveModule('jobs'); setF12Open(false); setF12Input(''); }
                 }}
-                className="bg-blue-700 text-white text-xs font-medium px-4 py-1.5 rounded-lg hover:bg-blue-800 transition-colors"
+                className="bg-accent-strong text-white text-xs font-medium px-4 py-1.5 rounded-lg hover:bg-accent-strong transition-colors"
               >
                 Open Job
               </button>
@@ -5428,54 +5428,54 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         <DraggableModal onClose={() => setShowUserSettings(false)} cardClass="w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">User Settings</h2>
-              <button onClick={() => setShowUserSettings(false)}><X className="w-5 h-5 text-gray-500" /></button>
+              <button onClick={() => setShowUserSettings(false)}><X className="w-5 h-5 text-muted" /></button>
             </div>
             <div className="mb-6 pb-6 border-b">
-              <p className="text-sm text-gray-500 mb-1">Logged in as</p>
+              <p className="text-sm text-muted mb-1">Logged in as</p>
               <p className="font-semibold">{currentUser?.full_name || currentUser?.username}</p>
-              <p className="text-xs text-gray-400 capitalize mt-0.5">{currentUser?.role?.replace('_', ' ')} account</p>
+              <p className="text-xs text-faint capitalize mt-0.5">{currentUser?.role?.replace('_', ' ')} account</p>
             </div>
             <h3 className="font-semibold mb-4">Change Password</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Current Password</label>
+                <label className="block text-sm text-muted mb-1">Current Password</label>
                 <input
                   type="password"
                   value={changePasswordForm.current}
                   onChange={e => setChangePasswordForm(f => ({ ...f, current: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                   placeholder="Enter current password"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">New Password</label>
+                <label className="block text-sm text-muted mb-1">New Password</label>
                 <input
                   type="password"
                   value={changePasswordForm.newPass}
                   onChange={e => setChangePasswordForm(f => ({ ...f, newPass: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                   placeholder="At least 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Confirm New Password</label>
+                <label className="block text-sm text-muted mb-1">Confirm New Password</label>
                 <input
                   type="password"
                   value={changePasswordForm.confirm}
                   onChange={e => setChangePasswordForm(f => ({ ...f, confirm: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                   placeholder="Repeat new password"
                 />
               </div>
               {changePasswordMsg && (
-                <p className={`text-sm ${changePasswordMsg.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-sm ${changePasswordMsg.includes('success') ? 'text-ok' : 'text-danger'}`}>
                   {changePasswordMsg}
                 </p>
               )}
               <button
                 onClick={handleChangePassword}
                 disabled={!changePasswordForm.current || !changePasswordForm.newPass}
-                className="w-full bg-blue-700 text-white py-2 rounded-lg hover:bg-blue-800 disabled:opacity-40 text-sm font-medium"
+                className="w-full bg-accent-strong text-white py-2 rounded-lg hover:bg-accent-strong disabled:opacity-40 text-sm font-medium"
               >
                 Change Password
               </button>
@@ -5489,16 +5489,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         <div className="fixed inset-0 z-[99999] bg-black/50" onClick={() => setGlobalSearchOpen(false)}>
           <div className="absolute left-1/2 top-[15%] -translate-x-1/2 w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-5 py-4 border-b">
-              <Search className="w-5 h-5 text-gray-400 shrink-0" />
+              <Search className="w-5 h-5 text-faint shrink-0" />
               <input
                 ref={globalSearchRef}
                 type="text"
                 value={globalSearchQuery}
                 onChange={e => setGlobalSearchQuery(e.target.value)}
                 placeholder="Search jobs, customers, inventory, suppliers…"
-                className="flex-1 text-base outline-none text-gray-700 placeholder-gray-400"
+                className="flex-1 text-base outline-none text-header placeholder-faint"
               />
-              <kbd className="text-xs bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 text-gray-500 font-mono shrink-0">Esc</kbd>
+              <kbd className="text-xs bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 text-muted font-mono shrink-0">Esc</kbd>
             </div>
             {globalSearchQuery.length > 0 && (() => {
               const q = globalSearchQuery.toLowerCase();
@@ -5516,67 +5516,67 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 (s.name||'').toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q)
               ).slice(0, 2);
               const hasResults = jobHits.length || custHits.length || invHits.length || suppHits.length;
-              const statusBg = { QUOTE:'bg-gray-100 text-gray-600', ORDER:'bg-indigo-100 text-indigo-700', 'In Progress':'bg-yellow-100 text-yellow-700', FINISH:'bg-green-100 text-green-700', INVOICE:'bg-teal-100 text-teal-700', PAID:'bg-emerald-100 text-emerald-700', CANCEL:'bg-red-100 text-red-700' };
+              const statusBg = { QUOTE:'bg-hairline-soft text-muted', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
               return (
-                <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100">
+                <div className="max-h-[60vh] overflow-y-auto divide-y divide-hairline-soft">
                   {jobHits.length > 0 && (
                     <div>
-                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-widest">Jobs</p>
+                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-faint uppercase tracking-widest">Jobs</p>
                       {jobHits.map(j => (
-                        <div key={j.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-blue-50 cursor-pointer"
+                        <div key={j.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-accent-tint cursor-pointer"
                           onClick={() => { pinJob(j); setActiveModule('jobs'); setGlobalSearchOpen(false); }}>
-                          <FileText className="w-4 h-4 text-blue-400 shrink-0" />
-                          <span className="font-mono text-sm font-bold text-blue-600 w-20 shrink-0">#{j.id}</span>
-                          <span className="flex-1 text-sm text-gray-700 truncate">{j.customer}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBg[j.status] || 'bg-gray-100 text-gray-500'}`}>{j.status}</span>
-                          <span className="text-sm font-semibold text-gray-600 shrink-0">${(j.total||0).toFixed(0)}</span>
+                          <FileText className="w-4 h-4 text-accent shrink-0" />
+                          <span className="font-mono text-sm font-bold text-accent-strong w-20 shrink-0">#{j.id}</span>
+                          <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBg[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
+                          <span className="text-sm font-semibold text-muted shrink-0">${(j.total||0).toFixed(0)}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {custHits.length > 0 && (
                     <div>
-                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-widest">Customers</p>
+                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-faint uppercase tracking-widest">Customers</p>
                       {custHits.map(c => (
-                        <div key={c.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-blue-50 cursor-pointer"
+                        <div key={c.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-accent-tint cursor-pointer"
                           onClick={() => { setActiveModule('customers'); setGlobalSearchOpen(false); }}>
-                          <Users className="w-4 h-4 text-green-400 shrink-0" />
-                          <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">{(c.name||'?').charAt(0)}</div>
-                          <span className="flex-1 text-sm text-gray-700 truncate">{c.name}</span>
-                          <span className="text-xs text-gray-400 font-mono">{c.id}</span>
+                          <Users className="w-4 h-4 text-ok shrink-0" />
+                          <div className="w-7 h-7 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center shrink-0">{(c.name||'?').charAt(0)}</div>
+                          <span className="flex-1 text-sm text-header truncate">{c.name}</span>
+                          <span className="text-xs text-faint font-mono">{c.id}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {invHits.length > 0 && (
                     <div>
-                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-widest">Inventory</p>
+                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-faint uppercase tracking-widest">Inventory</p>
                       {invHits.map(i => (
-                        <div key={i.sku} className="flex items-center gap-3 px-5 py-2.5 hover:bg-blue-50 cursor-pointer"
+                        <div key={i.sku} className="flex items-center gap-3 px-5 py-2.5 hover:bg-accent-tint cursor-pointer"
                           onClick={() => { setActiveModule('inventory'); setGlobalSearchOpen(false); }}>
-                          <Package className="w-4 h-4 text-purple-400 shrink-0" />
-                          <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{i.sku}</span>
-                          <span className="flex-1 text-sm text-gray-700 truncate">{i.name}</span>
-                          <span className={`text-xs font-semibold ${i.stock < i.reorderLevel ? 'text-red-600' : 'text-green-600'}`}>{i.stock} in stock</span>
+                          <Package className="w-4 h-4 text-emphasis shrink-0" />
+                          <span className="font-mono text-xs bg-hairline-soft px-1.5 py-0.5 rounded shrink-0">{i.sku}</span>
+                          <span className="flex-1 text-sm text-header truncate">{i.name}</span>
+                          <span className={`text-xs font-semibold ${i.stock < i.reorderLevel ? 'text-danger' : 'text-ok'}`}>{i.stock} in stock</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {suppHits.length > 0 && (
                     <div>
-                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-widest">Suppliers</p>
+                      <p className="px-5 pt-3 pb-1 text-xs font-semibold text-faint uppercase tracking-widest">Suppliers</p>
                       {suppHits.map(s => (
-                        <div key={s.code} className="flex items-center gap-3 px-5 py-2.5 hover:bg-blue-50 cursor-pointer"
+                        <div key={s.code} className="flex items-center gap-3 px-5 py-2.5 hover:bg-accent-tint cursor-pointer"
                           onClick={() => { setActiveModule('suppliers'); setGlobalSearchOpen(false); }}>
-                          <Truck className="w-4 h-4 text-indigo-400 shrink-0" />
-                          <span className="flex-1 text-sm text-gray-700 truncate">{s.name}</span>
-                          <span className="text-xs text-gray-400 font-mono">{s.code}</span>
+                          <Truck className="w-4 h-4 text-accent shrink-0" />
+                          <span className="flex-1 text-sm text-header truncate">{s.name}</span>
+                          <span className="text-xs text-faint font-mono">{s.code}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   {!hasResults && (
-                    <div className="px-5 py-10 text-center text-gray-400">
+                    <div className="px-5 py-10 text-center text-faint">
                       <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No results for "{globalSearchQuery}"</p>
                     </div>
@@ -5585,13 +5585,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               );
             })()}
             {globalSearchQuery.length === 0 && (
-              <div className="px-5 py-6 text-center text-gray-400">
+              <div className="px-5 py-6 text-center text-faint">
                 <p className="text-sm">Type to search across jobs, customers, inventory, and suppliers</p>
-                <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-400">
-                  <span><kbd className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 font-mono">Alt+J</kbd> Jobs</span>
-                  <span><kbd className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 font-mono">Alt+C</kbd> Customers</span>
-                  <span><kbd className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 font-mono">Alt+I</kbd> Inventory</span>
-                  <span><kbd className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 font-mono">F12</kbd> Quick Job</span>
+                <div className="flex items-center justify-center gap-4 mt-3 text-xs text-faint">
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+J</kbd> Jobs</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+C</kbd> Customers</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+I</kbd> Inventory</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">F12</kbd> Quick Job</span>
                 </div>
               </div>
             )}
@@ -5608,38 +5608,38 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: T.textFaint, borderBottom: `1px solid ${T.hairline}` }}>Row {ctxMenu.rowIdx + 1}</div>
-          <button onMouseDown={() => { ctxAddAbove(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
-            <Plus className="w-3.5 h-3.5 text-blue-500" /> Add Row Above
+          <button onMouseDown={() => { ctxAddAbove(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-accent-tint flex items-center gap-2" style={{ color: T.text }}>
+            <Plus className="w-3.5 h-3.5 text-accent" /> Add Row Above
           </button>
-          <button onMouseDown={() => { ctxAddBelow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
-            <Plus className="w-3.5 h-3.5 text-blue-500" /> Add Row Below
+          <button onMouseDown={() => { ctxAddBelow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-accent-tint flex items-center gap-2" style={{ color: T.text }}>
+            <Plus className="w-3.5 h-3.5 text-accent" /> Add Row Below
           </button>
-          <button onMouseDown={() => { ctxDuplicate(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2" style={{ color: T.text }}>
-            <span className="text-blue-500 font-bold text-xs">⧉</span> Duplicate Row
+          <button onMouseDown={() => { ctxDuplicate(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-accent-tint flex items-center gap-2" style={{ color: T.text }}>
+            <span className="text-accent font-bold text-xs">⧉</span> Duplicate Row
           </button>
           <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
           <button onMouseDown={() => { ctxMoveUp(ctxMenu.rowIdx); closeCtx(); }} disabled={ctxMenu.rowIdx === 0}
-            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
+            className="w-full text-left px-4 py-2 hover:bg-panel-alt flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
             <span style={{ color: T.textMuted }}>↑</span> Move Up
           </button>
           <button onMouseDown={() => { ctxMoveDown(ctxMenu.rowIdx); closeCtx(); }} disabled={ctxMenu.rowIdx >= jobForm.items.length - 1}
-            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
+            className="w-full text-left px-4 py-2 hover:bg-panel-alt flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: T.text }}>
             <span style={{ color: T.textMuted }}>↓</span> Move Down
           </button>
           <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
           <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: T.textFaint }}>Row Type</div>
           {[['product','📦 Product Line'],['section','§ Section Header'],['note','¶ Note / Instruction']].map(([t, label]) => (
             <button key={t} onMouseDown={() => { setJobForm(f => { const items = [...f.items]; items[ctxMenu.rowIdx] = { ...items[ctxMenu.rowIdx], displayType: t }; return { ...f, items }; }); closeCtx(); }}
-              className={`w-full text-left px-4 py-1.5 hover:bg-blue-50 flex items-center gap-2 text-xs ${jobForm.items[ctxMenu.rowIdx]?.displayType === t ? 'font-bold text-blue-700' : ''}`}
+              className={`w-full text-left px-4 py-1.5 hover:bg-accent-tint flex items-center gap-2 text-xs ${jobForm.items[ctxMenu.rowIdx]?.displayType === t ? 'font-bold text-accent-strong' : ''}`}
               style={jobForm.items[ctxMenu.rowIdx]?.displayType === t ? undefined : { color: T.textMuted }}>
               {label} {jobForm.items[ctxMenu.rowIdx]?.displayType === t ? '✓' : ''}
             </button>
           ))}
           <div className="my-1" style={{ borderTop: `1px solid ${T.hairline}` }} />
-          <button onMouseDown={() => { ctxClearRow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 text-blue-800">
-            <span className="text-blue-600">⊘</span> Clear Row
+          <button onMouseDown={() => { ctxClearRow(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-accent-tint flex items-center gap-2 text-accent-strong">
+            <span className="text-accent-strong">⊘</span> Clear Row
           </button>
-          <button onMouseDown={() => { removeJobItem(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-red-50 flex items-center gap-2 text-red-600">
+          <button onMouseDown={() => { removeJobItem(ctxMenu.rowIdx); closeCtx(); }} className="w-full text-left px-4 py-2 hover:bg-danger-tint flex items-center gap-2 text-danger">
             <X className="w-3.5 h-3.5" /> Delete Row
           </button>
         </div>

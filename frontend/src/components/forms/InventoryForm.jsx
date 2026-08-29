@@ -12,7 +12,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="text"
                     value={inventoryForm.sku}
                     onChange={(e) => setInventoryForm({...inventoryForm, sku: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     disabled={editingItem !== null}
                     required
@@ -36,7 +36,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                       if (e.key === 'Enter' && hits[categoryDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, category: hits[categoryDropdown.highlighted]}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }
                       if (e.key === 'Escape') setCategoryDropdown({ open: false, query: '', highlighted: 0 });
                     }}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     placeholder="e.g. Apparel, Accessories…"
                     autoComplete="off"
@@ -55,7 +55,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                             <div key={cat}
                               onMouseDown={() => { setInventoryForm({...inventoryForm, category: cat}); setCategoryDropdown({ open: false, query: '', highlighted: 0 }); }}
                               onMouseEnter={() => setCategoryDropdown(s => ({ ...s, highlighted: i }))}
-                              className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === categoryDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                              className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === categoryDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
                               <span className="font-medium" style={{color: T.text}}>{cat}</span>
                               <span className="text-xs" style={{color: T.textFaint}}>{count} item{count !== 1 ? 's' : ''}</span>
                             </div>
@@ -72,7 +72,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="text"
                     value={inventoryForm.name}
                     onChange={(e) => setInventoryForm({...inventoryForm, name: e.target.value})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     required
                   />
@@ -84,7 +84,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="number"
                     value={inventoryForm.stock}
                     onChange={(e) => setInventoryForm({...inventoryForm, stock: parseInt(e.target.value) || 0})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
@@ -96,7 +96,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="number"
                     value={inventoryForm.reorderLevel}
                     onChange={(e) => setInventoryForm({...inventoryForm, reorderLevel: parseInt(e.target.value) || 0})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
@@ -119,7 +119,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                       if (e.key === 'Enter' && hits[locationDropdown.highlighted]) { e.preventDefault(); setInventoryForm({...inventoryForm, location: hits[locationDropdown.highlighted]}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }
                       if (e.key === 'Escape') setLocationDropdown({ open: false, query: '', highlighted: 0 });
                     }}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     placeholder="e.g., A-15-3"
                     autoComplete="off"
@@ -138,7 +138,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                             <div key={loc}
                               onMouseDown={() => { setInventoryForm({...inventoryForm, location: loc}); setLocationDropdown({ open: false, query: '', highlighted: 0 }); }}
                               onMouseEnter={() => setLocationDropdown(s => ({ ...s, highlighted: i }))}
-                              className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === locationDropdown.highlighted ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                              className={`flex items-center justify-between px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === locationDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
                               <span className="font-mono font-bold" style={{color: T.text}}>{loc}</span>
                               {occupant && <span className="text-xs truncate max-w-[140px]" style={{color: T.textFaint}}>{occupant.name}</span>}
                             </div>
@@ -161,7 +161,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                         supplier: selectedSupplier?.name || ''
                       });
                     }}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                   >
                     <option value="">Select Supplier</option>
@@ -178,7 +178,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     step="0.01"
                     value={inventoryForm.unitCost}
                     onChange={(e) => setInventoryForm({...inventoryForm, unitCost: parseFloat(e.target.value) || 0})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
@@ -191,7 +191,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     step="0.01"
                     value={inventoryForm.unitPrice}
                     onChange={(e) => setInventoryForm({...inventoryForm, unitPrice: parseFloat(e.target.value) || 0})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
@@ -203,7 +203,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="number"
                     value={inventoryForm.minOrder}
                     onChange={(e) => setInventoryForm({...inventoryForm, minOrder: parseInt(e.target.value) || 1})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="1"
                   />
@@ -215,7 +215,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                     type="number"
                     value={inventoryForm.leadTime}
                     onChange={(e) => setInventoryForm({...inventoryForm, leadTime: parseInt(e.target.value) || 7})}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     min="1"
                   />
@@ -225,7 +225,7 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
               <div className="flex justify-end space-x-2 pt-4" style={{borderTop: `1px solid ${T.hairline}`}}>
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 rounded hover:bg-gray-50"
+                  className="px-4 py-2 rounded hover:bg-panel-alt"
                   style={{border: `1px solid ${T.hairline}`, color: T.textMuted}}
                 >
                   Cancel

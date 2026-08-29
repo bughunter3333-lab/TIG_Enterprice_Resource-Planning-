@@ -73,11 +73,11 @@ export default function ImportModule() {
   ];
 
   const colorMap = {
-    blue:   { card: 'border-blue-200 bg-blue-50',     badge: 'bg-blue-100 text-blue-800',     btn: 'bg-blue-700 hover:bg-blue-800',     icon: 'text-blue-800' },
-    green:  { card: 'border-green-200 bg-green-50',   badge: 'bg-green-100 text-green-700',   btn: 'bg-green-600 hover:bg-green-700',   icon: 'text-green-600' },
-    purple: { card: 'border-purple-200 bg-purple-50', badge: 'bg-purple-100 text-purple-700', btn: 'bg-purple-600 hover:bg-purple-700', icon: 'text-purple-600' },
-    orange: { card: 'border-indigo-200 bg-indigo-50', badge: 'bg-indigo-100 text-indigo-700', btn: 'bg-indigo-600 hover:bg-indigo-700', icon: 'text-indigo-600' },
-    teal:   { card: 'border-teal-200 bg-teal-50',     badge: 'bg-teal-100 text-teal-700',     btn: 'bg-teal-600 hover:bg-teal-700',     icon: 'text-teal-600' },
+    blue:   { card: 'border-accent bg-accent-tint',     badge: 'bg-accent-tint text-accent-strong',     btn: 'bg-accent-strong hover:bg-accent-strong',     icon: 'text-accent-strong' },
+    green:  { card: 'border-ok bg-ok-tint',   badge: 'bg-ok-tint text-ok',   btn: 'bg-ok hover:bg-ok',   icon: 'text-ok' },
+    purple: { card: 'border-emphasis bg-emphasis-tint', badge: 'bg-emphasis-tint text-emphasis', btn: 'bg-emphasis hover:bg-emphasis', icon: 'text-emphasis' },
+    orange: { card: 'border-accent bg-accent-tint', badge: 'bg-accent-tint text-accent-strong', btn: 'bg-accent-strong hover:bg-accent-strong', icon: 'text-accent-strong' },
+    teal:   { card: 'border-accent bg-accent-tint',     badge: 'bg-accent-tint text-accent-strong',     btn: 'bg-accent-strong hover:bg-accent-strong',     icon: 'text-accent-strong' },
   };
 
   const handleFileSelect = async (key, file) => {
@@ -132,9 +132,9 @@ export default function ImportModule() {
       </div>
 
       {/* How it works */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+      <div className="bg-accent-tint border border-accent rounded-lg p-4 text-sm text-accent-strong">
         <p className="font-semibold mb-1">How it works</p>
-        <ol className="list-decimal list-inside space-y-1 text-blue-800">
+        <ol className="list-decimal list-inside space-y-1 text-accent-strong">
           <li>Download the CSV template for the data type you want to import.</li>
           <li>Fill it in with your existing data (or export from your old ERP and use the flexible column matching — most common column names are recognised automatically).</li>
           <li>Upload the file below and click <strong>Import</strong>.</li>
@@ -185,7 +185,7 @@ export default function ImportModule() {
                 </div>
 
                 {/* File drop zone */}
-                <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg px-4 py-5 cursor-pointer transition-colors ${file ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}>
+                <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg px-4 py-5 cursor-pointer transition-colors ${file ? 'border-ok bg-ok-tint' : 'border-hairline hover:border-accent hover:bg-accent-tint'}`}>
                   <input
                     type="file"
                     accept=".csv"
@@ -194,9 +194,9 @@ export default function ImportModule() {
                   />
                   {file ? (
                     <div className="text-center">
-                      <FileSpreadsheet className="w-8 h-8 text-green-500 mx-auto mb-1" />
-                      <p className="text-sm font-medium text-green-700">{file.name}</p>
-                      <p className="text-xs text-green-600">
+                      <FileSpreadsheet className="w-8 h-8 text-ok mx-auto mb-1" />
+                      <p className="text-sm font-medium text-ok">{file.name}</p>
+                      <p className="text-xs text-ok">
                         {preview
                           ? `${preview.row_count} rows · ${preview.columns.length} columns`
                             + (preview.detected_type && preview.detected_type !== 'unknown' ? ` · auto-detected: ${preview.detected_type}` : '')
@@ -243,11 +243,11 @@ export default function ImportModule() {
 
                 {/* Result banner */}
                 {result && result.ok && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                    <p className="font-semibold text-green-800 mb-1">Import complete</p>
+                  <div className="bg-ok-tint border border-ok rounded-lg p-3 text-sm">
+                    <p className="font-semibold text-ok mb-1">Import complete</p>
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="rounded p-2" style={{ background: T.panel }}>
-                        <p className="text-lg font-bold text-green-600">{result.inserted}</p>
+                        <p className="text-lg font-bold text-ok">{result.inserted}</p>
                         <p className="text-xs" style={{ color: T.textMuted }}>Inserted</p>
                       </div>
                       <div className="rounded p-2" style={{ background: T.panel }}>
@@ -261,10 +261,10 @@ export default function ImportModule() {
                     </div>
                     {result.errors && result.errors.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-xs font-medium text-red-700 mb-1">{result.errors.length} row(s) had errors:</p>
+                        <p className="text-xs font-medium text-danger mb-1">{result.errors.length} row(s) had errors:</p>
                         <div className="max-h-24 overflow-y-auto space-y-0.5">
                           {result.errors.map((e, i) => (
-                            <p key={i} className="text-xs text-red-600">Row {e.row}: {e.error}</p>
+                            <p key={i} className="text-xs text-danger">Row {e.row}: {e.error}</p>
                           ))}
                         </div>
                       </div>
@@ -272,7 +272,7 @@ export default function ImportModule() {
                   </div>
                 )}
                 {result && !result.ok && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                  <div className="bg-danger-tint border border-danger rounded-lg p-3 text-sm text-danger">
                     <p className="font-semibold">Import failed</p>
                     <p className="text-xs mt-1">{result.error}</p>
                   </div>

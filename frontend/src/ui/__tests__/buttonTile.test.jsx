@@ -11,6 +11,15 @@ import { describe, expect, test } from 'vitest';
 import Button from '../Button';
 import { T } from '../tokens';
 
+// The expectations are derived from the tokens rather than written out as
+// literals. This test is named for the idea that the tile is a shape and not a
+// palette, and it was asserting a specific steel blue — so it failed the moment
+// the palette moved, which is the one thing it was meant not to care about.
+const rgb = (hex) => {
+  const [, r, g, b] = /^#(\w{2})(\w{2})(\w{2})$/.exec(hex);
+  return `rgb(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)})`;
+};
+
 describe('the tile shape', () => {
   test('stacks its icon over its label', () => {
     render(<Button size="tile">Job Sheet</Button>);
@@ -27,14 +36,10 @@ describe('the tile shape', () => {
 
   test('it is a shape, not a palette — the variants still apply', () => {
     const { rerender } = render(<Button size="tile" variant="primary">Edit</Button>);
-    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(
-      'rgb(28, 95, 168)' // T.accentStrong
-    );
+    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(rgb(T.accentStrong));
 
     rerender(<Button size="tile" variant="secondary">Clone</Button>);
-    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(
-      'rgb(255, 255, 255)' // T.panel
-    );
+    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(rgb(T.panel));
   });
 
   test('every corner in the system comes from one radius token', () => {

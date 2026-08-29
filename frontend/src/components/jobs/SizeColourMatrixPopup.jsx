@@ -41,13 +41,13 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
     <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-800">Size / Colour Matrix</h3>
+          <h3 className="font-bold text-fg">Size / Colour Matrix</h3>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+            <label className="flex items-center gap-1.5 text-xs text-muted cursor-pointer select-none">
               <input type="checkbox" checked={useColours} onChange={e => { setUseColours(e.target.checked); if (e.target.checked && colours.length === 0) setColours(['Black','White']); }} className="rounded" />
               Track by colour
             </label>
-            <button onClick={onClose}><X className="w-4 h-4 text-gray-400 hover:text-gray-600" /></button>
+            <button onClick={onClose}><X className="w-4 h-4 text-faint hover:text-muted" /></button>
           </div>
         </div>
 
@@ -55,49 +55,49 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
           <table className="text-xs border-collapse">
             <thead>
               <tr>
-                {useColours && <th className="px-3 py-1.5 bg-gray-50 border border-gray-200 font-semibold text-gray-600 text-left min-w-24">Colour</th>}
+                {useColours && <th className="px-3 py-1.5 bg-panel-alt border border-hairline font-semibold text-muted text-left min-w-24">Colour</th>}
                 {sizes.map(sz => (
-                  <th key={sz} className="px-2 py-1.5 bg-gray-50 border border-gray-200 font-bold text-gray-700 text-center min-w-14">
+                  <th key={sz} className="px-2 py-1.5 bg-panel-alt border border-hairline font-bold text-header text-center min-w-14">
                     <div className="flex items-center justify-between gap-1">
                       <span>{sz}</span>
-                      <button onClick={() => setSizes(ss => ss.filter(s => s !== sz))} className="text-gray-300 hover:text-red-400 leading-none">×</button>
+                      <button onClick={() => setSizes(ss => ss.filter(s => s !== sz))} className="text-faint hover:text-danger leading-none">×</button>
                     </div>
                   </th>
                 ))}
-                <th className="px-2 py-1.5 bg-indigo-50 border border-gray-200 font-bold text-indigo-600 text-center">Total</th>
+                <th className="px-2 py-1.5 bg-accent-tint border border-hairline font-bold text-accent-strong text-center">Total</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((colour) => (
                 <tr key={colour || 'none'}>
                   {useColours && (
-                    <td className="px-3 py-1 border border-gray-200 bg-gray-50 font-medium text-gray-700 flex items-center gap-1">
+                    <td className="px-3 py-1 border border-hairline bg-panel-alt font-medium text-header flex items-center gap-1">
                       <span className="flex-1">{colour}</span>
-                      <button onClick={() => setColours(cs => cs.filter(c => c !== colour))} className="text-gray-300 hover:text-red-400 text-xs leading-none">×</button>
+                      <button onClick={() => setColours(cs => cs.filter(c => c !== colour))} className="text-faint hover:text-danger text-xs leading-none">×</button>
                     </td>
                   )}
                   {sizes.map(sz => (
-                    <td key={sz} className="border border-gray-200 p-0.5">
+                    <td key={sz} className="border border-hairline p-0.5">
                       <input type="number" min="0" value={getQty(colour, sz) || ''}
                         onChange={e => setQty(colour, sz, e.target.value)}
-                        className="w-full text-center text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 py-0.5" />
+                        className="w-full text-center text-sm font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus rounded px-1 py-0.5" />
                     </td>
                   ))}
-                  <td className="px-2 py-1 border border-indigo-100 bg-indigo-50 text-center font-bold text-indigo-600">
-                    {totalByColour(colour) || <span className="text-gray-300">—</span>}
+                  <td className="px-2 py-1 border border-accent bg-accent-tint text-center font-bold text-accent-strong">
+                    {totalByColour(colour) || <span className="text-faint">—</span>}
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                {useColours && <td className="px-3 py-1 border border-gray-200 bg-indigo-50 font-bold text-indigo-700">Total</td>}
+                {useColours && <td className="px-3 py-1 border border-hairline bg-accent-tint font-bold text-accent-strong">Total</td>}
                 {sizes.map(sz => (
-                  <td key={sz} className="px-2 py-1 border border-gray-200 bg-indigo-50 text-center font-bold text-indigo-700">
-                    {totalBySize(sz) || <span className="text-gray-300">—</span>}
+                  <td key={sz} className="px-2 py-1 border border-hairline bg-accent-tint text-center font-bold text-accent-strong">
+                    {totalBySize(sz) || <span className="text-faint">—</span>}
                   </td>
                 ))}
-                <td className="px-2 py-1 border border-indigo-200 bg-indigo-100 text-center font-bold text-indigo-900 text-sm">{grandTotal}</td>
+                <td className="px-2 py-1 border border-accent bg-accent-tint text-center font-bold text-accent-strong text-sm">{grandTotal}</td>
               </tr>
             </tfoot>
           </table>
@@ -105,32 +105,32 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
 
         <div className="flex flex-wrap gap-3 text-xs">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-gray-500 font-medium">Add size:</span>
+            <span className="text-muted font-medium">Add size:</span>
             {SIZE_PRESETS.filter(s => !sizes.includes(s)).slice(0, 8).map(s => (
-              <button key={s} onClick={() => addSize(s)} className="px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-100">{s}</button>
+              <button key={s} onClick={() => addSize(s)} className="px-2 py-0.5 border border-hairline rounded hover:bg-hairline-soft">{s}</button>
             ))}
             <input value={newSize} onChange={e => setNewSize(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSize.trim()) { addSize(newSize.trim()); setNewSize(''); }}}
-              placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus" />
           </div>
           {useColours && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-gray-500 font-medium">Add colour:</span>
+              <span className="text-muted font-medium">Add colour:</span>
               {COLOUR_PRESETS.filter(c => !colours.includes(c)).slice(0, 6).map(c => (
-                <button key={c} onClick={() => addColour(c)} className="px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-100">{c}</button>
+                <button key={c} onClick={() => addColour(c)} className="px-2 py-0.5 border border-hairline rounded hover:bg-hairline-soft">{c}</button>
               ))}
               <input value={newColour} onChange={e => setNewColour(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && newColour.trim()) { addColour(newColour.trim()); setNewColour(''); }}}
-                placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus" />
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-600">Grand total: <span className="font-bold text-gray-900 text-base">{grandTotal} pcs</span></span>
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-hairline-soft">
+          <span className="text-sm text-muted">Grand total: <span className="font-bold text-fg text-base">{grandTotal} pcs</span></span>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleApply} className="px-5 py-2 bg-blue-800 text-white rounded-lg text-sm font-semibold hover:bg-blue-800">
+            <button onClick={onClose} className="px-4 py-2 border rounded-lg text-sm text-header hover:bg-panel-alt">Cancel</button>
+            <button onClick={handleApply} className="px-5 py-2 bg-accent-strong text-white rounded-lg text-sm font-semibold hover:bg-accent-strong">
               Apply{grandTotal > 0 ? ` (${grandTotal} pcs)` : ''}
             </button>
           </div>

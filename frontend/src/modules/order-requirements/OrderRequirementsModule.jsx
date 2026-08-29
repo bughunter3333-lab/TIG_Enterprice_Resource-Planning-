@@ -161,7 +161,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                         <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
                         <td className="px-3 py-2.5" style={{ color: T.textMuted }}>{req.supplier || <span style={{ color: T.textFaint }}>—</span>}</td>
-                        <td className="px-3 py-2.5 text-right font-bold text-indigo-600">{req.total_b_ord}</td>
+                        <td className="px-3 py-2.5 text-right font-bold text-accent-strong">{req.total_b_ord}</td>
                         <td className="px-3 py-2.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${req.unit_cost.toFixed(2)}` : <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5 text-right font-semibold" style={{ color: T.text }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toLocaleString('en-AU', { maximumFractionDigits: 2 })}` : <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5">
@@ -171,7 +171,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
                                 style={{ background: T.hairlineSoft, color: T.textMuted }}
                                 title={`${j.customer_name} — ${j.b_ord} units`}>
-                                #{j.job_id} <span className="text-indigo-500 font-bold">×{j.b_ord}</span>
+                                #{j.job_id} <span className="text-accent font-bold">×{j.b_ord}</span>
                               </button>
                             ))}
                           </div>
@@ -184,7 +184,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                         </td>
                         <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
-                        <td className="px-3 py-2.5 text-right font-bold text-indigo-600">{req.total_qty}</td>
+                        <td className="px-3 py-2.5 text-right font-bold text-accent-strong">{req.total_qty}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1">
                             {req.jobs.map(j => (
@@ -192,7 +192,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
                                 style={{ background: T.hairlineSoft, color: T.textMuted }}
                                 title={`${j.customer_name} — ${j.qty} units`}>
-                                #{j.job_id} <span className="text-indigo-500 font-bold">×{j.qty}</span>
+                                #{j.job_id} <span className="text-accent font-bold">×{j.qty}</span>
                               </button>
                             ))}
                           </div>
@@ -210,14 +210,14 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                 </td>
                 {orderReqTab === 'garment' ? (
                   <>
-                    <td className="px-3 py-2 text-right text-xs font-bold text-indigo-600">{reqs.reduce((t, r) => t + r.total_b_ord, 0)}</td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-accent-strong">{reqs.reduce((t, r) => t + r.total_b_ord, 0)}</td>
                     <td className="px-3 py-2" />
                     <td className="px-3 py-2 text-right text-xs font-bold" style={{ color: T.text }}>${reqs.reduce((t, r) => t + r.total_b_ord * (r.unit_cost || 0), 0).toLocaleString('en-AU', { maximumFractionDigits: 2 })}</td>
                     <td className="px-3 py-2" />
                   </>
                 ) : (
                   <>
-                    <td className="px-3 py-2 text-right text-xs font-bold text-indigo-600">{reqs.reduce((t, r) => t + r.total_qty, 0)}</td>
+                    <td className="px-3 py-2 text-right text-xs font-bold text-accent-strong">{reqs.reduce((t, r) => t + r.total_qty, 0)}</td>
                     <td className="px-3 py-2" />
                   </>
                 )}
@@ -242,7 +242,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>PO Number *</label>
                 <input value={orderReqPoModal.poId} onChange={e => setOrderReqPoModal(m => ({ ...m, poId: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent-focus"
                   style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="PO-20260429" />
               </div>
               <div>
@@ -254,21 +254,21 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                     const d = new Date(e.target.value + 'T00:00:00');
                     setOrderReqPoModal(m => ({ ...m, expectedDate: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` }));
                   }}
-                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                   style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
               </div>
             </div>
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Supplier</label>
               <input value={orderReqPoModal.supplierName} onChange={e => setOrderReqPoModal(m => ({ ...m, supplierName: e.target.value, supplierId: '' }))}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
                 style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Supplier name…" list="req-supp-list" />
               <datalist id="req-supp-list">{suppliers.map(s => <option key={s.code} value={s.name} />)}</datalist>
             </div>
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Notes</label>
               <textarea value={orderReqPoModal.notes} onChange={e => setOrderReqPoModal(m => ({ ...m, notes: e.target.value }))} rows={2}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none"
                 style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Optional notes…" />
             </div>
             {/* Preview */}
@@ -285,7 +285,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                         <tr key={key} style={{ borderBottom: `1px solid ${T.hairline}` }}>
                           <td className="px-3 py-1.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || req.decoration_type}</td>
                           <td className="px-3 py-1.5 truncate max-w-[160px]" style={{ color: T.textMuted }}>{req.description}</td>
-                          <td className="px-3 py-1.5 text-right font-bold text-indigo-600">×{req.total_b_ord || req.total_qty}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-accent-strong">×{req.total_b_ord || req.total_qty}</td>
                           {orderReqTab === 'garment' && <td className="px-3 py-1.5 text-right" style={{ color: T.textMuted }}>{req.unit_cost > 0 ? `$${(req.total_b_ord * req.unit_cost).toFixed(2)}` : ''}</td>}
                         </tr>
                       );
@@ -302,7 +302,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                 </table>
               </div>
             </div>
-            {orderReqPoModal.error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{orderReqPoModal.error}</p>}
+            {orderReqPoModal.error && <p className="text-xs text-danger bg-danger-tint px-3 py-2 rounded-lg">{orderReqPoModal.error}</p>}
           </div>
           <div className="px-6 py-4 flex justify-end gap-2" style={{ borderTop: `1px solid ${T.hairline}` }}>
             <button onClick={() => setOrderReqPoModal(m => ({ ...m, open: false }))} className="px-4 py-2 text-xs rounded-lg" style={{ color: T.textMuted, background: T.hairlineSoft }}>Cancel</button>

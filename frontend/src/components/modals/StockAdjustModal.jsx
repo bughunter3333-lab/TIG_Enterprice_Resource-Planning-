@@ -23,7 +23,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
               value={stockAdjustModal.adjustment}
               onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, adjustment: e.target.value })}
               placeholder="e.g. +10 or -5"
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
               style={{ border: `1px solid ${T.hairline}` }}
               autoFocus
             />
@@ -38,7 +38,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
               value={stockAdjustModal.reason}
               onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, reason: e.target.value })}
               placeholder="e.g. Stocktake, Damaged goods..."
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
               style={{ border: `1px solid ${T.hairline}` }}
             />
           </div>

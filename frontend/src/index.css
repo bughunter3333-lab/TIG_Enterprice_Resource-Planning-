@@ -2,20 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System — Jim2 steel-blue business palette, IBM Plex type ──
-   The palette lives in src/ui/tokens.js (the `T` object) and is the single
-   source of truth. The few values below are duplicated here only because CSS
-   cannot read JS; keep them in step with tokens.js. */
+/* ── ERP Design System — "press room" ────────────────────────────────────────
+   Ink chrome, warm paper ground, white data panels, process cyan as the live
+   accent. The palette lives in src/ui/palette.js and is read by both
+   tailwind.config.js and src/ui/tokens.js.
 
-/* Type foundation: IBM Plex Sans for UI; tabular numerals so figures align in
-   dense tables and totals. IDs/SKUs/money use IBM Plex Mono via .font-mono. */
+   CSS cannot import that module, so the handful of values below are mirrored as
+   custom properties instead of being pasted in as literals. Previously they
+   were literals, and the old accent (#2b7bd4) went on leaking into new work
+   from this file long after the tokens had moved on — keyboard focus was still
+   painting steel-blue onto a screen that had no steel-blue left in it. */
+
+:root {
+  --paper: #f1eee8;
+  --panel: #ffffff;
+  --hairline: #d8d3c8;
+  --hairline-soft: #ebe7de;
+  --accent: #0090c8;
+  --accent-strong: #00719e;
+  --accent-tint: #d9f0fa;
+  --accent-focus: #7fcbe8;
+  --faint: #8d8d99;
+}
+
+/* Type foundation: Archivo for UI — a grotesque with a large x-height and a
+   narrow set width, so it holds more per column than IBM Plex Sans did at the
+   same size while reading better small. Tabular numerals everywhere, because a
+   figure that does not line up with the one above it cannot be compared.
+   IDs, SKUs, money and dates use IBM Plex Mono via .font-mono. */
 html, body {
-  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
 }
 body {
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  background: var(--paper);
 }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
@@ -29,17 +51,17 @@ body {
   appearance: textfield;
 }
 
-/* ── Scrollbar — cool grey to sit with the steel-blue chrome ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #eef1f4; }
-::-webkit-scrollbar-thumb { background: #c3ccd6; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #8a949e; }
+/* ── Scrollbar — warm, to sit with the paper ground ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--hairline-soft); }
+::-webkit-scrollbar-thumb { background: #c4bcab; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
 /* ── One focus language, app-wide ──────────────────────────────────────────
-   Every focusable control gets the same accent ring (T.accentFocus #9dc7ee),
-   so keyboard focus never changes appearance between an input, a button and
-   a tab. :focus-visible means mouse clicks don't light it up, only keyboard.
-   Inline `focus:ring-*` utilities still win where a screen sets one. */
+   Every focusable control gets the same accent ring, so keyboard focus never
+   changes appearance between an input, a button and a tab. :focus-visible means
+   a mouse click does not light it up, only the keyboard. Inline focus:ring-*
+   utilities still win where a screen sets one. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
@@ -47,15 +69,15 @@ button:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #9dc7ee;
-  border-color: #2b7bd4;
+  box-shadow: 0 0 0 2px var(--accent-focus);
+  border-color: var(--accent);
 }
 
-/* Borderless in-cell inputs (the Jim2 type-straight-into-the-grid fields)
-   must not sprout a ring — it would break the seamless look — so they take
-   a tint plus an underline instead. Still unmistakably focused. */
+/* Borderless in-cell inputs (the Jim2 type-straight-into-the-grid fields) must
+   not sprout a ring — it would break the seamless look — so they take a tint
+   plus an underline instead. Still unmistakably focused. */
 .line-items-table input:focus-visible,
 input.cell-input:focus-visible {
-  box-shadow: inset 0 -2px 0 0 #2b7bd4;
-  background: #eff6ff;
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+  background: var(--accent-tint);
 }

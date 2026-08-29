@@ -40,55 +40,55 @@ export default function EmailJobModal({ job, customers, onClose }) {
     <DraggableModal onClose={onClose} cardClass="w-full max-w-lg">
       <div className="flex items-center justify-between px-5 py-3.5 border-b">
         <div className="flex items-center gap-2">
-          <Mail className="w-4 h-4 text-indigo-600" />
-          <span className="font-semibold text-gray-800">Email {isQuote ? 'Quote' : 'Invoice'}</span>
-          <span className="text-xs text-gray-400 font-mono">#{job.invoice || job.id}</span>
+          <Mail className="w-4 h-4 text-accent-strong" />
+          <span className="font-semibold text-fg">Email {isQuote ? 'Quote' : 'Invoice'}</span>
+          <span className="text-xs text-faint font-mono">#{job.invoice || job.id}</span>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
+        <button onClick={onClose} className="p-1 hover:bg-hairline-soft rounded"><X className="w-4 h-4" /></button>
       </div>
       {sent ? (
         <div className="px-6 py-10 text-center">
-          <div className="text-5xl mb-3 text-green-500">✓</div>
-          <p className="text-gray-700 font-medium">Email sent to {form.to_email}</p>
-          <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-800 text-white rounded-lg text-sm hover:bg-blue-800">Close</button>
+          <div className="text-5xl mb-3 text-ok">✓</div>
+          <p className="text-header font-medium">Email sent to {form.to_email}</p>
+          <button onClick={onClose} className="mt-4 px-4 py-2 bg-accent-strong text-white rounded-lg text-sm hover:bg-accent-strong">Close</button>
         </div>
       ) : (
         <div className="px-5 py-4 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">To *</label>
+            <label className="block text-xs font-medium text-muted mb-1">To *</label>
             <input type="email" value={form.to_email} onChange={e => setForm({ ...form, to_email: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="customer@example.com" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" placeholder="customer@example.com" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">CC</label>
+            <label className="block text-xs font-medium text-muted mb-1">CC</label>
             <input type="email" value={form.cc} onChange={e => setForm({ ...form, cc: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="optional" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" placeholder="optional" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
+            <label className="block text-xs font-medium text-muted mb-1">Subject</label>
             <input type="text" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+            <label className="block text-xs font-medium text-muted mb-1">Type</label>
             <select value={form.email_type} onChange={e => setForm({ ...form, email_type: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus">
               <option value="invoice">Invoice</option>
               <option value="quote">Quote</option>
               <option value="reminder">Payment Reminder</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Message (optional)</label>
+            <label className="block text-xs font-medium text-muted mb-1">Message (optional)</label>
             <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
               rows={4} placeholder="Add a personal note…"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none" />
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg hover:bg-panel-alt">Cancel</button>
             <button onClick={send} disabled={sending}
-              className="px-4 py-2 text-sm bg-blue-800 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1.5">
+              className="px-4 py-2 text-sm bg-accent-strong text-white rounded-lg hover:bg-accent-strong disabled:opacity-50 flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5" />{sending ? 'Sending…' : 'Send Email'}
             </button>
           </div>

@@ -79,7 +79,7 @@ export default function StocktakeModal({ setStocktakeModal, stocktakeModal }) {
                     <td className="px-3 py-1 font-mono" style={{ color: T.text }}>{item.sku}</td>
                     <td className="px-3 py-1" style={{ color: T.text }}>{item.name}</td>
                     <td className="px-3 py-1" style={{ color: T.textMuted }}>{stocktakeModal.method === 'Blind' ? '—' : item.currentStock}</td>
-                    <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-indigo-400 bg-indigo-50' : ''}`} /></td>
+                    <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-accent bg-accent-tint' : ''}`} /></td>
                   </tr>
                 ))}
               </tbody>

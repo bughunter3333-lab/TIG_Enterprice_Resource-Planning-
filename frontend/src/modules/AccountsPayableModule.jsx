@@ -9,9 +9,9 @@ const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFrac
 const today = () => new Date().toISOString().slice(0, 10);
 
 const STATUS_STYLES = {
-  pending:  'bg-blue-100 text-blue-800 border-blue-200',
-  approved: 'bg-blue-100 text-blue-800 border-blue-200',
-  paid:     'bg-emerald-100 text-emerald-700 border-emerald-200',
+  pending:  'bg-accent-tint text-accent-strong border-accent',
+  approved: 'bg-accent-tint text-accent-strong border-accent',
+  paid:     'bg-ok-tint text-ok border-ok',
 };
 
 function isOverdue(bill) {
@@ -332,8 +332,8 @@ export default function AccountsPayableModule({ suppliers = [] }) {
           </div>
           <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4.5 h-4.5 text-indigo-600" />
+              <div className="w-9 h-9 bg-accent-tint rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4.5 h-4.5 text-accent-strong" />
               </div>
               <div>
                 <p className="text-xs" style={{ color: T.textMuted }}>Due This Week</p>
@@ -414,7 +414,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
                   <td className="px-3 py-2.5 text-right" style={{ color: T.textMuted }}>{fmt$(bill.amountEx)}</td>
                   <td className="px-3 py-2.5 text-right font-semibold" style={{ color: T.text }}>{fmt$(bill.amountInc)}</td>
                   <td className="px-3 py-2.5 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${STATUS_STYLES[bill.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${STATUS_STYLES[bill.status] || 'bg-hairline-soft text-muted border-hairline'}`}>
                       {bill.status}
                     </span>
                   </td>

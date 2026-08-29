@@ -82,7 +82,7 @@ export default function PaymentModal({ paymentModal, recordPayment, setPaymentMo
             type="number" step="0.01" min="0.01" max={paymentModal.maxAmount}
             value={paymentModal.amount}
             onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
-            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}` }}
             autoFocus disabled={paymentModal.tyroProcessing}
           />
@@ -93,7 +93,7 @@ export default function PaymentModal({ paymentModal, recordPayment, setPaymentMo
           <select
             value={paymentModal.method}
             onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value, tyroStatus: null })}
-            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}` }}
             disabled={paymentModal.tyroProcessing}
           >

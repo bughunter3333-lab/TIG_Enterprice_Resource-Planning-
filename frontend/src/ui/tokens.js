@@ -1,84 +1,111 @@
-// Design tokens — single source of visual truth.
-// Spec: docs/superpowers/specs/2026-06-11-ui-redesign-dense-jim2-design.md
+// Design tokens — the inline-style face of src/ui/palette.js.
+//
+// Every value here comes from palette.js, which tailwind.config.js also reads.
+// That is the point: before, this object and the Tailwind colour utilities were
+// two unrelated palettes, so changing a token moved 58% of the interface.
+//
+// The key names are unchanged from the steel-blue system on purpose. There are
+// ~2,950 `T.*` references across the app and renaming them would have turned a
+// palette change into a rename touching every file, which is how a design
+// change becomes unreviewable.
+
+import { palette, density, type, elevation, motion } from './palette';
 
 export const T = {
-  // Surfaces — Jim2 business-standard: steel-blue chrome, neutral grey page,
-  // white data panels. chrome sampled from the Jim2 title bar (#355172).
-  chrome: '#2c4a6e',
-  chromeRaised: '#375a83',
-  chromeHover: '#42699a',
-  page: '#f0f0f0',
-  panel: '#ffffff',
-  hairline: '#d0d7de',
-  hairlineSoft: '#eef1f4',
+  // Chrome — the machine. Was steel-blue (#2c4a6e); now ink.
+  chrome: palette.ink,
+  chromeRaised: palette.inkRaised,
+  chromeHover: palette.inkHover,
+  chromeText: palette.inkText,
+  chromeTextMuted: palette.inkTextMuted,
+
+  // Surfaces
+  page: palette.paper,
+  panel: palette.panel,
+  panelAlt: palette.panelAlt,
+  hairline: palette.hairline,
+  hairlineSoft: palette.hairlineSoft,
 
   // Text
-  text: '#1a1a1a',
-  textMuted: '#5a6570',
-  textFaint: '#8a949e',
-  headerText: '#3d4753',
-  chromeText: '#ffffff',
-  chromeTextMuted: '#b8c7da',
+  text: palette.text,
+  textMuted: palette.muted,
+  textFaint: palette.faint,
+  headerText: palette.headerText,
 
-  // Accent (Jim2 blue — selection, links, active tab)
-  accent: '#2b7bd4',
-  accentStrong: '#1c5fa8',
-  accentTint: '#d6e7f7',
-  accentFocus: '#9dc7ee',
+  // Accent — process cyan. `accent` is 3.5:1 on white: fills, borders and large
+  // text only. Anything small that carries words uses accentStrong (5.2:1).
+  accent: palette.accent,
+  accentStrong: palette.accentStrong,
+  accentTint: palette.accentTint,
+  accentFocus: palette.accentFocus,
 
-  // Editable grid cell (Jim2 shows editable columns in yellow)
-  editable: '#fefce8',
+  // Emphasis — process magenta. For the single most important thing on a
+  // surface, and nothing else. If two things are emphasised, neither is.
+  emphasis: palette.emphasis,
+  emphasisTint: palette.emphasisTint,
 
-  // Feedback — a full traffic light. `warn` was the missing tier: with only ok
-  // and danger defined, every "needs attention" state reached for a raw amber
-  // Tailwind class instead, which is how the middle of the scale ended up
-  // spelled six different ways across the app.
-  danger: '#b91c1c',
-  dangerTint: '#fef2f2',
-  warn: '#b45309',
-  warnTint: '#fef3c7',
-  ok: '#15803d',
-  okTint: '#dcfce7',
+  // Editable grid cell — Jim2 tints columns you can type into.
+  editable: palette.editable,
 
-  // Type — IBM Plex Sans for UI, IBM Plex Mono for IDs/SKUs/figures
-  font: "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif",
-  fontMono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace",
-  fsBase: 13,
-  fsGrid: 12,
-  fsHeader: 11,
-  fsSmall: 11,
+  // Feedback — a full traffic light. These are information, not brand, and do
+  // not follow the accent.
+  danger: palette.danger,
+  dangerTint: palette.dangerTint,
+  warn: palette.warn,
+  warnTint: palette.warnTint,
+  ok: palette.ok,
+  okTint: palette.okTint,
+
+  // Type
+  font: type.font,
+  fontMono: type.fontMono,
+  fsBase: type.fsBase,
+  fsGrid: type.fsGrid,
+  fsHeader: type.fsHeader,
+  fsSmall: type.fsSmall,
 
   // Density
-  rowHeight: 30,
-  inputHeight: 26,
-  radius: 4, // controls: inputs, buttons, chips
-  radiusLg: 7, // containers: panels, cards, grids — varied radius reads intentional
+  rowHeight: density.rowHeight,
+  inputHeight: density.inputHeight,
+  radius: density.radius,
+  radiusLg: density.radiusLg,
 
-  // Elevation — tinted with the chrome navy rather than pure black, which
-  // goes muddy on a blue-grey ground. Restrained: depth for separation, not
-  // decoration. Density is never traded away for it.
-  shadowSm: '0 1px 2px rgba(24,42,66,.06), 0 1px 1px rgba(24,42,66,.04)',
-  shadowMd: '0 2px 8px rgba(24,42,66,.10), 0 1px 2px rgba(24,42,66,.06)',
-  shadowHeader: '0 3px 5px -2px rgba(24,42,66,.10)',
-  shadowChrome: '0 1px 3px rgba(24,42,66,.28)',
+  // Elevation
+  shadowSm: elevation.shadowSm,
+  shadowMd: elevation.shadowMd,
+  shadowHeader: elevation.shadowHeader,
+  shadowChrome: elevation.shadowChrome,
+  shadowPress: elevation.shadowPress,
 
-  // Motion — short and functional; clarifies state change, never decorative.
-  transition: '120ms cubic-bezier(.4,0,.2,1)',
+  // Motion — short and functional; clarifies a state change, never decorates.
+  transition: motion.transition,
+  spring: motion.spring,
 };
 
-// Real workflow statuses (verified against TotalImageERP.jsx).
+// Workflow statuses, in the order a job moves through them.
+//
+// These are learned: staff read the colour before the word, so they are not
+// free to follow the brand. Two were changed and the rest were left alone.
+//
+//   New   was #1d4ed8, a blue close enough to ORDER's indigo that the two were
+//         hard to separate at badge size. It takes the process cyan instead,
+//         at the darker step so white text on it still passes.
+//   PROOF was #9333ea, a purple sitting beside QUOTE's violet with the same
+//         problem. It takes the press magenta, which is both distinguishable
+//         and the one place the emphasis colour earns a permanent home —
+//         PROOF is the status that means someone outside is waiting on you.
 export const STATUS_COLORS = {
   QUOTE: '#7c3aed',
-  New: '#1d4ed8',
+  New: palette.accentStrong,
   ORDER: '#4f46e5',
-  'In Progress': '#b45309',
-  PROOF: '#9333ea',
+  'In Progress': palette.warn,
+  PROOF: palette.emphasis,
   PRINT: '#c2410c',
   'Pick/Pack': '#0e7490',
-  FINISH: '#15803d',
+  FINISH: palette.ok,
   INVOICE: '#0f766e',
   PAID: '#047857',
-  CANCEL: T.textMuted,
+  CANCEL: palette.muted,
 };
 
 export function statusColor(status) {

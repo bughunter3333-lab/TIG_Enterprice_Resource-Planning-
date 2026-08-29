@@ -66,13 +66,13 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-xl font-bold" style={{ color: T.text }}>Zone {z.zone}</span>
-            <span className={`text-xs px-2 py-0.5 rounded font-medium ${z.utilization > 80 ? 'bg-red-100 text-red-700' : z.utilization > 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${z.utilization > 80 ? 'bg-danger-tint text-danger' : z.utilization > 60 ? 'bg-warn-tint text-warn' : 'bg-ok-tint text-ok'}`}>
               {z.utilization}%
             </span>
           </div>
           <p className="text-xs mb-2" style={{ color: T.textMuted }}>{z.description}</p>
           <div className="w-full rounded-full h-1.5" style={{ background: T.hairline }}>
-            <div className={`h-1.5 rounded-full ${z.utilization > 80 ? 'bg-red-500' : z.utilization > 60 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${z.utilization}%` }} />
+            <div className={`h-1.5 rounded-full ${z.utilization > 80 ? 'bg-danger' : z.utilization > 60 ? 'bg-warn' : 'bg-ok'}`} style={{ width: `${z.utilization}%` }} />
           </div>
           <p className="text-xs mt-1" style={{ color: T.textFaint }}>{z.rows}×{z.bays} grid • {z.items} items</p>
         </button>
@@ -90,9 +90,9 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
           </h3>
           <div className="flex items-center space-x-3 text-xs" style={{ color: T.textMuted }}>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}></span>Empty</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block"></span>Occupied</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block"></span>Low Stock</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-100 border border-green-400 inline-block ring-2 ring-green-400"></span>Selected</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-accent-tint border border-accent inline-block"></span>Occupied</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-danger-tint border border-danger inline-block"></span>Low Stock</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-ok-tint border border-ok inline-block ring-2 ring-ok"></span>Selected</span>
           </div>
         </div>
 
@@ -124,17 +124,17 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
                           onClick={() => setSelectedBin(isSelected ? null : binCode)}
                           title={`${binCode}${items.length ? ': ' + items.map(i => i.name).join(', ') : ': Empty'}`}
                           className={`w-full rounded border text-center transition-all hover:scale-105 flex flex-col items-center justify-center px-1 py-1.5 ${
-                              isSelected ? 'ring-2 ring-green-400 bg-green-50 border-green-400' :
-                              status === 'low' ? 'bg-red-50 border-red-300 hover:bg-red-100' :
-                              status === 'occupied' ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' :
-                              'bg-gray-100 border-gray-200 hover:bg-white'
+                              isSelected ? 'ring-2 ring-ok bg-ok-tint border-ok' :
+                              status === 'low' ? 'bg-danger-tint border-danger hover:bg-danger-tint' :
+                              status === 'occupied' ? 'bg-accent-tint border-accent hover:bg-accent-tint' :
+                              'bg-hairline-soft border-hairline hover:bg-white'
                             }`}
                         >
-                          <span className={`font-mono leading-none ${isSelected ? 'text-green-700' : status === 'low' ? 'text-red-600' : status === 'occupied' ? 'text-amber-700' : 'text-gray-400'}`} style={{ fontSize: '9px' }}>
+                          <span className={`font-mono leading-none ${isSelected ? 'text-ok' : status === 'low' ? 'text-danger' : status === 'occupied' ? 'text-warn' : 'text-faint'}`} style={{ fontSize: '9px' }}>
                             {binCode}
                           </span>
                           {items.length > 0 && (
-                            <span className={`font-semibold mt-0.5 ${status === 'low' ? 'text-red-700' : 'text-amber-700'}`} style={{ fontSize: '10px' }}>
+                            <span className={`font-semibold mt-0.5 ${status === 'low' ? 'text-danger' : 'text-warn'}`} style={{ fontSize: '10px' }}>
                               {items.reduce((s, i) => s + i.stock, 0)} pcs
                             </span>
                           )}
@@ -147,7 +147,7 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
               {/* Aisle indicator */}
               <tr>
                 <td colSpan={zone.bays + 1} className="pt-2 pb-1">
-                  <div className="bg-yellow-200 border border-yellow-400 rounded text-center text-xs text-yellow-800 font-medium py-1 tracking-widest">
+                  <div className="bg-warn border border-warn rounded text-center text-xs text-warn font-medium py-1 tracking-widest">
                     ▼  AISLE  ▼
                   </div>
                 </td>
@@ -179,11 +179,11 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
                       <span className="text-sm ml-2" style={{ color: T.text }}>{item.name}</span>
                     </div>
                     <div className="flex items-center space-x-2 text-sm">
-                      <span className={`font-semibold ${item.stock < item.reorderLevel ? 'text-red-600' : 'text-green-600'}`}>
+                      <span className={`font-semibold ${item.stock < item.reorderLevel ? 'text-danger' : 'text-ok'}`}>
                         Qty: {item.stock}
                       </span>
                       {item.stock < item.reorderLevel && (
-                        <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs">Low</span>
+                        <span className="bg-danger-tint text-danger px-1.5 py-0.5 rounded text-xs">Low</span>
                       )}
                     </div>
                   </div>
@@ -214,7 +214,7 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
             placeholder="Find item..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-8 pr-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}`, color: T.text }}
           />
         </div>
@@ -234,7 +234,7 @@ export default function WarehouseModule({ exportToCSV, inventory, searchTerm, se
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>{item.location}</span>
-                  <span className={`text-xs font-semibold ${item.stock < item.reorderLevel ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`text-xs font-semibold ${item.stock < item.reorderLevel ? 'text-danger' : 'text-ok'}`}>
                     {item.stock} {item.stock < item.reorderLevel ? '⚠' : ''}
                   </span>
                 </div>

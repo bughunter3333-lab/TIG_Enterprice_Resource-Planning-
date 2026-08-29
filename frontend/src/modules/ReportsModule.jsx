@@ -37,7 +37,7 @@ function ExportButton({ onClick, disabled }) {
       onClick={onClick}
       disabled={disabled}
       title="Export to CSV"
-      className="flex items-center gap-1.5 text-sm hover:text-green-700 border hover:border-green-400 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className="flex items-center gap-1.5 text-sm hover:text-ok border hover:border-ok hover:bg-ok-tint px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       style={{ color: T.textMuted, borderColor: T.hairline, background: T.panel }}
     >
       <Download className="w-3.5 h-3.5" />CSV
@@ -50,11 +50,11 @@ function DateRange({ from, to, onChange }) {
     <div className="flex items-center gap-2 text-sm">
       <label style={{ color: T.textMuted }}>From</label>
       <input type="date" value={from} onChange={e => onChange('from', e.target.value)}
-        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus"
         style={{ border: `1px solid ${T.hairline}` }} />
       <label style={{ color: T.textMuted }}>To</label>
       <input type="date" value={to} onChange={e => onChange('to', e.target.value)}
-        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus"
         style={{ border: `1px solid ${T.hairline}` }} />
     </div>
   );
@@ -99,16 +99,16 @@ function SalesSummaryTab() {
             'Revenue (ex GST)': r.revenue_ex, 'GST': r.gst,
             'Total (inc GST)': r.revenue_inc, Paid: r.paid, Outstanding: r.outstanding,
           })), `sales-summary-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       <TotalsBar totals={totals} fields={[
-        { key: 'revenue_ex', label: 'Revenue (ex GST)', color: 'text-blue-800' },
-        { key: 'gst', label: 'GST Collected', color: 'text-blue-700' },
-        { key: 'revenue_inc', label: 'Total (inc GST)', color: 'text-green-700' },
-        { key: 'outstanding', label: 'Outstanding', color: 'text-red-600' },
+        { key: 'revenue_ex', label: 'Revenue (ex GST)', color: 'text-accent-strong' },
+        { key: 'gst', label: 'GST Collected', color: 'text-accent-strong' },
+        { key: 'revenue_inc', label: 'Total (inc GST)', color: 'text-ok' },
+        { key: 'outstanding', label: 'Outstanding', color: 'text-danger' },
       ]} />
       {rows.length > 0 && (
         <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
@@ -127,10 +127,10 @@ function SalesSummaryTab() {
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                     <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{r.job_count}</td>
                     <td className="px-3 py-2 text-right">{fmt$(r.revenue_ex)}</td>
-                    <td className="px-3 py-2 text-right text-blue-800">{fmt$(r.gst)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.gst)}</td>
                     <td className="px-3 py-2 text-right font-medium">{fmt$(r.revenue_inc)}</td>
-                    <td className="px-3 py-2 text-right text-green-700">{fmt$(r.paid)}</td>
-                    <td className="px-3 py-2 text-right text-red-600">{fmt$(r.outstanding)}</td>
+                    <td className="px-3 py-2 text-right text-ok">{fmt$(r.paid)}</td>
+                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.outstanding)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -139,10 +139,10 @@ function SalesSummaryTab() {
                   <td className="px-3 py-2">TOTAL</td>
                   <td className="px-3 py-2 text-center">{totals.job_count}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.revenue_ex)}</td>
-                  <td className="px-3 py-2 text-right text-blue-800">{fmt$(totals.gst)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.gst)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.revenue_inc)}</td>
-                  <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.paid)}</td>
-                  <td className="px-3 py-2 text-right text-red-600">{fmt$(totals.outstanding)}</td>
+                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.paid)}</td>
+                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.outstanding)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -180,24 +180,24 @@ function GSTTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Month: r.month, Invoices: r.invoices, 'Sales (inc GST)': r.sales_inc, 'Sales (ex GST)': r.sales_ex, 'GST Collected': r.gst,
           })), `gst-report-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-xs text-blue-800 font-semibold">G1 — Total Sales (inc GST)</p>
-          <p className="text-2xl font-bold text-blue-900">{fmt$(summary.G1_total_sales_inc_gst)}</p>
+        <div className="bg-accent-tint border border-accent rounded-lg p-4">
+          <p className="text-xs text-accent-strong font-semibold">G1 — Total Sales (inc GST)</p>
+          <p className="text-2xl font-bold text-accent-strong">{fmt$(summary.G1_total_sales_inc_gst)}</p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-xs text-green-600 font-semibold">G1 — Sales (ex GST)</p>
-          <p className="text-2xl font-bold text-green-800">{fmt$(summary.G1_total_sales_ex_gst)}</p>
+        <div className="bg-ok-tint border border-ok rounded-lg p-4">
+          <p className="text-xs text-ok font-semibold">G1 — Sales (ex GST)</p>
+          <p className="text-2xl font-bold text-ok">{fmt$(summary.G1_total_sales_ex_gst)}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-xs text-blue-700 font-semibold">1A — GST Collected</p>
-          <p className="text-2xl font-bold text-blue-900">{fmt$(summary['1A_gst_collected'])}</p>
-          <p className="text-xs text-blue-600 mt-1">{summary.invoice_count} invoices</p>
+        <div className="bg-accent-tint border border-accent rounded-lg p-4">
+          <p className="text-xs text-accent-strong font-semibold">1A — GST Collected</p>
+          <p className="text-2xl font-bold text-accent-strong">{fmt$(summary['1A_gst_collected'])}</p>
+          <p className="text-xs text-accent-strong mt-1">{summary.invoice_count} invoices</p>
         </div>
       </div>
       {rows.length > 0 && (
@@ -217,7 +217,7 @@ function GSTTab() {
                   <td className="px-3 py-2 text-center">{r.invoices}</td>
                   <td className="px-3 py-2 text-right">{fmt$(r.sales_inc)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(r.sales_ex)}</td>
-                  <td className="px-3 py-2 text-right text-blue-800 font-medium">{fmt$(r.gst)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong font-medium">{fmt$(r.gst)}</td>
                 </tr>
               ))}
             </tbody>
@@ -248,17 +248,17 @@ function AgedReceivablesTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Customer: r.customer_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total, 'Oldest Invoice': r.oldest_invoice,
           })), 'aged-receivables.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       <TotalsBar totals={totals} fields={[
-        { key: 'current', label: 'Current (0-30d)', color: 'text-green-700' },
-        { key: 'days_31_60', label: '31–60 days', color: 'text-blue-700' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-indigo-600' },
-        { key: 'over_90', label: 'Over 90 days', color: 'text-red-700' },
-        { key: 'total', label: 'Total Outstanding', color: 'text-gray-900' },
+        { key: 'current', label: 'Current (0-30d)', color: 'text-ok' },
+        { key: 'days_31_60', label: '31–60 days', color: 'text-accent-strong' },
+        { key: 'days_61_90', label: '61–90 days', color: 'text-accent-strong' },
+        { key: 'over_90', label: 'Over 90 days', color: 'text-danger' },
+        { key: 'total', label: 'Total Outstanding', color: 'text-fg' },
       ]} />
       {rows.length > 0 && (
         <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
@@ -275,10 +275,10 @@ function AgedReceivablesTab() {
                 {rows.map((r, i) => (
                   <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
-                    <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
-                    <td className="px-3 py-2 text-right text-blue-800">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-indigo-700">{fmt$(r.days_61_90)}</td>
-                    <td className="px-3 py-2 text-right text-red-700">{fmt$(r.over_90)}</td>
+                    <td className="px-3 py-2 text-right text-ok">{fmt$(r.current)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_31_60)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_61_90)}</td>
+                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.over_90)}</td>
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
                     <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.oldest_invoice}</td>
                   </tr>
@@ -287,10 +287,10 @@ function AgedReceivablesTab() {
               <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
-                  <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
-                  <td className="px-3 py-2 text-right text-blue-800">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-indigo-700">{fmt$(totals.days_61_90)}</td>
-                  <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.over_90)}</td>
+                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.current)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_31_60)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_61_90)}</td>
+                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.over_90)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                   <td />
                 </tr>
@@ -326,17 +326,17 @@ function AgedPayablesTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Supplier: r.supplier_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total,
           })), 'aged-payables.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       <TotalsBar totals={totals} fields={[
-        { key: 'current', label: 'Current (0-30d)', color: 'text-green-700' },
-        { key: 'days_31_60', label: '31–60 days', color: 'text-blue-700' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-indigo-600' },
-        { key: 'over_90', label: 'Over 90 days', color: 'text-red-700' },
-        { key: 'total', label: 'Total Owing', color: 'text-gray-900' },
+        { key: 'current', label: 'Current (0-30d)', color: 'text-ok' },
+        { key: 'days_31_60', label: '31–60 days', color: 'text-accent-strong' },
+        { key: 'days_61_90', label: '61–90 days', color: 'text-accent-strong' },
+        { key: 'over_90', label: 'Over 90 days', color: 'text-danger' },
+        { key: 'total', label: 'Total Owing', color: 'text-fg' },
       ]} />
       {rows.length > 0 && (
         <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
@@ -353,10 +353,10 @@ function AgedPayablesTab() {
                 {rows.map((r, i) => (
                   <tr key={r.supplier_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.supplier_name}</td>
-                    <td className="px-3 py-2 text-right text-green-700">{fmt$(r.current)}</td>
-                    <td className="px-3 py-2 text-right text-blue-800">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-indigo-700">{fmt$(r.days_61_90)}</td>
-                    <td className="px-3 py-2 text-right text-red-700">{fmt$(r.over_90)}</td>
+                    <td className="px-3 py-2 text-right text-ok">{fmt$(r.current)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_31_60)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_61_90)}</td>
+                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.over_90)}</td>
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
                   </tr>
                 ))}
@@ -364,10 +364,10 @@ function AgedPayablesTab() {
               <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
-                  <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.current)}</td>
-                  <td className="px-3 py-2 text-right text-blue-800">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-indigo-700">{fmt$(totals.days_61_90)}</td>
-                  <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.over_90)}</td>
+                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.current)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_31_60)}</td>
+                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_61_90)}</td>
+                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.over_90)}</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                 </tr>
               </tfoot>
@@ -402,7 +402,7 @@ function InventoryValuationTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Category: r.category, SKUs: r.sku_count, Units: r.total_units, 'Valuation ($)': r.value,
           })), 'inventory-valuation.csv')} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -410,15 +410,15 @@ function InventoryValuationTab() {
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <p className="text-xs" style={{ color: T.textMuted }}>Total SKUs</p>
-          <p className="text-2xl font-bold text-blue-800">{totals.sku_count || 0}</p>
+          <p className="text-2xl font-bold text-accent-strong">{totals.sku_count || 0}</p>
         </div>
         <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <p className="text-xs" style={{ color: T.textMuted }}>Total Units</p>
-          <p className="text-2xl font-bold text-green-700">{(totals.total_units || 0).toLocaleString()}</p>
+          <p className="text-2xl font-bold text-ok">{(totals.total_units || 0).toLocaleString()}</p>
         </div>
         <div className="rounded-lg p-3 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <p className="text-xs" style={{ color: T.textMuted }}>Total Valuation</p>
-          <p className="text-2xl font-bold text-purple-700">{fmt$(totals.value)}</p>
+          <p className="text-2xl font-bold text-emphasis">{fmt$(totals.value)}</p>
         </div>
       </div>
       {rows.length > 0 && (
@@ -438,7 +438,7 @@ function InventoryValuationTab() {
                     <td className="px-3 py-2 font-medium">{r.category}</td>
                     <td className="px-3 py-2 text-center">{r.sku_count}</td>
                     <td className="px-3 py-2 text-center">{r.total_units.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right font-medium text-purple-700">{fmt$(r.value)}</td>
+                    <td className="px-3 py-2 text-right font-medium text-emphasis">{fmt$(r.value)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -486,16 +486,16 @@ function JobProfitabilityTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             'Job#': r.job_id, Customer: r.customer_name, 'Date In': r.date_in, Revenue: r.revenue_ex, Cost: r.cost, Margin: r.margin, 'Margin%': r.margin_pct,
           })), `job-profitability-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
       </div>
       {totals.revenue_ex > 0 && (
         <TotalsBar totals={totals} fields={[
-          { key: 'revenue_ex', label: 'Revenue (ex GST)', color: 'text-blue-800' },
-          { key: 'cost', label: 'Product Cost', color: 'text-red-600' },
-          { key: 'margin', label: 'Gross Margin', color: 'text-green-700' },
+          { key: 'revenue_ex', label: 'Revenue (ex GST)', color: 'text-accent-strong' },
+          { key: 'cost', label: 'Product Cost', color: 'text-danger' },
+          { key: 'margin', label: 'Gross Margin', color: 'text-ok' },
         ]} />
       )}
       {rows.length > 0 && (
@@ -516,10 +516,10 @@ function JobProfitabilityTab() {
                     <td className="px-3 py-2">{r.customer}</td>
                     <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.date_in}</td>
                     <td className="px-3 py-2 text-right">{fmt$(r.revenue_ex)}</td>
-                    <td className="px-3 py-2 text-right text-red-600">{fmt$(r.cost)}</td>
-                    <td className="px-3 py-2 text-right text-green-700 font-medium">{fmt$(r.margin)}</td>
+                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.cost)}</td>
+                    <td className="px-3 py-2 text-right text-ok font-medium">{fmt$(r.margin)}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-green-100 text-green-800' : r.margin_pct >= 10 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                         {r.margin_pct}%
                       </span>
                     </td>
@@ -530,8 +530,8 @@ function JobProfitabilityTab() {
                 <tr>
                   <td className="px-3 py-2" colSpan={3}>TOTAL ({rows.length} jobs)</td>
                   <td className="px-3 py-2 text-right">{fmt$(totals.revenue_ex)}</td>
-                  <td className="px-3 py-2 text-right text-red-600">{fmt$(totals.cost)}</td>
-                  <td className="px-3 py-2 text-right text-green-700">{fmt$(totals.margin)}</td>
+                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.cost)}</td>
+                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.margin)}</td>
                   <td className="px-3 py-2 text-right">{totals.margin_pct}%</td>
                 </tr>
               </tfoot>
@@ -571,7 +571,7 @@ function OnTimeDeliveryTab() {
           <ExportButton disabled={byCustomer.length === 0} onClick={() => exportCSV(byCustomer.map(r => ({
             Customer: r.customer_name, Jobs: r.total, 'On Time': r.on_time, Late: r.late, 'No Date': r.no_due_date, 'Rate %': r.rate,
           })), `on-time-delivery-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -579,21 +579,21 @@ function OnTimeDeliveryTab() {
 
       {summary.total > 0 && (
         <div className="grid grid-cols-4 gap-3">
-          <div className={`rounded-lg border p-4 text-center ${rate >= 90 ? 'bg-emerald-50 border-emerald-200' : rate >= 75 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+          <div className={`rounded-lg border p-4 text-center ${rate >= 90 ? 'bg-ok-tint border-ok' : rate >= 75 ? 'bg-warn-tint border-warn' : 'bg-danger-tint border-danger'}`}>
             <p className="text-xs font-semibold" style={{ color: T.textMuted }}>On-Time Rate</p>
-            <p className={`text-3xl font-bold mt-1 ${rate >= 90 ? 'text-emerald-700' : rate >= 75 ? 'text-amber-700' : 'text-red-700'}`}>{rate}%</p>
+            <p className={`text-3xl font-bold mt-1 ${rate >= 90 ? 'text-ok' : rate >= 75 ? 'text-warn' : 'text-danger'}`}>{rate}%</p>
           </div>
           <div className="rounded-lg p-4 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <p className="text-xs" style={{ color: T.textMuted }}>Total Jobs</p>
             <p className="text-2xl font-bold" style={{ color: T.text }}>{summary.total}</p>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-emerald-600">On Time</p>
-            <p className="text-2xl font-bold text-emerald-700">{summary.on_time}</p>
+          <div className="bg-ok-tint border border-ok rounded-lg p-4 text-center">
+            <p className="text-xs text-ok">On Time</p>
+            <p className="text-2xl font-bold text-ok">{summary.on_time}</p>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-red-600">Late</p>
-            <p className="text-2xl font-bold text-red-700">{summary.late}</p>
+          <div className="bg-danger-tint border border-danger rounded-lg p-4 text-center">
+            <p className="text-xs text-danger">Late</p>
+            <p className="text-2xl font-bold text-danger">{summary.late}</p>
             {summary.no_due_date > 0 && <p className="text-xs mt-0.5" style={{ color: T.textFaint }}>{summary.no_due_date} no due date</p>}
           </div>
         </div>
@@ -615,11 +615,11 @@ function OnTimeDeliveryTab() {
                   <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                     <td className="px-3 py-2 text-center">{r.total}</td>
-                    <td className="px-3 py-2 text-center text-emerald-700">{r.on_time}</td>
-                    <td className="px-3 py-2 text-center text-red-600">{r.late}</td>
+                    <td className="px-3 py-2 text-center text-ok">{r.on_time}</td>
+                    <td className="px-3 py-2 text-center text-danger">{r.late}</td>
                     <td className="px-3 py-2 text-center" style={{ color: T.textFaint }}>{r.no_due_date}</td>
                     <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${r.rate >= 90 ? 'bg-emerald-100 text-emerald-800' : r.rate >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${r.rate >= 90 ? 'bg-ok-tint text-ok' : r.rate >= 75 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                         {r.rate}%
                       </span>
                     </td>
@@ -722,14 +722,14 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
           {selected.size > 0 && (
             <button
               onClick={openRaisePO}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm font-semibold rounded-lg hover:bg-accent-strong shadow-sm"
               style={{ background: T.accentStrong }}
             >
               <Plus className="w-3.5 h-3.5" />
               Raise PO ({selected.size} SKU{selected.size !== 1 ? 's' : ''})
             </button>
           )}
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -737,7 +737,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
       {/* Multi-supplier warning */}
       {selected.size > 0 && uniqueSuppliers.length > 1 && (
-        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800">
+        <div className="flex items-center gap-2 bg-accent-tint border border-accent rounded-lg px-3 py-2 text-xs text-accent-strong">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           Selected items span {uniqueSuppliers.length} suppliers ({uniqueSuppliers.join(', ')}). You can still raise one PO — just confirm the supplier in the form.
         </div>
@@ -745,17 +745,17 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
       {totals.sku_count > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-indigo-600">SKUs on Back Order</p>
-            <p className="text-2xl font-bold text-indigo-700">{totals.sku_count}</p>
+          <div className="bg-accent-tint border border-accent rounded-lg p-4 text-center">
+            <p className="text-xs text-accent-strong">SKUs on Back Order</p>
+            <p className="text-2xl font-bold text-accent-strong">{totals.sku_count}</p>
           </div>
           <div className="rounded-lg p-4 text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <p className="text-xs" style={{ color: T.textMuted }}>Total Units B/O</p>
             <p className="text-2xl font-bold" style={{ color: T.text }}>{(totals.total_b_ord || 0).toLocaleString()}</p>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-red-600">Total Value</p>
-            <p className="text-2xl font-bold text-red-700">{fmt$(totals.total_value)}</p>
+          <div className="bg-danger-tint border border-danger rounded-lg p-4 text-center">
+            <p className="text-xs text-danger">Total Value</p>
+            <p className="text-2xl font-bold text-danger">{fmt$(totals.total_value)}</p>
           </div>
         </div>
       )}
@@ -768,7 +768,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 <tr>
                   <th className="px-3 py-2 w-8">
                     <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                      className="rounded border-gray-300 text-blue-800 focus:ring-blue-500" />
+                      className="rounded border-hairline text-accent-strong focus:ring-accent-focus" />
                   </th>
                   {['SKU','Description','Category','Supplier','SOH','B/O Qty','Unit Cost','Value','Jobs & POs'].map(h => (
                     <th key={h} className="text-left px-3 py-2 text-xs font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>{h}</th>
@@ -788,36 +788,36 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         : { background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleRow(r.sku)}
-                          className="rounded border-gray-300 text-blue-800 focus:ring-blue-500" />
+                          className="rounded border-hairline text-accent-strong focus:ring-accent-focus" />
                       </td>
                       <td className="px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap">
                         {r.sku}
-                        {alreadyOnPO && <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded">on PO</span>}
+                        {alreadyOnPO && <span className="ml-1.5 text-[10px] bg-accent-tint text-accent-strong px-1 py-0.5 rounded">on PO</span>}
                       </td>
                       <td className="px-3 py-2.5 max-w-44 truncate text-xs" title={r.description}>{r.description}</td>
                       <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.category || '—'}</td>
                       <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.supplier || '—'}</td>
-                      <td className={`px-3 py-2.5 text-center font-medium whitespace-nowrap ${r.stock_on_hand <= 0 ? 'text-red-600' : ''}`} style={r.stock_on_hand > 0 ? { color: T.text } : undefined}>{r.stock_on_hand}</td>
-                      <td className="px-3 py-2.5 text-center font-bold text-indigo-700 whitespace-nowrap">{r.total_b_ord}</td>
+                      <td className={`px-3 py-2.5 text-center font-medium whitespace-nowrap ${r.stock_on_hand <= 0 ? 'text-danger' : ''}`} style={r.stock_on_hand > 0 ? { color: T.text } : undefined}>{r.stock_on_hand}</td>
+                      <td className="px-3 py-2.5 text-center font-bold text-accent-strong whitespace-nowrap">{r.total_b_ord}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap" style={{ color: T.textMuted }}>{fmt$(r.unit_cost)}</td>
-                      <td className="px-3 py-2.5 text-right font-medium text-red-700 whitespace-nowrap">{fmt$(r.total_value)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-danger whitespace-nowrap">{fmt$(r.total_value)}</td>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <div className="flex flex-col gap-1.5">
                           {(r.jobs || []).map(j => (
                             <div key={j.job_id} className="flex items-center gap-1.5 flex-wrap">
                               <button onClick={() => onOpenJob?.(j.job_id)}
-                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded hover:bg-indigo-100 font-semibold"
+                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded hover:bg-accent-tint font-semibold"
                                 title={`Open job ${j.job_id} — ${j.customer_name}`}>
-                                {j.job_id}{j.b_ord > 1 && <span className="text-indigo-500">×{j.b_ord}</span>}
+                                {j.job_id}{j.b_ord > 1 && <span className="text-accent">×{j.b_ord}</span>}
                               </button>
                               {j.po_no && (
-                                <span className="font-mono text-[11px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded" title={`PO: ${j.po_no}`}>
+                                <span className="font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded" title={`PO: ${j.po_no}`}>
                                   PO {j.po_no}
                                 </span>
                               )}
                               <span className="text-[11px] truncate max-w-28" style={{ color: T.textFaint }} title={j.customer_name}>{j.customer_name}</span>
                               {j.due && (
-                                <span className={`text-[10px] px-1 py-0.5 rounded ${new Date(j.due) < new Date() ? 'bg-red-50 text-red-600' : ''}`} style={new Date(j.due) >= new Date() ? { color: T.textFaint } : undefined}>
+                                <span className={`text-[10px] px-1 py-0.5 rounded ${new Date(j.due) < new Date() ? 'bg-danger-tint text-danger' : ''}`} style={new Date(j.due) >= new Date() ? { color: T.textFaint } : undefined}>
                                   due {j.due}
                                 </span>
                               )}
@@ -833,9 +833,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 <tr>
                   <td />
                   <td className="px-3 py-2" colSpan={4}>TOTAL ({totals.sku_count} SKUs)</td>
-                  <td className="px-3 py-2 text-center text-indigo-700">{totals.total_b_ord}</td>
+                  <td className="px-3 py-2 text-center text-accent-strong">{totals.total_b_ord}</td>
                   <td />
-                  <td className="px-3 py-2 text-right text-red-700">{fmt$(totals.total_value)}</td>
+                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.total_value)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -854,15 +854,15 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
               <h2 className="font-semibold flex items-center gap-2 text-base" style={{ color: T.text }}>
-                <ShoppingCart className="w-4 h-4 text-blue-800" />
+                <ShoppingCart className="w-4 h-4 text-accent-strong" />
                 Raise Purchase Order from Back Orders
               </h2>
-              <button onClick={() => setRaisePOOpen(false)} className="hover:text-gray-600" style={{ color: T.textMuted }}><X className="w-5 h-5" /></button>
+              <button onClick={() => setRaisePOOpen(false)} className="hover:text-muted" style={{ color: T.textMuted }}><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {poErr && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm flex gap-2">
+                <div className="bg-danger-tint border border-danger text-danger px-3 py-2 rounded text-sm flex gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{poErr}
                 </div>
               )}
@@ -871,13 +871,13 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>PO Number *</label>
-                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus font-mono text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.id} onChange={e => setPoForm(f => ({ ...f, id: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Supplier</label>
-                  <select className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  <select className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.supplierCode}
                     onChange={e => {
@@ -890,13 +890,13 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Expected Delivery Date</label>
-                  <input type="date" className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  <input type="date" className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.expectedDate} onChange={e => setPoForm(f => ({ ...f, expectedDate: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Notes</label>
-                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
@@ -918,7 +918,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                   </thead>
                   <tbody>
                     {poForm.items.map((item, idx) => (
-                      <tr key={item.sku} className="last:border-0 hover:bg-gray-50" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                      <tr key={item.sku} className="last:border-0 hover:bg-panel-alt" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                         <td className="px-3 py-2 font-mono font-semibold" style={{ color: T.text }}>{item.sku}</td>
                         <td className="px-3 py-2 max-w-36 truncate" style={{ color: T.textMuted }} title={item.description}>{item.description}</td>
                         <td className="px-3 py-2 text-center">
@@ -929,7 +929,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                               items[idx] = { ...items[idx], qty: parseInt(e.target.value) || 0 };
                               return { ...f, items };
                             })}
-                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-indigo-700"
+                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-accent-strong"
                             style={{ border: `1px solid ${T.hairline}` }} />
                         </td>
                         <td className="px-3 py-2 text-right" style={{ color: T.textMuted }}>{fmt$(item.unitCost)}</td>
@@ -937,7 +937,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {item.jobIds.map(jid => (
-                              <span key={jid} className="font-mono text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1 py-0.5 rounded">
+                              <span key={jid} className="font-mono text-[10px] bg-accent-tint text-accent-strong border border-accent px-1 py-0.5 rounded">
                                 {jid}
                               </span>
                             ))}
@@ -963,9 +963,9 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
             {/* Modal footer */}
             <div className="flex justify-end gap-2 px-5 py-3" style={{ borderTop: `1px solid ${T.hairline}`, background: T.hairlineSoft }}>
-              <button onClick={() => setRaisePOOpen(false)} className="px-4 py-2 text-sm hover:text-gray-800" style={{ color: T.textMuted }}>Cancel</button>
+              <button onClick={() => setRaisePOOpen(false)} className="px-4 py-2 text-sm hover:text-fg" style={{ color: T.textMuted }}>Cancel</button>
               <button onClick={submitRaisePO} disabled={raising}
-                className="px-4 py-2 text-sm text-white rounded-lg hover:bg-blue-800 disabled:opacity-60 flex items-center gap-1.5 font-semibold"
+                className="px-4 py-2 text-sm text-white rounded-lg hover:bg-accent-strong disabled:opacity-60 flex items-center gap-1.5 font-semibold"
                 style={{ background: T.accentStrong }}>
                 {raising ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Raise PO {poForm.id}
@@ -1002,7 +1002,7 @@ function DecorationPerformanceTab() {
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
             Type: r.decoration_type || 'None', Items: r.item_count, Qty: r.qty, Revenue: r.revenue, Cost: r.cost, Margin: r.margin, 'Margin%': r.margin_pct,
           })), `decoration-performance-${range.from}-${range.to}.csv`)} />
-          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-blue-900" style={{ color: T.accentStrong }}>
+          <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
           </button>
         </div>
@@ -1025,11 +1025,11 @@ function DecorationPerformanceTab() {
                     <td className="px-3 py-2 font-semibold">{r.decoration_type || 'None'}</td>
                     <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{r.item_count}</td>
                     <td className="px-3 py-2 text-center" style={{ color: T.textMuted }}>{(r.qty || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right text-blue-800">{fmt$(r.revenue)}</td>
-                    <td className="px-3 py-2 text-right text-red-600">{fmt$(r.cost)}</td>
-                    <td className="px-3 py-2 text-right text-green-700 font-medium">{fmt$(r.margin)}</td>
+                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.revenue)}</td>
+                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.cost)}</td>
+                    <td className="px-3 py-2 text-right text-ok font-medium">{fmt$(r.margin)}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-green-100 text-green-800' : r.margin_pct >= 10 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                         {r.margin_pct}%
                       </span>
                     </td>
@@ -1097,10 +1097,10 @@ function OverviewTab({ jobs = [], inventory = [] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue', value: fmt$(jobs.reduce((s,j)=>s+(j.total||0),0)), color: 'text-green-600' },
-          { label: 'Active Jobs', value: jobs.filter(j=>!['FINISH','CANCEL'].includes(j.status)).length, color: 'text-blue-800' },
-          { label: 'Low Stock Items', value: countNeedingReorder(inventory), color: 'text-red-600' },
-          { label: 'Inventory Value', value: fmt$(inventory.reduce((s,i)=>s+i.stock*(i.unitCost||0),0)), color: 'text-purple-600' },
+          { label: 'Total Revenue', value: fmt$(jobs.reduce((s,j)=>s+(j.total||0),0)), color: 'text-ok' },
+          { label: 'Active Jobs', value: jobs.filter(j=>!['FINISH','CANCEL'].includes(j.status)).length, color: 'text-accent-strong' },
+          { label: 'Low Stock Items', value: countNeedingReorder(inventory), color: 'text-danger' },
+          { label: 'Inventory Value', value: fmt$(inventory.reduce((s,i)=>s+i.stock*(i.unitCost||0),0)), color: 'text-emphasis' },
         ].map(kpi => (
           <div key={kpi.label} className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
             <p className="text-xs" style={{ color: T.textMuted }}>{kpi.label}</p>

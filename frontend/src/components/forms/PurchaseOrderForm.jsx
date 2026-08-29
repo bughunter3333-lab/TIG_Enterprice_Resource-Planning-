@@ -27,7 +27,7 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                       }
                       if (e.key === 'Escape') setSupplierDropdown({ open: false, query: '', highlighted: 0 });
                     }}
-                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
                     style={{border: `1px solid ${T.hairline}`}}
                     placeholder="Type to search suppliers…"
                     autoComplete="off"
@@ -49,7 +49,7 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                             className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
                             style={{borderBottom: `1px solid ${T.hairline}`, background: i === supplierDropdown.highlighted ? T.hairlineSoft : T.panel}}
                           >
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center flex-shrink-0">
                               {s.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -65,15 +65,15 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-order-date">Order Date</label>
-                  <input id="po-order-date" type="date" value={poForm.date} onChange={e => setPoForm({...poForm, date: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
+                  <input id="po-order-date" type="date" value={poForm.date} onChange={e => setPoForm({...poForm, date: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-expected-delivery">Expected Delivery</label>
-                  <input id="po-expected-delivery" type="date" value={poForm.expectedDate} onChange={e => setPoForm({...poForm, expectedDate: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
+                  <input id="po-expected-delivery" type="date" value={poForm.expectedDate} onChange={e => setPoForm({...poForm, expectedDate: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="po-notes">Notes</label>
-                  <textarea id="po-notes" value={poForm.notes} onChange={e => setPoForm({...poForm, notes: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} rows="2" />
+                  <textarea id="po-notes" value={poForm.notes} onChange={e => setPoForm({...poForm, notes: e.target.value})} className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} rows="2" />
                 </div>
               </div>
               <div>
@@ -117,7 +117,7 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                           if (e.key === 'Enter' && poScored[poSkuDropdown.highlighted]) { e.preventDefault(); selectPoItem(poScored[poSkuDropdown.highlighted].inv); }
                           if (e.key === 'Escape') setPoSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                         }}
-                        className="w-full rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                        className="w-full rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus font-mono"
                         style={{border: `1px solid ${T.hairline}`}}
                         autoComplete="off"
                       />
@@ -135,9 +135,9 @@ export default function PurchaseOrderForm({ closeModal, inventory, poForm, poSku
                         </div>
                       )}
                     </div>
-                    <input type="text" placeholder="Description" value={item.description} onChange={e => { const items=[...poForm.items]; items[idx]={...items[idx],description:e.target.value}; setPoForm({...poForm,items}); }} className="col-span-4 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
-                    <input type="number" placeholder="Qty" value={item.quantity} min="1" onChange={e => { const items=[...poForm.items]; const qty=parseInt(e.target.value)||0; items[idx]={...items[idx],quantity:qty,total:qty*items[idx].unitCost}; setPoForm({...poForm,items}); }} className="col-span-2 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
-                    <input type="number" placeholder="Unit Cost" step="0.01" value={item.unitCost} min="0" onChange={e => { const items=[...poForm.items]; const cost=parseFloat(e.target.value)||0; items[idx]={...items[idx],unitCost:cost,total:items[idx].quantity*cost}; setPoForm({...poForm,items}); }} className="col-span-2 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" style={{border: `1px solid ${T.hairline}`}} />
+                    <input type="text" placeholder="Description" value={item.description} onChange={e => { const items=[...poForm.items]; items[idx]={...items[idx],description:e.target.value}; setPoForm({...poForm,items}); }} className="col-span-4 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} />
+                    <input type="number" placeholder="Qty" value={item.quantity} min="1" onChange={e => { const items=[...poForm.items]; const qty=parseInt(e.target.value)||0; items[idx]={...items[idx],quantity:qty,total:qty*items[idx].unitCost}; setPoForm({...poForm,items}); }} className="col-span-2 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} />
+                    <input type="number" placeholder="Unit Cost" step="0.01" value={item.unitCost} min="0" onChange={e => { const items=[...poForm.items]; const cost=parseFloat(e.target.value)||0; items[idx]={...items[idx],unitCost:cost,total:items[idx].quantity*cost}; setPoForm({...poForm,items}); }} className="col-span-2 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{border: `1px solid ${T.hairline}`}} />
                     <span className="col-span-1 text-sm text-right font-medium" style={{color: T.text}}>${(item.total||0).toFixed(2)}</span>
                     <button type="button" onClick={() => { const items=poForm.items.filter((_,i)=>i!==idx); setPoForm({...poForm,items}); }} className="col-span-1 flex justify-center" style={{color: T.danger}}><X className="w-4 h-4" /></button>
                   </div>

@@ -36,7 +36,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
   return (
     <DraggableModal onClose={close} cardClass="w-[900px] p-6" cardStyle={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
       <div className="flex items-center justify-between mb-4 cursor-move select-none">
-        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><DollarSign className="w-5 h-5 text-green-600" />Sales Register</h3>
+        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><DollarSign className="w-5 h-5 text-ok" />Sales Register</h3>
         <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
       </div>
       <div className="flex items-end gap-3 mb-4">
@@ -64,7 +64,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
                   <tr key={j.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
                     <td className="px-3 py-1.5 font-mono font-medium" style={{ color: T.accentStrong }}>{j.id}</td>
                     <td className="px-3 py-1.5" style={{ color: T.text }}>{j.customer}</td>
-                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{j.status}</span></td>
+                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{j.status}</span></td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.dateIn}</td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.invoice || '—'}</td>
                     <td className="px-3 py-1.5 text-right" style={{ color: T.text }}>${(j.subtotal||0).toFixed(2)}</td>

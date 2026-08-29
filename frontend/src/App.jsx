@@ -25,8 +25,8 @@ export default function App() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Loading...</div>
+      <div className="min-h-screen bg-hairline-soft flex items-center justify-center">
+        <div className="text-muted text-sm">Loading...</div>
       </div>
     );
   }

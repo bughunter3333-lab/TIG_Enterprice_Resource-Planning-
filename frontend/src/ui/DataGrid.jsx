@@ -72,7 +72,10 @@ export default function DataGrid({
               onMouseLeave={e => { e.currentTarget.style.color = sort?.key === c.key ? T.accentStrong : T.headerText; }}
               style={{
                 ...cellBase,
-                height: 26,
+                // The header sits a step tighter than a data row: it is read
+                // once and then scanned past, so it should not cost a row's
+                // worth of height. Derived from the token so it moves with it.
+                height: T.rowHeight - 6,
                 width: c.width,
                 flex: c.width ? `0 0 ${c.width}px` : 1,
                 justifyContent: c.align === 'right' ? 'flex-end' : 'flex-start',

@@ -25,10 +25,10 @@ export default function UnprintModal({ onJobUpdated, setUnprintModal, unprintMod
   return (
     <DraggableModal onClose={close} cardClass="w-[420px] p-6">
       <div className="flex items-center justify-between mb-4 cursor-move select-none">
-        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Printer className="w-5 h-5 text-indigo-600" />Unprint Job #{unprintModal.job?.id}</h3>
+        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Printer className="w-5 h-5 text-accent-strong" />Unprint Job #{unprintModal.job?.id}</h3>
         <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
       </div>
-      <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-indigo-600">{unprintModal.job?.status}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>FINISH</span>.</p>
+      <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-accent-strong">{unprintModal.job?.status}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>FINISH</span>.</p>
       <p className="text-xs mb-4" style={{ color: T.textMuted }}>An internal comment will be added recording this action. Use this to recall and re-issue an invoice.</p>
       {unprintModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, background: T.dangerTint }}>{unprintModal.error}</p>}
       <div className="flex justify-end gap-2 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
