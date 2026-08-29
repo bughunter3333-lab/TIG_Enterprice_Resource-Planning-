@@ -15,7 +15,7 @@
  * Labels in this modal are bare <label> elements with no htmlFor, so the
  * controls are reached by role (number vs text) rather than by label text.
  */
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockAdjustModal from '../StockAdjustModal';
 
@@ -31,11 +31,12 @@ const open = (over = {}) => ({
   ...over,
 });
 
-const setup = (state = {}) => {
+const setup = (state = {}, propOverrides = {}) => {
   const props = {
     stockAdjustModal: open(state),
     adjustStock: vi.fn(),
     setStockAdjustModal: vi.fn(),
+    ...propOverrides,
   };
   const view = renderWithQuery(<StockAdjustModal {...props} />);
   return { ...props, ...view };
@@ -86,11 +87,25 @@ test('an oversized removal is still sent whole', () => {
   expect(adjustStock).toHaveBeenCalledWith('TEE-BLK-M', -10, 'Damaged in transit');
 });
 
-test('applying an adjustment writes it and closes', () => {
+test('applying an adjustment writes it and closes', async () => {
   const { adjustStock, setStockAdjustModal } = setup({ adjustment: '5', reason: 'Stocktake' });
   fireEvent.click(screen.getByRole('button', { name: /apply adjustment/i }));
   expect(adjustStock).toHaveBeenCalledWith('TEE-BLK-M', 5, 'Stocktake');
-  expect(setStockAdjustModal).toHaveBeenCalledWith(RESET);
+  // The close waits on the write now, so it lands a tick later.
+  await waitFor(() => expect(setStockAdjustModal).toHaveBeenCalledWith(RESET));
+});
+
+test('a refused adjustment leaves the dialog open', async () => {
+  // The server rejects a removal larger than what is on hand, and the preview
+  // above hides that by flooring the new figure at zero. Closing anyway is what
+  // the operator reads as applied.
+  const { setStockAdjustModal } = setup(
+    { adjustment: '-999', reason: 'Damaged' },
+    { adjustStock: vi.fn().mockRejectedValue(new Error('Adjustment would result in negative stock')) },
+  );
+  fireEvent.click(screen.getByRole('button', { name: /apply adjustment/i }));
+  await waitFor(() => {});
+  expect(setStockAdjustModal).not.toHaveBeenCalledWith(RESET);
 });
 
 test('a blank reason still reaches the ledger as something', () => {

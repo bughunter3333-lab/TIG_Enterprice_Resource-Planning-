@@ -12,7 +12,11 @@ export default function InvoiceDocument({ customers, invoiceJob, invoiceVariant,
   const paid = parseFloat(j.deposit || j.invoicePaid || 0);
   const balance = parseFloat((grandTotal - paid).toFixed(2));
   const isQuote = j.status === 'QUOTE';
-  const isProforma = !isQuote && invoiceVariant !== 'standard';
+  // Named variants rather than "anything that is not standard". The old test
+  // meant a missing invoiceVariant printed a real tax invoice as a proforma
+  // stamped "Not a Tax Invoice" - safe today only because the single caller
+  // defaults the prop, which is not something a tax document should rest on.
+  const isProforma = !isQuote && (invoiceVariant === 'proforma' || invoiceVariant === 'proformaBalance');
   const balanceOnly = invoiceVariant === 'proformaBalance';
   const docTitle = isQuote ? 'TAX QUOTE' : isProforma ? 'TAX PROFORMA INVOICE' : 'TAX INVOICE';
 

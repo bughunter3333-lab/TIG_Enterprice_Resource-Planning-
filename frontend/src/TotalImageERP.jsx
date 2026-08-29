@@ -1171,11 +1171,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     } catch (e) { setApiError(e.message); }
   };
 
+  // Rethrows. The stock-adjust dialog closes itself on success and the server
+  // refuses an adjustment that would take a line negative, so swallowing here
+  // closed the dialog on a rejected write exactly as it does on an applied one.
   const adjustStock = async (sku, adjustment, reason) => {
     try {
       await api.inventory.adjust(sku, adjustment, reason);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    } catch (e) { setApiError(e.message); }
+    } catch (e) {
+      setApiError(e.message);
+      throw e;
+    }
   };
 
   const addJobComment = async (jobId, comment, isInternal = false) => {
@@ -4505,12 +4511,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Forward</span>
               </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Eye className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Preview</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-gray-200">
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'job', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
+              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md text-gray-700 text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Printer className="w-5 h-5 text-gray-600" /><span className="whitespace-nowrap">Print</span>
               </button>
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-gray-400 text-[13px] font-medium opacity-40 cursor-default">

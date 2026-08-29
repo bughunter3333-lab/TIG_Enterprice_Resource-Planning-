@@ -52,9 +52,16 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
             Cancel
           </button>
           <button
-            onClick={() => {
-              if (adj !== 0) adjustStock(stockAdjustModal.sku, adj, stockAdjustModal.reason || 'Manual adjustment');
-              setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' });
+            onClick={async () => {
+              if (adj === 0) return;
+              try {
+                await adjustStock(stockAdjustModal.sku, adj, stockAdjustModal.reason || 'Manual adjustment');
+                setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' });
+              } catch {
+                // Stay open. Closing reads as applied, and the server refuses a
+                // removal larger than what is on hand — which the preview above
+                // hides, because it floors the new figure at zero.
+              }
             }}
             disabled={adj === 0}
             className="px-4 py-2 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center"

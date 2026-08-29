@@ -208,13 +208,16 @@ test('a proforma says it is not a tax invoice but still shows how to pay', () =>
   expect(screen.getByText('$275.00')).toBeInTheDocument();
 });
 
-test('an unpassed variant falls to proforma, not to a tax invoice', () => {
-  // isProforma is `!isQuote && invoiceVariant !== 'standard'`, so an omitted
-  // prop reads as a proforma. Pinned deliberately: the caller defaults the
-  // variant to 'standard', and if that ever stops happening this component
-  // downgrades a real tax invoice rather than upgrading a proforma.
+test('an unpassed variant prints a tax invoice, not a proforma', () => {
+  // This test used to pin the opposite, because isProforma was
+  // `!isQuote && invoiceVariant !== 'standard'` — so an omitted prop stamped a
+  // real tax invoice as a proforma reading "Not a Tax Invoice". It was safe
+  // only because the one caller defaults the variant, which is not something a
+  // tax document should rest on. The check is now by name, and absence of
+  // information means the ordinary document rather than the qualified one.
   setup({ invoiceVariant: undefined });
-  expect(screen.getAllByText('TAX PROFORMA INVOICE')).toHaveLength(2);
+  expect(screen.getAllByText('TAX INVOICE').length).toBeGreaterThan(0);
+  expect(screen.queryByText('TAX PROFORMA INVOICE')).toBeNull();
 });
 
 test('the balance-only proforma hides every price and every total but the balance', () => {

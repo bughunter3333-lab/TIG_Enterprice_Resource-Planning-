@@ -20,11 +20,18 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
     if (!salesRegModal.data) return;
     const rows = [['Job ID','Customer','Status','Date In','Invoice','Total Ex','Tax','Total Inc','Balance Due']];
     salesRegModal.data.jobs.forEach(j => rows.push([j.id, j.customer, j.status, j.dateIn, j.invoice || '', (j.subtotal||0).toFixed(2), (j.tax||0).toFixed(2), (j.total||0).toFixed(2), (j.balanceDue||0).toFixed(2)]));
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    // RFC 4180: a quote inside a quoted field is escaped by doubling it.
+    // Every cell was wrapped in quotes and nothing escaped it, so a customer
+    // name containing one broke the row - silently, in the bookkeeper spreadsheet
+    // this file is made for rather than here.
+    const esc = (c) => String(c == null ? '' : c).replace(/"/g, '""');
+    const csv = rows.map(r => r.map(c => `"${esc(c)}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.href = url;
     a.download = `sales-register-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
   return (
     <DraggableModal onClose={close} cardClass="w-[900px] p-6" cardStyle={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
