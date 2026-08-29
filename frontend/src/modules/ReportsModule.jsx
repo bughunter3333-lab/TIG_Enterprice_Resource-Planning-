@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarChart3, TrendingUp, DollarSign, Package, Users, Download, RefreshCw, Clock, AlertTriangle, Layers } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Package, Users, Download, RefreshCw, Clock, AlertTriangle, Layers, Plus, AlertCircle, ShoppingCart, X, Check } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';

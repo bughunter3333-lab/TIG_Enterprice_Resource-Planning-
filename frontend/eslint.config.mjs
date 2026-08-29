@@ -20,6 +20,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
+import react from 'eslint-plugin-react';
 
 export default [
   {
@@ -41,10 +42,26 @@ export default [
         ecmaFeatures: { jsx: true },
       },
     },
-    plugins: { 'react-hooks': reactHooks },
+    plugins: { 'react-hooks': reactHooks, react },
+    settings: { react: { version: 'detect' } },
     rules: {
       // The rule this config exists for.
       'no-undef': 'error',
+
+      // no-undef does not cover it. espree emits a JSX element name as a
+      // JSXIdentifier, which eslint-scope creates no reference for, so
+      // `<StatusBadge />` with no import is invisible to the rule above while
+      // `onClick={handler}` next to it is caught. That is the exact mistake a
+      // component extracted out of the monolith is most likely to make.
+      'react/jsx-no-undef': 'error',
+
+      // The other half of the same gap, and the reason it has to be on: without
+      // it no-unused-vars counts an import rendered only as JSX as unused, so
+      // every icon and primitive in the app reports as dead. Those were real
+      // false positives here — ModuleBar's `Search` and `Bell` are both used —
+      // and a warning that is wrong is how a lint report becomes noise nobody
+      // reads, which is the failure this config is written to avoid.
+      'react/jsx-uses-vars': 'error',
 
       // Hook order bugs are silent and produce wrong state rather than an
       // error, which makes them expensive to find by hand.
