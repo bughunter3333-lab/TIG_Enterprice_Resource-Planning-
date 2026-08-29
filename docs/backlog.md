@@ -289,7 +289,8 @@ component that takes almost nothing.
 
 **`renderModal`'s 71 is an artefact of the union.** It is one modal shell around
 five mutually exclusive `modalType` branches, and measured separately four of
-the five are clean:
+the five are clean. *(The four clean ones are now extracted to
+`src/components/forms/`; the shell and the job branch remain.)*
 
 | branch | lines | props |
 | --- | --- | --- |
@@ -372,6 +373,34 @@ thing until those two values come from tokens.
 Suggested order: convert the utilities (mechanically listed, decided by hand,
 in reviewable batches) → move `index.css`'s focus colours onto tokens → then
 change `tokens.js`, at which point the swap actually lands everywhere at once.
+
+### F5. Two gaps the form extraction exposed
+
+**Nothing catches a dropped prop.** `no-undef` catches an identifier that was
+never imported, which is what made the component extraction checkable. It does
+not catch a prop that a call site stops passing: the component still parses,
+the value is simply `undefined`, and the failure is silent and visual.
+`SupplierForm` is the clearest case — it locks the supplier code once the record
+exists, and that lock rides entirely on `editingItem` arriving. Drop it at the
+call site and the code becomes editable on an existing supplier with no error
+anywhere. The component test pins the rule; nothing pins the wiring. This is
+the concrete argument for the TypeScript phase, more than type safety in the
+abstract.
+
+**35 labels, none associated.** Across the four extracted forms:
+
+| file | labels | with `htmlFor` |
+| --- | --- | --- |
+| `CustomerForm.jsx` | 11 | 0 |
+| `InventoryForm.jsx` | 11 | 0 |
+| `SupplierForm.jsx` | 9 | 0 |
+| `PurchaseOrderForm.jsx` | 4 | 0 |
+
+Clicking a label does not focus its field, and a screen reader announces the
+inputs unlabelled. Inherited from the monolith rather than introduced here, but
+it is now isolated in four small files where fixing it is cheap and reviewable —
+and it is why the tests query by displayed value instead of by label, which is
+the weaker query.
 
 ## Known gaps, deliberately open
 
