@@ -80,7 +80,7 @@ def company_settings(test_db_session):
     if not existing:
         settings = CompanySettings(
             id=1,
-            company_name="Total Image Group (Test)",
+            company_name="Total Image (Test)",
             abn="51824753556",  # valid test ABN
             gst_rate=10.0,
             payment_terms_default="Net 30",

@@ -115,10 +115,12 @@
   position: relative;
   display: inline-block;
 }
+/* Two five-letter words, so the mark sets as a clean rectangle; it is sized to
+   carry the left column on its own rather than to fit a third line. */
 .press-mark h1 {
   margin: 0;
   font-weight: 900;
-  font-size: clamp(3.4rem, 10.5vw, 9.5rem);
+  font-size: clamp(3.8rem, 12vw, 11.5rem);
   line-height: 0.82;
   letter-spacing: -0.04em;
   text-transform: uppercase;

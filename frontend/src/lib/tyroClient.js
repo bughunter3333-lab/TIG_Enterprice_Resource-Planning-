@@ -44,7 +44,7 @@ export async function initiateTyroPurchase(amountDollars, config, callbacks) {
 
   const iclient = new window.TYRO.ICLient(merchantId, {
     posProductInfo: {
-      posProductVendor: 'Total Image Group',
+      posProductVendor: 'Total Image',
       posProductName: 'TIG ERP',
       posProductVersion: '1.0',
       posProductId: terminalId || 'TIG-ERP-001',

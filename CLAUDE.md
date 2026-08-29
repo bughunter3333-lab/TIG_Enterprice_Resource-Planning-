@@ -1,4 +1,4 @@
-# Total Image Group ERP — Claude Code Guide
+# Total Image ERP — Claude Code Guide
 
 ## Always
 

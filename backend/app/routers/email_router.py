@@ -47,7 +47,7 @@ def _build_email_body(
             f"</tr>"
         )
 
-    company = settings.company_name or "Total Image Group"
+    company = settings.company_name or "Total Image"
     abn = settings.abn or ""
     bank_details = ""
     if settings.bank_name:

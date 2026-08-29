@@ -109,9 +109,9 @@ export default function LoginScreen({ onLogin }) {
           </div>
 
           <div className="press-mark">
-            <h1 className="press-plate press-plate--c" aria-hidden="true">Total<br />Image<br />Group</h1>
-            <h1 className="press-plate press-plate--m" aria-hidden="true">Total<br />Image<br />Group</h1>
-            <h1 className="press-plate press-plate--k">Total<br />Image<br />Group</h1>
+            <h1 className="press-plate press-plate--c" aria-hidden="true">Total<br />Image</h1>
+            <h1 className="press-plate press-plate--m" aria-hidden="true">Total<br />Image</h1>
+            <h1 className="press-plate press-plate--k">Total<br />Image</h1>
           </div>
 
           <div className="press-rule" />
@@ -129,8 +129,8 @@ export default function LoginScreen({ onLogin }) {
             <form onSubmit={handleLogin}>
               <div className="press-panel-head">
                 <h2>Sign in</h2>
-                {/* No logo here on purpose. It is itself a wordmark reading
-                    "Total Image Group", so next to the 9.5rem one on the left it
+                {/* No logo here on purpose. logo.svg is itself a wordmark of
+                    the company name, so beside the 9.5rem one on the left it
                     says the same thing twice, in an indigo that fights the CMYK
                     palette. The docket keeps this head consistent with the two
                     2FA steps. */}
@@ -254,7 +254,7 @@ export default function LoginScreen({ onLogin }) {
       </div>
 
       <div className="press-foot">
-        <span>Total Image Group — internal system</span>
+        <span>Total Image — internal system</span>
         <span>Sydney · AU</span>
       </div>
     </div>

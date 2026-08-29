@@ -1136,7 +1136,7 @@ def call_claude(user_message: str, live_context: str, username: str) -> Optional
         import anthropic
 
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        system = f"""You are an intelligent ERP assistant for Total Image Group (TIG), a garment decoration company specialising in embroidery, screen printing, DTF, and transfers.
+        system = f"""You are an intelligent ERP assistant for Total Image (TIG), a garment decoration company specialising in embroidery, screen printing, DTF, and transfers.
 
 You have access to live data from their ERP system. Respond concisely using markdown formatting (bold with **, bullets with •).
 

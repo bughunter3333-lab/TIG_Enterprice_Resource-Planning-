@@ -1,6 +1,6 @@
 # TIG ERP — Backend
 
-FastAPI + SQLAlchemy + PostgreSQL backend for Total Image Group's internal ERP system.
+FastAPI + SQLAlchemy + PostgreSQL backend for Total Image's internal ERP system.
 
 ## Quick start
 

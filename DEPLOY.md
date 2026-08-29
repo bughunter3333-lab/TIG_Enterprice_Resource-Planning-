@@ -1,4 +1,4 @@
-# Deployment Runbook — Total Image Group ERP
+# Deployment Runbook — Total Image ERP
 
 The **frontend** is on Vercel (`tig-enterprice-resource-planning.vercel.app`). The **backend** (FastAPI + Postgres) must be deployed separately and proxied behind the frontend's `/api` path. Login 404s until the backend is up and wired.
 

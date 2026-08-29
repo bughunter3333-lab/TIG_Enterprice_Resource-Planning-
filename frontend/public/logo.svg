@@ -30,10 +30,4 @@
   <!-- ── thin rule under image ── -->
   <line x1="2" y1="60" x2="152" y2="60" stroke="#ccc" stroke-width="0.75"/>
 
-  <!-- ── group ── -->
-  <text x="152" y="70"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-size="11.5" font-weight="400"
-    text-anchor="end"
-    fill="#888" letter-spacing="1">group</text>
 </svg>

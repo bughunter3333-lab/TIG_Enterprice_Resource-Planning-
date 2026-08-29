@@ -1,6 +1,6 @@
-# Total Image Group — ERP System
+# Total Image — ERP System
 
-Internal enterprise resource planning system for Total Image Group. Built with FastAPI and React.
+Internal enterprise resource planning system for Total Image. Built with FastAPI and React.
 
 ---
 

@@ -215,7 +215,7 @@ export default function SettingsModule({ currentUser }) {
               <TextInput value={form.smtp_password} onChange={v => set('smtp_password', v)} type="password" placeholder="App password or SMTP password" disabled={!isAdmin} />
             </FieldRow>
             <FieldRow label="From Name">
-              <TextInput value={form.smtp_from_name} onChange={v => set('smtp_from_name', v)} placeholder="e.g. Total Image Group" disabled={!isAdmin} />
+              <TextInput value={form.smtp_from_name} onChange={v => set('smtp_from_name', v)} placeholder="e.g. Total Image" disabled={!isAdmin} />
             </FieldRow>
             <FieldRow label="Connection">
               <div className="flex items-center gap-3">

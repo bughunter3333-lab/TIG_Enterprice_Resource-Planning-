@@ -51,7 +51,7 @@ export default function InvoiceDocument({ customers, invoiceJob, invoiceVariant,
               <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
                 <span style={{ color: '#fff', fontWeight: 900, fontSize: 20, letterSpacing: -1 }}>TIG</span>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 18, lineHeight: 1.2 }}>Total Image Group</div>
+              <div style={{ fontWeight: 700, fontSize: 18, lineHeight: 1.2 }}>Total Image</div>
               <div style={{ color: '#555', fontSize: 12, marginTop: 4 }}>123 Example Street, Melbourne VIC 3000</div>
               <div style={{ color: '#555', fontSize: 12 }}>Phone: (03) 9000 0000 · info@totalimagegroup.com.au</div>
               <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}><strong>ABN:</strong> 12 345 678 901</div>

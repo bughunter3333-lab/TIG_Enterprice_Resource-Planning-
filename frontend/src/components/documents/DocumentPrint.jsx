@@ -27,7 +27,7 @@ export default function DocumentPrint({ documentPrint, inventory, setDocumentPri
             <div className="bg-gray-900 text-white px-5 py-3 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-widest text-gray-400">From</p>
-                <p className="font-bold text-sm">Total Image Group</p>
+                <p className="font-bold text-sm">Total Image</p>
                 <p className="text-xs text-gray-300">info@totalimage.com.au</p>
               </div>
               <div className="text-right">
@@ -111,7 +111,7 @@ export default function DocumentPrint({ documentPrint, inventory, setDocumentPri
           <div className="flex justify-between items-start mb-5">
             <div>
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded flex items-center justify-center text-white font-bold text-sm mb-1">TIG</div>
-              <h1 className="text-base font-bold text-gray-800">Total Image Group</h1>
+              <h1 className="text-base font-bold text-gray-800">Total Image</h1>
               <p className="text-xs text-gray-500">info@totalimage.com.au</p>
             </div>
             <div className="text-right">
@@ -227,7 +227,7 @@ export default function DocumentPrint({ documentPrint, inventory, setDocumentPri
           )}
 
           <div className="mt-6 pt-3 border-t text-xs text-gray-400 text-center">
-            Total Image Group — {titles[type]} — Printed {new Date().toLocaleString()}
+            Total Image — {titles[type]} — Printed {new Date().toLocaleString()}
           </div>
         </div>
     </DraggableModal>

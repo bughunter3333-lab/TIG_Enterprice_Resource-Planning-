@@ -2103,7 +2103,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           </style>
         </head>
         <body>
-          <h1>Total Image Group</h1>
+          <h1>Total Image</h1>
           <h2>Tax Invoice</h2>
           <p><strong>Invoice #:</strong> ${job.invoice}</p>
           <p><strong>Job #:</strong> ${job.id}</p>
@@ -7286,7 +7286,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         onChange={e => { setOfAccount(a => ({ ...a, accountName: e.target.value })); setOfAccountDirty(true); }}
                         className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
-                        placeholder="Total Image Group" />
+                        placeholder="Total Image" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Depot / Branch</label>

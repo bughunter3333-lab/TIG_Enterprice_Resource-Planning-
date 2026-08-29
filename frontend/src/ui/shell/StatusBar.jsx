@@ -32,7 +32,7 @@ export default function StatusBar({ currentUser }) {
         User: <span style={{ color: T.chromeText, fontWeight: 600 }}>{currentUser?.username ?? '—'}</span>
       </span>
       {currentUser?.role && <span style={{ fontSize: 10, color: T.chromeTextMuted, textTransform: 'capitalize' }}>{currentUser.role}</span>}
-      <span style={{ fontSize: 10, color: T.chromeTextMuted }}>Total Image Group</span>
+      <span style={{ fontSize: 10, color: T.chromeTextMuted }}>Total Image</span>
       <div style={{ flex: 1 }} />
       <span style={{ fontSize: 10, color: T.chromeTextMuted, fontFamily: T.mono ?? 'monospace' }} title="Deployed build id">
         build {typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'}
