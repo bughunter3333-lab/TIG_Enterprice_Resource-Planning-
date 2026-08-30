@@ -436,6 +436,13 @@ lines of unreachable code into its own module would promote dead code to a
 first-class surface, which is the mistake already recorded for `DispatchModal`
 in F3 at a twelfth of the size.
 
+**The bleeding is stopped, the decision is not made.** Both fetches are now
+gated on `ofModalOpen` — the query takes `enabled`, the effect returns early —
+so a fresh authenticated load makes 22 API requests and none of them go to
+`/open-freight`. Nothing is deleted, so wiring the entry point back up still
+works unchanged. What remains open is only the product question: put the button
+back, or remove the feature.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.

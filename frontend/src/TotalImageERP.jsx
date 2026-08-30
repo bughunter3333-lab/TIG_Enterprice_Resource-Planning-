@@ -4471,7 +4471,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return</span>
               </button>
               <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
@@ -4483,7 +4483,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
                 <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Jobs</span>
               </button>
             </div>
@@ -4509,16 +4509,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reply</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Forward</span>
               </button>
               <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
@@ -4529,7 +4529,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
               </button>
               <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
@@ -4606,35 +4606,35 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return to Vendor</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">PO Other</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Job Reports</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
@@ -4649,52 +4649,52 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Time Sheets</span>
               </button>
               <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Quick Add</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Merge</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reassign</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">CF Other</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
@@ -4706,18 +4706,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Item</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Item</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create Item List</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -4729,7 +4729,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Stock</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Stock</span>
               </button>
               <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
@@ -4741,10 +4741,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Adjustments</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <ShoppingCart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Procurement</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Packaging</span>
               </button>
               <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
@@ -4753,28 +4753,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <CheckSquare className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stocktake</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Tag className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Promo Pricing</span>
               </button>
               <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Flow</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Other</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
@@ -4832,7 +4832,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
               </button>
             </div>
@@ -4845,7 +4845,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 <DollarSign className="w-5 h-5 text-accent-strong" /><span className="text-[9px] text-accent-strong whitespace-nowrap font-semibold">AP Bills</span>
               </button>
               {[['Users','Debtors (AR)'],['BarChart3','GST/BAS']].map(([, lbl]) => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                   <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
@@ -4858,29 +4858,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reports</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <PieChart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Business Analysis</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Budgets</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Cash Flow</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Commission Rates</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Management</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -4892,41 +4892,41 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dashboard Board</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Trash2 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Delete</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Select Layout</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Combine Layout</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Widget</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Widget</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Widgets</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -4936,36 +4936,36 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {activeModule === 'scheduling' && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Schedule','Task','Day','Work Week','Week','Month','Year','Timeline','Current Job','Scheduler View'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                   <Calendar className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Group By</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Search className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Filters</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Resources</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Views</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Views</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
             </div>
@@ -4975,29 +4975,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {activeModule === 'email' && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Create List','Email Rules','Templates','Editor','Archive','Email Security','Send/Receive','Delete','Unread/Read','Move'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                   <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Other</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -5006,24 +5006,24 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* ── eBUSINESS ribbon ── */}
           {activeModule === 'ebusiness' && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Vendor Prices</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Customer Feeds</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">eBusiness Trans.</span>
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -5033,16 +5033,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {activeModule === 'documents' && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               {['Add Document','View/Edit','Create List','Open','Save Properties','Delete','Actions','Checkout','Cancel Checkout','Large Icons','Show Hidden','List Layout'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                   <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
               </button>
             </div>
@@ -5051,37 +5051,37 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {/* ── TOOLS (import) ribbon ── */}
           {activeModule === 'import' && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Options</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Setup</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Status</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Watchouts</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Currency Rates</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Groups</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">History</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Integration Config</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripting Engine</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report Designer</span>
               </button>
               <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
@@ -5089,13 +5089,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </button>
             </div>
             <div className="flex items-center gap-0.5">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Other</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Accounts</span>
               </button>
             </div>
@@ -5145,7 +5145,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Items</span>
               </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
+              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
                 <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Bin Map</span>
               </button>
             </div>
