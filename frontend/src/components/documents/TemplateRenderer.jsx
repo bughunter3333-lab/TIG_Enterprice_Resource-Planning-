@@ -82,7 +82,7 @@ function Barcode({ value, height }) {
   );
 }
 
-function LineTable({ cfg, job }) {
+function LineTable({ cfg, job, inventory }) {
   const cols = (cfg.columns || []).map((k) => LINE_COLUMNS.find((c) => c.key === k)).filter(Boolean);
   if (!cols.length) return null;
   const rows = (job.items || []).filter((i) => !i.hide);
@@ -131,6 +131,19 @@ function LineTable({ cfg, job }) {
           return (
             <tr key={it.id ?? idx} style={{ background: cfg.zebra && idx % 2 ? '#f4f4f4' : undefined }}>
               {cols.map((c) => {
+                // The bin is the one column that does not come off the job
+                // line. It is looked up in stock, and a SKU with nothing on
+                // hand says so rather than printing an empty cell that reads
+                // as "no bin recorded".
+                if (c.key === 'binLocation') {
+                  const inv = (inventory || []).find((i) => i.sku === it.stockCode);
+                  const inStock = inv && Number(inv.stock) > 0;
+                  return (
+                    <td key={c.key} style={{ textAlign: c.align, padding: '1.4mm 1mm', borderBottom: '0.15mm solid #ddd', fontFamily: T.fontMono, fontWeight: 600 }}>
+                      {inStock ? (inv.location || '—') : <span style={{ color: '#c8102e' }}>OUT OF STOCK</span>}
+                    </td>
+                  );
+                }
                 const raw = it[c.key];
                 const v = c.key === 'priceEx' || c.key === 'total' ? money(raw) : raw;
                 return (
@@ -154,7 +167,7 @@ function LineTable({ cfg, job }) {
   );
 }
 
-function Block({ b, job, company, totals }) {
+function Block({ b, job, company, totals, inventory }) {
   switch (b.type) {
     case 'logo':
       return (
@@ -221,7 +234,7 @@ function Block({ b, job, company, totals }) {
     }
 
     case 'lineTable':
-      return <LineTable cfg={b} job={job} />;
+      return <LineTable cfg={b} job={job} inventory={inventory} />;
 
     case 'totals': {
       const fields = (b.fields || []).map((k) => TOTAL_FIELDS.find((f) => f.key === k)).filter(Boolean);
@@ -292,7 +305,7 @@ function Block({ b, job, company, totals }) {
   }
 }
 
-export default function TemplateRenderer({ template, job, company, scale = 1 }) {
+export default function TemplateRenderer({ template, job, company, inventory, scale = 1 }) {
   const paper = PAPER[template.paper] || PAPER.A4;
   const totals = useMemo(() => deriveTotals(job || {}), [job]);
   if (!job) return null;
@@ -335,7 +348,7 @@ export default function TemplateRenderer({ template, job, company, scale = 1 }) 
             }}
           >
             {blocks.map((b) => (
-              <Block key={b.id} b={b} job={job} company={company} totals={totals} />
+              <Block key={b.id} b={b} job={job} company={company} totals={totals} inventory={inventory} />
             ))}
           </div>
         );

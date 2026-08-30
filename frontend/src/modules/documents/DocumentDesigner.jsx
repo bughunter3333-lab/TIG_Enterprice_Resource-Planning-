@@ -204,6 +204,9 @@ export default function DocumentDesigner() {
 
   const { data: jobs = [] } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list });
   const { data: company } = useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany });
+  // The bin column resolves against stock, so the preview needs it or a
+  // picking list previews every line as out of stock.
+  const { data: inventory = [] } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list });
 
   // The preview runs against a real job so the layout is judged on real data —
   // a template that looks right against three tidy lines is not a template.
@@ -341,7 +344,7 @@ export default function DocumentDesigner() {
       <div style={{ background: T.page, border: `1px solid ${T.hairline}`, borderRadius: T.radiusLg, overflow: 'auto', padding: 16 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
-            type="button" onClick={() => printDocument(template, previewJob, company)}
+            type="button" onClick={() => printDocument(template, previewJob, company, inventory)}
             disabled={!previewJob}
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: T.chrome, color: T.chromeText, border: 'none', borderRadius: T.radius, padding: '6px 11px', fontSize: T.fsSmall, fontWeight: 700, cursor: 'pointer' }}
           >
@@ -368,7 +371,7 @@ export default function DocumentDesigner() {
 
         {previewJob ? (
           <div style={{ boxShadow: T.shadowMd, width: 'fit-content' }}>
-            <TemplateRenderer template={template} job={previewJob} company={company} />
+            <TemplateRenderer template={template} job={previewJob} company={company} inventory={inventory} />
           </div>
         ) : (
           <p style={{ color: T.textMuted, fontSize: T.fsGrid }}>

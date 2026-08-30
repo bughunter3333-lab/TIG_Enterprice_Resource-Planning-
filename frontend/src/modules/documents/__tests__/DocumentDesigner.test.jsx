@@ -14,7 +14,7 @@ import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import DocumentDesigner from '../DocumentDesigner';
-import { documentTemplates, jobs as jobsApi, settings } from '../../../api';
+import { documentTemplates, inventory as inventoryApi, jobs as jobsApi, settings } from '../../../api';
 
 const job = {
   id: '1207512',
@@ -35,6 +35,10 @@ beforeEach(() => {
   saveSpy = vi.spyOn(documentTemplates, 'save').mockResolvedValue({ saved: true });
   vi.spyOn(jobsApi, 'list').mockResolvedValue([job]);
   vi.spyOn(settings, 'getCompany').mockResolvedValue({ company_name: 'Total Image' });
+  // The bin column resolves against stock, so the preview asks for it.
+  vi.spyOn(inventoryApi, 'list').mockResolvedValue([
+    { sku: 'TEE-BLK-M', stock: 580, location: 'A-12-3' },
+  ]);
 });
 afterEach(() => vi.restoreAllMocks());
 

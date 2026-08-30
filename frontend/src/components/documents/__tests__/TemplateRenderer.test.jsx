@@ -93,7 +93,9 @@ describe('the item table', () => {
   test('a picking list carries the columns a picker needs', () => {
     const { container } = renderDoc('pickingList');
     const heads = [...container.querySelectorAll('th')].map(th => th.textContent);
-    expect(heads).toEqual(['SKU', 'Description', 'Sizes', 'Ordered', 'Picked']);
+    // Bin is the reason a picker can use this sheet: it is resolved against
+    // stock rather than read off the job line.
+    expect(heads).toEqual(['SKU', 'Description', 'Sizes', 'Bin', 'Ordered', 'Picked']);
   });
 
   test('hidden lines never print', () => {

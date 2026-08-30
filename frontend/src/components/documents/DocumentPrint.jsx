@@ -1,235 +1,96 @@
+import { useQuery } from '@tanstack/react-query';
 import { Printer, X } from 'lucide-react';
+import * as api from '../../api';
+import { defaultTemplate } from '../../lib/documentTemplates';
+import { printDocument } from '../../modules/documents/printDocument';
 import DraggableModal from '../../ui/DraggableModal';
+import { T } from '../../ui/tokens';
+import TemplateRenderer from './TemplateRenderer';
+
+/**
+ * Preview and print a job document.
+ *
+ * This used to draw each of the four documents itself, in markup that had a
+ * second life as 1,109 lines of ReportLab for the PDF. It now renders whatever
+ * the template for that document says, which is the same thing the designer
+ * previews and the same thing the printer receives — so a layout changed under
+ * Admin → Print Templates takes effect here without anyone touching this file.
+ *
+ * `pickingSlip` is accepted as a name for `pickingList`: the callers in the
+ * job toolbar have used it since before templates existed, and renaming a
+ * dozen call sites to fix a label is not worth the diff.
+ */
+
+const ALIASES = { pickingSlip: 'pickingList' };
 
 export default function DocumentPrint({ documentPrint, inventory, setDocumentPrint }) {
+  const docType = documentPrint ? (ALIASES[documentPrint.type] ?? documentPrint.type) : null;
+
+  const { data: saved } = useQuery({
+    queryKey: ['documentTemplates'],
+    queryFn: api.documentTemplates.list,
+    enabled: !!documentPrint,
+  });
+  const { data: company } = useQuery({
+    queryKey: ['settings/company'],
+    queryFn: api.settings.getCompany,
+    enabled: !!documentPrint,
+  });
+
   if (!documentPrint) return null;
-  const { type, job: j } = documentPrint;
-  const titles = { pickingSlip: 'PICKING SLIP', deliveryNote: 'DELIVERY NOTE', jobSheet: 'JOB SHEET', shipLabel: 'SHIP LABEL' };
+  const job = documentPrint.job;
 
-  if (type === 'shipLabel') {
-    const totalQty = (j.items || []).reduce((s, it) => s + (it.order || it.qty || 0), 0);
-    const itemCount = (j.items || []).length;
-    return (
-      <DraggableModal onClose={() => setDocumentPrint(null)} cardClass="w-full max-w-lg">
-          <div className="flex items-center justify-between px-6 pt-5 pb-3 print:hidden border-b">
-            <h2 className="text-lg font-bold">Ship Label Preview — Job #{j.id}</h2>
-            <div className="flex space-x-2">
-              <button onClick={() => window.print()} className="bg-accent-strong text-white px-4 py-2 rounded text-sm hover:bg-accent-strong flex items-center">
-                <Printer className="w-4 h-4 mr-1" />Print
-              </button>
-              <button onClick={() => setDocumentPrint(null)} className="p-2 hover:bg-hairline-soft rounded"><X className="w-5 h-5" /></button>
-            </div>
-          </div>
-
-          {/* Label body — 4×6 inch print */}
-          <div className="m-5 border-4 border-ink rounded-lg overflow-hidden print:m-0 print:border-0">
-            {/* FROM strip */}
-            <div className="bg-ink text-white px-5 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-faint">From</p>
-                <p className="font-bold text-sm">Total Image</p>
-                <p className="text-xs text-faint">info@totalimage.com.au</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-faint">Job #</p>
-                <p className="font-mono font-black text-2xl tracking-widest">{String(j.id).padStart(6, '0')}</p>
-              </div>
-            </div>
-
-            {/* TO block */}
-            <div className="px-6 py-5 bg-white">
-              <p className="text-xs font-bold uppercase tracking-widest text-faint mb-2">Ship To</p>
-              <p className="text-2xl font-black text-fg leading-tight">{j.customer}</p>
-              {(j.shipTo || j.shippingAddress) && (
-                <p className="text-base text-header mt-2 whitespace-pre-line leading-snug">
-                  {j.shipTo || j.shippingAddress}
-                </p>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="border-t-2 border-dashed border-hairline mx-4" />
-
-            {/* Job meta row */}
-            <div className="grid grid-cols-3 divide-x divide-hairline bg-panel-alt">
-              <div className="px-4 py-3 text-center">
-                <p className="text-xs text-faint uppercase tracking-wide">Due Date</p>
-                <p className="font-bold text-sm mt-0.5">{j.due || '—'}</p>
-              </div>
-              <div className="px-4 py-3 text-center">
-                <p className="text-xs text-faint uppercase tracking-wide">Items</p>
-                <p className="font-bold text-sm mt-0.5">{itemCount} line{itemCount !== 1 ? 's' : ''}</p>
-              </div>
-              <div className="px-4 py-3 text-center">
-                <p className="text-xs text-faint uppercase tracking-wide">Total Qty</p>
-                <p className="font-bold text-sm mt-0.5">{totalQty}</p>
-              </div>
-            </div>
-
-            {/* Extra refs */}
-            {(j.custRef || j.ourRef || j.invoice) && (
-              <div className="px-5 py-3 bg-white border-t text-xs text-muted space-y-0.5">
-                {j.invoice && <p><span className="font-semibold">Invoice #:</span> {j.invoice}</p>}
-                {j.custRef && <p><span className="font-semibold">Cust Ref #:</span> {j.custRef}</p>}
-                {j.ourRef && <p><span className="font-semibold">Our Ref #:</span> {j.ourRef}</p>}
-              </div>
-            )}
-
-            {/* Barcode placeholder */}
-            <div className="bg-white px-5 pb-4 pt-2 border-t flex flex-col items-center">
-              <div className="flex space-x-px">
-                {[3,1,4,1,5,2,3,1,4,2,1,3,5,1,2,4,1,3,2,5,1,4,1,2,3,1,5,2,1,4,3,1,2,5,1].map((w, i) => (
-                  <div key={i} style={{ width: w * 2, height: 32 }} className="bg-ink" />
-                ))}
-              </div>
-              <p className="font-mono text-xs text-muted mt-1 tracking-widest">{String(j.id).padStart(6, '0')}</p>
-            </div>
-          </div>
-
-          <style>{`@media print { @page { size: 4in 6in; margin: 4mm; } }`}</style>
-          <div className="px-6 pb-4 text-xs text-faint text-center print:hidden">
-            Print on 4×6 inch label paper.
-          </div>
-      </DraggableModal>
-    );
+  // An unsaved document type falls back to its built-in default rather than to
+  // a blank page, which is also what makes the templates optional.
+  let template;
+  try {
+    template = saved?.[docType] ?? defaultTemplate(docType);
+  } catch {
+    template = null;
   }
+
+  const close = () => setDocumentPrint(null);
+
   return (
-    <DraggableModal onClose={() => setDocumentPrint(null)} cardClass="w-full max-w-2xl max-h-[95vh] overflow-y-auto">
-        <style>{`@media print { @page { size: A4 portrait; margin: 15mm; } }`}</style>
-        <div className="flex items-center justify-between px-6 pt-6 pb-2 print:hidden">
-          <h2 className="text-lg font-bold">{titles[type]} Preview — Job #{j.id}</h2>
-          <div className="flex space-x-2">
-            <button onClick={() => window.print()} className="bg-accent-strong text-white px-4 py-2 rounded text-sm hover:bg-accent-strong flex items-center">
-              <Printer className="w-4 h-4 mr-1" />Print
-            </button>
-            <button onClick={() => setDocumentPrint(null)} className="p-2 hover:bg-hairline-soft rounded"><X className="w-5 h-5" /></button>
-          </div>
+    <DraggableModal onClose={close} cardClass="w-full max-w-4xl max-h-[92vh] overflow-auto">
+      <div
+        className="flex items-center justify-between px-5 py-3 border-b"
+        style={{ borderColor: T.hairline }}
+      >
+        <h2 style={{ margin: 0, fontSize: T.fsBase, fontWeight: 800 }}>
+          {template?.name || 'Document'} — Job #{job?.id}
+        </h2>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => printDocument(template, job, company, inventory)}
+            disabled={!template}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: T.chrome, color: T.chromeText, border: 'none',
+              borderRadius: T.radius, padding: '6px 12px',
+              fontSize: T.fsSmall, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            <Printer size={14} /> Print / PDF
+          </button>
+          <button type="button" onClick={close} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, padding: 4 }}>
+            <X size={18} />
+          </button>
         </div>
+      </div>
 
-        <div className="px-8 pb-8 pt-4">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-5">
-            <div>
-              <div className="w-10 h-10 bg-gradient-to-br from-accent-strong to-accent-strong rounded flex items-center justify-center text-white font-bold text-sm mb-1">TIG</div>
-              <h1 className="text-base font-bold text-fg">Total Image</h1>
-              <p className="text-xs text-muted">info@totalimage.com.au</p>
-            </div>
-            <div className="text-right">
-              <h2 className="text-xl font-bold text-fg tracking-wide">{titles[type]}</h2>
-              <p className="text-sm text-muted">Job #: <strong>{j.id}</strong></p>
-              {j.invoice && <p className="text-sm text-muted">Invoice #: {j.invoice}</p>}
-              <p className="text-sm text-muted">Date In: {j.dateIn}</p>
-              <p className="text-sm text-muted">Due: {j.due}</p>
-            </div>
+      <div style={{ background: T.page, padding: 16, display: 'flex', justifyContent: 'center' }}>
+        {template ? (
+          <div style={{ boxShadow: T.shadowMd }}>
+            <TemplateRenderer template={template} job={job} company={company} inventory={inventory} />
           </div>
-
-          {/* Customer / delivery info */}
-          <div className="grid grid-cols-2 gap-6 mb-5 border-t border-b py-4">
-            <div>
-              <p className="text-xs font-semibold text-faint uppercase mb-1">{type === 'deliveryNote' ? 'Deliver To' : 'Customer'}</p>
-              <p className="font-semibold text-fg">{j.customer}</p>
-              {j.shippingAddress && <p className="text-sm text-muted mt-1 whitespace-pre-line">{j.shippingAddress}</p>}
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-faint uppercase mb-1">Job Details</p>
-              <div className="text-sm text-muted space-y-0.5">
-                <p>Status: <strong>{j.status}</strong></p>
-                <p>Priority: <strong>{j.priority}</strong></p>
-                <p>Type: {j.type}</p>
-                {j.assignedTo && <p>Assigned To: {j.assignedTo}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Items table */}
-          <table className="w-full text-sm mb-5">
-            <thead className="bg-hairline-soft">
-              <tr>
-                <th className="text-left px-3 py-2 font-medium text-muted">Stock Code</th>
-                <th className="text-left px-3 py-2 font-medium text-muted">Description</th>
-                <th className="text-left px-3 py-2 font-medium text-muted">Sizes</th>
-                {type === 'pickingSlip' && <th className="text-left px-3 py-2 font-medium text-muted">Bin Location</th>}
-                <th className="text-right px-3 py-2 font-medium text-muted">Qty</th>
-                {type === 'pickingSlip' && <th className="text-center px-3 py-2 font-medium text-muted">Picked ✓</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {(j.items || []).filter(item => type !== 'deliveryNote' || !item.hide).map((item, i) => (
-                <tr key={i} className="border-b">
-                  <td className="px-3 py-2 font-mono text-xs">{item.stockCode || '—'}</td>
-                  <td className="px-3 py-2">{item.description}</td>
-                  <td className="px-3 py-2 text-xs text-muted">{item.sizes || '—'}</td>
-                  {type === 'pickingSlip' && (() => {
-                    const inv = inventory.find(i => i.sku === item.stockCode);
-                    const inStock = inv && inv.stock > 0;
-                    return (
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {inStock
-                          ? <span className="text-accent-strong font-medium">{inv.location || '—'}</span>
-                          : <span className="text-danger font-medium">OUT OF STOCK</span>}
-                      </td>
-                    );
-                  })()}
-                  <td className="px-3 py-2 text-right font-medium">{item.order || item.qty || 0}</td>
-                  {type === 'pickingSlip' && (
-                    <td className="px-3 py-2 text-center">
-                      <div className="w-5 h-5 border-2 border-hairline rounded inline-block"></div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {(j.items || []).filter(item => type !== 'deliveryNote' || !item.hide).length === 0 && (
-                <tr><td colSpan="6" className="px-3 py-4 text-center text-faint text-sm">No line items on this job.</td></tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* Picking slip signature */}
-          {type === 'pickingSlip' && (
-            <div className="grid grid-cols-3 gap-6 text-sm border-t pt-4">
-              <div><p className="text-xs text-muted mb-1">Picked by:</p><div className="border-b border-hairline h-8"></div></div>
-              <div><p className="text-xs text-muted mb-1">Date / Time:</p><div className="border-b border-hairline h-8"></div></div>
-              <div><p className="text-xs text-muted mb-1">QC Checked by:</p><div className="border-b border-hairline h-8"></div></div>
-            </div>
-          )}
-
-          {/* Delivery note signatures */}
-          {type === 'deliveryNote' && (
-            <div className="grid grid-cols-2 gap-6 text-sm border-t pt-4">
-              <div>
-                <p className="text-xs text-muted mb-1">Driver / Despatcher Signature:</p>
-                <div className="border-b border-hairline h-12 mb-1"></div>
-                <p className="text-xs text-faint">Name: _____________________ Date: __________</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted mb-1">Received by (Customer):</p>
-                <div className="border-b border-hairline h-12 mb-1"></div>
-                <p className="text-xs text-faint">Name: _____________________ Date: __________</p>
-              </div>
-            </div>
-          )}
-
-          {/* Job sheet extras */}
-          {type === 'jobSheet' && (
-            <div className="border-t pt-4 space-y-4">
-              {j.notes && (
-                <div>
-                  <p className="text-xs font-semibold text-muted uppercase mb-1">Special Instructions / Notes</p>
-                  <div className="border rounded p-3 text-sm text-header min-h-12">{j.notes}</div>
-                </div>
-              )}
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div><p className="text-xs text-muted mb-1">Production Start:</p><div className="border-b border-hairline h-8"></div></div>
-                <div><p className="text-xs text-muted mb-1">Production End:</p><div className="border-b border-hairline h-8"></div></div>
-                <div><p className="text-xs text-muted mb-1">QC Pass / Fail:</p><div className="border-b border-hairline h-8"></div></div>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6 pt-3 border-t text-xs text-faint text-center">
-            Total Image — {titles[type]} — Printed {new Date().toLocaleString()}
-          </div>
-        </div>
+        ) : (
+          <p style={{ color: T.textMuted, fontSize: T.fsGrid, padding: 24 }}>
+            There is no template for “{documentPrint.type}”. Add one under Admin → Print Templates.
+          </p>
+        )}
+      </div>
     </DraggableModal>
   );
 }

@@ -100,6 +100,10 @@ export const LINE_COLUMNS = [
   { key: 'qtyDelivered', label: 'Delivered', align: 'right', width: 12 },
   { key: 'weightKg', label: 'Weight', align: 'right', width: 12 },
   { key: 'poNo', label: 'PO #', align: 'left', width: 14 },
+  // Resolved against stock rather than read off the job line: the picker needs
+  // to know where the item is, and that it is there at all. Prints the bin, or
+  // OUT OF STOCK where there is none.
+  { key: 'binLocation', label: 'Bin', align: 'left', width: 16, source: 'inventory' },
   { key: 'priceEx', label: 'Price ex', align: 'right', width: 14 },
   { key: 'total', label: 'Total', align: 'right', width: 14 },
 ];
@@ -253,7 +257,7 @@ function pickingList() {
       ],
       lines: [
         block('lineTable', {
-          columns: ['stockCode', 'description', 'sizes', 'order', 'qtyPick'],
+          columns: ['stockCode', 'description', 'sizes', 'binLocation', 'order', 'qtyPick'],
           zebra: true,
           showSections: true,
         }),

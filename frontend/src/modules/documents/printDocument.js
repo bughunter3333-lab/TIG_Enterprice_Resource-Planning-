@@ -48,13 +48,13 @@ function setPageRule(paperKey) {
 /**
  * @returns {Promise<void>} resolves once the dialog has closed and the DOM is clean
  */
-export function printDocument(template, job, company) {
+export function printDocument(template, job, company, inventory) {
   if (!job) return Promise.resolve();
 
   const host = ensureRoot();
   const style = setPageRule(template.paper);
   const root = createRoot(host);
-  root.render(createElement(TemplateRenderer, { template, job, company }));
+  root.render(createElement(TemplateRenderer, { template, job, company, inventory }));
 
   return new Promise((resolve) => {
     // One frame for React to commit, a second for layout, before the dialog
