@@ -1195,6 +1195,21 @@ export const settings = {
   testSmtp: () => request('/settings/smtp-test', { method: 'POST' }),
 };
 
+// ── Document templates ──────────────────────────────────────────────────────
+// The designed layout of each printed document. `list` returns a map keyed by
+// document type; a type that is absent has never been edited, and the client
+// falls back to the built-in default rather than to an empty page.
+
+export const documentTemplates = {
+  list: () => request('/document-templates'),
+  save: (docType, template) =>
+    request(`/document-templates/${docType}`, {
+      method: 'PUT',
+      body: { name: template.name, spec: template },
+    }),
+  reset: (docType) => request(`/document-templates/${docType}`, { method: 'DELETE' }),
+};
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export const users = {

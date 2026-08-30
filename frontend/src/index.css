@@ -81,3 +81,27 @@ input.cell-input:focus-visible {
   box-shadow: inset 0 -2px 0 0 var(--accent);
   background: var(--accent-tint);
 }
+
+/* ── Printing a document template ──────────────────────────────────────────
+   printDocument() mounts the document into #print-root and calls print(). The
+   application itself is hidden for the duration, so the sheet carries only the
+   document — no chrome, no nav, no modal behind it. The @page rule that sets
+   the paper size is generated per call, because @page cannot read a custom
+   property and the size depends on which template is printing. */
+#print-root { display: none; }
+
+@media print {
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; }
+
+  /* Tables must break between rows, never through one, and a header repeats
+     on every page — a picking list that runs to two pages is otherwise
+     unreadable on the second. */
+  .doc-page { box-shadow: none !important; }
+  .doc-table thead { display: table-header-group; }
+  .doc-table tr { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Zebra shading and rules are set as inline colour, which most browsers drop
+     when printing to save ink. These documents are read in a warehouse. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -7,12 +7,14 @@ import StatusWorkflow from './StatusWorkflow';
 import PriceLevels from './PriceLevels';
 import DecorationTypes from './DecorationTypes';
 import MigrationWizard from './MigrationWizard';
+import DocumentDesigner from '../../modules/documents/DocumentDesigner';
 
 const TABS = [
   { id: 'fields',      label: 'Job Fields' },
   { id: 'statuses',    label: 'Status Workflow' },
   { id: 'prices',      label: 'Price Levels' },
   { id: 'decorations', label: 'Decoration Types' },
+  { id: 'documents',   label: 'Print Templates' },
   { id: 'migration',   label: 'Jim2 Migration' },
 ];
 
@@ -85,6 +87,7 @@ export default function AdminPanel() {
         {activeTab === 'decorations' && !decQuery.isLoading && (
           <DecorationTypes config={parseJson(decQuery.data)} onChange={saveKey('dec_types')} />
         )}
+        {activeTab === 'documents' && <DocumentDesigner />}
         {activeTab === 'migration' && <MigrationWizard />}
       </div>
     </div>

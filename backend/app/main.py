@@ -24,6 +24,7 @@ from app.routers import (
     email_router,
     settings_router,
     styles,
+    document_templates,
 )
 from app.routers import (
     health,
@@ -106,6 +107,7 @@ app.include_router(pdf.router)
 app.include_router(ship_to.router)
 app.include_router(supplier_price_list.router)
 app.include_router(goods_receipt.router)
+app.include_router(document_templates.router)
 app.include_router(accounts_payable.router)
 app.include_router(analytics.router)
 app.include_router(admin_settings_router)
