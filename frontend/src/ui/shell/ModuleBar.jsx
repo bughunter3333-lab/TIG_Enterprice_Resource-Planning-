@@ -74,13 +74,17 @@ export default function ModuleBar({
         const active = !adminMode && activeModule === m.id;
         const badge = m.badgeKey ? badges[m.badgeKey] : null;
         return (
-          <div
+          <button
             key={m.id}
-            role="button"
-            tabIndex={0}
+            type="button"
+            // A real button rather than div+role+tabIndex+onKeyDown. The hand
+            // rolled version worked, but native gets Enter and Space, the focus
+            // ring, and the right role for free — and it is what a screen reader
+            // and a test driver both expect from primary navigation.
+            aria-current={active ? 'page' : undefined}
             onClick={() => onNavigate(m.id)}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(m.id); } }}
             style={{
+              appearance: 'none', border: 'none', font: 'inherit',
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '5px 9px', borderRadius: 4, cursor: 'pointer', userSelect: 'none',
               fontSize: T.fsGrid, fontWeight: active ? 700 : 500,
@@ -101,7 +105,7 @@ export default function ModuleBar({
                 {badge}
               </span>
             )}
-          </div>
+          </button>
         );
       })}
 
