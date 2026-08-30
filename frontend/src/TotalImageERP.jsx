@@ -4561,8 +4561,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => openInvoiceDoc(activeJob, 'proforma') },
                       { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', action: () => openInvoiceDoc(activeJob, 'proformaBalance') },
                       null,
-                      { type: 'pdf-job-sheet',    label: 'Download Job Sheet (PDF)',    action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=job-sheet`, '_blank') },
-                      { type: 'pdf-picking-slip', label: 'Download Picking Slip (PDF)', action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=picking-slip`, '_blank') },
+                      // These two used to download a ReportLab PDF built from a
+                      // second, independent layout. Now that the job sheet and the
+                      // picking list are templates, that PDF disagreed with the one
+                      // this same menu prints — two ways to get one document,
+                      // producing different paper. They open the template preview,
+                      // which prints to PDF itself. The invoice below stays on
+                      // ReportLab: invoices were not converted, so it has no second
+                      // version to disagree with.
+                      { type: 'jobSheet',    label: 'Job Sheet (print / PDF)',    action: () => setDocumentPrint({ type: 'jobSheet',    job: activeJob }) },
+                      { type: 'pickingSlip', label: 'Picking List (print / PDF)', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
                       { type: 'pdf-invoice',      label: 'Download Invoice (PDF)',      action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=${activeJob?.status === 'QUOTE' ? 'quote' : 'invoice'}`, '_blank') },
                     ].map((r, i) =>
                       r === null
