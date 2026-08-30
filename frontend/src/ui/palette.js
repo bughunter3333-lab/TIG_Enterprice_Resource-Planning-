@@ -33,8 +33,14 @@
  *
  * Ratios below are against `panel` (#ffffff) unless stated. `accent` is 3.5:1,
  * which passes for graphics and large text but NOT for body copy — use
- * `accentStrong` (5.2:1) wherever cyan carries words. `faint` is 3.4:1 and is
- * for non-essential text only; anything a user must read uses `muted` or above.
+ * `accentStrong` (5.2:1) wherever cyan carries words.
+ *
+ * `faint` was #8d8d99, which measured 3.28:1 in the running application in 17
+ * places — the nav-tree section labels, the empty-state line, the status bar.
+ * Those are read, not decorative. It is #686874 now: 5.4:1 on panel, 4.7:1 on
+ * paper, so it passes on both grounds. That narrows the gap to `muted`, which
+ * is the right trade: a third grey nobody can read is not a third level of
+ * hierarchy. Anything quieter than `muted` gets there by size and weight.
  */
 
 export const palette = {
@@ -55,7 +61,7 @@ export const palette = {
   // ── Text ───────────────────────────────────────────────────────────────
   text: '#1a1a1f',
   muted: '#5c5c66',
-  faint: '#8d8d99',
+  faint: '#686874',
   headerText: '#3a3a44',
 
   // ── Accent: process cyan ───────────────────────────────────────────────
