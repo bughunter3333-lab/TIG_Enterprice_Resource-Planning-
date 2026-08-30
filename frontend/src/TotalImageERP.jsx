@@ -150,7 +150,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: stockMovements = [] } = useQuery({ queryKey: ['stockMovements'], queryFn: () => api.inventory.movements({ limit: 50 }), refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: cardFiles = [] } = useQuery({ queryKey: ['cardFiles'], queryFn: api.cardFiles.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
-  const { data: ofParcels = [] } = useQuery({ queryKey: ['ofParcels'], queryFn: api.openFreight.listParcels, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const loading = (jobsLoading && !jobs.length) || (invLoading && !inventory.length);
   const [cardFileModal, setCardFileModal] = useState({ open: false, editing: null });
   const [cardFileForm, setCardFileForm] = useState({ shipCode: '', customerCode: '', companyName: '', contactName: '', address1: '', address2: '', suburb: '', state: '', postcode: '', country: 'AU', phone: '', email: '', notes: '' });
@@ -165,6 +164,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [ofAccountDirty, setOfAccountDirty] = useState(false);
   const [ofParcelModal, setOfParcelModal] = useState({ open: false, editing: null });
   const [ofParcelForm, setOfParcelForm] = useState({ name: '', parcelType: '', service: 'Standard', carrierCode: '', maxWeightKg: '', lengthCm: '', widthCm: '', heightCm: '', rate: '', notes: '' });
+
+  // Both of these used to run on every load of the application. Nothing can
+  // open the Open Freight modal (docs/backlog.md F6), so the app was fetching
+  // an account and a parcel list that no user could reach — and the query
+  // below raises a toast on failure, so a broken /open-freight endpoint
+  // showed every user an error for a feature none of them can see.
+  //
+  // Gated on the modal rather than deleted: whether to wire the feature back
+  // up or remove it is a product decision, and this costs nothing either way.
+  const { data: ofParcels = [] } = useQuery({ enabled: ofModalOpen, queryKey: ['ofParcels'], queryFn: api.openFreight.listParcels, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
 
   // AI Assistant
   const [aiMessages, setAiMessages] = useState([
@@ -462,10 +471,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return () => document.removeEventListener('keydown', handler);
   }, [activeModule, showModal, modalType, activeJob, f12Open, globalSearchOpen]);
 
-  // Load ofAccount on mount (form state — not managed by React Query)
+  // Loaded when the modal opens rather than on mount, for the reason above.
   useEffect(() => {
+    if (!ofModalOpen) return;
     api.openFreight.getAccount().then(acc => setOfAccount(acc)).catch(() => {});
-  }, []);
+  }, [ofModalOpen]);
 
   // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
   const notifications = useMemo(() => {
