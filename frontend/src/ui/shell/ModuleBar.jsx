@@ -92,6 +92,10 @@ export default function ModuleBar({
               color: active ? T.chromeText : T.chromeTextMuted,
               boxShadow: active ? `inset 0 -2px 0 ${T.accent}` : 'none',
               whiteSpace: 'nowrap',
+              // The hover handlers below change colour directly, and without
+              // this they snapped. T.transition existed and was not applied to
+              // any of the chrome.
+              transition: `color ${T.transition}, background ${T.transition}, box-shadow ${T.transition}`,
             }}
             onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.chromeText; }}
             onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.chromeTextMuted; }}
@@ -140,6 +144,11 @@ export default function ModuleBar({
         )}
       </div>
 
+      {/* The primary action in the application, and it had no hover state and no
+          pressed state at all — it looked the same before, during and after a
+          click. It lifts on hover and presses in on mousedown now, which is
+          also the one bit of the sign-in screen's press language that belongs
+          on a control this size. */}
       <button
         type="button"
         onClick={onNewJob}
@@ -147,7 +156,15 @@ export default function ModuleBar({
           background: T.accentStrong, color: '#fff', border: 'none', borderRadius: 4,
           padding: '5px 11px', fontSize: T.fsSmall, fontWeight: 700, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 4, fontFamily: T.font, marginRight: 6,
+          transition: `background ${T.transition}, transform ${T.transition}`,
         }}
+        onMouseEnter={e => { e.currentTarget.style.background = T.accent; }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = T.accentStrong;
+          e.currentTarget.style.transform = 'none';
+        }}
+        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(1px)'; }}
+        onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
       >
         <Plus size={12} /> New Job
       </button>

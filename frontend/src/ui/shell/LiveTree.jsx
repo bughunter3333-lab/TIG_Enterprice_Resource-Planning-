@@ -390,6 +390,7 @@ export default function LiveTree({
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '3px 10px', fontSize: T.fsSmall, cursor: 'pointer', color: T.headerText,
+              transition: `background ${T.transition}`,
             }}
             onMouseEnter={e => e.currentTarget.style.background = T.hairlineSoft}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
