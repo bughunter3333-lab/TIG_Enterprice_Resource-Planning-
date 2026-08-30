@@ -443,6 +443,37 @@ so a fresh authenticated load makes 22 API requests and none of them go to
 works unchanged. What remains open is only the product question: put the button
 back, or remove the feature.
 
+### Running the frontend against real data locally
+
+The redesign was verified by measuring the running application rather than
+reading the code, which is only possible with a backend and a login. The pieces
+are already in the repository; this is how they fit together.
+
+```bash
+# backend, on the SQLite dev database rather than PostgreSQL. The env var wins
+# over backend/.env, so nothing points at the real database.
+cd backend
+DATABASE_URL="sqlite:///./dev_local.db" ENVIRONMENT=development   python -m uvicorn app.main:app --port 8000 --host 127.0.0.1
+
+# a login, once. 2FA off, so it can be driven headlessly.
+DATABASE_URL="sqlite:///./dev_local.db" ENVIRONMENT=development   ADMIN_USERNAME=designqa ADMIN_PASSWORD='<choose one>'   ADMIN_EMAIL='designqa@local.invalid' python seed_admin.py
+
+cd ../frontend && npm run dev      # proxies /api to localhost:8000
+```
+
+`dev_local.db` predates Alembic — it was built with `create_all` and has no
+`alembic_version` table, so `upgrade head` will try to run every migration from
+scratch and fail. When a model gains a column, add it to that file directly;
+two were missing when this was set up, `goods_receipts.branch` and
+`jobs.version`.
+
+What this makes possible, and what nothing else does: measuring contrast
+against the background each piece of text actually lands on. Note that
+`getComputedStyle(el).backgroundColor` reads `transparent` for an element
+painted with a gradient, so a naive walker skips it and compares against the
+body — that mis-reported the module bar as 2.02:1 when it is 7.8:1. Walk
+`backgroundImage` too.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.
