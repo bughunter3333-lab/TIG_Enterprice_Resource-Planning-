@@ -203,13 +203,19 @@ test('a loaded register lists every job with its money', () => {
 
 describe('CSV export', () => {
   let createObjectURL;
+  let revokeObjectURL;
   let anchorClick;
 
   beforeEach(() => {
     createObjectURL = vi.fn(() => 'blob:sales-register');
-    // jsdom implements neither of these; the second also stops the click from
-    // trying to navigate.
+    revokeObjectURL = vi.fn();
+    // jsdom implements none of these; the click stub also stops the anchor from
+    // trying to navigate. revokeObjectURL has to be stubbed as well as created:
+    // without it the handler threw on its last line, and because the throw came
+    // after the assertions below they all still passed — the run only admitted
+    // to it as an unhandled error.
     URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
     anchorClick = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {});
@@ -217,6 +223,7 @@ describe('CSV export', () => {
 
   afterEach(() => {
     delete URL.createObjectURL;
+    delete URL.revokeObjectURL;
   });
 
   test('is offered only once a register is loaded', () => {
@@ -230,6 +237,8 @@ describe('CSV export', () => {
 
     expect(anchorClick).toHaveBeenCalledTimes(1);
     expect(createObjectURL).toHaveBeenCalledTimes(1);
+    // Released again, or every export leaks a blob for the life of the tab.
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:sales-register');
     const blob = createObjectURL.mock.calls[0][0];
     expect(blob.type).toBe('text/csv');
 
