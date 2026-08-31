@@ -35,6 +35,10 @@ export function deriveTotals(job) {
     totalEx: money(job.totalEx ?? job.subtotal),
     tax: money(job.tax),
     totalInc: money(job.totalInc ?? job.total),
+    paid: money(job.deposit ?? job.invoicePaid ?? 0),
+    balance: money(
+      (Number(job.totalInc ?? job.total) || 0) - (Number(job.deposit ?? job.invoicePaid) || 0),
+    ),
   };
 }
 
@@ -184,9 +188,41 @@ function Block({ b, job, company, totals, inventory }) {
         <div>
           <div style={{ fontWeight: 700 }}>{p.title}</div>
           {p.lines.map((l, i) => <div key={i} style={{ whiteSpace: 'pre-line' }}>{l}</div>)}
+          {b.showAbn && company?.abn && <div>ABN: {company.abn}</div>}
         </div>
       );
     }
+
+    case 'bankDetails':
+      // From Settings → Company. The invoice used to print a hardcoded BSB and
+      // account number, so changing them in Settings changed nothing and the
+      // page still told customers where to send money.
+      return (
+        <div style={{ border: '0.3mm solid #000', padding: '3mm' }}>
+          <div style={{ fontSize: '2.6mm', textTransform: 'uppercase', letterSpacing: '.14em', color: '#555', marginBottom: '1mm' }}>
+            {b.heading || 'Payment'}
+          </div>
+          {company?.bank_name && <div>{company.bank_name}</div>}
+          <div style={{ fontFamily: T.fontMono }}>
+            BSB {company?.bank_bsb || '—'} · Account {company?.bank_account || '—'}
+          </div>
+          <div>{company?.bank_account_name || company?.company_name || ''}</div>
+        </div>
+      );
+
+    case 'noticeBox':
+      return (
+        <div
+          style={{
+            border: `0.4mm solid ${b.tone === 'warn' ? '#b45309' : '#000'}`,
+            background: b.tone === 'warn' ? '#fdf0d5' : 'transparent',
+            color: b.tone === 'warn' ? '#7a3c07' : '#000',
+            padding: '2.5mm 3mm', fontWeight: 700, textAlign: b.align || 'left',
+          }}
+        >
+          {fillTokens(b.text, job, totals)}
+        </div>
+      );
 
     case 'docTitle':
       return (

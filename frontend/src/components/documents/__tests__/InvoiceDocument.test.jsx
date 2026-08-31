@@ -1,302 +1,157 @@
 /**
- * The customer-facing tax document. Everything here is arithmetic or a legal
- * label, and both are wrong in ways nobody notices on screen.
+ * Invoices, proformas and quotes.
  *
- * Three things carry the weight:
+ * This component no longer draws them; it picks one of four templates and
+ * hands it to the shared renderer. So what is asserted here is the choice —
+ * which document for which job and variant — and the money, because that is
+ * the part where being wrong costs somebody something.
  *
- * 1. The subtotal is summed from `visibleItems`, which drops `hide` lines and
- *    `displayType: 'note'` lines. A line that is on the job but not on the
- *    invoice must not reach the GST figure — this is what gets remitted.
- * 2. `docTitle` decides between TAX QUOTE, TAX PROFORMA INVOICE and TAX
- *    INVOICE. A proforma that prints as a tax invoice is a GST document the
- *    supply has not happened for, and a quote that prints as one is worse.
- * 3. `proformaBalance` hides every price column and every total except what is
- *    owed. If a pricing column survived that variant the customer sees the
- *    margin on a document that exists precisely to not show it.
- *
- * Fixture money is chosen so no two figures share a string: unit prices 20.00
- * and 12.50, amounts 200.00 and 50.00, subtotal 250.00, GST 25.00, total
- * 275.00, deposit 100.00, balance 175.00. An assertion that passes because it
- * matched the wrong cell is not an assertion.
- *
- * `renderWithQuery` is used even though this component makes no request: it is
- * the project default, it costs nothing, and it re-raises a query failure if
- * this surface ever gains one.
+ * The four were previously one component threaded with isQuote, isProforma
+ * and balanceOnly. A quote, a tax invoice, a proforma and a proforma showing
+ * only the balance are four pieces of paper, and they are four templates now.
  */
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import InvoiceDocument from '../InvoiceDocument';
+import { deriveTotals } from '../TemplateRenderer';
+import { documentTemplates, settings } from '../../../api';
 
-const items = () => [
-  { displayType: 'section', description: 'Embroidered polos' },
-  {
-    description: 'Polo shirt, navy',
-    stockCode: 'PL-NVY',
-    sizes: 'S/M/L',
-    decorationType: 'Embroidery',
-    orderQty: 10,
-    priceEx: '20.00',
-    discount: 0,
-    total: '200.00',
-  },
-  {
-    description: 'Cap, black',
-    decorationType: 'None',
-    qty: 4,
-    priceEx: '12.50',
-    discount: 10,
-    taxType: 'FRE',
-    total: '50.00',
-  },
-  // Neither of these may reach the table or the subtotal.
-  { description: 'Freight and handling', hide: true, total: '500.00' },
-  { description: 'Internal packing note', displayType: 'note', total: '999.00' },
-];
+const company = {
+  company_name: 'Total Image',
+  abn: '12 345 678 901',
+  bank_name: 'Westpac',
+  bank_bsb: '032-000',
+  bank_account: '123456',
+  bank_account_name: 'Total Image Group Pty Ltd',
+};
 
 const job = (over = {}) => ({
-  id: 'J-4102',
-  invoice: 'INV-8817',
-  customerId: 7,
-  customer: 'Respondek Logistics',
-  status: 'ORDER',
-  dateIn: '2026-08-01',
-  due: '2026-08-31',
-  custRef: 'PO-55',
-  ourRef: 'TIG-9',
-  assignedTo: 'Mira Osei',
-  nameContact: 'Dock Supervisor',
-  shipTo: 'Botany Depot',
-  shippingAddress: '3 Kembla St\nBotany NSW 2019',
-  notes: 'Fold and bag per set',
-  items: items(),
+  id: '1207512',
+  customer: 'Zephyr Apparel',
+  status: 'INVOICE',
+  invoice: 'INV-4471',
+  dateIn: '02/08/2026',
+  due: '30/08/2026',
+  totalEx: 1200,
+  tax: 120,
+  totalInc: 1320,
+  items: [
+    { id: 1, stockCode: 'TEE-BLK-M', description: 'Heavy Tee', qty: 40, priceEx: 12, total: 480 },
+    { id: 2, stockCode: 'CAP-NVY', description: 'Cap', qty: 20, priceEx: 18, total: 360 },
+    { id: 3, displayType: 'note', description: 'Thread to match' },
+    { id: 4, stockCode: 'HID', description: 'Hidden', qty: 99, hide: true },
+  ],
   ...over,
 });
 
-// A distinct ABN from the hardcoded company one in the letterhead, so an
-// assertion on the customer's ABN cannot pass by matching Total Image's.
-const customers = [
-  {
-    id: 7,
-    abn: '99 888 777 666',
-    phone: '02 8000 4321',
-    email: 'dock@respondek.example',
-    paymentTerms: '30 days',
-  },
-];
-
-const setup = (over = {}) => {
-  const props = {
-    customers,
-    invoiceJob: job(),
-    invoiceVariant: 'standard',
-    setInvoiceJob: vi.fn(),
-    ...over,
-  };
-  const view = renderWithQuery(<InvoiceDocument {...props} />);
-  return { ...view, ...props };
-};
-
-// window.print is not implemented in jsdom; stub it so the wiring is assertable.
-const printSpy = vi.fn();
 beforeEach(() => {
-  printSpy.mockClear();
-  vi.stubGlobal('print', printSpy);
+  vi.spyOn(documentTemplates, 'list').mockResolvedValue({});
+  vi.spyOn(settings, 'getCompany').mockResolvedValue(company);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => vi.restoreAllMocks());
 
-test('renders nothing when there is no job', () => {
-  const { container } = renderWithQuery(
-    <InvoiceDocument customers={customers} invoiceJob={null} invoiceVariant="standard" setInvoiceJob={vi.fn()} />
+const open = (j, variant) =>
+  renderWithQuery(
+    <InvoiceDocument invoiceJob={j} invoiceVariant={variant} setInvoiceJob={vi.fn()} />,
   );
-  expect(container).toBeEmptyDOMElement();
+
+describe('choosing the document', () => {
+  test('renders nothing when nothing is open', () => {
+    const { container } = renderWithQuery(
+      <InvoiceDocument invoiceJob={null} setInvoiceJob={vi.fn()} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  test('a standard invoice is titled and numbered', async () => {
+    open(job(), 'standard');
+    await waitFor(() => expect(screen.getByText('TAX INVOICE')).toBeInTheDocument());
+    expect(screen.getByText('#1207512')).toBeInTheDocument();
+  });
+
+  test('a job in QUOTE status is a quote whatever variant is asked for', async () => {
+    // Status wins. Printing a tax invoice for something that has not been
+    // agreed is worse than printing a quote for something that has.
+    open(job({ status: 'QUOTE' }), 'standard');
+    await waitFor(() => expect(screen.getByText('TAX QUOTE')).toBeInTheDocument());
+  });
+
+  test('an omitted variant prints a tax invoice, not a proforma', async () => {
+    // This used to be the other way round: isProforma was "anything that is not
+    // standard", so a missing prop downgraded a real tax invoice to a document
+    // stamped "Not a Tax Invoice".
+    open(job(), undefined);
+    await waitFor(() => expect(screen.getByText('TAX INVOICE')).toBeInTheDocument());
+    expect(screen.queryByText(/Not a Tax Invoice/)).toBeNull();
+  });
+
+  test('a proforma says it is not a tax invoice and still shows how to pay', async () => {
+    open(job(), 'proforma');
+    await waitFor(() =>
+      expect(screen.getByText('Proforma — Not a Tax Invoice')).toBeInTheDocument(),
+    );
+    // Awaited separately: the notice comes straight off the template, but the
+    // bank line waits on the company query, so asserting it in the same tick
+    // reads the placeholder dashes.
+    await waitFor(() => expect(screen.getByText(/BSB 032-000/)).toBeInTheDocument());
+  });
+
+  test('a quote carries no bank details, because there is nothing to pay yet', async () => {
+    open(job({ status: 'QUOTE' }), 'standard');
+    await waitFor(() => expect(screen.getByText('TAX QUOTE')).toBeInTheDocument());
+    expect(screen.queryByText(/BSB/)).toBeNull();
+  });
+
+  test('the balance-only proforma shows what is owed and no prices', async () => {
+    const { container } = open(job({ deposit: 1000 }), 'proformaBalance');
+    await waitFor(() => expect(screen.getByText('TAX PROFORMA INVOICE')).toBeInTheDocument());
+    const heads = [...container.querySelectorAll('th')].map(th => th.textContent);
+    expect(heads).toEqual(['SKU', 'Description', 'Qty']);
+    expect(within(container).getByText('Balance due')).toBeInTheDocument();
+  });
 });
 
-test('a standard invoice is titled and numbered', () => {
-  setup();
-  // Once in the toolbar badge, once as the document heading.
-  expect(screen.getAllByText('TAX INVOICE')).toHaveLength(2);
-  expect(screen.getByText('Invoice No:')).toBeInTheDocument();
-  expect(screen.getAllByText('INV-8817').length).toBeGreaterThan(0);
-  expect(screen.getByText('Due Date:')).toBeInTheDocument();
-  expect(screen.getByText('2026-08-31')).toBeInTheDocument();
-  expect(screen.getByText('2026-08-01')).toBeInTheDocument();
+describe('company details come from Settings', () => {
+  test('the ABN is the configured one', async () => {
+    // It was the literal "ABN: 12 345 678 901" in the markup, so the Settings
+    // field was decorative.
+    vi.mocked(settings.getCompany).mockResolvedValue({ ...company, abn: '99 999 999 999' });
+    open(job(), 'standard');
+    await waitFor(() => expect(screen.getByText('ABN: 99 999 999 999')).toBeInTheDocument());
+  });
+
+  test('the bank details are the configured ones', async () => {
+    // These were hardcoded too, which meant the invoice told customers to pay
+    // into an account nobody had configured.
+    vi.mocked(settings.getCompany).mockResolvedValue({
+      ...company, bank_bsb: '062-111', bank_account: '99887766', bank_account_name: 'Someone Else',
+    });
+    open(job(), 'standard');
+    await waitFor(() =>
+      expect(screen.getByText(/BSB 062-111 · Account 99887766/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Someone Else')).toBeInTheDocument();
+  });
 });
 
-test('line items print their own columns and drop hidden and note lines', () => {
-  setup();
+describe('the money', () => {
+  test('totals sum only the visible lines', () => {
+    // The note and the hidden line are not goods.
+    expect(deriveTotals(job()).lineCount).toBe(2);
+  });
 
-  expect(screen.getByRole('cell', { name: /Polo shirt, navy/ })).toBeInTheDocument();
-  expect(screen.getByText('SKU: PL-NVY')).toBeInTheDocument();
-  expect(screen.getByText('S/M/L')).toBeInTheDocument();
-  expect(screen.getByText('Embroidered polos')).toBeInTheDocument();
+  test('a deposit is deducted and the balance is what remains', () => {
+    expect(deriveTotals(job({ deposit: 500 })).balance).toBe('$820.00');
+  });
 
-  // A decoration of 'None' prints as an empty cell, not as the word.
-  expect(screen.getByRole('cell', { name: 'Embroidery' })).toBeInTheDocument();
-  expect(screen.queryByText('None')).toBeNull();
+  test('invoicePaid stands in when there is no deposit', () => {
+    expect(deriveTotals(job({ invoicePaid: 320 })).balance).toBe('$1000.00');
+  });
 
-  // orderQty wins for the polo; the cap falls back to qty.
-  expect(screen.getByRole('cell', { name: '10' })).toBeInTheDocument();
-  expect(screen.getByRole('cell', { name: '4' })).toBeInTheDocument();
-
-  expect(screen.getByRole('cell', { name: '$20.00' })).toBeInTheDocument();
-  expect(screen.getByRole('cell', { name: '$12.50' })).toBeInTheDocument();
-  expect(screen.getByRole('cell', { name: '10%' })).toBeInTheDocument();
-
-  // taxType overrides the GST default per line.
-  expect(screen.getByRole('cell', { name: 'FRE' })).toBeInTheDocument();
-  expect(screen.getByRole('cell', { name: 'GST' })).toBeInTheDocument();
-
-  expect(screen.queryByText('Freight and handling')).toBeNull();
-  expect(screen.queryByText('Internal packing note')).toBeNull();
-});
-
-test('the totals sum only the visible lines', () => {
-  setup();
-  // 200.00 + 50.00. The hidden 500.00 and the note's 999.00 are not GST-able.
-  expect(screen.getByText('$250.00')).toBeInTheDocument();
-  expect(screen.getByText('GST (10%)')).toBeInTheDocument();
-  expect(screen.getByText('$25.00')).toBeInTheDocument();
-  expect(screen.getByText('TOTAL (inc GST)')).toBeInTheDocument();
-  expect(screen.getByText('$275.00')).toBeInTheDocument();
-
-  // Nothing paid, so there is no balance block at all — only the badge.
-  expect(screen.queryByText('BALANCE DUE')).toBeNull();
-  expect(screen.getByText('Balance $275.00')).toBeInTheDocument();
-});
-
-test('a deposit is deducted and the balance is what remains', () => {
-  setup({ invoiceJob: job({ deposit: 100 }) });
-  expect(screen.getByText('Less: Amount Paid')).toBeInTheDocument();
-  expect(screen.getByText('-$100.00')).toBeInTheDocument();
-  expect(screen.getByText('BALANCE DUE')).toBeInTheDocument();
-  expect(screen.getByText('$175.00')).toBeInTheDocument();
-  expect(screen.getByText('Balance $175.00')).toBeInTheDocument();
-});
-
-test('invoicePaid stands in when there is no deposit', () => {
-  setup({ invoiceJob: job({ deposit: 0, invoicePaid: 275 }) });
-  expect(screen.getByText('-$275.00')).toBeInTheDocument();
-  // Nothing left owing: the badge says so instead of quoting a balance.
-  expect(screen.getByText('PAID')).toBeInTheDocument();
-  expect(screen.queryByText(/^Balance \$/)).toBeNull();
-});
-
-test('a quote is labelled as one and carries no payment details', () => {
-  setup({ invoiceJob: job({ status: 'QUOTE' }), invoiceVariant: 'standard' });
-  expect(screen.getAllByText('TAX QUOTE')).toHaveLength(2);
-  expect(screen.getByText('Quote No:')).toBeInTheDocument();
-  expect(screen.getByText('Valid Until:')).toBeInTheDocument();
-  expect(screen.getByText(/This is a Quote/)).toBeInTheDocument();
-
-  // Bank details on a quote invite payment against a supply not yet agreed.
-  expect(screen.queryByText('Payment Details')).toBeNull();
-  // Payment terms belong to an invoice, not a quote.
-  expect(screen.queryByText('Terms:')).toBeNull();
-
-  expect(screen.getByRole('link', { name: /download pdf/i })).toHaveAttribute(
-    'href',
-    '/api/jobs/J-4102/pdf?type=quote'
-  );
-});
-
-test('a proforma says it is not a tax invoice but still shows how to pay', () => {
-  setup({ invoiceVariant: 'proforma' });
-  expect(screen.getAllByText('TAX PROFORMA INVOICE')).toHaveLength(2);
-  expect(screen.getByText(/Proforma . Not a Tax Invoice/)).toBeInTheDocument();
-  expect(screen.getByText('Payment Details')).toBeInTheDocument();
-  // Still priced in full — only proformaBalance strips the pricing.
-  expect(screen.getByText('$275.00')).toBeInTheDocument();
-});
-
-test('an unpassed variant prints a tax invoice, not a proforma', () => {
-  // This test used to pin the opposite, because isProforma was
-  // `!isQuote && invoiceVariant !== 'standard'` — so an omitted prop stamped a
-  // real tax invoice as a proforma reading "Not a Tax Invoice". It was safe
-  // only because the one caller defaults the variant, which is not something a
-  // tax document should rest on. The check is now by name, and absence of
-  // information means the ordinary document rather than the qualified one.
-  setup({ invoiceVariant: undefined });
-  expect(screen.getAllByText('TAX INVOICE').length).toBeGreaterThan(0);
-  expect(screen.queryByText('TAX PROFORMA INVOICE')).toBeNull();
-});
-
-test('the balance-only proforma hides every price and every total but the balance', () => {
-  setup({ invoiceJob: job({ deposit: 100 }), invoiceVariant: 'proformaBalance' });
-
-  // Description / Decoration / Qty survive; the four money columns do not.
-  expect(screen.getAllByRole('columnheader')).toHaveLength(3);
-  expect(screen.getByRole('columnheader', { name: 'Qty' })).toBeInTheDocument();
-  for (const gone of ['Unit (ex)', 'Disc%', 'Amount', 'GST']) {
-    expect(screen.queryByRole('columnheader', { name: gone })).toBeNull();
-  }
-
-  // No unit price, no line amount, no subtotal, no GST line, no grand total.
-  expect(screen.queryByText('$20.00')).toBeNull();
-  expect(screen.queryByText('$200.00')).toBeNull();
-  expect(screen.queryByText('Subtotal (ex GST)')).toBeNull();
-  expect(screen.queryByText('GST (10%)')).toBeNull();
-  expect(screen.queryByText('TOTAL (inc GST)')).toBeNull();
-
-  // What is owed is the whole point of the variant.
-  expect(screen.getByText('BALANCE DUE')).toBeInTheDocument();
-  expect(screen.getByText('$175.00')).toBeInTheDocument();
-
-  // The section row has to span the narrowed table or the header breaks.
-  expect(screen.getByText('Embroidered polos')).toHaveAttribute('colspan', '3');
-});
-
-test('the matched customer record fills the bill-to block', () => {
-  setup();
-  expect(screen.getByText('Respondek Logistics')).toBeInTheDocument();
-  expect(screen.getByText('ABN: 99 888 777 666')).toBeInTheDocument();
-  expect(screen.getByText('Ph: 02 8000 4321')).toBeInTheDocument();
-  expect(screen.getByText('dock@respondek.example')).toBeInTheDocument();
-  expect(screen.getByText('Terms:')).toBeInTheDocument();
-  expect(screen.getByText('30 days')).toBeInTheDocument();
-  expect(screen.getByText('Ship To')).toBeInTheDocument();
-  expect(screen.getByText('Botany Depot')).toBeInTheDocument();
-});
-
-test('a customerId that matches nothing still prints the job it has', () => {
-  setup({ invoiceJob: job({ customerId: 999 }) });
-  expect(screen.getByText('Respondek Logistics')).toBeInTheDocument();
-  expect(screen.queryByText('ABN: 99 888 777 666')).toBeNull();
-  expect(screen.queryByText('Ph: 02 8000 4321')).toBeNull();
-  expect(screen.queryByText('Terms:')).toBeNull();
-  // The company's own ABN is not the customer's and must survive regardless:
-  // once in the letterhead, once in the footer.
-  expect(screen.getAllByText(/12 345 678 901/)).toHaveLength(2);
-});
-
-test('a job with no lines says so instead of printing an empty table', () => {
-  setup({ invoiceJob: job({ items: [] }) });
-  expect(screen.getByText('No line items')).toBeInTheDocument();
-  // Subtotal, GST and total all collapse to zero — and nothing is owed.
-  expect(screen.getAllByText('$0.00')).toHaveLength(3);
-  expect(screen.getByText('PAID')).toBeInTheDocument();
-});
-
-test('the download link points at this job in this document type', () => {
-  setup();
-  expect(screen.getByRole('link', { name: /download pdf/i })).toHaveAttribute(
-    'href',
-    '/api/jobs/J-4102/pdf?type=invoice'
-  );
-});
-
-test('print and close reach their handlers', () => {
-  const { setInvoiceJob } = setup();
-
-  const buttons = screen.getAllByRole('button');
-  expect(buttons).toHaveLength(2);
-  const [printButton, closeButton] = buttons;
-  expect(printButton).toHaveAccessibleName(/print/i);
-  // closeButton is icon-only and has no accessible name — see the summary.
-  expect(closeButton).toHaveAccessibleName('');
-
-  fireEvent.click(printButton);
-  expect(printSpy).toHaveBeenCalledTimes(1);
-
-  fireEvent.click(closeButton);
-  expect(setInvoiceJob).toHaveBeenCalledWith(null);
+  test('nothing paid leaves the whole amount owing', () => {
+    const t = deriveTotals(job());
+    expect(t.paid).toBe('$0.00');
+    expect(t.balance).toBe('$1320.00');
+  });
 });

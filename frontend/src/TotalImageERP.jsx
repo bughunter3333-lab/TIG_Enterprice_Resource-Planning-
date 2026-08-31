@@ -5424,7 +5424,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <TransferModal inventory={inventory} setTransferModal={setTransferModal} transferModal={transferModal} />
       <StocktakeModal setStocktakeModal={setStocktakeModal} stocktakeModal={stocktakeModal} />
       <StockFlowModal setStockFlowModal={setStockFlowModal} stockFlowModal={stockFlowModal} />
-      <InvoiceDocument customers={customers} invoiceJob={invoiceJob} invoiceVariant={invoiceVariant} setInvoiceJob={setInvoiceJob} />
+      <InvoiceDocument invoiceJob={invoiceJob} invoiceVariant={invoiceVariant} setInvoiceJob={setInvoiceJob} />
       <DocumentPrint documentPrint={documentPrint} inventory={inventory} setDocumentPrint={setDocumentPrint} />
       {emailModalJob && <EmailJobModal job={emailModalJob} customers={customers} onClose={() => setEmailModalJob(null)} />}
       {matrixPopup !== null && (

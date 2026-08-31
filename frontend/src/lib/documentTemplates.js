@@ -50,6 +50,8 @@ export const BLOCK_TYPES = {
   barcode: { label: 'Barcode', hint: 'Code 128 of the job number or a reference.' },
   freeText: { label: 'Text', hint: 'Fixed wording. Supports {tokens}.' },
   signature: { label: 'Signature', hint: 'Ruled lines for name, signature and date.' },
+  bankDetails: { label: 'Bank details', hint: 'BSB, account and account name, from Settings → Company.' },
+  noticeBox: { label: 'Notice', hint: 'A boxed warning, e.g. "Not a Tax Invoice".' },
   divider: { label: 'Divider', hint: 'A horizontal rule.' },
   spacer: { label: 'Spacer', hint: 'Vertical space.' },
 };
@@ -84,6 +86,9 @@ export const JOB_FIELDS = [
   { key: 'paymentMethod', label: 'Payment method' },
   { key: 'weightTotal', label: 'Total weight (kg)' },
   { key: 'requestedBy', label: 'Requested by' },
+  { key: 'invoiceDate', label: 'Invoice date' },
+  { key: 'validityDate', label: 'Valid until' },
+  { key: 'paymentStatus', label: 'Payment status' },
 ];
 
 // ── Columns available to the item table ─────────────────────────────────────
@@ -119,6 +124,8 @@ export const TOTAL_FIELDS = [
   { key: 'totalEx', label: 'Total ex GST' },
   { key: 'tax', label: 'GST' },
   { key: 'totalInc', label: 'Total inc GST' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'balance', label: 'Balance due' },
 ];
 
 export const PARTY_SOURCES = [
@@ -133,6 +140,10 @@ export const DOC_TYPES = {
   consignmentNote: { label: 'Consignment Note', paper: 'A4', banded: true },
   pickingList: { label: 'Picking List', paper: 'A4', banded: true },
   shipLabel: { label: 'Ship Label', paper: 'label100x150', banded: false },
+  invoice: { label: 'Tax Invoice', paper: 'A4', banded: true },
+  proformaInvoice: { label: 'Proforma Invoice', paper: 'A4', banded: true },
+  proformaBalance: { label: 'Proforma — Balance Only', paper: 'A4', banded: true },
+  quote: { label: 'Quote', paper: 'A4', banded: true },
 };
 
 let seq = 0;
@@ -289,12 +300,80 @@ function shipLabel() {
   };
 }
 
+// The three money documents share a spine and differ in the notice they carry
+// and whether they ask to be paid. Built from one function so a change to the
+// spine cannot land on two of the three.
+function moneyDocument({ docType, name, title, notice, showBank, showPayment }) {
+  return {
+    docType,
+    name,
+    paper: 'A4',
+    bands: {
+      header: [
+        block('companyBlock', { showAbn: true }),
+        block('docTitle', { text: title, showJobNumber: true }),
+        block('partyBlock', { source: 'customer', heading: 'Bill to' }),
+        block('fieldGrid', {
+          columns: 3,
+          fields: showPayment
+            ? ['invoice', 'dateIn', 'due']
+            : ['quote', 'dateIn', 'validityDate'],
+        }),
+        block('divider'),
+      ],
+      lines: [
+        block('lineTable', {
+          columns: ['stockCode', 'description', 'qty', 'priceEx', 'total'],
+          zebra: true,
+          showSections: true,
+        }),
+      ],
+      footer: [
+        block('divider'),
+        block('totals', {
+          fields: showPayment
+            ? ['totalEx', 'tax', 'totalInc', 'paid', 'balance']
+            : ['totalEx', 'tax', 'totalInc'],
+          align: 'right',
+        }),
+        ...(notice ? [block('noticeBox', { text: notice, tone: 'warn' })] : []),
+        ...(showBank ? [block('bankDetails', {})] : []),
+      ],
+    },
+  };
+}
+
 const DEFAULTS = {
   jobSheet,
   deliveryNote,
   consignmentNote,
   pickingList,
   shipLabel,
+  invoice: () => moneyDocument({
+    docType: 'invoice', name: 'Tax Invoice', title: 'TAX INVOICE',
+    notice: null, showBank: true, showPayment: true,
+  }),
+  proformaInvoice: () => moneyDocument({
+    docType: 'proformaInvoice', name: 'Proforma Invoice', title: 'TAX PROFORMA INVOICE',
+    notice: 'Proforma — Not a Tax Invoice', showBank: true, showPayment: true,
+  }),
+  // Its own document rather than a flag on the proforma: it deliberately omits
+  // every price and shows only what is owed, which is a different piece of
+  // paper and not a variant of one.
+  proformaBalance: () => {
+    const t = moneyDocument({
+      docType: 'proformaBalance', name: 'Proforma — Balance Only',
+      title: 'TAX PROFORMA INVOICE', notice: 'Proforma — Not a Tax Invoice',
+      showBank: true, showPayment: true,
+    });
+    t.bands.lines[0].columns = ['stockCode', 'description', 'qty'];
+    t.bands.footer[1].fields = ['balance'];
+    return t;
+  },
+  quote: () => moneyDocument({
+    docType: 'quote', name: 'Quote', title: 'TAX QUOTE',
+    notice: 'This is a Quote — Not a Tax Invoice', showBank: false, showPayment: false,
+  }),
 };
 
 export function defaultTemplate(docType) {

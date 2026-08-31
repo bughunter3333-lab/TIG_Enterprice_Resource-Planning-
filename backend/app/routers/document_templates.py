@@ -26,6 +26,10 @@ DOC_TYPES = {
     "consignmentNote",
     "pickingList",
     "shipLabel",
+    "invoice",
+    "proformaInvoice",
+    "proformaBalance",
+    "quote",
 }
 
 
