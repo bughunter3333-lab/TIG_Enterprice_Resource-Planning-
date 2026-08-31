@@ -474,6 +474,35 @@ painted with a gradient, so a naive walker skips it and compares against the
 body — that mis-reported the module bar as 2.02:1 when it is 7.8:1. Walk
 `backgroundImage` too.
 
+### F7. The job PDF endpoint has no callers left
+
+`GET /jobs/{job_id}/pdf` is now unreachable from the app. Nothing in
+`frontend/src` requests it — the last two call sites, the invoice download in
+the print dropdown and "Download Invoice (PDF)" in the job toolbar, were
+rewired to the template preview when invoices became templates.
+
+That was the point. The endpoint built its own layout in ReportLab, so the same
+menu offered two invoices that did not have to agree, which is the bug already
+fixed once for the job sheet. What it leaves behind is roughly 730 lines of
+`backend/app/routers/pdf.py` — `_build_pdf`, `_build_picking_slip` and
+`_build_job_sheet` — reachable only by typing the URL.
+
+Not deleted, for two reasons. It is a public route on a deployed API and may be
+bookmarked or scripted against outside this repo, which is not something the
+codebase can tell me. And the four documents it draws are exactly the ones the
+template renderer now owns, so removing it is a statement that templates are
+the only way these print — true today, and worth saying deliberately rather
+than as a side effect of a UI change.
+
+**What is still live in that file:** `GET /customers/{id}/statement.pdf`, used
+by `CustomersDetail.jsx:202`. The customer statement was never converted to a
+template and has no second version to disagree with, so it stays on ReportLab
+either way. Deleting the job builders does not touch it.
+
+The decision is delete-or-keep, and it is small either way. Keeping it costs
+730 lines that no test exercises through the UI; deleting it removes an API
+route that something outside this repo might be using.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.

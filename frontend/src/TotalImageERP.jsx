@@ -1606,16 +1606,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         <Printer className="w-3.5 h-3.5 text-faint" />{d.label}
                       </button>
                     ))}
-                    <div className="border-t mx-2 my-1" />
-                    <a
-                      href={`/api/jobs/${activeJob.id}/pdf?type=${activeJob.status === 'QUOTE' ? 'quote' : 'invoice'}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setPrintDropdownOpen(false)}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-ok-tint flex items-center gap-2 text-ok no-underline"
-                    >
-                      <Download className="w-3.5 h-3.5" />Download PDF
-                    </a>
                   </div>
                 )}
               </div>
@@ -4561,17 +4551,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => openInvoiceDoc(activeJob, 'proforma') },
                       { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', action: () => openInvoiceDoc(activeJob, 'proformaBalance') },
                       null,
-                      // These two used to download a ReportLab PDF built from a
-                      // second, independent layout. Now that the job sheet and the
-                      // picking list are templates, that PDF disagreed with the one
-                      // this same menu prints — two ways to get one document,
-                      // producing different paper. They open the template preview,
-                      // which prints to PDF itself. The invoice below stays on
-                      // ReportLab: invoices were not converted, so it has no second
-                      // version to disagree with.
+                      // These three used to download a ReportLab PDF built from a
+                      // second, independent layout. Every document in this menu is a
+                      // template now, so that PDF disagreed with the one the same
+                      // menu prints — two ways to get one document, producing
+                      // different paper. They open the template preview, which
+                      // prints to PDF itself.
                       { type: 'jobSheet',    label: 'Job Sheet (print / PDF)',    action: () => setDocumentPrint({ type: 'jobSheet',    job: activeJob }) },
                       { type: 'pickingSlip', label: 'Picking List (print / PDF)', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
-                      { type: 'pdf-invoice',      label: 'Download Invoice (PDF)',      action: () => window.open(`/api/jobs/${activeJob?.id}/pdf?type=${activeJob?.status === 'QUOTE' ? 'quote' : 'invoice'}`, '_blank') },
+                      // No quote/invoice ternary here any more: the component picks
+                      // the quote template off the job's own status, so a call site
+                      // that guesses is a second place for the two to disagree.
+                      { type: 'invoice',     label: 'Invoice (print / PDF)',      action: () => openInvoiceDoc(activeJob) },
                     ].map((r, i) =>
                       r === null
                         ? <div key={i} className="border-t border-hairline my-0.5" />
