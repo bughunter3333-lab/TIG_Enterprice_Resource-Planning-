@@ -440,8 +440,30 @@ in F3 at a twelfth of the size.
 gated on `ofModalOpen` — the query takes `enabled`, the effect returns early —
 so a fresh authenticated load makes 22 API requests and none of them go to
 `/open-freight`. Nothing is deleted, so wiring the entry point back up still
-works unchanged. What remains open is only the product question: put the button
-back, or remove the feature.
+works unchanged.
+
+**Update — the product question is answered: wire it back.** A photograph of a
+live Jim2 job (1186437, reviewed 2026-09-02) carries this comment against the
+job:
+
+> Status set by bulk OpenFreight Script
+
+So OpenFreight is not a half-finished idea somebody abandoned. It is load
+bearing in the business today, to the point of setting job statuses in bulk on
+the system this one replaces. The 453 lines here are an unfinished port of a
+daily workflow, not dead weight.
+
+That reverses the recommendation this entry would otherwise have earned. On the
+evidence available when it was written — an unreachable modal, no entry point,
+fetches firing on every load for a feature nobody could open — deletion was the
+defensible call. It would have been the wrong one, and it is worth recording
+why: the codebase cannot tell you which of its unreachable features someone
+depends on somewhere else.
+
+What is still unknown, and matters before the port: the Jim2 script sets status
+in *bulk* across many jobs, and `api.openFreight` here exposes only per-parcel
+CRUD. Whatever the bulk path is on their side needs finding before the entry
+point goes back.
 
 ### Running the frontend against real data locally
 
@@ -503,7 +525,7 @@ The decision is delete-or-keep, and it is small either way. Keeping it costs
 730 lines that no test exercises through the UI; deleting it removes an API
 route that something outside this repo might be using.
 
-## ORD1-ORD10. Findings from the Arcare multi-site order simulation
+## ORD1-ORD12. Findings from the Arcare multi-site order simulation
 
 Run on 2026-09-02 against a local SQLite instance, not production. One customer
 purchase order — Arcare, 100 staff personal packs (2 polos + 1 jacket each,
@@ -513,6 +535,43 @@ addresses were synthetic. The whole order was driven through quote → order →
 procurement → production → invoice → despatch.
 
 Ordered by what they would cost the business, not by how hard they are to fix.
+
+### Checked against the reference product
+
+A photograph of a live Jim2 job — sales job 1186437, Merrylands RSL Club, status
+FINISH, invoice 3059786 — was reviewed after this simulation was written. It
+confirms four of the findings from the product this ERP is modelled on, and
+corrects one.
+
+**The Order / Supply / B.Ord loop, complete.** The garment line reads
+`Status Received · PO# 2045613 · PO Due 04/03/2026 · Order 10 · Supply 10 ·
+B.Ord 0`. That is the whole cycle: a custom indent could not be supplied from
+stock, so B.Ord carried the shortfall, a purchase order was raised against that
+line, the goods arrived, and receipt filled Supply and cleared B.Ord to zero.
+
+`goods_receipt.py:373` implements the last step of that and nothing implements
+the first. ORD4 and ORD5 are therefore a missing half of a loop the reference
+completes, not a difference of opinion about how ordering should work.
+
+**Balance due is a first-class job field.** The footer reads `Invoice Paid $0.00`
+/ `Balance Due $1,243.00` next to SubTotal and Tax. In Jim2 that number always
+exists. In ours it exists only when a person has had the job open in a browser,
+which is ORD2.
+
+**Two mechanisms ORD1 asks for already exist there.** `Create Similar` sits in
+the button row, and `Linked Jobs/Quotes` is one of the job's tabs. So the
+reference has both the duplicate action and the parent/child relation whose
+absence makes a 68-site order into 68 unrelated jobs here.
+
+**And one correction.** ORD9 claimed size and colour should be structured
+fields. Jim2 writes the size curve into the line description as prose — see the
+revised ORD9 below.
+
+Two things the photograph shows that are worth copying regardless of the above:
+the footer warns `Order Weight: 15kg (2 items has 0 weight)`, naming the lines
+with no weight because freight is billed on that number, and it carries a
+`Qty Count` alongside the money totals. Our consignment note totals what it has
+and says nothing about what is missing.
 
 ### ORD1. One order cannot reach more than one address (HIGH, structural)
 
@@ -639,16 +698,35 @@ discarded field name. Any integration written against this API can make the
 same mistake and be told it worked. `model_config = ConfigDict(extra="forbid")`
 on the item schema turns it into a 422.
 
-### ORD9. Size and colour live only inside the SKU string (LOW)
+### ORD9. Size and colour live only inside the SKU string (LOW — revised, largely withdrawn)
 
-`InventoryItem` has `style_id`, `colour_code` and `size_code`. All three are
-null on every seeded row, while the SKU encodes exactly that —
-`AS5026-BLK-L` is style AS5026, black, large.
+**Revised against the reference product. The original finding was wrong on the
+important half.**
 
-This is the open "what is a stock code" question in a concrete form: any size
-or colour breakdown — a size curve across 68 sites, or "how many black polos in
-total" — has to be recovered by string-splitting a code whose format nothing
-enforces.
+The original claim was that the size and colour breakdown belongs in
+`InventoryItem.style_id` / `colour_code` / `size_code` rather than being parsed
+out of a code, and that leaving those null was an oversight.
+
+Jim2 does not do that. On job 1186437 the garment line is stock code
+`FB.INDENT` — a generic indent code carrying no size, no colour and no style —
+with the whole breakdown written into the description as free text:
+
+```
+Fashion Biz Special Custom Made Garment - Womens Harper 3/4 Sleeve Shirt - Ink/Silver
+6 x size 30
+4 x size 32
+```
+
+So the size curve living in prose is the reference behaviour, deliberately, and
+for a good reason: a custom indent has no SKU to hang sizes off. Any rule that
+demanded structured size fields on every line would have nowhere to put that
+order.
+
+What survives of the finding is much narrower, and only applies to *stocked*
+items: where a SKU does encode style/colour/size (`AS5026-BLK-L`), the three
+columns that exist to hold that are null, so a stocked-item size or colour
+report still has to split a string. That is worth fixing for stocked lines and
+must not be extended into a requirement for indent lines.
 
 ### ORD10. Per-garment personalisation has nowhere structured to live (LOW)
 
@@ -661,6 +739,55 @@ per-garment name list for the embroidery machine, check that 100 names were
 supplied for 100 garments, or reprint one person's polo without re-reading a
 comment. Named personalisation is ordinary in uniform work and is currently
 outside the data model.
+
+### ORD11. Decoration is an attribute here and a line item in Jim2 (MEDIUM)
+
+On job 1186437 the embroidery is its own row:
+
+```
+EMB.5244   Merrylands RSL Logo in Blue/Gold/Black (Shirts Only ~ Left Chest)
+           Order 10   Supply 10   B.Ord 0   Price 0.00   Hide ✓
+```
+
+A separate stock code that *is* the embroidery design number, quantity tracked
+alongside the garment, priced at zero because the cost is carried in the
+garment price, and hidden from the printed invoice.
+
+We model decoration as attributes hanging off the garment line —
+`decoration_type`, `emb_code`, `dec_code`, `dec_position`, `stitch_count`. That
+works for printing a job sheet and is why the decoration requirements report
+groups by `decoration_type:dec_code`. What it cannot do is give a logo an
+identity of its own: EMB.5244 is a thing that exists across jobs, has a stitch
+count, has a setup cost, can be re-run, and can be reported on. As a field on a
+line it exists once per line and nowhere else.
+
+Consequences worth weighing before changing anything, because this is a real
+schema decision and not a defect:
+
+- The freight line on the same job (`FREIGHT`, "Freight Charges Con #
+  CPCXF0C1006242") shows the same pattern — a non-garment cost as a line with a
+  code, not a field. Our despatch stores the consignment reference on the
+  DispatchSession line instead.
+- ORD10 probably resolves into this. Per-garment names may want to be a
+  decoration line with a quantity and an attached name list, rather than a new
+  per-unit field on JobItem.
+- The `Hide` flag already exists on JobItem and the template renderer already
+  honours it, so a zero-priced hidden line would print correctly today.
+
+### ORD12. Jim2 carries three card references on a job; we carry two (LOW)
+
+The header of 1186437 has `Cust#`, `From#` and `Ship#` as three separate
+fields, all reading MERRY.RSL here only because a single-site club is all three
+at once.
+
+We have `customer_id` and `ship_to_id`. There is no equivalent of From#. For a
+customer like Arcare — head office raising the order, 68 sites receiving it,
+one entity invoiced — the three genuinely differ, and the missing one is the
+"who asked for this" card that a query about the order should go back to.
+
+Low priority because `cust_ref` and `name_contact` cover most of what From# is
+used for day to day. Recorded so that the shape is known before anyone designs
+the multi-destination work in ORD1.
 
 ### What worked
 
