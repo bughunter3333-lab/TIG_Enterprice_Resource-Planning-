@@ -9,7 +9,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-multipart==0.0.9
 pyotp==2.9.0
-qrcode[pil]==7.4.2
+qrcode[pil]==8.2
 python-dotenv==1.0.1
 pydantic[email]==2.7.1
 pydantic-settings==2.2.1
