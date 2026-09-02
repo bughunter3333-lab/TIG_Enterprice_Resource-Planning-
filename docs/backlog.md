@@ -503,6 +503,181 @@ The decision is delete-or-keep, and it is small either way. Keeping it costs
 730 lines that no test exercises through the UI; deleting it removes an API
 route that something outside this repo might be using.
 
+## ORD1-ORD10. Findings from the Arcare multi-site order simulation
+
+Run on 2026-09-02 against a local SQLite instance, not production. One customer
+purchase order — Arcare, 100 staff personal packs (2 polos + 1 jacket each,
+embroidered logo and the employee's first name) — delivered to all 68 Arcare
+residences. Site list taken from arcare.com.au/residence-sitemap.xml; street
+addresses were synthetic. The whole order was driven through quote → order →
+procurement → production → invoice → despatch.
+
+Ordered by what they would cost the business, not by how hard they are to fix.
+
+### ORD1. One order cannot reach more than one address (HIGH, structural)
+
+`Job.ship_to_id` is on the job. `JobItem` has no destination field of any kind,
+and `/jobs/{id}/dispatch` records a single despatch event per job — it sets
+`dispatched_at` only `if not job.dispatched_at` and carries no address.
+
+So a purchase order going to 68 sites is 68 jobs. There is no split, duplicate,
+copy or bulk-create endpoint, so in the UI that is 68 hand-built jobs. It
+produced 68 invoice numbers against the customer's single PO ARC-PO-88421, and
+a shortage of one garment came back from Order Requirements as "35 units across
+22 jobs" for the buyer to reconcile by hand.
+
+It also duplicates production: one embroidery run of 300 garments is
+represented as 68 jobs, so every picking slip is one to three garments.
+
+`project_no` and `cust_ref` can tie the 68 together, and a DispatchSession
+despatched all 68 in one batch in well under a second — so the model can
+express the grouping. What is missing is a line-level destination, or a "split
+by ship-to" action that fans one order out and keeps the parent.
+
+### ORD2. Invoicing through the API leaves accounts receivable at zero (HIGH)
+
+`_recalculate_customer_balance` sums `Job.balance_due` over INVOICE/PAID/FINISH
+jobs. Nothing on the server ever derives `balance_due` from the invoice total —
+the only place it is computed is the job form in the browser, at
+`TotalImageERP.jsx:861`, as `total - invoicePaid`.
+
+68 jobs were invoiced for $15,400 inc GST. `customer.balance` stayed at $0.00
+and `ytd_sales` at $0.00.
+
+Everything downstream reads that field: the credit-limit check at
+`jobs.py:253`, the customer statement, the sales register, the customer detail
+panel, and every accounts-receivable answer the AI assistant gives. A job
+invoiced by anything other than a person clicking through the job form is
+invisible to all of them — an import, an EDI feed, a customer portal, or a
+script. Deriving `balance_due` server-side on the INVOICE transition closes it.
+
+### ORD3. On-hand stock is allowed to go negative, silently (HIGH)
+
+`AS5026-BLK-L` had 65 units. The 68 jobs needed 100. All 68 were invoiced
+without a block, a warning, or a confirmation, and the SKU finished at **−35 on
+hand**.
+
+The ledger itself is honest: 100 movement rows, every one carrying
+`location_branch`, split correctly into Released and Sale. Nothing was
+corrupted. The system faithfully recorded shipping stock that did not exist,
+which is the point — a negative on-hand figure means either the goods never
+shipped or the count is wrong, and nobody is told either way.
+
+### ORD4. The procurement worklist only shows what someone typed into it (HIGH)
+
+`GET /jobs/order-requirements?type=garment` filters on `JobItem.b_ord > 0`.
+Nothing computes `b_ord`. Across the backend it is only ever *decremented* — by
+goods receipt at `goods_receipt.py:373` — or read. The only writer is an
+operator typing into the B/Ord column, which `api.js` sends as `b_ord`.
+
+With 100 units committed against 65 in stock, the shortage was real, derivable,
+and visible in the stock figures. Order Requirements returned **zero rows**.
+Hand-entering `b_ord: 35` made the correct row appear immediately, with the
+right supplier and cost — so the screen works; it is just fed by hand.
+
+A buyer working that screen is not seeing what the business is short of. They
+are seeing what colleagues remembered to flag.
+
+### ORD5. Orders reserve no stock until someone fills the Supply column (HIGH)
+
+Commitment keys off `JobItem.supply_qty > 0` (`inventory.py:911`,
+`reservations.py`). `supply_qty` defaults to 0 in `JobCreate` and is only
+auto-filled by goods receipt.
+
+68 orders for 100 + 100 + 100 units were created and `committed_qty` did not
+move. Available stock still read 65 for a SKU that was fully spoken for. Two
+salespeople could each promise the same 65 garments. Setting
+`supply_qty = order_qty` made commitment correct at once, and the shortage
+appeared as −35 available.
+
+ORD4 and ORD5 are the same shape as ORD2: a number the system can derive, left to a
+human to type, with everything downstream trusting it.
+
+### ORD6. The jobs list cannot show which site a job is for (MEDIUM)
+
+`JobsList.jsx` defines eight columns — Job#, Customer, Status, Dec, Priority,
+Acc Mgr, Total, Due. None is the ship-to. All 68 Arcare jobs render as visually
+identical rows: same customer, same status, same decoration, same date, and
+only two distinct totals.
+
+The odd part is that the data is already there for filtering:
+`jobsFilters.js:163` filters by ship code, `:147` searches it, and `:132` builds
+the dropdown of codes. So the ship code drives the filter bar and is never
+shown in the grid. On a 68-site order the operator can narrow to one site at a
+time but cannot see the shape of the whole order.
+
+Adding the column is a one-line change to the column array.
+
+### ORD7. Three-letter ship codes do not survive a customer this size (MEDIUM)
+
+Under the `AR.` + first-three-letters convention, Arcare's 68 residences
+produce **6 collisions covering 13 sites**: AR.HEL (Helensvale, Helensvale St
+James), AR.KNO (Knox, Knox The Lodge), AR.NOR (North Shore, North Lakes),
+AR.POI (Point Lonsdale, Point Cook), AR.WAR (Warriewood, Warners Bay), and
+AR.PAR three ways (Parkwood, Parkview, Parkinson).
+
+The ERP behaves correctly — `POST /customers/{id}/ship-tos` returns 409
+"Ship-to code 'AR.PAR' already exists for this customer" — so nothing corrupt
+gets in. The gap is that codes then get invented ad hoc at the point of
+rejection. Auto-lengthening produced AR.BEL beside AR.PARKI, which is no longer
+a scannable convention.
+
+A process decision rather than a defect: pick a fixed-width scheme
+(AR.PKW / AR.PKV / AR.PKN) and write it down, because the collisions are
+between sites in different states whose garments must not be swapped.
+
+### ORD8. PATCH accepts field names it does not recognise and reports success (MEDIUM)
+
+`PATCH /jobs/{id}` with items carrying `supply` instead of `supply_qty`
+returned 200 for 69 consecutive jobs and changed nothing. Pydantic ignores
+extra keys by default, so a misspelt field is indistinguishable from a
+successful write.
+
+This cost time inside the simulation itself: the commitment figures looked like
+a stock bug for several minutes before the cause turned out to be a silently
+discarded field name. Any integration written against this API can make the
+same mistake and be told it worked. `model_config = ConfigDict(extra="forbid")`
+on the item schema turns it into a 422.
+
+### ORD9. Size and colour live only inside the SKU string (LOW)
+
+`InventoryItem` has `style_id`, `colour_code` and `size_code`. All three are
+null on every seeded row, while the SKU encodes exactly that —
+`AS5026-BLK-L` is style AS5026, black, large.
+
+This is the open "what is a stock code" question in a concrete form: any size
+or colour breakdown — a size curve across 68 sites, or "how many black polos in
+total" — has to be recovered by string-splitting a code whose format nothing
+enforces.
+
+### ORD10. Per-garment personalisation has nowhere structured to live (LOW)
+
+The order was 100 *personal* packs: each garment carries the employee's first
+name under the logo. `JobItem` has `description`, `sizes`, `dec_code`,
+`emb_code` and `dec_position` — all per line, none per unit.
+
+The 100 names went in as a free-text note on the job. Nothing can produce a
+per-garment name list for the embroidery machine, check that 100 names were
+supplied for 100 garments, or reprint one person's polo without re-reading a
+comment. Named personalisation is ordinary in uniform work and is currently
+outside the data model.
+
+### What worked
+
+Recorded so the list above is not read as a verdict on the whole system.
+
+- Ship-to codes are enforced unique per customer, with a clear 409.
+- `INVOICE` is refused until an invoice number is set.
+- The stock ledger stayed correct under 100 movements — every row carried
+  `location_branch`, and Released/Sale were separated properly.
+- `_apply_status_transition` handled all 68 jobs with no drift; committed and
+  depleted move on boundaries, so reverse transitions stay right.
+- One DispatchSession absorbed 68 consignments instantly.
+- All 68 jobs carried both ship-to code and shipping address, so the
+  consignment notes and labels built earlier render correctly per site.
+- Creating 68 jobs took 1.0s and 68 ship-tos 0.8s over HTTP. Nothing here is a
+  performance problem.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.
