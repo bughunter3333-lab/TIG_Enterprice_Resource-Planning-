@@ -805,6 +805,214 @@ Recorded so the list above is not read as a verdict on the whole system.
 - Creating 68 jobs took 1.0s and 68 ship-tos 0.8s over HTTP. Nothing here is a
   performance problem.
 
+## JIM1-JIM12. What 31 photographs of the live Jim2 system show
+
+Surveyed 2026-09-02 from `OneDrive/ERP` — 31 screen photographs taken between
+April and June 2026 covering jobs, the job-list builder, stock, a purchase
+order, both report menus, and every ribbon tab. Findings are ordered by how much
+they change what we build, not by size.
+
+Several confirm earlier guesses; three overturn them. Where a photograph
+contradicts something written here previously, the photograph wins.
+
+### JIM1. The business is multi-site by default, not by exception (HIGH)
+
+The recently-opened list alone holds Dan Murphy's (three jobs, "Vendor No.
+96026…"), Respect Group (four), Pickles Auctions **Adelaide** and Pickles
+Auctions **Bibra Lake** as separate cards, Corinthian Industries **WA**, and a
+saved list "Zone Bowling" holding **13 jobs**. Add Arcare's 68 residences and
+Anytime Fitness's franchises.
+
+ORD1 was written as though a 68-site order were an unusual event to be designed
+for. It is the ordinary shape of the work. That raises its priority and changes
+its framing: this is not "support an edge case", it is "support the main case".
+
+**How Jim2 survives it, exactly:** one job per destination — the same thing our
+simulation was forced into — made workable by two tools we lack, `Create
+Similar` on every job, and a saved List that is a live query. Job 1200193 is
+TEEG with `Cust# ZON.BOWL.C` but `Ship# TZ.CRONL.N`, sitting inside the "Zone
+Bowling" list beside its twelve siblings.
+
+**So the fix is not a new data model.** It is Create Similar, plus a list.
+
+### JIM2. A job line is an assembly of three lines, not one line (HIGH)
+
+The clearest example, from job 1200193:
+
+```
+1  ZON.1062.CHB.3XL                       TIMEZONE Mens Superdry Polo - Charcoal/Black - 3XL  2 2 0  33.00  36.30 G     72.60
+2  EMB.TIMEZONE.LHC                       TIMEZONE logo - yellow - left chest (2.0K)          2 2 0   4.71   5.18 G ✓   10.36
+3  Received 2049993 PI.1062.CHB.TZON.3XL  Mens Superdry Polo - Charcoal/Black - 3XL           2 2 0  28.29  31.12 G ✓   62.24
+```
+
+- `ZON.` — the **sell** line, the customer's own code, at full price, visible
+- `EMB.` — the **decoration**, priced per use, hidden, "(2.0K)" = stitch count
+- `PI.` — the **bought garment**, at cost, hidden, carrying the PO# and its
+  Received status
+
+Margin is therefore visible on the job itself as sell minus components, which is
+what the open "COG on job lines" question was really asking about.
+
+`EMB.TIMEZONE.LHC` repeats across every garment on the job: **a logo is a stock
+item with an identity, reused and priced per application.** This is ORD11
+confirmed with prices attached — the earlier Merrylands photograph showed the
+decoration line at $0.00, which made it look like a note. It is not; it is a
+priced component that was zero on that job.
+
+There is a second form as well. Recently-opened stock includes
+`AF.PS60.16 TRS.AF.LHC, TRS.ANYTIMEH.B…` — garment plus both transfers as a
+single **kit** SKU, and Jim2 carries `Stock List Kits` and `Action Kits Stock
+list` reports. So repeat customers get a kitted code; ad-hoc work gets component
+lines.
+
+### JIM3. Purchase order lines carry the job they are for (HIGH)
+
+PO 2048001 (Workwear Group) has eight lines spanning **six different jobs** —
+1194959, 1194956, 1194961, 1194951, 1192494, 1194960 — each line naming its
+`Job#`, and comment 6 reads:
+
+> `07/04/2026 KS Booked — "Auto created from Job 1192799 for Workwear Group"`
+
+**Purchase orders are auto-created from jobs, and consolidate across them.**
+That is precisely the "35 units across 22 jobs" problem the Arcare simulation
+surfaced (ORD4), and the mechanism is a `job_id` on the purchase-order line.
+
+Ours has no such column. `PurchaseOrderItem` is `order_id · sku · description ·
+qty_ordered · qty_received · unit_cost · total` — no job link, and no
+`vendor_stock_code` or `list_price_ex` either, both of which Jim2 carries
+(`K43012` beside our `RS.K43012CU.NAV.12`; RRP 89.09 beside our buy 49.99).
+
+### JIM4. A stock code is garment + colour + size, and there is a parent above it (HIGH)
+
+The stock list filtered on `MR.RB967LS.SIL` returns **twelve rows, one per
+size** — `.4 .6 .8 .10 .12 .14 .16 .18 .20 .22 .24 .26`, all "Ladies Kayla
+Blouse - Silver - <size>".
+
+That answers the long-open SKU question outright: **one SKU per size.** And the
+grid carries a **`Parent Stock`** column — the style above the per-size codes,
+which is what our null `style_id` was always for.
+
+Stock-level columns we do not have: **`On PO`**, **`BackOrder`**, **`Packaged`**
+as distinct quantity buckets alongside On Hand / Committed / Available.
+
+### JIM5. Ten stock locations, with bins and a reorder calculation (MEDIUM)
+
+`3PLP · AF · BULK · GS · HQ · MELB · QING · QUA · RET · SAMP` — third-party
+logistics, Melbourne, **Qingdao**, quarantine, returns, samples — each with
+Branch, Zone, **Primary Bin 1 + Max Qty**, **Primary Bin 2 + Max Qty**.
+
+Per stock item, a Procurement block: *Min Qty per Location method · Daily Avg
+Sold per day based on last N days · Add extra N% to calculated Qty · Re-order
+Qty*. **Reorder quantity is computed from sales velocity.** We have `min_stock`
+and `reorder_qty` as static numbers.
+
+### JIM6. Stock transactions are linked in pairs (MEDIUM)
+
+The Transactions tab carries `Tran# · Date · Type · Ref# · Loc. · Qty · Qty Bal ·
+PO# · POLine# · Job# · **Link Tran** · Link GL · Pack# · Bin`. Purchase 79180661
+links to Sale 79305720. Every movement names the PO line it came from, the job
+it went to, its bin, and the transaction it is paired with.
+
+Our ledger is honest and carries `location_branch` (the Arcare run proved it),
+but it cannot answer "which purchase did this sale consume", which is what makes
+true landed-cost and margin-by-unit possible.
+
+### JIM7. Priority is an order category here, not an urgency (MEDIUM)
+
+Values across the photographs: **`Normal`**, **`Branch`**, **`Employee`**. Not
+Low/Normal/High/Urgent. "Employee" is a staff uniform order; "Branch" is a
+venue order.
+
+Ours is a three-level urgency and drives colour in the grid. Adopting Jim2's
+meaning would change what the field is *for*, so this is a decision rather than
+a defect — but the current filter offers a vocabulary the business does not use.
+
+### JIM8. Jobs are created from email, and the system writes its own comments (MEDIUM)
+
+Every job title bar reads `Viewing Sales Job 1199536 ( **Source: Email #970981** )`.
+Orders arrive as email, become jobs, and the email thread stays attached — the
+Jobs ribbon carries Reply / Reply All / Forward next to Print.
+
+The comment trail is written by `SYS` as well as by people:
+`Ordered On Account - Proceed with order` (Inc ✓) · `Confirmed` · `Booked` ·
+`Status set by bulk OpenFreight Script`. Comments carry Date · Initials ·
+**Status at the time** · **Inc** (include on the printed document) · text.
+
+We have a JobComment with status and is_internal, so the shape is right. What is
+missing is the email as the origin of a job.
+
+### JIM9. Statuses are configurable, and theirs are different from ours (MEDIUM)
+
+Seen: `Backorder · Confirmed · Booked · Desp/Ready · Pick/Pack · FINISH`, with
+POs running `Booked → Ordered → Received → FINISH`, and a separate `Mode:
+ACTIVE` field on both jobs and POs. Tools → **`Status`** is a configuration
+screen, so this vocabulary is theirs, not the product's.
+
+The Job List builder groups statuses into buckets — **Active / Finish / Ready /
+Inv'd** — and classifies jobs as **Sale / Service / Manufacturing**.
+
+Ours: QUOTE · ORDER · PROOF · PRINT · Pick/Pack · FINISH · INVOICE · PAID ·
+CANCEL, one job kind, no buckets, no Mode.
+
+### JIM10. Ours is a production system; theirs is also an accounting system (MEDIUM)
+
+The Accounts ribbon: Debtors · Creditors · Advanced Creditors · **General
+Ledger** · Account Inquiry · Transaction Journal · General Journals · **GST
+Sessions** · Multicurrency Revaluations · Cheque Book · Bank Deposits · **Bank
+Rec.** · Till Rec. · **Bank Feeds** · Bulk Payments · **Electronic Payments**.
+Management adds **Business Analysis · Budgets · Cash Flow · Commission
+Sessions**.
+
+This is worth stating plainly because it bounds the project: replacing Jim2
+outright means replacing a general ledger, or integrating one. Nothing in the
+current codebase approaches that, and the Arcare simulation's ORD2 (receivables
+reading zero) is the first symptom of the gap.
+
+### JIM11. Three capabilities we have not begun (LOW-MEDIUM)
+
+- **Scheduling** is a resource calendar — Day/Work Week/Week/Month/Year/Time
+  Line/Current+7, **grouped by Resources**, with saved views. That is production
+  capacity planning against machines and people. We have a `SchedulingModule`
+  that is not this.
+- **Documents** is a DMS with **Checkout / Cancel Checkout**. For a decoration
+  business that is artwork version control — the thing that stops two people
+  embroidering from different logo files.
+- **Tools** carries `Report Designer` (the direct analogue of the document
+  template designer built here — that instinct was right), `Scripting Engine` and
+  `Menu Scripts` (where "bulk OpenFreight Script" lives), `Watchouts`,
+  `Integration Configuration`, `Import Data`, `Close Fin. Year`, and a
+  configurable `Status` and `Groups`.
+
+### JIM12. The document set, checked against our designer (LOW)
+
+Jim2's job report menu: `TIG Job Sheet · TIG Picking Slip · TIG Delivery Note ·
+Job Label · Ship Label - Total Image · TIG Delivery Note - NZ · TIG Sample Sales
+Contract · TIG TAX Proforma Invoice · TIG TAX Proforma Invoice Balance ONLY`.
+
+We have eight of the nine. Two gaps and one correction:
+- **`Job Label` is a separate document from `Ship Label`.** Our toolbar points
+  both at `shipLabel`.
+- **`TIG Sample Sales Contract`** does not exist in our designer at all.
+- **Jim2 has no consignment note.** The connote comes from the carrier and lands
+  on the job as freight-line text (`Freight Charges Con # CPCXF0C1006242`). Ours
+  is invented — not wrong, but it is ours, not a Jim2 parity item.
+
+Also on every job footer: `Order Weight: 15kg **(2 items has 0 weight)**` and a
+`Qty Count`. The warning names the lines missing a weight, which matters because
+freight is billed on it. Ours totals silently.
+
+### And the thing that is not in the ERP at all
+
+Behind the Jim2 window in one photograph sits an open Excel file: **"New Polo
+EBA Employee Sizes Listing"**, with tabs **QLD · NSW · WA**.
+
+That is ORD10 in its real form. Employee-level size and name lists arrive as
+spreadsheets, per state, under an enterprise agreement, and are keyed to
+individual people. Nothing in Jim2 holds them either — which is why the answer
+to per-garment personalisation is a genuine product decision rather than a
+parity item, and possibly the clearest place this system could beat the one it
+replaces.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.
