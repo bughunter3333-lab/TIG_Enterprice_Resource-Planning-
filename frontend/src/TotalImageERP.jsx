@@ -118,7 +118,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [locationDropdown, setLocationDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [supplierDropdown, setSupplierDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [searchSuggestOpen, setSearchSuggestOpen] = useState(false);
-  const [colWidths, setColWidths] = useState({ stock: 130, desc: 210, order: 58, supply: 56, bord: 52, priceEx: 76, priceInc: 76, margin: 52, total: 76, hide: 32 });
+  // Column set and order follow Jim2's job line grid exactly:
+  // Status · PO# · PO Due · Stock Code · Description · Order · Supply · B. Ord ·
+  // Qty Pick · Price Ex. · Price Inc. · Tax · Hide · Total.
+  // Margin lives on Jim2's Cost tab, not here, so it is no longer a column.
+  const [colWidths, setColWidths] = useState({ status: 80, poNo: 74, poDue: 78, stock: 130, desc: 210, order: 56, supply: 58, bord: 54, qtyPick: 58, priceEx: 76, priceInc: 76, tax: 36, hide: 36, total: 78 });
   const [lineItemsHeight, setLineItemsHeight] = useState(480);
   const [ctxMenu, setCtxMenu] = useState({ visible: false, x: 0, y: 0, rowIdx: -1 });
 
@@ -1858,7 +1862,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                       <tr>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO #</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO#</th>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO Due</th>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Stock Code</th>
                         <th className="px-2 py-1.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
@@ -1866,8 +1870,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Supply</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>B. Ord</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Qty Pick</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex.</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc.</th>
                         <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Tax</th>
                         <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Hide</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Total</th>
@@ -3283,21 +3287,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <p className="text-sm text-center py-4" style={{ color: T.textFaint }}>No items yet. Click "Add Item" to begin.</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="line-items-table border-collapse" style={{ tableLayout: 'fixed', width: '100%', minWidth: 820, fontSize: 12 }}>
+                      <table className="line-items-table border-collapse" style={{ tableLayout: 'fixed', width: '100%', minWidth: 1150, fontSize: 12 }}>
                         <thead>
                           <tr className="select-none" style={{ background: T.hairlineSoft, borderBottom: `2px solid ${T.hairline}`, color: T.textMuted }}>
                             <th className="px-1 py-1 text-center text-[11px] font-semibold" style={{ width: 26, borderRight: `1px solid ${T.hairline}` }}>#</th>
                             {[
+                              { key: 'status', label: 'Status', align: 'left' },
+                              { key: 'poNo', label: 'PO#', align: 'left' },
+                              { key: 'poDue', label: 'PO Due', align: 'left' },
                               { key: 'stock', label: 'Stock Code', align: 'left' },
                               { key: 'desc', label: 'Description', align: 'left' },
-                              { key: 'order', label: 'Ord', align: 'right' },
-                              { key: 'supply', label: 'Sup', align: 'right' },
-                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-accent' },
-                              { key: 'priceEx', label: 'Price Ex', align: 'right' },
-                              { key: 'priceInc', label: 'Price Inc', align: 'right' },
-                              { key: 'margin', label: 'M%', align: 'right', color: 'text-ok' },
+                              { key: 'order', label: 'Order', align: 'right' },
+                              { key: 'supply', label: 'Supply', align: 'right' },
+                              { key: 'bord', label: 'B. Ord', align: 'right', color: 'text-accent' },
+                              { key: 'qtyPick', label: 'Qty Pick', align: 'right' },
+                              { key: 'priceEx', label: 'Price Ex.', align: 'right' },
+                              { key: 'priceInc', label: 'Price Inc.', align: 'right' },
+                              { key: 'tax', label: 'Tax', align: 'center' },
+                              { key: 'hide', label: 'Hide', align: 'center' },
                               { key: 'total', label: 'Total', align: 'right', color: 'text-header' },
-                              { key: 'hide', label: 'H', align: 'center' },
                             ].map(col => (
                               <th key={col.key} className={`text-${col.align} px-1 py-1 text-[11px] font-semibold relative ${col.color || ''}`} style={{ width: colWidths[col.key], borderRight: `1px solid ${T.hairline}`, color: col.color ? undefined : T.textMuted }}>
                                 {col.label}
@@ -3388,12 +3396,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   </td>
 
                                   {isSec || isNote ? (
-                                    <td colSpan={11} className="px-2 py-0.5">
+                                    <td colSpan={14} className="px-2 py-0.5">
                                       <input type="text" value={item.description || ''} onChange={e => updateJobItem(idx, 'description', e.target.value)}
                                         className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-accent-strong' : 'italic text-warn'}`}
                                         placeholder={isSec ? 'Section heading…' : 'Note or instruction…'} />
                                     </td>
                                   ) : (<>
+                                    {/* Status / PO# / PO Due — read-only.
+                                        Jim2 shows all three on the line; here they are written
+                                        by the system, not the operator: item_status by the pick
+                                        endpoint (Picked / Partial), and the PO fields by the
+                                        purchase-order link. Making them typable would let
+                                        someone enter a PO number that does not exist and a
+                                        status the next pick overwrites. */}
+                                    <td className="px-1 py-0.5 text-[11px] truncate" style={{ width: colWidths.status, borderRight: `1px solid ${T.hairline}`, color: item.itemStatus ? T.text : T.textFaint }} title={item.itemStatus || 'Set when the line is picked or received'}>
+                                      {item.itemStatus || '—'}
+                                    </td>
+                                    <td className="px-1 py-0.5 text-[11px] font-mono truncate" style={{ width: colWidths.poNo, borderRight: `1px solid ${T.hairline}`, color: item.poNo ? T.accentStrong : T.textFaint }} title={item.poNo ? `Purchase order ${item.poNo}` : 'No purchase order raised against this line'}>
+                                      {item.poNo || '—'}
+                                    </td>
+                                    <td className="px-1 py-0.5 text-[11px] tabular-nums truncate" style={{ width: colWidths.poDue, borderRight: `1px solid ${T.hairline}`, color: item.poDue ? T.text : T.textFaint }}>
+                                      {item.poDue || '—'}
+                                    </td>
+
                                     {/* Stock Code */}
                                     <td className="px-0.5 py-0.5 relative" style={{ width: colWidths.stock, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={skuQ}
@@ -3491,8 +3516,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         min="0" placeholder="0" />
                                     </td>
 
-                                    {/* Price Ex */}
-                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceEx, borderRight: `1px solid ${T.hairline}` }}>
+                                    {/* Qty Pick — read-only. Owned by the Pick/Pack panel, which
+                                        posts to /jobs/{id}/pick; a second editor here would let
+                                        the two disagree about what was picked. */}
+                                    <td className="px-1 py-0.5 text-right text-[11px] tabular-nums" style={{ width: colWidths.qtyPick, borderRight: `1px solid ${T.hairline}`, color: item.qtyPick > 0 ? T.text : T.textFaint }} title="Set in Pick/Pack">
+                                      {item.qtyPick || '—'}
+                                    </td>
+
+                                    {/* Price Ex — tinted, because Jim2 tints the cells you can
+                                        type into and `editable` exists in the palette for it. */}
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceEx, borderRight: `1px solid ${T.hairline}`, background: T.editable }}>
                                       <input type="number" step="0.01" value={item.priceEx || ''} onChange={e => updateJobItem(idx, 'priceEx', e.target.value)} className={`${ciR} font-medium`} min="0" />
                                     </td>
 
@@ -3501,23 +3534,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                       <input type="number" step="0.01" value={item.priceInc || ''} onChange={e => updateJobItem(idx, 'priceInc', e.target.value)} className={ciR} min="0" />
                                     </td>
 
-                                    {/* Margin % */}
-                                    <td className="px-1 py-0.5 text-right" style={{ width: colWidths.margin, borderRight: `1px solid ${T.hairline}` }}
-                                      title={isLowMargin ? `Low margin: ${(item.marginPercent || 0).toFixed(1)}% < 15%` : ''}>
-                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-danger' : item.marginPercent > 0 ? 'text-ok' : item.marginPercent < 0 ? 'text-danger' : ''}`}
-                                        style={!isLowMargin && item.marginPercent === 0 ? { color: T.textFaint } : undefined}>
-                                        {item.priceEx > 0 && item.purchasePrice > 0 ? `${isLowMargin ? '⚠' : ''}${(item.marginPercent || 0).toFixed(0)}%` : '—'}
-                                      </span>
-                                    </td>
-
-                                    {/* Total */}
-                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] tabular-nums" style={{ width: colWidths.total, borderRight: `1px solid ${T.hairline}`, color: T.text }}>
-                                      ${(parseFloat(item.total) || 0).toFixed(2)}
+                                    {/* Tax — the per-line tax code. G is taxable, and a GST-free
+                                        line carries its own code, so this is the operator's to set. */}
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.tax, borderRight: `1px solid ${T.hairline}`, background: T.editable }}>
+                                      <input type="text" maxLength={4} value={item.taxType ?? ''} placeholder="G"
+                                        onChange={e => updateJobItem(idx, 'taxType', e.target.value.toUpperCase())}
+                                        className={`${ci} text-center uppercase`} title="Tax code — G for taxable" />
                                     </td>
 
                                     {/* Hide */}
                                     <td className="px-0.5 py-0.5 text-center" style={{ width: colWidths.hide, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="checkbox" className="w-3 h-3 accent-accent-strong cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
+                                    </td>
+
+                                    {/* Total — last, as in Jim2 */}
+                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] tabular-nums" style={{ width: colWidths.total, borderRight: `1px solid ${T.hairline}`, color: T.text }}>
+                                      ${(parseFloat(item.total) || 0).toFixed(2)}
                                     </td>
                                   </>)}
 
@@ -3533,7 +3565,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   <tr className={`${decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
                                     style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
-                                    <td colSpan={10} className="px-2 py-0.5">
+                                    <td colSpan={14} className="px-2 py-0.5">
                                       <div className="flex items-center gap-2 relative">
                                         <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
                                           className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
