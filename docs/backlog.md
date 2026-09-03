@@ -667,7 +667,13 @@ time but cannot see the shape of the whole order.
 
 Adding the column is a one-line change to the column array.
 
-### ORD7. Three-letter ship codes do not survive a customer this size (MEDIUM)
+### ORD7. Three-letter ship codes do not survive a customer this size (MEDIUM — LARGELY DISSOLVED, see JIM16)
+
+**Mostly withdrawn.** Real ship codes are numeric site IDs — `RICO.2201`,
+`RICO.2202`, `RICO.2202P`, `RICO.2203` — not abbreviations of place names, so
+the six collisions below were an artefact of a scheme this analysis invented.
+What survives is only: adopt the numbering the business already uses.
+
 
 Under the `AR.` + first-three-letters convention, Arcare's 68 residences
 produce **6 collisions covering 13 sites**: AR.HEL (Helensvale, Helensvale St
@@ -728,7 +734,13 @@ columns that exist to hold that are null, so a stocked-item size or colour
 report still has to split a string. That is worth fixing for stocked lines and
 must not be extended into a requirement for indent lines.
 
-### ORD10. Per-garment personalisation has nowhere structured to live (LOW)
+### ORD10. Per-garment personalisation has nowhere structured to live (LOW — ANSWERED, see JIM13)
+
+**Superseded.** The September photographs answer this: personalisation is one
+job per person, with the employee name and staff number in `Cust Ref#`. The
+question below assumed the unit was the garment; it is the job. Left in place
+because the reasoning explains what was looked for and why it was not found.
+
 
 The order was 100 *personal* packs: each garment carries the employee's first
 name under the logo. `JobItem` has `description`, `sizes`, `dec_code`,
@@ -1012,6 +1024,177 @@ individual people. Nothing in Jim2 holds them either — which is why the answer
 to per-garment personalisation is a genuine product decision rather than a
 parity item, and possibly the clearest place this system could beat the one it
 replaces.
+
+## JIM13-JIM20. The September photographs — how personalised orders actually run
+
+Eight more photographs from `OneDrive/ERP/New`, taken 2026-09-03, following one
+customer (Ricoh Australia) from online order through picking to the purchase
+order that pays for the embroidery. They answer ORD10 outright and correct ORD7.
+
+### JIM13. Personalisation is one job per person, not a field on a line (HIGH — answers ORD10)
+
+Job List filtered on `Order# 2056727` returns **ten Ricoh jobs, one per
+employee**:
+
+```
+Job#     Cust Ref#              Item#        Item Desc                    Serial#   Name
+1218774  GILBERT BOCAUT…        NOP.ONLINE   gbocauto@ricoh.com.au        4514649   SYS
+1219015  GREG WHITED            NOP.ONLINE   gregwhited@ricoh.com.au      4514839   SYS
+1219117  KENT WITTKE-22…        NOP.ONLINE   kwittke@ricoh.com.au         4514921   SYS
+1219209  STEVE PARASKEV…        NOP.ONLINE   sparas@ricoh.com.au          4515000   SYS
+1219224  MORGAN GATSIS          SALE         Ad-Hoc Sale                            DANIELL.GO
+1219225  NATASHA WYNN           SALE         Ad-Hoc Sale                            DANIELL.GO
+1219319  NINO BLANCO            NOP.ONLINE   nblanco@ricoh.com.au         4515086   SYS
+1219410  VIRDIPSINH CHU…        NOP.ONLINE   vchudasama@ricoh.com.a       4515160   SYS
+1219433  DAVID RICE - 22(       NOP.ONLINE   drice@ricoh.com.au           4515183   SYS
+1219454  MARTIN CLUNE -         NOP.ONLINE   mclune@ricoh.com.au          4515196   SYS
+```
+
+The employee's **name and staff number go in `Cust Ref#`**, their **email in the
+job description**, and the job is theirs alone.
+
+ORD10 asked where a per-garment name should live and concluded the data model
+had no room for it. The question was wrong. **The unit of personalisation is the
+job, not the line.** Job 1218774 is Gilbert Bocauto's pullover, pants, shirt and
+two polos — his whole pack, on his own job, embroidered `RICOH (Only) - in RED
+for LH Chest on Shirt, Back right of pants`.
+
+That also re-frames the Arcare simulation: 100 personal packs is not one job
+with 100 names, it is **100 jobs** — which makes `Create Similar` and bulk status
+handling (JIM1) not a convenience but the load-bearing mechanism.
+
+### JIM14. A self-service ordering portal feeds a large share of the work (HIGH)
+
+`Item#` splits every job into two intake channels:
+
+- **`NOP.ONLINE`** — the employee ordered it themselves. Their email is the job
+  description, `Serial#` is the portal's order number (4514649, 4514839, …), and
+  `Name` is **`SYS`**: nobody keyed it.
+- **`SALE`** — "Ad-Hoc Sale", keyed by a person (`Name: DANIELL.GO`).
+
+Eight of those ten jobs arrived without a human touching them. Corinthian and
+Zone Bowling jobs are `NOP.ONLINE` too. This is what Jim2's **eBusiness** ribbon
+is for, and nothing in our system corresponds to it.
+
+**This is the single largest omission the photographs have exposed.** We have
+modelled the back office of a business whose front door is a portal.
+
+### JIM15. The job list is grouped by Ship#, and that is the despatch screen (HIGH — reframes ORD6)
+
+Job List filtered on `Cust Grp: Ricoh`, **grouped by `Ship#`**:
+
+```
+▾ Ship# : RICO.2201  (Count=3)   [100%] 1218996  MATTHEW DOWL…   [100%] 1219454  MARTIN CLUNE   [100%] 1219456  NINO MAGARARL
+▾ Ship# : RICO.2202  (Count=3)   [100%] 1218790  QUAN PHAN       [100%] 1218800  SCOTT WILTON   [100%] 1218989  DAVID HOLLINS
+▾ Ship# : RICO.2202P (Count=1)   [100%] 1219015  GREG WHITED
+▾ Ship# : RICO.2203  (Count=2)   [100%] 1218980  STAN FOLCIK     [100%] 1218992  ARTHUR SIMOS
+```
+
+Three things here we do not have:
+
+1. **Grouping by any column.** "Drag a column header here to group by that
+   column" — ORD6 asked for a ship-to *column*; what the work actually needs is
+   **grouping by ship-to**, which turns 15 jobs into 4 despatches.
+2. **`Availability %`** with a progress bar per job — how much of that job can be
+   filled from stock right now. That is the number a despatcher sorts on.
+3. **A `Pick` checkbox per row plus `Auto Pick Stock`** — select many jobs and
+   pick them in one action.
+
+And the report dropdown reads **`Job List - TIG Delivery Note`**: documents print
+**across a filtered list**, not one job at a time. Our designer prints per job.
+
+### JIM16. Ship codes are numeric site IDs, which dissolves ORD7 (MEDIUM — corrects ORD7)
+
+`RICO.2201 · RICO.2202 · RICO.2202P · RICO.2203`.
+
+Not three-letter abbreviations of place names. **Numeric site codes**, with a
+suffix where a site needs more than one destination (`2202P`).
+
+ORD7 spent its length on the six collisions Arcare's 68 residences produce under
+an `AR.` + first-three-letters scheme, and recommended inventing a fixed-width
+abbreviation. That was solving a self-inflicted problem: **the business already
+numbers its sites.** ORD7 should be reduced to "adopt the existing numeric
+convention".
+
+### JIM17. Embroidery is bought on a purchase order, per job (HIGH)
+
+PO 2056727 to `MY.APPAR` (Fly Apparel Aust Pty Ltd TA Procent Apparel), FINISH:
+
+```
+Location  Job#     Stock Code   Description                                              Ordered Received Cost(COG) Price Ex Total
+HQ        1219433  EMB.RIC.R    RICOH (Only) - in RED for LH Chest on Shirt, Back…       2       2        5.0000    5.00     11.00
+HQ        1219454  EMB.RIC.R    …                                                        1       1        2.5000    2.50      2.75
+HQ        1219209  EMB.RIC.R    …                                                        3       3        2.5000    2.50      8.25
+HQ        1219410  EMB.RIC.R    …                                                        3       3        2.5000    2.50      8.25
+…13 lines across ~8 Ricoh jobs…                          Qty Count: 116   Total $196.90
+```
+
+**The decoration is subcontracted and purchased**, at $2.50 a unit, consolidated
+across every job that needs it — 116 applications on one PO. The same job#-on-
+PO-line mechanism as JIM3, applied to a service rather than a garment.
+
+They do both: comment 5 on job 1218774 reads **"Line 1 given to Lina for EMB"**,
+so some decoration is in-house and some is bought. Either way `EMB.RIC.R` is a
+stock item with a cost and a sell price, which is JIM2 confirmed from the buy
+side.
+
+The PO comment is also the standing instruction to suppliers, worth keeping:
+> Can you please leave any out of stocks on back order and despatch what ever is
+> available. Please also advise ETA's on any backorders/discontinued stock.
+
+### JIM18. Line status is per line and includes Pulled and Applies (MEDIUM)
+
+Job 1218774's lines each carry their own status: **`Pulled`**, **`FINISH`**,
+**`Applies`**. Not just the `Received`/`Ordered` seen earlier.
+
+- `Pulled` — taken from stock
+- `Applies` — the line modifies another line rather than being goods
+
+Which brings the next finding.
+
+### JIM19. Alterations are line items (MEDIUM)
+
+```
+7  FINISH  2056333 07/09/2026 PI.1062.NSI.RIC.XL  Mens Super Dry Polo Shirt With Pocket - Navy/Silver - XL
+8  Applies                    ALT.POCKET          ***ALTERATION TO ADD LEFT CHEST POCKET (Include Fee & Instructions if required)***
+```
+
+`ALT.POCKET` is a stock code for an alteration, sitting beneath the garment it
+alters with status `Applies`. Alterations are a priced service line in the same
+way decoration is. We have no concept of a line that modifies another line.
+
+Note also that job 1218774's eleven lines draw on **five different purchase
+orders** (2056566, 2056346, 2056338, 2056333, 2056727) — one job, five suppliers,
+because each garment and the embroidery are sourced separately.
+
+### JIM20. Status is moved in bulk, and production is tracked in comments (MEDIUM)
+
+Job 1218774's comment trail:
+
+```
+03/09/2026  EM   FINISH      Status set by bulk OpenFreight Script
+02/09/2026  NA   Pick/Pack   Bulk status update
+01/09/2026  NA   Confirmed   Bulk status update
+01/09/2026  NA   Pick/Pack   Bulk status update
+24/08/2026  EM               Line 1 given to Lina for EMB          (Inc ✓)
+21/08/2026  SYS  Confirmed
+21/08/2026  SYS  Booked
+```
+
+Two working practices to support rather than replace:
+- **Bulk status update** is routine, not exceptional. Ours moves one job at a
+  time through `/jobs/{id}/status`.
+- **Production hand-offs are recorded as comments naming the operator** — "Line 1
+  given to Lina for EMB", flagged `Inc` so it prints. There is no work-in-
+  progress table; the comment trail *is* the shop-floor record.
+
+### And the bins
+
+A photograph of the racking shows the real bin labels: **`B.3.H.1` · `B.3.G.2` ·
+`B.3.F.1` · `B.3.E.1` · `B.3.D.3`** — aisle · bay · level · position, dotted.
+Our seeded data uses `A-01-04`. The picking slip's bin column should carry the
+dotted four-part form, because that is what is printed on the carton a picker is
+looking for.
 
 ## Known gaps, deliberately open
 
