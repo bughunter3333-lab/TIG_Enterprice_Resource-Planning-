@@ -593,7 +593,7 @@ despatched all 68 in one batch in well under a second — so the model can
 express the grouping. What is missing is a line-level destination, or a "split
 by ship-to" action that fans one order out and keeps the parent.
 
-### ORD2. Invoicing through the API leaves accounts receivable at zero (HIGH)
+### ORD2. Invoicing through the API leaves accounts receivable at zero (FIXED — bfb3fdc)
 
 `_recalculate_customer_balance` sums `Job.balance_due` over INVOICE/PAID/FINISH
 jobs. Nothing on the server ever derives `balance_due` from the invoice total —
@@ -610,7 +610,7 @@ invoiced by anything other than a person clicking through the job form is
 invisible to all of them — an import, an EDI feed, a customer portal, or a
 script. Deriving `balance_due` server-side on the INVOICE transition closes it.
 
-### ORD3. On-hand stock is allowed to go negative, silently (HIGH)
+### ORD3. On-hand stock is allowed to go negative, silently (FIXED — d89e8fa)
 
 `AS5026-BLK-L` had 65 units. The 68 jobs needed 100. All 68 were invoiced
 without a block, a warning, or a confirmation, and the SKU finished at **−35 on
@@ -622,7 +622,7 @@ corrupted. The system faithfully recorded shipping stock that did not exist,
 which is the point — a negative on-hand figure means either the goods never
 shipped or the count is wrong, and nobody is told either way.
 
-### ORD4. The procurement worklist only shows what someone typed into it (HIGH)
+### ORD4. The procurement worklist only shows what someone typed into it (FIXED — 1b672c5)
 
 `GET /jobs/order-requirements?type=garment` filters on `JobItem.b_ord > 0`.
 Nothing computes `b_ord`. Across the backend it is only ever *decremented* — by
@@ -637,7 +637,7 @@ right supplier and cost — so the screen works; it is just fed by hand.
 A buyer working that screen is not seeing what the business is short of. They
 are seeing what colleagues remembered to flag.
 
-### ORD5. Orders reserve no stock until someone fills the Supply column (HIGH)
+### ORD5. Orders reserve no stock until someone fills the Supply column (FIXED — 1b672c5)
 
 Commitment keys off `JobItem.supply_qty > 0` (`inventory.py:911`,
 `reservations.py`). `supply_qty` defaults to 0 in `JobCreate` and is only
@@ -1195,6 +1195,33 @@ A photograph of the racking shows the real bin labels: **`B.3.H.1` · `B.3.G.2` 
 Our seeded data uses `A-01-04`. The picking slip's bin column should carry the
 dotted four-part form, because that is what is printed on the carton a picker is
 looking for.
+
+
+### Phase A closed — and what it cost to find
+
+ORD2, ORD3, ORD4 and ORD5 are fixed. They were one idea in four places: a
+number the system can work out, left for a person to type, with everything
+downstream trusting it. Four further defects surfaced only because these were
+being fixed, and none of them were on any list:
+
+- `_recalculate_customer_balance` summed before its caller's write was flushed,
+  because `SessionLocal` sets `autoflush=False`. Paying an invoice did not move
+  the customer's balance until an unrelated later write happened to flush it.
+- A job created straight into a committed status never committed its stock.
+  `_commit_job_stock` only ran from `_apply_status_transition`, and creation is
+  not a transition.
+- The first supply derivation read `InventoryItem.committed_qty`, which is not
+  maintained — `inventory.py` derives commitment from the open jobs and
+  overrides the column on read. Every line looked fully suppliable.
+- The negative-stock guard first raised *after* `job.status` had been
+  reassigned, so a refused transition left the job holding the status it had
+  just been refused.
+
+Two of those were found only by running against the live instance, and both had
+passing tests over them. In each case the test supplied the value under test —
+`_make_job` hand-set `balance_due`, and a fixture set `committed_qty` — so the
+test and the bug agreed with each other. That is the pattern worth remembering
+from this phase, more than any individual fix.
 
 ## Known gaps, deliberately open
 
