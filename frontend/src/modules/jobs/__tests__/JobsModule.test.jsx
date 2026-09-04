@@ -91,8 +91,10 @@ test('lockedStatus shows only matching jobs regardless of filters.status', () =>
 
 test('lockedStatus hides Status chip, Status column, and Status from the add menu', () => {
   const { unmount } = render(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS }} />);
-  // Baseline (not locked): the Status column header IS present
-  expect(screen.getByText('Status')).toBeInTheDocument();
+  // Baseline (not locked): the Status column header IS present. Addressed as a
+  // column header rather than by text — "Status" also appears in the group-by
+  // selector, and this assertion is about the column.
+  expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
   unmount();
 
   render(<JobsModule {...base} lockedStatus="QUOTE" filters={{ ...EMPTY_JOBS_FILTERS, status: 'QUOTE' }} />);

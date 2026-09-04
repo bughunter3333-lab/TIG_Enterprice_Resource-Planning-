@@ -28,7 +28,7 @@ const COLUMNS = [
   { key: 'due', label: 'Due', width: 90 },
 ];
 
-export default function JobsList({ jobs, onJobClick, lockedStatus }) {
+export default function JobsList({ jobs, onJobClick, lockedStatus, groupBy }) {
   const columns = lockedStatus
     ? COLUMNS.filter(col => col.key !== 'status')
     : COLUMNS;
@@ -39,6 +39,7 @@ export default function JobsList({ jobs, onJobClick, lockedStatus }) {
       rows={jobs}
       rowKey="id"
       onRowClick={onJobClick}
+      groupBy={groupBy || undefined}
       emptyText="No jobs match the current filters"
     />
   );

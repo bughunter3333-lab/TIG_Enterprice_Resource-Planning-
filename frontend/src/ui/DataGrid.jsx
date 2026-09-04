@@ -26,6 +26,7 @@ export default function DataGrid({
   onRetry,
   emptyText = 'No records',
   initialSort,        // { key, dir }
+  groupBy,            // column key — rows are banded under a header per value
   maxHeight,
 }) {
   const [sort, setSort] = useState(initialSort ?? null);
@@ -45,6 +46,22 @@ export default function DataGrid({
       return dir === 'asc' ? cmp : -cmp;
     });
   }, [rows, sort]);
+
+  // Jim2's job list groups by any column, and the despatch screen is that list
+  // grouped by Ship#: fifteen jobs become four consignments. A column showing
+  // the code tells you which site a row is for; grouping tells you the shape of
+  // the whole order.
+  const groups = useMemo(() => {
+    if (!groupBy) return null;
+    const map = new Map();
+    for (const row of sorted) {
+      const value = row[groupBy] ?? '—';
+      if (!map.has(value)) map.set(value, []);
+      map.get(value).push(row);
+    }
+    return [...map.entries()].sort((a, b) =>
+      String(a[0]).localeCompare(String(b[0]), undefined, { numeric: true }));
+  }, [sorted, groupBy]);
 
   const toggleSort = (key) =>
     setSort(s => (s?.key === key ? (s.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' }));
@@ -102,7 +119,35 @@ export default function DataGrid({
         {!loading && !error && sorted.length === 0 && (
           <div style={{ ...cellBase, color: T.textFaint, justifyContent: 'center', height: 60 }}>{emptyText}</div>
         )}
-        {!loading && sorted.map(row => {
+        {!loading && groups && groups.map(([value, groupRows]) => (
+          <div key={`g-${value}`} role="rowgroup">
+            <div
+              role="row"
+              style={{
+                ...cellBase,
+                background: T.panelAlt,
+                borderBottom: `1px solid ${T.hairline}`,
+                borderTop: `1px solid ${T.hairline}`,
+                color: T.headerText,
+                fontWeight: 700,
+                fontSize: T.fsGrid,
+                gap: 8,
+              }}
+            >
+              <span style={{ fontFamily: T.fontMono, color: T.accentStrong }}>{String(value)}</span>
+              <span style={{ color: T.textFaint, fontWeight: 500 }}>
+                {groupRows.length} job{groupRows.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            {groupRows.map(renderRow)}
+          </div>
+        ))}
+        {!loading && !groups && sorted.map(renderRow)}
+      </div>
+    </div>
+  );
+
+  function renderRow(row) {
           const key = row[rowKey];
           const selected = selectedKey != null && key === selectedKey;
           return (
@@ -138,8 +183,5 @@ export default function DataGrid({
               ))}
             </div>
           );
-        })}
-      </div>
-    </div>
-  );
+  }
 }
