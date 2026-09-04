@@ -296,6 +296,120 @@ class TestStockDepletionOnInvoice:
 
 
 @pytest.mark.integration
+class TestBalanceDueIsDerived:
+    """What a customer owes must be worked out by the server.
+
+    `balance_due` was only ever computed in the browser, at
+    TotalImageERP.jsx:861, as total minus what has been paid. Nothing on this
+    side established it, so a job invoiced by anything other than a person
+    clicking through the job form carried a balance of zero -- and every
+    consumer of that field believed it: the credit-limit check, the customer
+    statement, the sales register, the customer detail panel, and every
+    receivables answer the assistant gives.
+
+    It went unnoticed because `_make_job` above hand-sets
+    `balance_due=total_inc`. The payment tests have always passed against a
+    value the application never wrote.
+
+    The invariant is simply `balance_due == total_inc - deposit`. The payment
+    endpoint already maintains it incrementally; these tests are about
+    establishing it in the first place.
+    """
+
+    def _finished_job(self, db, job_id, customer_id, total_inc=330.0):
+        j = Job(
+            id=job_id,
+            customer_id=customer_id,
+            customer_name=f"Cust {customer_id}",
+            status="FINISH",
+            date_in="2025-09-01",
+            total_ex=round(total_inc / 1.1, 2),
+            tax=round(total_inc - total_inc / 1.1, 2),
+            total_inc=total_inc,
+            deposit=0,
+            balance_due=0,  # exactly as the API leaves it
+            invoice=f"INV-{job_id}",
+        )
+        db.add(j)
+        db.commit()
+        return j
+
+    def test_invoicing_makes_the_whole_total_owing(self, client, db, make_customer):
+        make_customer(id="JBAL01", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL01", "JBAL01", total_inc=330.0)
+
+        r = client.post("/jobs/J-BAL01/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(330.0)
+
+    def test_a_deposit_already_taken_is_deducted(self, client, db, make_customer):
+        make_customer(id="JBAL02", credit_limit=5000.0)
+        job = self._finished_job(db, "J-BAL02", "JBAL02", total_inc=330.0)
+        job.deposit = 100.0
+        db.commit()
+
+        r = client.post("/jobs/J-BAL02/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(230.0)
+
+    def test_the_customer_balance_reflects_it(self, client, db, make_customer):
+        make_customer(id="JBAL03", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL03", "JBAL03", total_inc=330.0)
+        self._finished_job(db, "J-BAL04", "JBAL03", total_inc=220.0)
+
+        client.post("/jobs/J-BAL03/status", json={"status": "INVOICE"})
+        client.post("/jobs/J-BAL04/status", json={"status": "INVOICE"})
+
+        cust = db.query(Customer).filter_by(id="JBAL03").first()
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(550.0)
+
+    def test_a_payment_can_then_actually_be_recorded(self, client, db, make_customer):
+        # The knock-on: record_payment rejects any amount above balance_due, so
+        # a zero balance made an invoiced job impossible to pay against at all.
+        make_customer(id="JBAL05", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL05", "JBAL05", total_inc=330.0)
+        client.post("/jobs/J-BAL05/status", json={"status": "INVOICE"})
+
+        r = client.post(
+            "/jobs/J-BAL05/payment", json={"amount": 130.0, "method": "EFT"}
+        )
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(200.0)
+
+    def test_taking_a_payment_lowers_the_customer_balance(
+        self, client, db, make_customer
+    ):
+        # A separate defect with the same root cause. record_payment reduces
+        # balance_due and then recalculates the customer's balance, but the
+        # session does not autoflush, so the SUM read the amount owed *before*
+        # the payment. Customers stayed at their full balance no matter what
+        # they paid, until some later write happened to flush the change.
+        make_customer(id="JBAL07", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL07", "JBAL07", total_inc=330.0)
+        client.post("/jobs/J-BAL07/status", json={"status": "INVOICE"})
+
+        cust = db.query(Customer).filter_by(id="JBAL07").first()
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(330.0)
+
+        client.post("/jobs/J-BAL07/payment", json={"amount": 130.0, "method": "EFT"})
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(200.0)
+
+    def test_it_is_not_recomputed_on_the_way_back_out(self, client, db, make_customer):
+        # INVOICE -> FINISH is a correction, not a payment. The debt stands.
+        make_customer(id="JBAL06", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL06", "JBAL06", total_inc=330.0)
+        client.post("/jobs/J-BAL06/status", json={"status": "INVOICE"})
+        client.post("/jobs/J-BAL06/payment", json={"amount": 30.0, "method": "EFT"})
+
+        r = client.post("/jobs/J-BAL06/status", json={"status": "FINISH"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(300.0)
+
+
+@pytest.mark.integration
 class TestJobPayments:
     def test_record_payment_reduces_balance(self, client, db, make_customer):
         make_customer(id="JCUST20", credit_limit=5000.0)

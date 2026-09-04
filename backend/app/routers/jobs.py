@@ -537,6 +537,16 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     if new_status == "INVOICE" and not job.invoice_date:
         job.invoice_date = today
         job.invoice_status = "invoiced"
+        # What the customer owes, worked out here rather than in the browser.
+        # This was only ever computed in the job form, so a job invoiced by an
+        # import, a feed, a portal or a script carried a balance of zero, and
+        # every consumer of the field believed it -- the credit-limit check
+        # below at job creation, the customer statement, the sales register and
+        # the receivables figures. The invariant is total inc GST less whatever
+        # has already been taken; `record_payment` maintains it from here.
+        job.balance_due = max(
+            0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
+        )
     if new_status == "PAID":
         job.payment_status = "paid"
         if not job.payment_date:
@@ -573,10 +583,21 @@ def _recalculate_weight(job: "Job", db: Session) -> None:
 
 
 def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
-    """Recompute customer.balance as sum of balance_due across all active jobs."""
+    """Recompute customer.balance as sum of balance_due across all active jobs.
+
+    The flush matters. `SessionLocal` is built with `autoflush=False`, so the
+    SUM below reads what is on disk and not what the caller has just changed in
+    memory. Both callers modify `balance_due` immediately beforehand -- the
+    INVOICE transition establishes it, `record_payment` reduces it -- so
+    without this the customer's balance is always one write behind: invoicing
+    two jobs left the balance holding only the first, and taking a payment
+    recalculated the balance from the amount owed before it.
+    """
     if not customer_id:
         return
     from sqlalchemy import func as sqlfunc
+
+    db.flush()
 
     total = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0))
