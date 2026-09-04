@@ -7,6 +7,7 @@ Covers: CRUD, status transitions, payment recording, credit checks, PDF.
 import pytest
 from app.models.job import Job
 from app.models.customer import Customer
+from app.models.inventory import InventoryItem
 
 
 def _make_job(
@@ -293,6 +294,146 @@ class TestStockDepletionOnInvoice:
         assert inv.stock == 50  # restored
         sale = db.query(StockMovement).filter_by(job_id="J-D004", type="Sale").first()
         assert sale is None  # reversal removed the depletion movement
+
+
+@pytest.mark.integration
+class TestSupplyAndBackOrderAreDerived:
+    """An order reserves stock without anyone typing a number.
+
+    ORD4 and ORD5, which turned out to be one defect. The job form derives both
+    quantities thoroughly -- on picking a stock code, on changing the ordered
+    quantity, capped at what is available, with a free split when the line has
+    no SKU -- but the server derived neither, so a job created through the API
+    reserved nothing and reported no shortfall.
+
+    Committing keys off `supply_qty > 0` and the buying screen keys off
+    `b_ord > 0`, so both were silently zero: available stock stayed overstated
+    while it was fully spoken for, and Order Requirements showed an empty list
+    against a real shortage.
+
+    The split mirrors the form exactly. Supply what is available, back-order the
+    rest; a line with no stock code has nothing to reserve and nothing to
+    procure, which is how the freight and decoration lines behave in Jim2.
+    """
+
+    def _line(self, sku=None, order=10, **over):
+        line = {
+            "sort": 1,
+            "display_type": "product",
+            "description": "Test line",
+            "order_qty": order,
+            "qty": order,
+            "price_ex": 10.0,
+            "total": 10.0 * order,
+        }
+        if sku:
+            line["stock_code"] = sku
+        line.update(over)
+        return line
+
+    def _post(self, client, job_id, customer_id, lines):
+        return client.post(
+            "/jobs",
+            json={
+                "id": job_id,
+                "customer_id": customer_id,
+                "customer_name": f"Cust {customer_id}",
+                "status": "ORDER",
+                "date_in": "2025-09-01",
+                "items": lines,
+            },
+        )
+
+    def test_a_line_supplies_what_is_on_hand(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP01")
+        make_inventory(sku="SUP-A", stock=100)
+        r = self._post(client, "J-SUP01", "JSUP01", [self._line("SUP-A", order=10)])
+        assert r.status_code == 200
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 10
+        assert item["b_ord"] == 0
+
+    def test_a_shortfall_goes_to_back_order(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP02")
+        make_inventory(sku="SUP-B", stock=6)
+        r = self._post(client, "J-SUP02", "JSUP02", [self._line("SUP-B", order=10)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 6
+        assert item["b_ord"] == 4
+
+    def test_available_accounts_for_what_is_already_committed(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Commitment has to come from a real open job, not from setting
+        # InventoryItem.committed_qty. That column is not maintained --
+        # inventory.py derives commitment from the open jobs and overrides it
+        # on read. An earlier version of this test set the column, which made
+        # it agree with an implementation that read the same stale column, and
+        # both were wrong: every line looked fully suppliable.
+        make_customer(id="JSUP03")
+        make_inventory(sku="SUP-C", stock=10)
+        self._post(client, "J-SUP03A", "JSUP03", [self._line("SUP-C", order=8)])
+
+        r = self._post(client, "J-SUP03B", "JSUP03", [self._line("SUP-C", order=10)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 2, "only 2 of the 10 are still free"
+        assert item["b_ord"] == 8
+
+    def test_an_explicit_zero_is_respected(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Deliberately supplying nothing from stock is a real choice -- the
+        # whole line is being bought in. Deriving over the top of it would take
+        # that away.
+        make_customer(id="JSUP04")
+        make_inventory(sku="SUP-D", stock=100)
+        r = self._post(
+            client,
+            "J-SUP04",
+            "JSUP04",
+            [self._line("SUP-D", order=10, supply_qty=0, b_ord=10)],
+        )
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 0
+        assert item["b_ord"] == 10
+
+    def test_a_line_with_no_stock_code_reserves_and_procures_nothing(
+        self, client, db, make_customer
+    ):
+        # FREIGHT and the decoration lines read Order 1, Supply 1, B.Ord 0 in
+        # Jim2. There is no stock behind them to reserve or to buy.
+        make_customer(id="JSUP05")
+        r = self._post(client, "J-SUP05", "JSUP05", [self._line(None, order=1)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 1
+        assert item["b_ord"] == 0
+
+    def test_the_order_then_actually_commits_stock(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP06")
+        make_inventory(sku="SUP-E", stock=50)
+        self._post(client, "J-SUP06", "JSUP06", [self._line("SUP-E", order=12)])
+
+        inv = db.query(InventoryItem).filter_by(sku="SUP-E").first()
+        db.refresh(inv)
+        assert (inv.committed_qty or 0) == 12
+
+    def test_the_shortfall_reaches_the_buying_screen(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP07")
+        make_inventory(sku="SUP-F", stock=3, supplier="Acme Wholesale")
+        self._post(client, "J-SUP07", "JSUP07", [self._line("SUP-F", order=10)])
+
+        rows = client.get("/jobs/order-requirements").json()
+        row = next((x for x in rows if x["sku"] == "SUP-F"), None)
+        assert row is not None, "a real shortage must appear on the buying screen"
+        assert row["total_b_ord"] == 7
 
 
 @pytest.mark.integration

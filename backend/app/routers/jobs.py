@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from app.database import get_db
-from app.core.reservations import COMMITTED_STATUSES
+from app.core.reservations import COMMITTED_STATUSES, committed_total
 from app.core.stock_ledger import post_movement, reverse_job_movements
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
@@ -75,9 +75,12 @@ class JobItemSchema(BaseModel):
     color_count: Optional[int] = None
     dec_position: Optional[str] = None
     order_qty: int = 0
-    supply_qty: int = 0
+    # None means "work it out"; 0 means "supply nothing from stock", which is a
+    # real choice on a line that is entirely bought in. The job form always
+    # sends both, so this only affects callers that omit them.
+    supply_qty: Optional[int] = None
     qty: int = 0
-    b_ord: int = 0
+    b_ord: Optional[int] = None
     qty_pick: int = 0
     qty_delivered: int = 0
     qty_invoiced: int = 0
@@ -482,11 +485,60 @@ def _reconcile_items(job: "Job", incoming: List["JobItemSchema"], db: Session) -
         else:
             # No id, or an id this job does not own — either way it is new here,
             # and a new row does want the defaults.
-            job.items.append(JobItem(**line.model_dump(exclude={"id"})))
+            job.items.append(
+                JobItem(**_derive_line_split(line.model_dump(exclude={"id"}), db))
+            )
 
     for item_id, item in existing.items():
         if item_id not in seen:
             db.delete(item)
+
+
+def _derive_line_split(data: dict, db: Session) -> dict:
+    """Fill in supply and back-order for a line that did not state them.
+
+    Mirrors the job form: supply what is available, back-order the rest, and
+    cap supply at availability rather than at stock on hand, so two orders
+    cannot both reserve the same units. A line with no stock code has nothing
+    to reserve and nothing to procure -- that is how the freight and decoration
+    lines read in Jim2, Order 1 / Supply 1 / B.Ord 0.
+
+    Only called for lines that omitted the fields. An explicit zero is a
+    decision and is left alone.
+    """
+    supply_given = data.get("supply_qty") is not None
+    bord_given = data.get("b_ord") is not None
+    if supply_given and bord_given:
+        return data
+
+    order = int(data.get("order_qty") or 0)
+    sku = data.get("stock_code")
+
+    if not sku:
+        supply = order
+        back_order = 0
+    else:
+        inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+        if inv is None:
+            # Not a stocked line. Nothing to reserve; the whole quantity has to
+            # be bought, which is what the buying screen is for.
+            supply, back_order = 0, order
+        else:
+            # committed_total, not InventoryItem.committed_qty. The stored
+            # column is not maintained -- inventory.py derives commitment from
+            # the open jobs themselves and overrides it on read, "so what the
+            # grid shows cannot drift from the documents it describes".
+            # Reading the column here made every line look fully suppliable.
+            committed = committed_total(db, sku)
+            available = max(0, int(inv.stock or 0) - committed)
+            supply = min(order, available)
+            back_order = max(0, order - supply)
+
+    if not supply_given:
+        data["supply_qty"] = supply
+    if not bord_given:
+        data["b_ord"] = back_order
+    return data
 
 
 def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
@@ -847,8 +899,18 @@ def create_job(
         raise HTTPException(status_code=400, detail="; ".join(missing_messages))
     job = Job(**{**body.model_dump(exclude={"items"}), "id": job_id})
     for item_data in body.items:
-        job.items.append(JobItem(**item_data.model_dump()))
+        job.items.append(JobItem(**_derive_line_split(item_data.model_dump(), db)))
     db.add(job)
+
+    # A job created straight into a committed status has never transitioned, so
+    # the commit that _apply_status_transition would have run never ran. Stock
+    # sat uncommitted until some later status change happened to pick it up --
+    # the same "one rule, two call sites" mistake the transition function was
+    # written to stop.
+    if job.status in COMMITTED_STATUSES:
+        db.flush()
+        _commit_job_stock(job, db)
+
     db.commit()
     return _job_with_relations(db, job_id)
 
