@@ -1026,19 +1026,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   const bulkStatusChange = async (status) => {
     const ids = [...selectedJobIds];
-    const failed = [];
-    for (const id of ids) {
-      try {
-        await api.jobs.updateStatus(id, status);
-      } catch (e) {
-        failed.push(`#${id} ${e?.message || 'refused'}`);
-      }
+    // One request rather than one per job. Sixty-eight round trips gave no
+    // single answer at the end about what happened; the server judges each job
+    // on its own and reports the ones that would not move.
+    let result;
+    try {
+      result = await api.jobs.bulkStatus(ids, status);
+    } catch (e) {
+      notify(e?.message || 'Bulk status update failed', { type: 'error' });
+      return;
     }
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
     setSelectedJobIds(new Set());
     setBulkActionOpen(false);
-    if (failed.length) {
-      notify(`${failed.length} of ${ids.length} jobs did not move to ${status} — ${failed.join('; ')}`, { type: 'error' });
+    if (result.failed?.length) {
+      const detail = result.failed.map(f => `#${f.job_id} ${f.reason}`).join('; ');
+      notify(
+        `${result.moved} of ${ids.length} moved to ${status}. ${result.failed.length} did not — ${detail}`,
+        { type: 'error' },
+      );
+    } else {
+      notify(`${result.moved} job${result.moved === 1 ? '' : 's'} moved to ${status}`);
     }
   };
 

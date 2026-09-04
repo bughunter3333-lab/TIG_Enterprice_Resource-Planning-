@@ -468,6 +468,14 @@ export const jobs = {
 
   // allowNegativeStock is the deliberate acceptance of a short stock count when
   // invoicing. The server refuses with 409 unless it is set.
+  // One request for the whole batch. Each job is judged on its own and the
+  // response says which ones did not move and why.
+  bulkStatus: (jobIds, status, { allowNegativeStock = false } = {}) =>
+    request('/jobs/bulk-status', {
+      method: 'POST',
+      body: { job_ids: jobIds, status, allow_negative_stock: allowNegativeStock },
+    }),
+
   // Jim2's "Create Similar". Carries the order; leaves the source job's own
   // fulfilment behind. Overrides let a multi-site rollout point each copy at
   // the next address.

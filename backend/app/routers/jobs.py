@@ -188,6 +188,12 @@ class CommentCreate(BaseModel):
     is_internal: bool = False
 
 
+class BulkStatusRequest(BaseModel):
+    job_ids: List[str] = Field(min_length=1)
+    status: str
+    allow_negative_stock: bool = False
+
+
 class DuplicateRequest(BaseModel):
     """Overrides for the copy. Everything omitted carries over from the source."""
 
@@ -813,6 +819,73 @@ def _get_initials(user: "User") -> str:
 @router.get("/next-id")
 def get_next_job_id(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     return {"next_id": _next_job_id(db)}
+
+
+@router.post("/bulk-status")
+def bulk_status(
+    body: BulkStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Move many jobs to one status, judging each on its own.
+
+    Jim2 does this routinely — its comment trails are full of "Bulk status
+    update". Ours moved one job per request, which for a sixty-eight site
+    rollout is sixty-eight round trips and no single answer at the end.
+
+    A job that will not move does not stop the batch. The alternative is an
+    operator picking through sixty-eight jobs to find the one that refused,
+    which is worse than the problem this replaces.
+
+    Registered above the parameterised routes so "bulk-status" is not read as a
+    job id.
+    """
+    if body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+
+    moved, failed = 0, []
+    for job_id in body.job_ids:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            failed.append({"job_id": job_id, "reason": "Job not found"})
+            continue
+        # A SAVEPOINT per job. Plain db.rollback() would discard the whole
+        # session — every job already moved in this batch would be undone by
+        # the next one that refused, which is the opposite of judging each on
+        # its own.
+        savepoint = db.begin_nested()
+        try:
+            _validate_transition(job, body.status, current_user)
+            _validate_required_fields(job, body.status)
+            if body.status == "ORDER":
+                _check_credit_limit(job, db)
+            now = datetime.now()
+            _apply_status_transition(
+                job,
+                body.status,
+                db,
+                allow_negative_stock=body.allow_negative_stock,
+            )
+            db.add(
+                JobComment(
+                    job_id=job_id,
+                    date=now.strftime("%d/%m/%Y"),
+                    time=now.strftime("%H:%M"),
+                    initials=_get_initials(current_user),
+                    author_name=current_user.full_name or current_user.username,
+                    status=body.status,
+                    is_internal=True,
+                    comment="Bulk status update",
+                )
+            )
+            savepoint.commit()
+            moved += 1
+        except HTTPException as exc:
+            savepoint.rollback()
+            failed.append({"job_id": job_id, "reason": str(exc.detail)})
+
+    db.commit()
+    return {"moved": moved, "failed": failed}
 
 
 @router.get("/sales-register")

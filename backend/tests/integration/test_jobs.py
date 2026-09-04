@@ -297,6 +297,123 @@ class TestStockDepletionOnInvoice:
 
 
 @pytest.mark.integration
+class TestBulkStatusUpdate:
+    """Move many jobs at once, and say clearly which ones did not go.
+
+    JIM20. Jim2's comment trails are full of "Bulk status update" -- it is
+    routine there, not exceptional. Ours moved one job per request, which for a
+    sixty-eight site rollout is sixty-eight round trips and no single answer at
+    the end about what happened.
+
+    Each job is judged on its own. One job refusing -- a missing invoice
+    number, insufficient stock, a move its status does not allow -- must not
+    take the rest of the batch down with it, because the alternative is an
+    operator picking through sixty-eight jobs to find the one that stopped.
+    """
+
+    def test_it_moves_every_job_it_can(self, client, db, make_customer):
+        make_customer(id="JBK01", credit_limit=99999.0)
+        for n in range(3):
+            _make_job(db, f"J-BK0{n}", "JBK01", status="QUOTE")
+
+        r = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK00", "J-BK01", "J-BK02"], "status": "ORDER"},
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["moved"] == 3
+        assert body["failed"] == []
+        db.expire_all()
+        assert all(
+            db.query(Job).filter_by(id=f"J-BK0{n}").first().status == "ORDER"
+            for n in range(3)
+        )
+
+    def test_one_refusal_does_not_stop_the_others(self, client, db, make_customer):
+        make_customer(id="JBK02", credit_limit=99999.0)
+        _make_job(db, "J-BK10", "JBK02", status="FINISH")
+        _make_job(db, "J-BK11", "JBK02", status="FINISH")
+        # J-BK11 gets an invoice number, J-BK10 does not.
+        j = db.query(Job).filter_by(id="J-BK11").first()
+        j.invoice = "INV-BK11"
+        db.commit()
+
+        r = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK10", "J-BK11"], "status": "INVOICE"},
+        )
+        body = r.json()
+        assert body["moved"] == 1
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["job_id"] == "J-BK10"
+        assert "Invoice number" in body["failed"][0]["reason"]
+
+        db.expire_all()
+        assert db.query(Job).filter_by(id="J-BK11").first().status == "INVOICE"
+        assert db.query(Job).filter_by(id="J-BK10").first().status == "FINISH"
+
+    def test_a_job_that_does_not_exist_is_reported_not_fatal(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JBK03", credit_limit=99999.0)
+        _make_job(db, "J-BK20", "JBK03", status="QUOTE")
+
+        body = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK20", "NOPE"], "status": "ORDER"},
+        ).json()
+        assert body["moved"] == 1
+        assert body["failed"][0]["job_id"] == "NOPE"
+
+    def test_it_writes_the_same_comment_trail_jim2_does(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JBK04", credit_limit=99999.0)
+        _make_job(db, "J-BK30", "JBK04", status="QUOTE")
+        client.post(
+            "/jobs/bulk-status", json={"job_ids": ["J-BK30"], "status": "ORDER"}
+        )
+
+        comments = client.get("/jobs/J-BK30").json()["comments"]
+        assert any("Bulk status update" in (c.get("comment") or "") for c in comments)
+
+    def test_a_later_failure_does_not_undo_an_earlier_success(
+        self, client, db, make_customer
+    ):
+        # The first version called db.rollback() on a refusal, which discards
+        # the whole session -- so the jobs already moved in the batch were
+        # silently undone by the next one that refused. Every test passed,
+        # because none of them had a success followed by a failure. Each job
+        # gets a SAVEPOINT now.
+        make_customer(id="JBK05", credit_limit=99999.0)
+        good = _make_job(db, "J-BK40", "JBK05", status="FINISH")
+        good.invoice = "INV-BK40"
+        _make_job(db, "J-BK41", "JBK05", status="FINISH")  # no invoice number
+        db.commit()
+
+        body = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK40", "J-BK41"], "status": "INVOICE"},
+        ).json()
+        assert body["moved"] == 1
+        assert body["failed"][0]["job_id"] == "J-BK41"
+
+        db.expire_all()
+        assert (
+            db.query(Job).filter_by(id="J-BK40").first().status == "INVOICE"
+        ), "the job that succeeded before the failure must stay moved"
+
+    def test_an_empty_batch_is_rejected(self, client):
+        assert (
+            client.post(
+                "/jobs/bulk-status", json={"job_ids": [], "status": "ORDER"}
+            ).status_code
+            == 422
+        )
+
+
+@pytest.mark.integration
 class TestCreateSimilar:
     """Duplicate a job, optionally to a different site.
 
