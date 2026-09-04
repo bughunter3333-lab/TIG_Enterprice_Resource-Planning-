@@ -19,6 +19,30 @@ test('renders job rows with status badge and money formatting, fires onJobClick'
   expect(onJobClick).toHaveBeenCalledWith(expect.objectContaining({ id: '1001' }));
 });
 
+test('the ship-to code is a column, because it is what tells one site from another', () => {
+  // ORD6/JIM15. On a multi-site order every row is the same customer, status,
+  // decoration and date; the ship code is the only thing that distinguishes
+  // Noosa from Malvern East. It already drove the filter bar and the search and
+  // was never drawn, so an operator could narrow to one site but never see the
+  // shape of the whole order.
+  render(
+    <JobsList
+      jobs={[
+        { ...jobs[0], shipTo: 'RICO.2201' },
+        { ...jobs[1], shipTo: 'RICO.2202' },
+      ]}
+      onJobClick={() => {}}
+    />,
+  );
+  expect(screen.getByText('RICO.2201')).toBeInTheDocument();
+  expect(screen.getByText('RICO.2202')).toBeInTheDocument();
+});
+
+test('a job with no ship-to shows a dash rather than an empty cell', () => {
+  render(<JobsList jobs={[jobs[0]]} onJobClick={() => {}} />);
+  expect(screen.getByText('—')).toBeInTheDocument();
+});
+
 const moduleJobs = [
   { id: '2001', customer: 'Ventia', customerId: 'VENT', status: 'PRINT', priority: 'Normal', assignedTo: 'Emon', due: '12/06/2026', total: 100, items: [], shipTo: 'SYD' },
   { id: '2002', customer: 'CPB', customerId: 'CPB', status: 'QUOTE', priority: 'Urgent', assignedTo: 'Sam', due: '15/06/2026', total: 200, items: [], shipTo: 'MEL' },

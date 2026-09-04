@@ -468,6 +468,12 @@ export const jobs = {
 
   // allowNegativeStock is the deliberate acceptance of a short stock count when
   // invoicing. The server refuses with 409 unless it is set.
+  // Jim2's "Create Similar". Carries the order; leaves the source job's own
+  // fulfilment behind. Overrides let a multi-site rollout point each copy at
+  // the next address.
+  duplicate: (id, overrides = {}) =>
+    request(`/jobs/${id}/duplicate`, { method: 'POST', body: overrides }).then(normalizeJob),
+
   updateStatus: (id, status, { allowNegativeStock = false } = {}) =>
     request(`/jobs/${id}/status`, {
       method: 'POST',
@@ -672,6 +678,9 @@ export const ai = {
 // ── Customers ────────────────────────────────────────────────────────────────
 
 export const customers = {
+  // The backend has served these since the ship-to work; nothing on this side
+  // ever asked for them, so a customer's sites were unreachable from the app.
+  shipTos: (customerId) => request(`/customers/${customerId}/ship-tos`),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/customers${q ? `?${q}` : ''}`).then(r => r.map(normalizeCustomer));

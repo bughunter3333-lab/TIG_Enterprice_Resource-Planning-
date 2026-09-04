@@ -8,6 +8,18 @@ const decoration = (job) => [...new Set((job.items ?? []).map(i => i.decorationT
 const COLUMNS = [
   { key: 'id', label: 'Job#', width: 80, render: (j) => <span style={{ fontWeight: 700, color: T.accentStrong }}>{j.id}</span> },
   { key: 'customer', label: 'Customer' },
+  // On a multi-site order this is the only column that differs between rows —
+  // same customer, status, decoration and date all the way down. It already
+  // drove the filter bar and the search; it was never drawn.
+  {
+    key: 'shipTo',
+    label: 'Ship#',
+    width: 92,
+    render: (j) =>
+      j.shipTo
+        ? <span style={{ fontFamily: T.fontMono, color: T.text }}>{j.shipTo}</span>
+        : <span style={{ color: T.textFaint }}>—</span>,
+  },
   { key: 'status', label: 'Status', width: 100, render: (j) => <StatusBadge status={j.status} /> },
   { key: 'dec', label: 'Dec', width: 90, render: decoration },
   { key: 'priority', label: 'Priority', width: 70 },

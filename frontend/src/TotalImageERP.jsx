@@ -52,6 +52,7 @@ import PurchaseOrderForm from './components/forms/PurchaseOrderForm';
 import SupplierForm from './components/forms/SupplierForm';
 import ImportModule from './modules/import/ImportModule';
 import CardFileFormModal from './modules/card-files/CardFileFormModal';
+import DuplicateToSites from './modules/jobs/DuplicateToSites';
 import WarehouseModule from './modules/warehouse/WarehouseModule';
 import { WAREHOUSE_ZONES } from './modules/warehouse/zones';
 import SupplierPriceListPanel from './modules/suppliers/SupplierPriceListPanel';
@@ -104,6 +105,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [filterQuick, setFilterQuick] = useState(null);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [dupSitesJob, setDupSitesJob] = useState(null);
   const [paymentModal, setPaymentModal] = useState({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
   const [stockAdjustModal, setStockAdjustModal] = useState({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' });
   const [commentInput, setCommentInput] = useState('');
@@ -983,9 +985,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         shipTo: job.shipTo,
         custRef: job.custRef || '',
         ourRef: job.ourRef || '',
+        priceLevel: job.priceLevel || '',
+        accMgr: job.accMgr || '',
+        branch: job.branch || '',
+        projectNo: job.projectNo || '',
         description: job.description || '',
         notes: job.notes || '',
-        items: (job.items || []).map(it => ({ ...it, id: undefined })),
+        // Everything except the source job's own fulfilment. Spreading the
+        // line wholesale carried its picked and delivered quantities, its
+        // purchase order number and its line status onto the copy, which
+        // attached the new job's goods to somebody else's purchase order.
+        items: (job.items || []).map(it => ({
+          ...it,
+          id: undefined,
+          qtyPick: 0,
+          qtyDelivered: 0,
+          qtyInvoiced: 0,
+          poNo: '',
+          poDue: '',
+          itemStatus: '',
+        })),
       }));
     }, 0);
   };
@@ -4549,6 +4568,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Clone</span>
               </button>
+              <button
+                disabled={!activeJob}
+                onClick={() => activeJob && setDupSitesJob(activeJob)}
+                title={!activeJob ? 'Open a job first' : 'Create one copy of this job per customer site'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
+              >
+                <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">To Sites</span>
+              </button>
             </div>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
@@ -5468,6 +5495,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       <StocktakeModal setStocktakeModal={setStocktakeModal} stocktakeModal={stocktakeModal} />
       <StockFlowModal setStockFlowModal={setStockFlowModal} stockFlowModal={stockFlowModal} />
       <InvoiceDocument invoiceJob={invoiceJob} invoiceVariant={invoiceVariant} setInvoiceJob={setInvoiceJob} />
+      {dupSitesJob && (
+        <DuplicateToSites
+          job={dupSitesJob}
+          onClose={() => setDupSitesJob(null)}
+          onCreated={() => queryClient.invalidateQueries({ queryKey: ['jobs'] })}
+        />
+      )}
       <DocumentPrint documentPrint={documentPrint} inventory={inventory} setDocumentPrint={setDocumentPrint} />
       {emailModalJob && <EmailJobModal job={emailModalJob} customers={customers} onClose={() => setEmailModalJob(null)} />}
       {matrixPopup !== null && (

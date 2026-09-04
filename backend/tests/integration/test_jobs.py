@@ -297,6 +297,142 @@ class TestStockDepletionOnInvoice:
 
 
 @pytest.mark.integration
+class TestCreateSimilar:
+    """Duplicate a job, optionally to a different site.
+
+    JIM1. The photographs settled that Jim2 does not solve multi-site with a
+    clever data model -- a job carries one address and that is that. It solves
+    it with `Create Similar` and a saved list. TEEG runs thirteen venues as
+    thirteen jobs; Arcare's rollout would be sixty-eight. Without this, that is
+    sixty-eight jobs built by hand, which is what made ORD1 look like a data
+    modelling problem when it was a missing button.
+
+    What carries over is the order: who it is for, what is on it, how it is
+    priced and decorated. What does not is anything belonging to the original's
+    own fulfilment -- its invoice number, its dates, its picked and delivered
+    quantities, the purchase orders raised against its lines.
+    """
+
+    def _source_job(self, db, make_inventory, job_id="J-CS-SRC", cust="JCS01"):
+        from app.models.job import JobItem
+
+        make_inventory(sku="CS-A", stock=500)
+        job = _make_job(db, job_id, cust, status="FINISH", total_inc=330.0)
+        job.invoice = f"INV-{job_id}"
+        job.invoice_date = "2026-01-05"
+        job.cust_ref = "PO-ORIGINAL"
+        job.ship_to = "SITE.001"
+        job.branch = "HQ"
+        job.price_level = "24"
+        job.acc_mgr = "DANIELL.GO"
+        job.deposit = 100.0
+        job.payment_status = "partial"
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code="CS-A",
+                description="Polo",
+                decoration_type="EMB",
+                dec_position="L.Chest",
+                order_qty=10,
+                qty=10,
+                supply_qty=10,
+                qty_pick=10,
+                qty_delivered=10,
+                price_ex=30.0,
+                total=300.0,
+                po_no="PO-2049911",
+                item_status="Received",
+            )
+        )
+        db.commit()
+        return job
+
+    def test_it_makes_a_new_job_carrying_the_order(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JCS01", credit_limit=99999.0)
+        self._source_job(db, make_inventory)
+
+        r = client.post("/jobs/J-CS-SRC/duplicate", json={})
+        assert r.status_code == 200
+        new = r.json()
+        assert new["id"] != "J-CS-SRC"
+        assert new["customer_id"] == "JCS01"
+        assert new["price_level"] == "24"
+        assert new["acc_mgr"] == "DANIELL.GO"
+        assert len(new["items"]) == 1
+        assert new["items"][0]["stock_code"] == "CS-A"
+        assert new["items"][0]["decoration_type"] == "EMB"
+        assert new["items"][0]["order_qty"] == 10
+
+    def test_it_starts_clean_of_the_original_fulfilment(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JCS02", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC2", "JCS02")
+
+        new = client.post("/jobs/J-CS-SRC2/duplicate", json={}).json()
+        assert new["status"] == "QUOTE"
+        assert not new["invoice"]
+        assert not new["invoice_date"]
+        assert float(new["deposit"] or 0) == 0
+        assert float(new["balance_due"] or 0) == 0
+        assert new["payment_status"] == "unpaid"
+
+        line = new["items"][0]
+        assert line["qty_pick"] == 0
+        assert line["qty_delivered"] == 0
+        assert not line["po_no"], "the original's purchase order is not this job's"
+        assert not line["item_status"]
+
+    def test_it_can_be_pointed_at_another_site(
+        self, client, db, make_customer, make_inventory
+    ):
+        # The whole point for a multi-site rollout: same order, next venue.
+        make_customer(id="JCS03", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC3", "JCS03")
+
+        new = client.post(
+            "/jobs/J-CS-SRC3/duplicate",
+            json={"ship_to": "SITE.002", "cust_ref": "PO-NEXT-SITE"},
+        ).json()
+        assert new["ship_to"] == "SITE.002"
+        assert new["cust_ref"] == "PO-NEXT-SITE"
+        assert new["items"][0]["stock_code"] == "CS-A"
+
+    def test_the_original_is_untouched(self, client, db, make_customer, make_inventory):
+        make_customer(id="JCS04", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC4", "JCS04")
+        client.post("/jobs/J-CS-SRC4/duplicate", json={"ship_to": "SITE.009"})
+
+        db.expire_all()
+        src = db.query(Job).filter_by(id="J-CS-SRC4").first()
+        assert src.status == "FINISH"
+        assert src.ship_to == "SITE.001"
+        assert src.invoice == "INV-J-CS-SRC4"
+
+    def test_the_copy_reserves_its_own_stock(
+        self, client, db, make_customer, make_inventory
+    ):
+        # A duplicate is a real order. If it did not commit, availability would
+        # be overstated by exactly the amount of every copy ever made.
+        make_customer(id="JCS05", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC5", "JCS05")
+
+        new = client.post("/jobs/J-CS-SRC5/duplicate", json={"status": "ORDER"}).json()
+        assert new["status"] == "ORDER"
+
+        from app.core.reservations import committed_total
+
+        assert committed_total(db, "CS-A") >= 10
+
+    def test_duplicating_something_that_does_not_exist_is_a_404(self, client):
+        assert client.post("/jobs/NOPE/duplicate", json={}).status_code == 404
+
+
+@pytest.mark.integration
 class TestOnHandCannotSilentlyGoNegative:
     """Invoicing more than exists is stopped, and can be overridden on purpose.
 

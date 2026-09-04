@@ -188,6 +188,17 @@ class CommentCreate(BaseModel):
     is_internal: bool = False
 
 
+class DuplicateRequest(BaseModel):
+    """Overrides for the copy. Everything omitted carries over from the source."""
+
+    ship_to: Optional[str] = None
+    ship_to_id: Optional[int] = None
+    shipping_address: Optional[str] = None
+    cust_ref: Optional[str] = None
+    due: Optional[str] = None
+    status: str = "QUOTE"
+
+
 class LockToggle(BaseModel):
     locked: bool
 
@@ -1085,6 +1096,126 @@ def update_status(
     db.commit()
     db.refresh(job)
     return job
+
+
+@router.post("/{job_id}/duplicate")
+def duplicate_job(
+    job_id: str,
+    body: DuplicateRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    """Create a new job carrying this one's order, optionally to another site.
+
+    Jim2's "Create Similar", which is how a thirteen-venue rollout stays
+    workable: same garments, same decoration, same pricing, next address. A job
+    holds one ship-to and that is not going to change, so the answer to a
+    sixty-eight site order is sixty-eight jobs — this is what stops that meaning
+    sixty-eight jobs typed out by hand.
+
+    What carries over is the order. What does not is anything belonging to the
+    source's own fulfilment: its invoice, its dates, its money taken, its picked
+    and delivered quantities, and the purchase orders raised against its lines.
+    Those belong to that job and copying them would attach this job's goods to
+    somebody else's purchase order.
+    """
+    src = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
+    if not src:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    carried = (
+        "customer_id",
+        "customer_name",
+        "priority",
+        "type",
+        "assigned_to",
+        "payment_method",
+        "notes",
+        "our_ref",
+        "description",
+        "project_no",
+        "name_contact",
+        "branch",
+        "price_level",
+        "acc_mgr",
+        "invoice_desc",
+        "requested_by",
+        "lock_rate",
+        "total_ex",
+        "tax",
+        "total_inc",
+        "shipping_address",
+        "ship_to",
+        "ship_to_id",
+        "cust_ref",
+        "due",
+    )
+    new = Job(
+        id=_next_job_id(db),
+        status=body.status,
+        date_in=datetime.now().strftime("%Y-%m-%d"),
+        deposit=0,
+        balance_due=0,
+        payment_status="unpaid",
+        invoice_status="not_invoiced",
+        locked=False,
+        **{name: getattr(src, name) for name in carried},
+    )
+    for field, value in body.model_dump(exclude={"status"}, exclude_none=True).items():
+        setattr(new, field, value)
+
+    for item in sorted(src.items, key=lambda i: i.sort or 0):
+        new.items.append(
+            JobItem(
+                sort=item.sort,
+                display_type=item.display_type,
+                description=item.description,
+                sizes=item.sizes,
+                stock_code=item.stock_code,
+                decoration_type=item.decoration_type,
+                emb_code=item.emb_code,
+                trs_code=item.trs_code,
+                dec_code=item.dec_code,
+                stitch_count=item.stitch_count,
+                color_count=item.color_count,
+                dec_position=item.dec_position,
+                order_qty=item.order_qty,
+                qty=item.qty,
+                weight_kg=item.weight_kg,
+                purchase_price=item.purchase_price,
+                margin=item.margin,
+                margin_percent=item.margin_percent,
+                discount=item.discount,
+                price_ex=item.price_ex,
+                price_inc=item.price_inc,
+                total=item.total,
+                hide=item.hide,
+                tax_type=item.tax_type,
+                # supply and back-order are worked out against stock as it is
+                # now, not as it was when the source was raised.
+                supply_qty=None,
+                b_ord=None,
+            )
+        )
+    for line in new.items:
+        data = _derive_line_split(
+            {
+                "supply_qty": line.supply_qty,
+                "b_ord": line.b_ord,
+                "order_qty": line.order_qty,
+                "stock_code": line.stock_code,
+            },
+            db,
+        )
+        line.supply_qty = data["supply_qty"]
+        line.b_ord = data["b_ord"]
+
+    db.add(new)
+    if new.status in COMMITTED_STATUSES:
+        db.flush()
+        _commit_job_stock(new, db)
+    db.commit()
+    return _job_with_relations(db, new.id)
 
 
 @router.post("/{job_id}/comments")
