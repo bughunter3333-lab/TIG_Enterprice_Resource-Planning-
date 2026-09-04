@@ -1169,12 +1169,32 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     } catch (e) { setApiError(e.message); }
   };
 
-  const updateJobStatus = async (jobId, newStatus) => {
+  const updateJobStatus = async (jobId, newStatus, { allowNegativeStock = false } = {}) => {
     try {
-      const updated = await api.jobs.updateStatus(jobId, newStatus);
+      const updated = await api.jobs.updateStatus(jobId, newStatus, { allowNegativeStock });
       updatePinnedJob(updated);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    } catch (e) { setApiError(e.message); }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (e) {
+      // Invoicing more than the system holds is refused rather than silently
+      // taking stock negative. A wrong count is ordinary, so offer to accept it
+      // instead of leaving the person stuck — matched on the message as well as
+      // the code, because a save conflict is also a 409.
+      if (e?.status === 409 && /stock below zero/i.test(e.message || '')) {
+        setConfirmModal({
+          show: true,
+          message: `${e.message}
+
+Invoice anyway? The shortfall will be recorded on the job.`,
+          onConfirm: () => {
+            setConfirmModal({ show: false, message: '', onConfirm: null });
+            updateJobStatus(jobId, newStatus, { allowNegativeStock: true });
+          },
+        });
+        return;
+      }
+      setApiError(e.message);
+    }
   };
 
   const updateJobDue = async (jobId, newDue) => {

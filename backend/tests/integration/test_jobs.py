@@ -297,6 +297,143 @@ class TestStockDepletionOnInvoice:
 
 
 @pytest.mark.integration
+class TestOnHandCannotSilentlyGoNegative:
+    """Invoicing more than exists is stopped, and can be overridden on purpose.
+
+    ORD3. The Arcare run invoiced 68 jobs against a SKU holding 65 units and
+    finished at -35 on hand, with no block, no warning and no confirmation. The
+    ledger recorded it faithfully, which is the point: a negative on-hand
+    figure means either the goods never shipped or the count is wrong, and
+    nobody was told which.
+
+    Depletion happens on entering INVOICE, which is after despatch, so refusing
+    here does not stop the warehouse -- the goods have already gone. It stops
+    the books recording an impossible state, and asks somebody to check the
+    count before billing. The override exists because a wrong count is a normal
+    Tuesday and billing must not be held hostage to it.
+    """
+
+    def _job_ready_to_invoice(
+        self, db, make_inventory, job_id, cust_id, sku, on_hand, qty
+    ):
+        from app.models.job import JobItem
+
+        make_inventory(sku=sku, stock=on_hand)
+        job = _make_job(db, job_id, cust_id, status="FINISH")
+        job.invoice = f"INV-{job_id}"
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code=sku,
+                description="Tee",
+                order_qty=qty,
+                qty=qty,
+                supply_qty=qty,
+            )
+        )
+        db.commit()
+        return job
+
+    def test_invoicing_more_than_exists_is_refused(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG01", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG01", "JNEG01", "NEG-A", 5, 8
+        )
+
+        r = client.post("/jobs/J-NEG01/status", json={"status": "INVOICE"})
+        assert r.status_code == 409
+        assert "NEG-A" in r.json()["detail"]
+
+    def test_the_refusal_leaves_stock_and_status_alone(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG02", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG02", "JNEG02", "NEG-B", 5, 8
+        )
+        client.post("/jobs/J-NEG02/status", json={"status": "INVOICE"})
+
+        db.expire_all()
+        assert db.query(Job).filter_by(id="J-NEG02").first().status == "FINISH"
+        assert db.query(InventoryItem).filter_by(sku="NEG-B").first().stock == 5
+
+    def test_exactly_enough_is_allowed(self, client, db, make_customer, make_inventory):
+        # The boundary is what matters: 5 out of 5 leaves zero, which is fine.
+        make_customer(id="JNEG03", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG03", "JNEG03", "NEG-C", 5, 5
+        )
+
+        r = client.post("/jobs/J-NEG03/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        db.expire_all()
+        assert db.query(InventoryItem).filter_by(sku="NEG-C").first().stock == 0
+
+    def test_it_can_be_overridden_deliberately(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG04", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG04", "JNEG04", "NEG-D", 5, 8
+        )
+
+        r = client.post(
+            "/jobs/J-NEG04/status",
+            json={"status": "INVOICE", "allow_negative_stock": True},
+        )
+        assert r.status_code == 200
+        db.expire_all()
+        assert db.query(InventoryItem).filter_by(sku="NEG-D").first().stock == -3
+
+    def test_the_override_is_recorded_on_the_job(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Someone decided to bill goods the system says do not exist. That
+        # decision belongs in the job's history, not only in the stock figure.
+        make_customer(id="JNEG05", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG05", "JNEG05", "NEG-E", 5, 8
+        )
+        client.post(
+            "/jobs/J-NEG05/status",
+            json={"status": "INVOICE", "allow_negative_stock": True},
+        )
+
+        comments = client.get("/jobs/J-NEG05").json()["comments"]
+        assert any("NEG-E" in (c.get("comment") or "") for c in comments)
+
+    def test_two_lines_of_the_same_sku_are_counted_together(
+        self, client, db, make_customer, make_inventory
+    ):
+        # 3 + 3 against 5 on hand is short by one, even though neither line is.
+        from app.models.job import JobItem
+
+        make_customer(id="JNEG06", credit_limit=5000.0)
+        make_inventory(sku="NEG-F", stock=5)
+        job = _make_job(db, "J-NEG06", "JNEG06", status="FINISH")
+        job.invoice = "INV-J-NEG06"
+        for _ in range(2):
+            db.add(
+                JobItem(
+                    job_id="J-NEG06",
+                    display_type="product",
+                    stock_code="NEG-F",
+                    description="Tee",
+                    order_qty=3,
+                    qty=3,
+                    supply_qty=3,
+                )
+            )
+        db.commit()
+
+        r = client.post("/jobs/J-NEG06/status", json={"status": "INVOICE"})
+        assert r.status_code == 409
+
+
+@pytest.mark.integration
 class TestSupplyAndBackOrderAreDerived:
     """An order reserves stock without anyone typing a number.
 

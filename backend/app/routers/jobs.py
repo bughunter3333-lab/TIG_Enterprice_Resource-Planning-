@@ -176,6 +176,10 @@ class JobUpdate(_JobSharedFields):
 
 class StatusUpdate(BaseModel):
     status: str
+    # Invoicing goods the system says do not exist is refused by default. A
+    # wrong count is ordinary, so it can be accepted deliberately, and the
+    # acceptance is written onto the job.
+    allow_negative_stock: bool = False
 
 
 class CommentCreate(BaseModel):
@@ -541,7 +545,38 @@ def _derive_line_split(data: dict, db: Session) -> dict:
     return data
 
 
-def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
+def _on_hand_shortfalls(job: "Job", db: Session) -> dict:
+    """SKUs this job would push below zero on hand, and by how much.
+
+    Quantities are summed per SKU: two lines of three against five on hand is
+    short by one even though neither line is. Uses supply_qty because that is
+    what _deplete_on_hand actually ships.
+    """
+    wanted: dict = {}
+    for item in job.items:
+        if not item.stock_code or item.display_type != "product":
+            continue
+        qty = int(item.supply_qty or 0)
+        if qty > 0:
+            wanted[item.stock_code] = wanted.get(item.stock_code, 0) + qty
+    if not wanted:
+        return {}
+
+    rows = db.query(InventoryItem).filter(InventoryItem.sku.in_(list(wanted))).all()
+    on_hand = {r.sku: int(r.stock or 0) for r in rows}
+    return {
+        sku: qty - on_hand[sku]
+        for sku, qty in wanted.items()
+        if sku in on_hand and qty > on_hand[sku]
+    }
+
+
+def _apply_status_transition(
+    job: "Job",
+    new_status: str,
+    db: Session,
+    allow_negative_stock: bool = False,
+) -> None:
     """Move `job` to `new_status` and run every side effect that implies.
 
     Every path that changes a job's status must come through here. Three used to
@@ -568,6 +603,25 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     if old_status == new_status:
         return
 
+    # Checked before anything is mutated. Raising after `job.status` has been
+    # reassigned leaves the job holding a status the caller was refused, and
+    # any later commit in the same session persists it.
+    entering_depleted = (
+        old_status not in _DEPLETED_STATUSES and new_status in _DEPLETED_STATUSES
+    )
+    shortfalls = _on_hand_shortfalls(job, db) if entering_depleted else {}
+    if shortfalls and not allow_negative_stock:
+        detail = ", ".join(
+            f"{sku} short by {qty}" for sku, qty in sorted(shortfalls.items())
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Invoicing this job would take stock below zero: {detail}. "
+                "Check the count, or invoice anyway to accept it."
+            ),
+        )
+
     job.status = new_status
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -581,6 +635,30 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     was_depleted = old_status in _DEPLETED_STATUSES
     now_depleted = new_status in _DEPLETED_STATUSES
     if not was_depleted and now_depleted:
+        # Refused above unless it was accepted deliberately. Getting here with
+        # a shortfall means somebody chose to bill goods the system says do not
+        # exist, and that decision belongs in the job's history rather than
+        # only in a stock figure that has quietly gone negative.
+        if shortfalls:
+            now = datetime.now()
+            db.add(
+                JobComment(
+                    job_id=job.id,
+                    date=now.strftime("%d/%m/%Y"),
+                    time=now.strftime("%H:%M"),
+                    initials="SYS",
+                    author_name="System",
+                    status=new_status,
+                    is_internal=True,
+                    comment=(
+                        "Invoiced with insufficient stock on hand: "
+                        + ", ".join(
+                            f"{sku} short by {qty}"
+                            for sku, qty in sorted(shortfalls.items())
+                        )
+                    ),
+                )
+            )
         _deplete_on_hand(job, db)
     elif was_depleted and not now_depleted:
         _restore_on_hand(job, db)
@@ -955,6 +1033,11 @@ def update_job(
             _check_credit_limit(job, db)
         # After the lines are in place: what gets reserved is what the job now
         # holds, not what it held when the request arrived.
+        #
+        # No negative-stock override here on purpose. Accepting a short count is
+        # a deliberate act and belongs on the status endpoint, where it is asked
+        # for explicitly; a PATCH that happens to carry a status must not do it
+        # silently.
         _apply_status_transition(job, body.status, db)
 
     # Assigned explicitly so the job row is always part of the UPDATE: a save
@@ -984,7 +1067,9 @@ def update_status(
         _check_credit_limit(job, db)
 
     now = datetime.now()
-    _apply_status_transition(job, body.status, db)
+    _apply_status_transition(
+        job, body.status, db, allow_negative_stock=body.allow_negative_stock
+    )
 
     comment = JobComment(
         job_id=job_id,

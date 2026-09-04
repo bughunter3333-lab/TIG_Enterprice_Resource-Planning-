@@ -466,8 +466,13 @@ export const jobs = {
     })) : undefined,
   }}).then(normalizeJob),
 
-  updateStatus: (id, status) =>
-    request(`/jobs/${id}/status`, { method: 'POST', body: { status } }).then(normalizeJob),
+  // allowNegativeStock is the deliberate acceptance of a short stock count when
+  // invoicing. The server refuses with 409 unless it is set.
+  updateStatus: (id, status, { allowNegativeStock = false } = {}) =>
+    request(`/jobs/${id}/status`, {
+      method: 'POST',
+      body: allowNegativeStock ? { status, allow_negative_stock: true } : { status },
+    }).then(normalizeJob),
 
   // Jim2 Pick/Pack: persist per-line picked quantities.
   // picks: [{ item_id, qty_pick }] → { allPicked, job }
