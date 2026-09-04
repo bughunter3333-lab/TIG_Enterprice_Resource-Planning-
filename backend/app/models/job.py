@@ -43,6 +43,9 @@ class Job(Base):
     our_ref = Column(String(100))
     description = Column(String(200))
     ship_to = Column(String(100))
+    # Jim2's Item#: NOP.ONLINE for a job the customer's employee raised through
+    # the portal, SALE for one a person keyed. How the work arrived.
+    item_no = Column(String(50), index=True)
     project_no = Column(String(50))
     serial_no = Column(String(100))
     name_contact = Column(String(100))

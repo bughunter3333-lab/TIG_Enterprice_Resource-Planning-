@@ -36,6 +36,10 @@ class PurchaseOrderItem(Base):
     order_id = Column(String(20), ForeignKey("purchase_orders.id"), nullable=False)
     sku = Column(String(50))
     description = Column(String(255))
+    # The job this line is for. Jim2 puts it on every PO line, which is what
+    # lets one purchase order cover many jobs and still say which units belong
+    # to which -- the "35 units across 22 jobs" problem from the Arcare run.
+    job_id = Column(String(20), index=True, nullable=True)
     qty_ordered = Column(Integer, default=0)
     qty_received = Column(Integer, default=0)
     unit_cost = Column(Numeric(10, 2), default=0)

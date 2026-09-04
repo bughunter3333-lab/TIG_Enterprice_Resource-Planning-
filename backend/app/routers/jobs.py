@@ -123,6 +123,8 @@ class _JobSharedFields(BaseModel):
     our_ref: Optional[str] = None
     description: Optional[str] = None
     ship_to: Optional[str] = None
+    # Jim2's Item#: NOP.ONLINE for a portal order, SALE for one keyed by hand.
+    item_no: Optional[str] = None
     project_no: Optional[str] = None
     serial_no: Optional[str] = None
     name_contact: Optional[str] = None

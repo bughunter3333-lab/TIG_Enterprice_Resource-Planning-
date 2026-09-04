@@ -78,6 +78,7 @@ function normalizeJob(j) {
     description: j.description ?? '',
     shipTo: j.ship_to ?? j.shipTo ?? '',
     projectNo: j.project_no ?? j.projectNo ?? '',
+    itemNo: j.item_no ?? j.itemNo ?? '',
     serialNo: j.serial_no ?? j.serialNo ?? '',
     nameContact: j.name_contact ?? j.nameContact ?? '',
     // Jim2 Sprint-2 fields
@@ -323,6 +324,7 @@ export const jobs = {
     description: data.description,
     ship_to: data.shipTo,
     project_no: data.projectNo,
+      item_no: data.itemNo || undefined,
     serial_no: data.serialNo,
     name_contact: data.nameContact,
     // Jim2 Sprint-2 fields

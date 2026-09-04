@@ -20,6 +20,9 @@ VALID_STATUSES = {"Draft", "Sent", "Partial", "Received", "Cancelled"}
 
 class POItemSchema(BaseModel):
     sku: Optional[str] = None
+    # Which job this line is for. Optional because a stock replenishment PO is
+    # for no job in particular.
+    job_id: Optional[str] = None
     description: Optional[str] = None
     qty_ordered: int = 0
     qty_received: int = 0
@@ -149,18 +152,24 @@ def create_po_from_requirements(
     job_items = db.query(JobItem).filter(JobItem.id.in_(item_ids)).all()
     item_map = {ji.id: ji for ji in job_items}
 
-    # Group by SKU to build PO line items
+    # One line per SKU *per job*, not one line per SKU. Jim2's PO 2048001 carries
+    # RS.K43012CU.NAV.14 twice -- once for job 1194956 and once for 1194961 --
+    # because a purchase order covering six jobs still has to say which units
+    # belong to which. Collapsing by SKU alone is what turned a real shortage
+    # into "35 units across 22 jobs" with nothing to reconcile it against.
     sku_groups: dict = {}
     for req in body.requirements:
         ji = item_map.get(req.item_id)
         if not ji:
             continue
-        key = ji.stock_code or ji.description or "ITEM"
+        sku = ji.stock_code or ji.description or "ITEM"
+        key = (sku, ji.job_id)
         if key not in sku_groups:
-            inv = db.query(InventoryItem).filter(InventoryItem.sku == key).first()
+            inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
             sku_groups[key] = {
-                "sku": key,
-                "description": ji.description or key,
+                "sku": sku,
+                "job_id": ji.job_id,
+                "description": ji.description or sku,
                 "qty_ordered": 0,
                 "unit_cost": (
                     float(inv.unit_cost) if inv else float(ji.purchase_price or 0)
