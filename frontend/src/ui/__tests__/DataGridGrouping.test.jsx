@@ -61,6 +61,22 @@ test('rows with no value for the column band under a dash rather than vanishing'
   expect(screen.getAllByRole('rowgroup')).toHaveLength(4);
 });
 
+test('an empty string bands under the dash, same as a missing value', () => {
+  // Real rows come off the normaliser with '' rather than undefined, so a
+  // nullish check let them through and produced a band with a blank heading.
+  render(
+    <DataGrid
+      columns={columns}
+      rows={[{ id: '8888', shipTo: '', customer: 'Ricoh' }, ...rows]}
+      groupBy="shipTo"
+    />,
+  );
+  const bands = screen.getAllByRole('rowgroup');
+  const dashBand = bands.find(b => within(b).getAllByRole('row')[0].textContent.startsWith('—'));
+  expect(dashBand).toBeTruthy();
+  expect(within(dashBand).getByText('8888')).toBeInTheDocument();
+});
+
 test('an empty grid still says so when grouping is on', () => {
   render(<DataGrid columns={columns} rows={[]} groupBy="shipTo" emptyText="No jobs" />);
   expect(screen.getByText('No jobs')).toBeInTheDocument();

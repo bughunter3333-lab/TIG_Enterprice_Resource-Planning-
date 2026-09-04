@@ -55,7 +55,10 @@ export default function DataGrid({
     if (!groupBy) return null;
     const map = new Map();
     for (const row of sorted) {
-      const value = row[groupBy] ?? '—';
+      // Falsy, not nullish. Normalised rows carry '' for an absent value, and
+      // `?? ` lets an empty string through — the band then has a blank heading
+      // that reads as a rendering fault rather than as "these have no site".
+      const value = row[groupBy] || '—';
       if (!map.has(value)) map.set(value, []);
       map.get(value).push(row);
     }

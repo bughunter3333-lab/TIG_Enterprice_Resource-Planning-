@@ -652,7 +652,7 @@ appeared as −35 available.
 ORD4 and ORD5 are the same shape as ORD2: a number the system can derive, left to a
 human to type, with everything downstream trusting it.
 
-### ORD6. The jobs list cannot show which site a job is for (MEDIUM)
+### ORD6. The jobs list cannot show which site a job is for (FIXED — d058a67, 2b02c63)
 
 `JobsList.jsx` defines eight columns — Job#, Customer, Status, Dec, Priority,
 Acc Mgr, Total, Due. None is the ship-to. All 68 Arcare jobs render as visually
@@ -827,7 +827,7 @@ they change what we build, not by size.
 Several confirm earlier guesses; three overturn them. Where a photograph
 contradicts something written here previously, the photograph wins.
 
-### JIM1. The business is multi-site by default, not by exception (HIGH)
+### JIM1. The business is multi-site by default, not by exception (ADDRESSED — d058a67)
 
 The recently-opened list alone holds Dan Murphy's (three jobs, "Vendor No.
 96026…"), Respect Group (four), Pickles Auctions **Adelaide** and Pickles
@@ -877,7 +877,7 @@ single **kit** SKU, and Jim2 carries `Stock List Kits` and `Action Kits Stock
 list` reports. So repeat customers get a kitted code; ad-hoc work gets component
 lines.
 
-### JIM3. Purchase order lines carry the job they are for (HIGH)
+### JIM3. Purchase order lines carry the job they are for (FIXED — 20894aa)
 
 PO 2048001 (Workwear Group) has eight lines spanning **six different jobs** —
 1194959, 1194956, 1194961, 1194951, 1192494, 1194960 — each line naming its
@@ -1079,7 +1079,7 @@ is for, and nothing in our system corresponds to it.
 **This is the single largest omission the photographs have exposed.** We have
 modelled the back office of a business whose front door is a portal.
 
-### JIM15. The job list is grouped by Ship#, and that is the despatch screen (HIGH — reframes ORD6)
+### JIM15. The job list is grouped by Ship#, and that is the despatch screen (FIXED — 2b02c63)
 
 Job List filtered on `Cust Grp: Ricoh`, **grouped by `Ship#`**:
 
@@ -1167,7 +1167,7 @@ Note also that job 1218774's eleven lines draw on **five different purchase
 orders** (2056566, 2056346, 2056338, 2056333, 2056727) — one job, five suppliers,
 because each garment and the embroidery are sourced separately.
 
-### JIM20. Status is moved in bulk, and production is tracked in comments (MEDIUM)
+### JIM20. Status is moved in bulk, and production is tracked in comments (PARTLY FIXED — b1b96d1)
 
 Job 1218774's comment trail:
 
@@ -1222,6 +1222,32 @@ passing tests over them. In each case the test supplied the value under test —
 `_make_job` hand-set `balance_due`, and a fixture set `committed_qty` — so the
 test and the bug agreed with each other. That is the pattern worth remembering
 from this phase, more than any individual fix.
+
+
+### Phase B closed
+
+Create Similar with a fan-out to a customer's sites, a Ship# column, grouping by
+any column, bulk status in one request, `job_id` on purchase-order lines and
+`jobs.item_no`. ORD1 turned out to need none of the data-model work it seemed to
+ask for — the model was already Jim2's; what was missing were the two tools that
+make it survivable.
+
+What still stands from JIM20: bulk status moves are covered, but production
+hand-offs are not. Jim2 records them as comments naming the operator ("Line 1
+given to Lina for EMB"), and that comment trail is the only shop-floor record
+there is. We have the comment model; nothing writes those.
+
+Three bugs surfaced again only by running it rather than testing it:
+
+- `bulk-status` first called `db.rollback()` on a refusal, which discards the
+  whole session — every job already moved in the batch would have been undone by
+  the next one that refused. All five tests passed because none had a success
+  followed by a failure. Each job gets a SAVEPOINT now.
+- Grouping used `?? '—'` for a missing value. Normalised rows carry `''`, not
+  null, so the band rendered with a blank heading that read as a fault. Only the
+  live grid showed it; the test used a missing key.
+- The existing Clone button spread each line wholesale, so a clone inherited the
+  original's picked quantities, its PO number and its line status.
 
 ## Known gaps, deliberately open
 
