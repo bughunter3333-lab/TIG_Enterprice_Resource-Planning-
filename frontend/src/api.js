@@ -649,6 +649,9 @@ export const stock = {
   deleteLocation: (sku, branch) =>
     request(`/inventory/${encodeURIComponent(sku)}/locations/${encodeURIComponent(branch)}`, { method: 'DELETE' }),
 
+  history: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/history`),
+
   pricing: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/pricing`),
 

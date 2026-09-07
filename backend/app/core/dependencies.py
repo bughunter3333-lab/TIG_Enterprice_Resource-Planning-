@@ -44,5 +44,9 @@ def require_role(*roles: str):
 
 
 require_admin = require_role("admin")
-require_staff = require_role("admin", "staff")
-require_any = require_role("admin", "staff", "overseas_staff")
+# Stock is the ledger the whole system prices and picks from, so editing a
+# position is a supervisory act rather than a daily one. Staff read it and
+# move it through jobs; changing what a record *says* is admin or manager.
+require_manager = require_role("admin", "manager")
+require_staff = require_role("admin", "manager", "staff")
+require_any = require_role("admin", "manager", "staff", "overseas_staff")

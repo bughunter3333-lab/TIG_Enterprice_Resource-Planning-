@@ -5300,6 +5300,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'inventory' && (stockListModal.open ? <StockListPage deleteJobList={deleteJobList} inventory={inventory} openModal={openModal} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setStockFocusSku={setStockFocusSku} setStockListModal={setStockListModal} stockListModal={stockListModal} updateListFilter={updateListFilter} /> : (
                   <StockModule
                     inventory={inventory}
+                    currentUser={currentUser}
                     focusSku={stockFocusSku}
                     onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}

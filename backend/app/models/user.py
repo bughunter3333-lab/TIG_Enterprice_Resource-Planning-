@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     full_name = Column(String(100), nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    # roles: admin | staff | overseas_staff
+    # roles: admin | manager | staff | overseas_staff
     role = Column(String(20), nullable=False, default="staff")
     is_active = Column(Boolean, default=True)
     totp_secret = Column(String(64), nullable=True)

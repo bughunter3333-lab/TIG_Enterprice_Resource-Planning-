@@ -28,8 +28,10 @@ test('StockLocationsTab fetches and renders branch rows', async () => {
   ]);
   stock.locationSummary.mockResolvedValue({ total_on_hand: 30, located: 30, unlocated: 0, in_sync: true });
   wrap(<StockLocationsTab sku="MR.PS60.NAV" />);
-  await waitFor(() => expect(screen.getByText('HQ')).toBeInTheDocument());
-  expect(screen.getByText('A-03')).toBeInTheDocument();
+  // Every branch is a row now, so the branch name is on screen before the
+  // fetch resolves. The bin is the value that only exists once it has.
+  await waitFor(() => expect(screen.getByText('A-03')).toBeInTheDocument());
+  expect(screen.getByText('HQ')).toBeInTheDocument();
   expect(stock.locations).toHaveBeenCalledWith('MR.PS60.NAV');
 });
 

@@ -29,7 +29,13 @@ from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.supplier import Supplier
 from app.models.supplier_price_list import SupplierPriceList
-from app.core.dependencies import require_any, require_staff
+from app.core.dependencies import require_any, require_manager, require_staff
+from app.models.stock_audit import StockAuditEntry
+from app.core.stock_audit import (
+    record_location_change,
+    record_location_deleted,
+    snapshot_location,
+)
 from app.models.user import User
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -410,7 +416,7 @@ def add_location(
     sku: str,
     body: LocationCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
@@ -425,6 +431,16 @@ def add_location(
         )
     loc = StockLocation(sku=sku, **body.model_dump())
     db.add(loc)
+    db.flush()
+    record_location_change(
+        db,
+        sku=sku,
+        branch=loc.branch,
+        action="created",
+        before={},
+        after=snapshot_location(loc),
+        username=current_user.username,
+    )
     db.commit()
     db.refresh(loc)
     return {
@@ -450,7 +466,7 @@ def update_location(
     branch: str,
     body: LocationUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     loc = (
         db.query(StockLocation)
@@ -459,8 +475,21 @@ def update_location(
     )
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    before = snapshot_location(loc)
+    # exclude_unset, not exclude_none. A field the caller never mentioned is
+    # left alone; one sent explicitly as null is a bin being emptied. Under
+    # exclude_none a bin could be filled and then never cleared again.
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(loc, field, value)
+    record_location_change(
+        db,
+        sku=sku,
+        branch=loc.branch,
+        action="updated",
+        before=before,
+        after=snapshot_location(loc),
+        username=current_user.username,
+    )
     db.commit()
     db.refresh(loc)
     return {
@@ -485,7 +514,7 @@ def delete_location(
     sku: str,
     branch: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     loc = (
         db.query(StockLocation)
@@ -495,8 +524,39 @@ def delete_location(
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     db.delete(loc)
+    record_location_deleted(db, sku=sku, branch=branch, username=current_user.username)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{sku}/history")
+def get_stock_history(
+    sku: str,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Who changed this SKU, and to what. Newest first."""
+    rows = (
+        db.query(StockAuditEntry)
+        .filter(StockAuditEntry.sku == sku)
+        .order_by(StockAuditEntry.changed_at.desc(), StockAuditEntry.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "branch": r.branch,
+            "action": r.action,
+            "field": r.field,
+            "old_value": r.old_value,
+            "new_value": r.new_value,
+            "changed_by": r.changed_by,
+            "changed_at": r.changed_at.isoformat() if r.changed_at else None,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/{sku}/pricing")
