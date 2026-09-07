@@ -1188,14 +1188,118 @@ Two working practices to support rather than replace:
   given to Lina for EMB", flagged `Inc` so it prints. There is no work-in-
   progress table; the comment trail *is* the shop-floor record.
 
-### And the bins
+### JIM21. The bin code is a walk order, and ours is a fiction (MEDIUM)
 
-A photograph of the racking shows the real bin labels: **`B.3.H.1` · `B.3.G.2` ·
-`B.3.F.1` · `B.3.E.1` · `B.3.D.3`** — aisle · bay · level · position, dotted.
-Our seeded data uses `A-01-04`. The picking slip's bin column should carry the
-dotted four-part form, because that is what is printed on the carton a picker is
-looking for.
+Two photographs of the racking, plus the operator's confirmation that the
+warehouse runs **five aisles, A–E**, and that the labelled aisle is **B**.
 
+Every visible label in the first photograph shares the prefix `B.3`, the letter
+changes as the eye travels **up**, and the last digit changes as it travels
+**down the aisle**:
+
+```
+          ← further down the aisle          nearest the aisle mouth →
+ higher   B.3.I.2                                      (B.3.I.1)
+          B.3.H.3        B.3.H.2                        B.3.H.1
+          B.3.G.3        B.3.G.2                        B.3.G.1
+          B.3.F.3        B.3.F.2                        B.3.F.1
+          B.3.E.3        B.3.E.2                        B.3.E.1
+ lower    B.3.D.3        B.3.D.2                        B.3.D.1
+          B.3.C.3
+```
+
+So the four parts are **aisle · bay · level · position**:
+
+| Part | Example | Varies | Observed range |
+| --- | --- | --- | --- |
+| Aisle | `B` | one of five racking runs | `A`–`E` (stated) |
+| Bay | `3` | constant across the whole photograph | at least `3` |
+| Level | `H` | ascends **upward** | `C`–`J` seen |
+| Position | `1` | ascends **down the aisle** | `1`–`5` seen |
+
+**Why the order matters more than the format.** Three of the four parts are a
+route: aisle, then bay, then position is the order a picker physically walks.
+Level is the only part that costs nothing to change — you reach up, you do not
+walk. A picking slip sorted by `aisle, bay, position, level` is a single pass
+down each aisle; sorted by SKU or by line order, which is what ours does now, it
+is a random walk. **This is the whole operational value of the code, and nothing
+in the system uses it.**
+
+**State of the code.** No schema work is needed — `StockLocation.primary_bin_1`
+/ `_2` and `InventoryItem.bin` are already free-text `String(50)`, and nothing
+parses or validates a bin anywhere. What contradicts the warehouse is:
+
+1. `backend/seed_data.py` invents nine bins in a format that does not exist
+   here — `A-01-03`, `B-03-02`, `D-02-03`. Anyone reading seeded data learns
+   the wrong shape.
+2. `TransferModal` prompts with `placeholder="e.g. Bin A3"` — also not a real
+   code.
+3. Nothing sorts by bin. The picking document resolves a bin per line
+   (`TemplateRenderer`) and prints it in line order.
+
+**Open — the one thing the photographs cannot settle.** Whether `3` is the bay
+and the last digit the position *within* that bay, or the reverse. Both readings
+agree that the last digit is the along-aisle axis, so a walk-order sort is
+correct either way; the two only diverge on how a slip breaks across bays. Worth
+one question to a picker before building the sort.
+
+Also visible: every bin carries **two** labels — the location code, and a
+smaller printed product label on the box. And the second photograph shows the
+storage is two-tier: large bulk cartons on the top beams, the coded pick bins
+below. The letters we can read are pick faces, not bulk.
+
+
+### JIM22. The Locations screen, and who is allowed to type in it (FIXED)
+
+The live screen lists **every** branch as a numbered row and you fill in the
+ones that apply — `Line · Branch · Location · Zone · Primary Bin 1 · Max Qty 1 ·
+Primary Bin 2 · Max Qty 2` — with an explicit **Edit** button rather than a grid
+of live inputs. Ours listed only branches that already had a record, so "no bin
+here" and "no branch here" looked identical, and nothing in the UI could write a
+bin at all: the API had accepted `primary_bin_1` since the module was built and
+the column had always been in the grid, printing empty on every picking slip.
+
+Now: all branches as rows, an Edit mode gated to **admin or manager**, and a
+per-field edit history. Three defects surfaced while building it.
+
+1. **A bin could be set but never cleared.** `PATCH` built its update with
+   `exclude_none=True`, which cannot tell "leave this alone" from "empty this".
+   The picking slip kept sending people to a shelf the stock had left. Now
+   `exclude_unset`.
+2. **Pressing Edit before the grid loaded wiped every record.** The first
+   version snapshotted a draft per row when Edit was pressed; if the fetch had
+   not returned, those drafts were blank, and saving wrote the blanks back.
+   Drafts are now derived on demand, so a row nobody typed into has no draft and
+   cannot be sent at all.
+3. **`stock_audit.changed_at` had no writer.** The schema-conventions test
+   caught it — the exemption list covers `created_at`/`updated_at` by name, and
+   a server default is not a writer. Written explicitly, which also pins the
+   value to one UTC clock instead of the database's.
+
+**The branch vocabulary (FIXED — 2a06ee6).** The photograph shows ten
+locations: `3PLP · AF · BULK · GS · HQ · MELB · QING · QUA · RET · SAMP`. Ours
+were six invented ones. Theirs carry operational meaning ours had no word for —
+quarantine, returns, samples, bulk, third-party logistics, the Qingdao office.
+
+Counting the rows first is what made this safe rather than frightening. Only
+two branch values had ever been written: `HQ`, everywhere, and `MELB` on ten
+`stock_locations` rows — and `MELB` was already one of the real codes, never one
+of ours. `Warehouse`, `Sydney`, `Brisbane` and `Perth` existed only in the list.
+So the change moves nothing here; the migration exists for any database seeded
+by `seed_data.py`, which placed stock at "Melbourne".
+
+The one hazard is the unique constraint on `(sku, branch)`: a SKU holding both
+spellings cannot be renamed onto itself. They are one shelf under two names, so
+the quantities are summed and the duplicate dropped — verified against a
+constructed collision, because there is none in this database and the branch
+would otherwise have shipped unexercised.
+
+`AF` and `GS` are still undecoded. They are carried verbatim rather than
+renamed to a guess.
+
+**Also open — staff lost stock editing.** The gate is now admin or manager, per
+instruction. `manager` is a new role; no existing user has it, and existing
+staff accounts can no longer change a stock position.
 
 ### Phase A closed — and what it cost to find
 
