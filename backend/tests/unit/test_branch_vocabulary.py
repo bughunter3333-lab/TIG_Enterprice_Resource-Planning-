@@ -38,12 +38,19 @@ class TestBranchVocabulary:
 
     def test_casing_and_whitespace_are_tidied(self):
         assert normalize_branch(" hq ") == "HQ"
-        assert normalize_branch("melbourne") == "Melbourne"
+        assert normalize_branch("melb") == "MELB"
 
     def test_an_unknown_branch_is_left_alone(self):
         """Aliasing an old spelling onto a current label would point every
-        lookup at a different row and hide the stock at the real one."""
-        assert normalize_branch("MELB") == "MELB"
+        lookup at a different row and hide the stock at the real one.
+
+        `Melbourne` is the case that matters: it is the invented spelling the
+        vocabulary used to carry, and the one the b2c3d4e5f6a7 migration
+        rewrites deliberately, in a migration, once. It must never be rewritten
+        here — a read-time alias would hide any row the migration missed
+        instead of showing it as a branch with no label.
+        """
+        assert normalize_branch("Melbourne") == "Melbourne"
         assert normalize_branch("Container 4") == "Container 4"
 
     def test_no_branch_means_the_default(self):

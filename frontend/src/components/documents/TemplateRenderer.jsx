@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { barcodeBars } from '../../lib/barcode';
+import { compareBins } from '../../lib/binLocation';
 import { JOB_FIELDS, LINE_COLUMNS, PAPER, TOTAL_FIELDS } from '../../lib/documentTemplates';
 import { T } from '../../ui/tokens';
 
@@ -86,10 +87,50 @@ function Barcode({ value, height }) {
   );
 }
 
+/**
+ * Puts the lines in the order the aisles are walked, for documents that print a
+ * bin.
+ *
+ * Sorting the whole list flat would be wrong twice over: a section row titles
+ * the block beneath it, and a note belongs to the line above it. So each
+ * section starts a fresh block, notes travel with their line, and only the
+ * blocks are reordered.
+ */
+function walkOrder(items, inventory) {
+  const binOf = (it) =>
+    (inventory || []).find((i) => i.sku === it.stockCode)?.location || '';
+  const out = [];
+  let block = [];
+  const flush = () => {
+    // Array#sort is stable, so lines sharing a bin keep the order they were
+    // entered on the job.
+    block.sort((a, b) => compareBins(binOf(a[0]), binOf(b[0])));
+    block.forEach((group) => out.push(...group));
+    block = [];
+  };
+  for (const it of items) {
+    if (it.displayType === 'section') { flush(); out.push(it); continue; }
+    if (it.displayType === 'note') {
+      // A note before any line titles the block rather than annotating a line,
+      // so it stays where it was put.
+      if (block.length) block[block.length - 1].push(it);
+      else out.push(it);
+      continue;
+    }
+    block.push([it]);
+  }
+  flush();
+  return out;
+}
+
 function LineTable({ cfg, job, inventory }) {
   const cols = (cfg.columns || []).map((k) => LINE_COLUMNS.find((c) => c.key === k)).filter(Boolean);
   if (!cols.length) return null;
-  const rows = (job.items || []).filter((i) => !i.hide);
+  const visible = (job.items || []).filter((i) => !i.hide);
+  // Only a document that prints a bin is a document somebody walks with.
+  const rows = cols.some((c) => c.key === 'binLocation')
+    ? walkOrder(visible, inventory)
+    : visible;
 
   return (
     <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>

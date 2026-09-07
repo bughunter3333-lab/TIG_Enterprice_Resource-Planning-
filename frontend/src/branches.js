@@ -5,6 +5,6 @@
  * the two lists disagreeing silently opens a position under a name nothing else
  * uses. A backend test asserts they match; adding a branch means editing both.
  */
-export const BRANCHES = ['HQ', 'Warehouse', 'Melbourne', 'Sydney', 'Brisbane', 'Perth'];
+export const BRANCHES = ['HQ', '3PLP', 'AF', 'BULK', 'GS', 'MELB', 'QING', 'QUA', 'RET', 'SAMP'];
 
 export const DEFAULT_BRANCH = BRANCHES[0];
