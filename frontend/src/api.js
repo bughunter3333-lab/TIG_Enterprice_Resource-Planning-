@@ -1,5 +1,23 @@
 const BASE = '/api';
 
+// A gateway, a proxy or a host that has stopped serving answers with HTML, not
+// JSON, so `detail` comes back empty and the status number is the only thing
+// left to show. Name the condition instead — an operator can act on "the server
+// is down" and cannot act on "503".
+const UNREACHABLE_STATUSES = [502, 503, 504];
+
+function errorMessage(detail, status, fallback) {
+  if (Array.isArray(detail)) return detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+  if (typeof detail === 'string') return detail;
+  // A structured detail carries a written message — flattening it to the
+  // status code throws away the only part a person can act on.
+  if (detail && detail.message) return detail.message;
+  if (UNREACHABLE_STATUSES.includes(status)) {
+    return "Can't reach the server — it may be down or restarting.";
+  }
+  return fallback;
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -8,21 +26,14 @@ async function request(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  if (res.status === 401) {
-    window.dispatchEvent(new Event('auth:logout'));
-    throw new Error('Unauthenticated');
-  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = err.detail;
-    const msg = Array.isArray(detail)
-      ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
-      : typeof detail === 'string'
-        ? detail
-        // A structured detail carries a written message — flattening it to the
-        // status code throws away the only part a person can act on.
-        : (detail && detail.message) || `Request failed: ${res.status}`;
-    const error = new Error(msg);
+    // Reading the body first matters: a rejected sign-in is a 401 like any
+    // other, and returning early on the status threw away the server's reason
+    // ("Invalid username or password") in favour of the HTTP condition.
+    if (res.status === 401) window.dispatchEvent(new Event('auth:logout'));
+    const error = new Error(errorMessage(detail, res.status, `Request failed: ${res.status}`));
     error.status = res.status;
     error.detail = detail;
     throw error;
@@ -1257,13 +1268,10 @@ async function uploadCSV(path, file) {
     credentials: 'include',
     body: form,
   });
-  if (res.status === 401) {
-    window.dispatchEvent(new Event('auth:logout'));
-    throw new Error('Unauthenticated');
-  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Upload failed: ${res.status}`);
+    if (res.status === 401) window.dispatchEvent(new Event('auth:logout'));
+    throw new Error(errorMessage(err.detail, res.status, `Upload failed: ${res.status}`));
   }
   return res.json();
 }
