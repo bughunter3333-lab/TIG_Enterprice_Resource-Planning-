@@ -13,7 +13,11 @@ export default defineConfig({
     ),
   },
   server: {
-    host: '0.0.0.0',
+    // Loopback only. Binding every interface put the dev server on the office
+    // network, and vite 5 has a Windows-only `server.fs.deny` bypass that reads
+    // files outside the project — `backend/.env` included. To reach it from a
+    // phone or tablet on purpose: `npm run dev -- --host`.
+    host: 'localhost',
     port: 3000,
     proxy: {
       '/api': {
