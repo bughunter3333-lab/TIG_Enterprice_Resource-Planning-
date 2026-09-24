@@ -7,7 +7,7 @@ import re
 from app.database import get_db
 from app.models.user import User
 from app.core.security import hash_password
-from app.core.dependencies import require_admin, get_current_user
+from app.core.dependencies import ROLES, require_admin, get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -69,10 +69,14 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_admin)):
 def create_user(
     body: UserCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)
 ):
-    if body.role not in ("admin", "staff", "overseas_staff"):
+    if body.role not in ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
     if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(status_code=409, detail="Username already exists")
+    # Email is unique in the table too, and was not checked here, so a taken
+    # address reached the database and came back as a 500.
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=409, detail="Email already in use")
     user = User(
         username=body.username,
         email=body.email,
@@ -96,6 +100,16 @@ def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # Update never checked the role. Every permission is an allowlist, so an
+    # unknown value grants nothing — but a typo like "Admin" silently took away
+    # everything, and the person found out by being locked out.
+    if body.role is not None and body.role not in ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    if (
+        body.email is not None
+        and db.query(User).filter(User.email == body.email, User.id != user_id).first()
+    ):
+        raise HTTPException(status_code=409, detail="Email already in use")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(user, field, value)
     db.commit()

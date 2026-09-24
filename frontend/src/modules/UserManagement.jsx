@@ -4,10 +4,9 @@ import { Users, Plus, Edit, Trash2, Shield, CheckCircle, XCircle, RefreshCw, Key
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
+import { ROLES, ROLE_LABELS } from '../roles';
 
-const ROLES = ['admin', 'staff', 'overseas_staff'];
-const ROLE_LABELS = { admin: 'Admin', staff: 'Staff', overseas_staff: 'Overseas Staff' };
-const ROLE_COLORS = { admin: 'bg-danger-tint text-danger', staff: 'bg-warn-tint text-warn', overseas_staff: 'bg-warn-tint text-warn' };
+const ROLE_COLORS = { admin: 'bg-danger-tint text-danger', manager: 'bg-accent-tint text-accent', staff: 'bg-warn-tint text-warn', overseas_staff: 'bg-warn-tint text-warn' };
 
 const EMPTY_FORM = { username: '', email: '', full_name: '', password: '', role: 'staff' };
 

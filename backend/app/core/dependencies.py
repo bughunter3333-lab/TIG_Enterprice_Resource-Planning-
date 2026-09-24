@@ -43,6 +43,13 @@ def require_role(*roles: str):
     return checker
 
 
+# The roles an account can hold, named once. The frontend mirrors this in
+# `src/roles.js` and a test asserts the two agree. Before it existed the list
+# lived in three places that had drifted: the permission checks knew `manager`,
+# the create endpoint rejected it, and the admin screen could not offer it — so
+# the role existed and could not be given to anybody.
+ROLES = ("admin", "manager", "staff", "overseas_staff")
+
 require_admin = require_role("admin")
 # Stock is the ledger the whole system prices and picks from, so editing a
 # position is a supervisory act rather than a daily one. Staff read it and
