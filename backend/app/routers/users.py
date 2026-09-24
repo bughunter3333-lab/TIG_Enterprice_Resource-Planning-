@@ -149,6 +149,10 @@ def reset_user_password(
     # day life. The self-service change at auth.py has always bumped this; the
     # admin path, which is the one used in an actual incident, did not.
     user.token_version = (user.token_version or 0) + 1
+    # A reset is also how an admin lets a locked-out person back in without
+    # making them wait out the lock.
+    user.failed_login_count = 0
+    user.locked_until = None
 
     # Clearing the second factor is a separate decision from resetting the
     # password, and doing it silently left the account weaker than before the

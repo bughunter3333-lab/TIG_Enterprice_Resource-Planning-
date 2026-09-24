@@ -22,3 +22,8 @@ class User(Base):
     sso_subject = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+    # Per-account lockout. The IP rate limit on /auth/login is easy to walk
+    # around — spread the guesses across addresses and every one gets a fresh
+    # allowance — so the account itself counts failures and locks.
+    failed_login_count = Column(Integer, nullable=False, default=0, server_default="0")
+    locked_until = Column(DateTime(timezone=True), nullable=True)

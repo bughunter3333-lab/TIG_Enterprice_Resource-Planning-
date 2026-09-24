@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import math
 import re
 
 from app.database import get_db
@@ -24,6 +25,19 @@ from app.core.config import settings
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 COOKIE_OPTS = dict(httponly=True, samesite="lax", secure=settings.is_production)
+
+# Five wrong passwords lock the account for fifteen minutes. Long enough that
+# guessing becomes pointless, short enough that a person who fumbled their own
+# password is not stuck waiting for an admin.
+MAX_FAILED_LOGINS = 5
+LOCKOUT_MINUTES = 15
+
+
+def _as_utc(value: Optional[datetime]) -> Optional[datetime]:
+    """SQLite hands timezone-aware columns back naive; Postgres does not."""
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class LoginRequest(BaseModel):
@@ -64,12 +78,40 @@ def login(
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.username == body.username).first()
+    now = datetime.now(timezone.utc)
+
+    # Checked before the password, so a locked account cannot be guessed at
+    # while it is locked: even the right password is refused until it expires.
+    locked_until = _as_utc(user.locked_until) if user else None
+    if locked_until and locked_until > now:
+        minutes = math.ceil((locked_until - now).total_seconds() / 60)
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Too many failed sign-in attempts. Try again in {minutes} "
+                f"minute{'s' if minutes != 1 else ''}, or ask an admin to reset "
+                "the password."
+            ),
+        )
+
     if not user or not verify_password(body.password, user.hashed_password):
+        if user:
+            user.failed_login_count = (user.failed_login_count or 0) + 1
+            if user.failed_login_count >= MAX_FAILED_LOGINS:
+                user.locked_until = now + timedelta(minutes=LOCKOUT_MINUTES)
+                user.failed_login_count = 0
+            db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
 
+    user.failed_login_count = 0
+    user.locked_until = None
+
     if user.totp_enabled:
+        # The password was right, so the failure count resets here too — this
+        # branch returns early and used to skip the commit that saves it.
+        db.commit()
         # Issue short-lived pre-MFA token; full access granted after /verify-2fa
         pre_token = create_pre_mfa_token(user.id)
         response.set_cookie("pre_mfa_token", pre_token, max_age=300, **COOKIE_OPTS)
