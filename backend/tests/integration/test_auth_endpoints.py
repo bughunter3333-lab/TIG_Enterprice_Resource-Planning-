@@ -121,3 +121,7 @@ async def test_rate_limiting_login(async_client: AsyncClient):
 
     # Rate limiting should kick in at some point
     assert rate_limited
+    # ...and say why in `detail`, the one field the frontend reads. slowapi's
+    # default handler used `error`, so the sign-in screen showed a bare 429.
+    assert "detail" in response.json()
+    assert "Too many requests" in response.json()["detail"]

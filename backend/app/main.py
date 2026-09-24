@@ -1,9 +1,9 @@
 import uuid
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
-from slowapi import _rate_limit_exceeded_handler
 
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -41,10 +41,35 @@ from app.routers.admin_settings import router as admin_settings_router
 
 configure_logging(json_logs=settings.is_production)
 
-app = FastAPI(title="Total Image ERP API", version="1.0.0")
+# The interactive docs and the schema behind them are a complete, clickable map
+# of every endpoint and payload. Useful in development; in production, on a
+# public URL, they hand that map to anyone who asks. `openapi_url=None` turns
+# off all three routes, since /docs and /redoc both read from it.
+_docs = (
+    {}
+    if not settings.is_production
+    else {
+        "docs_url": None,
+        "redoc_url": None,
+        "openapi_url": None,
+    }
+)
+app = FastAPI(title="Total Image ERP API", version="1.0.0", **_docs)
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def _rate_limited(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    # slowapi's own handler answers `{"error": ...}`. Every other error in this
+    # API is `{"detail": ...}`, which is the one field the frontend reads — so a
+    # rate-limited sign-in showed "Request failed: 429" instead of a reason.
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Wait a minute and try again."},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limited)
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
