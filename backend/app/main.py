@@ -9,6 +9,7 @@ from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging_config import configure_logging, request_id_var
 from app.routers import (
+    accounting,
     auth,
     users,
     jobs,
@@ -138,3 +139,4 @@ app.include_router(analytics.router)
 app.include_router(admin_settings_router)
 app.include_router(saved_lists.router)
 app.include_router(dispatch_sessions.router)
+app.include_router(accounting.router)

@@ -31,4 +31,8 @@ class SupplierBill(Base):
     paid_date = Column(String(20))
     paid_amount = Column(Numeric(10, 2), default=0)
     notes = Column(String(500))
+    # The ledger account the bill's cost posts to. Empty means "decide by kind":
+    # a bill against a purchase order is cost of sales, anything else general
+    # expenses. Without it rent, fuel and power all landed in one line of the P&L.
+    account_id = Column(Integer, ForeignKey("ledger_accounts.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.core.reservations import COMMITTED_STATUSES, committed_total
 from app.core.stock_ledger import post_movement, reverse_job_movements
+from app.core.ledger import LedgerError
+from app.core.ledger_postings import has_posted_invoice, sync_invoice, sync_payment
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.customer import Customer
@@ -683,19 +685,8 @@ def _apply_status_transition(
         _restore_on_hand(job, db)
 
     # Compliance timestamps
-    if new_status == "INVOICE" and not job.invoice_date:
-        job.invoice_date = today
-        job.invoice_status = "invoiced"
-        # What the customer owes, worked out here rather than in the browser.
-        # This was only ever computed in the job form, so a job invoiced by an
-        # import, a feed, a portal or a script carried a balance of zero, and
-        # every consumer of the field believed it -- the credit-limit check
-        # below at job creation, the customer statement, the sales register and
-        # the receivables figures. The invariant is total inc GST less whatever
-        # has already been taken; `record_payment` maintains it from here.
-        job.balance_due = max(
-            0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
-        )
+    if new_status in _DEPLETED_STATUSES:
+        _stamp_invoiced(job, today)
     if new_status == "PAID":
         job.payment_status = "paid"
         if not job.payment_date:
@@ -705,6 +696,43 @@ def _apply_status_transition(
 
     if new_status in ("INVOICE", "PAID", "CANCEL"):
         _recalculate_customer_balance(job.customer_id, db)
+
+    # The revenue crosses the same boundary the stock does: entering INVOICE or
+    # PAID posts the invoice, leaving them reverses it. Unprint, edit and
+    # re-invoice therefore reads in the ledger as posted, reversed, posted.
+    _sync_invoice_or_refuse(job, db)
+
+
+def _stamp_invoiced(job: "Job", today: str) -> None:
+    """What becoming invoiced writes onto a job, from every path that does it.
+
+    Once only on INVOICE, so a job sent straight to PAID — or created already
+    invoiced, or imported — carried no invoice date. The BAS report selects by
+    invoice date, so those sales were silently absent from it; the ledger found
+    this by disagreeing with it. Keyed on the invoiced boundary now, the same
+    one stock and the ledger use.
+    """
+    if job.invoice_date:
+        return
+    job.invoice_date = today
+    job.invoice_status = "invoiced"
+    # What the customer owes, worked out here rather than in the browser.
+    # This was only ever computed in the job form, so a job invoiced by an
+    # import, a feed, a portal or a script carried a balance of zero, and
+    # every consumer of the field believed it -- the credit-limit check at job
+    # creation, the customer statement, the sales register and the receivables
+    # figures. The invariant is total inc GST less whatever has already been
+    # taken; `record_payment` maintains it from here.
+    job.balance_due = max(
+        0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
+    )
+
+
+def _sync_invoice_or_refuse(job: "Job", db: Session) -> None:
+    try:
+        sync_invoice(db, job)
+    except LedgerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 def _recalculate_weight(job: "Job", db: Session) -> None:
@@ -1075,6 +1103,13 @@ def create_job(
         db.flush()
         _commit_job_stock(job, db)
 
+    # Likewise for the ledger: created already invoiced, it must still post —
+    # and carry an invoice date, or no dated report can find it.
+    if job.status in _DEPLETED_STATUSES:
+        _stamp_invoiced(job, datetime.now().strftime("%Y-%m-%d"))
+    db.flush()
+    _sync_invoice_or_refuse(job, db)
+
     db.commit()
     return _job_with_relations(db, job_id)
 
@@ -1389,6 +1424,16 @@ def record_payment(
         notes=body.notes,
     )
     db.add(ledger)
+    db.flush()
+    try:
+        sync_payment(
+            db,
+            ledger,
+            job,
+            created_by=current_user.full_name or current_user.username,
+        )
+    except LedgerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     # Audit comment
     comment_parts = [f"Payment of ${body.amount:.2f} received via {body.method}"]
@@ -1439,6 +1484,23 @@ def delete_job(
                     f"Job {job_id} has moved stock and cannot be deleted. "
                     "Set it to CANCEL instead — that releases what it reserved "
                     "and keeps the history."
+                ),
+            },
+        )
+    # The same rule for money. A job that has been invoiced or paid against has
+    # entries in the ledger that name it; deleting the job would leave revenue
+    # and cash that no document explains. CANCEL reverses the invoice properly.
+    if has_posted_invoice(db, job_id) or (
+        db.query(JobPayment).filter(JobPayment.job_id == job_id).first() is not None
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "has_ledger_history",
+                "message": (
+                    f"Job {job_id} has been invoiced or paid and cannot be deleted. "
+                    "Set it to CANCEL instead — that reverses the invoice in the "
+                    "ledger and keeps the record."
                 ),
             },
         )
