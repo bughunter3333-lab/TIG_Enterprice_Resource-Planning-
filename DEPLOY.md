@@ -72,6 +72,7 @@ CI proves two things on every push, against a real Postgres rather than the SQLi
 3. **Resume the `tig-erp-api` web service.** Watch the deploy log for `Running upgrade … -> d4e5f6a7b8c9` (the current head).
 4. Seed an admin (Step 2), then assign roles in *User Management*. Editing a stock location needs **admin** or **manager**.
 5. Check `https://tig-erp-api.onrender.com/health/ready` returns `"database":"ok"`, then sign in through the Vercel URL.
+6. **Accounts → Ledger Health → Bring history into the ledger.** Once, as an admin. It posts every invoice, payment and bill that existed before the ledger; running it again posts nothing new. Ledger Health should then read "The ledger agrees with the jobs and bills".
 
 ## Production checklist
 
@@ -81,3 +82,5 @@ CI proves two things on every push, against a real Postgres rather than the SQLi
 - [ ] Settings → Company filled in — ABN, BSB, account number and name print on every invoice
 - [ ] At least one **manager** assigned if anyone besides admins maintains stock locations
 - [ ] `https://<frontend>/` returns `X-Frame-Options: DENY` (set in `frontend/vercel.json`)
+- [ ] History brought into the ledger, and Ledger Health in agreement
+- [ ] A lock date set once each BAS is lodged, so the lodged figures cannot move

@@ -1301,6 +1301,50 @@ renamed to a guess.
 instruction. `manager` is a new role; no existing user has it, and existing
 staff accounts can no longer change a stock position.
 
+### ERP1. A general ledger underneath everything (BUILT)
+
+Researched against ERPNext, Odoo and Tryton (design only — ERPNext is GPL-3.0),
+which agree on every rule that matters: balanced entries of one-sided lines,
+posted entries corrected only by reversal, nothing posted into a closed period,
+operational documents posting automatically. Design and reasons:
+`docs/superpowers/specs/2026-09-25-general-ledger-design.md`.
+
+Built: an Australian chart of accounts found by role; one posting function that
+enforces the rules (and a database check that holds the one-side rule too);
+invoices post on the same INVOICE/PAID boundary stock uses and reverse when a
+job leaves it; payments, bills and bill payments post and re-post themselves
+when changed; manual journals with reversal; trial balance, P&L, balance sheet
+(split on the Australian financial year), general ledger and BAS read only from
+journal lines; a lock date; bringing history in, idempotently; and a health
+check that ties receivables and payables to the jobs and bills line by line.
+
+**This answers JIM10 provisionally.** The ledger makes the system a full ERP
+rather than an operations tool beside one. It does not stop Jim2 or Xero owning
+the books instead — the entries are exactly what an export would carry — but
+lodging from this ledger is now possible, which it was not.
+
+**Found by building it** (fixed; see the spec's "What building it found"): the
+BAS claimed GST credits on purchase orders; invoiced jobs could carry no invoice
+date and dropped out of the BAS; jobs marked PAID with no payment recorded.
+
+**Open, deliberately not changed:**
+
+- *Aged payables* (`/reports/aged-payables`) ages open **purchase orders**, not
+  unpaid bills. That may be intended as committed spend, but it is not what
+  "payables" means in the ledger, and the two will not agree.
+- The bill form lets a bill be set to *Paid* without recording a payment. The
+  ledger keeps it owed, which is honest, but the form should route "paid"
+  through the payment dialog.
+- Moving a job to PAID records no payment either (the health check lists these).
+  Refusing PAID until the balance is zero would stop it at source, but bulk
+  status and the despatch flow use PAID, so that is a workflow decision.
+- Inventory is periodic. Perpetual cost of goods sold — posted at each shipment
+  at average cost — is the next step once the stock ledger's cost figures are
+  trusted.
+- No bank reconciliation, customer credit notes as documents, or year-end
+  closing entry yet (retained earnings are computed on the balance sheet
+  instead of posted).
+
 ### Phase A closed — and what it cost to find
 
 ORD2, ORD3, ORD4 and ORD5 are fixed. They were one idea in four places: a
