@@ -49,8 +49,17 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
     amountInc: bill?.amountInc ?? '',
     status: bill?.status || 'pending',
     notes: bill?.notes || '',
+    accountId: bill?.accountId ?? '',
   });
   const [saving, setSaving] = useState(false);
+  // The ledger account this bill's cost posts to. Blank lets the ledger decide
+  // by kind — Purchases for a bill against a PO, General Expenses otherwise —
+  // which lumps rent, power and fuel into one line of the P&L until chosen.
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['ledger-account-options'],
+    queryFn: api.accounting.accountOptions,
+    staleTime: 300000,
+  });
   const [err, setErr] = useState('');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -85,6 +94,7 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
         amountEx: parseFloat(form.amountEx) || 0,
         tax: parseFloat(form.tax) || 0,
         amountInc: parseFloat(form.amountInc) || 0,
+        accountId: form.accountId ? Number(form.accountId) : null,
       });
     } catch (e) { setErr(e.message); } finally { setSaving(false); }
   };
@@ -167,6 +177,14 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
                 <option value="paid">Paid</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="bill-account" className="text-xs mb-1 block" style={{ color: T.textMuted }}>Account</label>
+            <select id="bill-account" value={form.accountId} onChange={e => set('accountId', e.target.value)} className={inputCls} style={inputStyle}>
+              <option value="">{form.poId ? 'Purchases (against a PO)' : 'General Expenses'} — by default</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}
+            </select>
           </div>
 
           <div>

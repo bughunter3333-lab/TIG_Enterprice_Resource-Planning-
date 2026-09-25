@@ -1163,9 +1163,47 @@ function normalizeBill(b) {
     paidDate: b.paid_date ?? '',
     paidAmount: parseFloat(b.paid_amount ?? 0),
     notes: b.notes ?? '',
+    accountId: b.account_id ?? null,
     createdAt: b.created_at,
   };
 }
+
+// ── General ledger ───────────────────────────────────────────────────────────
+
+const ledgerQuery = (params) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== ''),
+  ).toString();
+  return q ? `?${q}` : '';
+};
+
+export const accounting = {
+  accounts: (asAt) => request(`/accounting/accounts${ledgerQuery({ as_at: asAt })}`),
+  // What a bill can be coded to — readable by staff, no balances.
+  accountOptions: () => request('/accounting/accounts/options'),
+  createAccount: (data) => request('/accounting/accounts', { method: 'POST', body: data }),
+  updateAccount: (id, data) => request(`/accounting/accounts/${id}`, { method: 'PATCH', body: data }),
+
+  journals: (params = {}) => request(`/accounting/journals${ledgerQuery(params)}`),
+  journal: (id) => request(`/accounting/journals/${id}`),
+  postJournal: (data) => request('/accounting/journals', { method: 'POST', body: data }),
+  reverseJournal: (id, reason) =>
+    request(`/accounting/journals/${id}/reverse`, { method: 'POST', body: { reason: reason || null } }),
+
+  trialBalance: (asAt) => request(`/accounting/reports/trial-balance${ledgerQuery({ as_at: asAt })}`),
+  profitLoss: (from, to) =>
+    request(`/accounting/reports/profit-loss${ledgerQuery({ date_from: from, date_to: to })}`),
+  balanceSheet: (asAt) => request(`/accounting/reports/balance-sheet${ledgerQuery({ as_at: asAt })}`),
+  generalLedger: (accountId, from, to) =>
+    request(`/accounting/reports/general-ledger/${accountId}${ledgerQuery({ date_from: from, date_to: to })}`),
+  bas: (from, to) => request(`/accounting/reports/bas${ledgerQuery({ date_from: from, date_to: to })}`),
+
+  health: () => request('/accounting/health'),
+  lockDate: () => request('/accounting/lock-date'),
+  setLockDate: (value) =>
+    request('/accounting/lock-date', { method: 'PUT', body: { lock_date: value || null } }),
+  backfill: () => request('/accounting/backfill', { method: 'POST' }),
+};
 
 export const supplierBills = {
   list: (params = {}) => {
@@ -1188,6 +1226,7 @@ export const supplierBills = {
     amount_inc: data.amountInc || 0,
     status: data.status || 'pending',
     notes: data.notes || null,
+    account_id: data.accountId || null,
   }}).then(normalizeBill),
 
   update: (id, data) => request(`/ap/bills/${id}`, { method: 'PATCH', body: {
@@ -1203,6 +1242,10 @@ export const supplierBills = {
     amount_inc: data.amountInc,
     status: data.status,
     notes: data.notes,
+    // Sent only when the caller named it, so a partial update — a status change,
+    // say — cannot wipe the account. When named, null is sent as null: that is
+    // how a bill goes back to "decide by kind".
+    ...('accountId' in data ? { account_id: data.accountId ?? null } : {}),
   }}).then(normalizeBill),
 
   pay: (id, paidAmount, paidDate) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {

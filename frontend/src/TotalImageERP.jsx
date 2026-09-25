@@ -9,7 +9,7 @@ import SettingsModule from './modules/SettingsModule';
 import UserManagement from './modules/UserManagement';
 import StylesModule from './modules/StylesModule';
 import SchedulingModule from './modules/SchedulingModule';
-import AccountsPayableModule from './modules/AccountsPayableModule';
+import AccountingModule from './modules/accounting/AccountingModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
@@ -4926,18 +4926,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
           </>)}
 
           {/* ── ACCOUNTS ribbon ── */}
-          {activeModule === 'accounts' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-accent-strong" /><span className="text-[9px] text-accent-strong whitespace-nowrap font-semibold">AP Bills</span>
-              </button>
-              {[['Users','Debtors (AR)'],['BarChart3','GST/BAS']].map(([, lbl]) => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-          </>)}
+          {/* No ribbon for Accounts: its navigation is the tab row inside the
+              module. This used to hold a dead "AP Bills" button and a disabled
+              "GST/BAS" one, which said BAS was unavailable directly above the
+              ledger's working BAS report. */}
 
           {/* ── MANAGEMENT (reports) ribbon ── */}
           {activeModule === 'reports' && (<>
@@ -5319,7 +5311,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'user-management'    && <UserManagement currentUser={currentUser} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
                 {!loading && activeModule === 'accounts' && (
-                  <AccountsPayableModule suppliers={suppliers} />
+                  <AccountingModule suppliers={suppliers} currentUser={currentUser} />
                 )}
                 {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
                   <div className="flex flex-col items-center justify-center h-64 text-faint">
