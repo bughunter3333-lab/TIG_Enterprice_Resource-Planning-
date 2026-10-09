@@ -14,118 +14,117 @@
  *
  * ── The direction ─────────────────────────────────────────────────────────
  *
- * "Press room", carried inward from the sign-in screen. The business puts ink
- * and thread onto garments, so the interface is built from the press floor
- * rather than from generic business software:
+ * SAP S/4HANA — the SAP Fiori "Horizon" theme (2026-10-10, the owner's call:
+ * "we do not need any backdated looking ERP"). Every value below is taken from
+ * SAP's own open-source theme package, @sap-theming/theming-base-content
+ * (Apache-2.0), file content/Base/baseLib/sap_horizon/css_variables.css; the
+ * SAP variable each one comes from is named beside it, so a later Horizon
+ * release can be followed by diffing that file. No SAP logos or marks are used.
  *
- *   ink     the machine — chrome, top bar, nav, primary text
- *   paper   warm newsprint stock, the ground everything sits on
- *   panel   the sheet being worked on; stays pure white so data reads cleanly
- *   accent  process cyan, the live ink
- *   emphasis process magenta, used sparingly for the one thing that matters
+ * The key names are the app's own and predate this theme (`ink` is the shell,
+ * `paper` the page). They are kept because ~3,000 call sites read them; what
+ * changed is what they hold.
  *
- * Semantic colour is deliberately separate from brand colour. `ok`, `warn` and
- * `danger` are a traffic light and mean the same thing on every surface; they
- * are not free to follow the brand, because a job status is information rather
- * than decoration.
+ *   ink     the shell bar — white in Horizon, with dark text
+ *   paper   the page background behind cards and tables
+ *   panel   cards, tables, object pages
+ *   accent  the brand blue; links, primary buttons, selection
+ *   emphasis a second, deeper blue for the occasional highlight
  *
- * ── Contrast ──────────────────────────────────────────────────────────────
+ * Semantic colour stays separate from brand colour: `ok`, `warn` and `danger`
+ * are Fiori's positive / critical / negative and mean the same on every
+ * surface. The *text* variants are used, because Horizon's critical orange
+ * (#e76500) is only 3:1 on white and cannot carry small words.
  *
- * Ratios below are against `panel` (#ffffff) unless stated. `accent` is 3.5:1,
- * which passes for graphics and large text but NOT for body copy — use
- * `accentStrong` (5.2:1) wherever cyan carries words.
+ * ── Contrast (against white) ──────────────────────────────────────────────
  *
- * `faint` was #8d8d99, which measured 3.28:1 in the running application in 17
- * places — the nav-tree section labels, the empty-state line, the status bar.
- * Those are read, not decorative. It is #686874 now: 5.4:1 on panel, 4.7:1 on
- * paper, so it passes on both grounds. That narrows the gap to `muted`, which
- * is the right trade: a third grey nobody can read is not a third level of
- * hierarchy. Anything quieter than `muted` gets there by size and weight.
+ *   text #131e29 16:1 · muted #556b82 5.4:1 · faint #5b738b 4.9:1
+ *   accentStrong #0064d9 5.2:1 · accent #0070f2 4.6:1
+ *   ok #256f3a 6.3:1 · warn #b44f00 4.9:1 · danger #aa0808 8.2:1
+ *   focus #0032a5 9.8:1 — the old cyan ring was 1.8:1 and failed WCAG 2.2.
  */
 
 export const palette = {
-  // ── Chrome: the machine ────────────────────────────────────────────────
-  ink: '#17171c',
-  inkRaised: '#23232b',
-  inkHover: '#2f2f39',
-  inkText: '#ffffff',
-  inkTextMuted: '#a8a8b8',
+  // ── Shell bar ──────────────────────────────────────────────────────────
+  ink: '#ffffff',          // sapShellColor
+  inkRaised: '#f5f6f7',    // sapBackgroundColor
+  inkHover: '#eaecee',     // sapButton_Hover_Background
+  inkText: '#131e29',      // sapShell_TextColor
+  inkTextMuted: '#556b82', // sapContent_LabelColor
 
   // ── Ground and surfaces ────────────────────────────────────────────────
-  paper: '#f1eee8',
-  panel: '#ffffff',
-  panelAlt: '#faf8f4',
-  hairline: '#d8d3c8',
-  hairlineSoft: '#ebe7de',
+  paper: '#f5f6f7',        // sapBackgroundColor
+  panel: '#ffffff',        // sapBaseColor / sapTile_Background
+  panelAlt: '#f5f6f7',     // sapList_AlternatingBackground
+  hairline: '#d9d9d9',     // sapGroup_ContentBorderColor
+  hairlineSoft: '#eaecee', // sapList_Hover_Background
 
   // ── Text ───────────────────────────────────────────────────────────────
-  text: '#1a1a1f',
-  muted: '#5c5c66',
-  faint: '#686874',
-  headerText: '#3a3a44',
+  text: '#131e29',         // sapTextColor
+  muted: '#556b82',        // sapContent_LabelColor
+  faint: '#5b738b',        // sapAccentColor10
+  headerText: '#131e29',   // sapGroup_TitleTextColor
 
-  // ── Accent: process cyan ───────────────────────────────────────────────
-  accent: '#0090c8',
-  accentStrong: '#00719e',
-  accentTint: '#d9f0fa',
-  accentFocus: '#7fcbe8',
+  // ── Accent: brand blue ─────────────────────────────────────────────────
+  accent: '#0070f2',       // sapBrandColor
+  accentStrong: '#0064d9', // sapLinkColor / sapHighlightColor
+  accentTint: '#ebf8ff',   // sapList_SelectionBackgroundColor
+  accentFocus: '#0032a5',  // sapContent_FocusColor
 
-  // ── Emphasis: process magenta. One thing at a time. ────────────────────
-  emphasis: '#c8006b',
-  emphasisTint: '#fce4f1',
+  // ── Emphasis: a deeper blue, sparingly ─────────────────────────────────
+  emphasis: '#0057d2',     // sapAccentColor6
+  emphasisTint: '#d1efff', // sapAccentBackgroundColor6
 
-  // ── Semantic traffic light ─────────────────────────────────────────────
-  ok: '#15803d',
-  okTint: '#dcf5e4',
-  warn: '#b45309',
-  warnTint: '#fdf0d5',
-  danger: '#c8102e',
-  dangerTint: '#fdeaec',
+  // ── Semantic ───────────────────────────────────────────────────────────
+  ok: '#256f3a',           // sapPositiveTextColor
+  okTint: '#f5fae5',       // sapSuccessBackground
+  warn: '#b44f00',         // sapCriticalTextColor
+  warnTint: '#fff8d6',     // sapWarningBackground
+  danger: '#aa0808',       // sapNegativeTextColor
+  dangerTint: '#ffeaf4',   // sapErrorBackground
 
-  // Editable grid cell. Jim2 tints columns you can type into; the tint is
-  // warmed here so it sits on paper rather than glowing against it.
-  editable: '#fdf9e3',
+  // Editable grid cell. Fiori fields are white with a border; this faint
+  // blue keeps borderless in-grid cells recognisably typeable.
+  editable: '#f2f8ff',
 };
 
 /**
- * Density. The brief was to relax slightly: larger targets and more room to
- * read, paid for with a few rows per screen. Row height moves 30 → 33 and the
- * grid type 12 → 13, which at 1080p costs roughly three rows on a full-height
- * list and buys a noticeably calmer surface for someone reading it all day.
+ * Density — Fiori "compact", the desktop content density S/4HANA uses: 2rem
+ * rows, 1.625rem fields. Corners follow Horizon: .5rem for buttons and most
+ * controls (sapButton_BorderCornerRadius), .75rem for cards and panels
+ * (sapElement_BorderCornerRadius), .25rem for input fields.
  */
 export const density = {
-  rowHeight: 33,
-  inputHeight: 29,
-  radius: 5,
-  radiusLg: 8,
+  rowHeight: 32,
+  inputHeight: 26,
+  radius: 8,
+  radiusLg: 12,
+  radiusField: 4,
 };
 
 /**
- * Type. Archivo carries the UI: it is a grotesque with a large x-height and a
- * narrow set width, so it holds more characters per column than IBM Plex Sans
- * at the same size while reading better at 13px. IBM Plex Mono stays for
- * anything that must align in a column — SKUs, job numbers, money, dates.
+ * Type — SAP 72 for everything, 72 Mono where figures and codes must align.
+ * Sizes follow Fiori: 14px body (sapFontSize), 12px small (sapFontSmallSize),
+ * and nothing anyone reads below 12px.
  */
 export const type = {
-  font: "'Archivo', ui-sans-serif, system-ui, sans-serif",
-  fontMono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace",
+  font: "'72', '72full', Arial, Helvetica, sans-serif",
+  fontMono: "'72Mono', ui-monospace, SFMono-Regular, monospace",
   fsBase: 14,
   fsGrid: 13,
-  fsHeader: 11,
-  fsSmall: 11.5,
+  fsHeader: 12,
+  fsSmall: 12,
 };
 
 /**
- * Elevation, tinted with the chrome ink rather than pure black — black shadows
- * go muddy on a warm ground. Depth separates layers; it is not decoration, and
- * density is never traded for it.
+ * Elevation — Horizon's shadows, tinted with its slate (rgba(34,53,72)).
  */
 export const elevation = {
-  shadowSm: '0 1px 2px rgba(23,23,28,.07), 0 1px 1px rgba(23,23,28,.04)',
-  shadowMd: '0 2px 8px rgba(23,23,28,.11), 0 1px 2px rgba(23,23,28,.06)',
-  shadowHeader: '0 3px 5px -2px rgba(23,23,28,.10)',
-  shadowChrome: '0 1px 3px rgba(23,23,28,.30)',
-  shadowPress: '3px 3px 0 rgba(23,23,28,.85)',
+  shadowSm: '0 0 0.125rem 0 rgba(34,53,72,.2), 0 0.125rem 0.25rem 0 rgba(34,53,72,.2)',      // sapContent_Shadow0
+  shadowMd: '0 0 0 0.0625rem rgba(34,53,72,.48), 0 0.125rem 0.5rem 0 rgba(34,53,72,.3)',     // sapContent_Shadow1
+  shadowHeader: '0 0.125rem 0.125rem 0 rgba(34,53,72,.05), inset 0 -0.0625rem 0 0 #d9d9d9',   // sapContent_HeaderShadow
+  shadowChrome: '0 0.125rem 0.125rem 0 rgba(34,53,72,.15)',                                    // shell bar
+  shadowPress: '0 0 0 0.0625rem rgba(34,53,72,.48), 0 0.625rem 1.875rem 0 rgba(34,53,72,.25)', // sapContent_Shadow2
 };
 
 export const motion = {

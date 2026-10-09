@@ -12,7 +12,7 @@
 import { palette, density, type, elevation, motion } from './palette';
 
 export const T = {
-  // Chrome — the machine. Was steel-blue (#2c4a6e); now ink.
+  // Chrome — the shell bar. SAP Horizon: white, with dark text.
   chrome: palette.ink,
   chromeRaised: palette.inkRaised,
   chromeHover: palette.inkHover,
@@ -32,19 +32,18 @@ export const T = {
   textFaint: palette.faint,
   headerText: palette.headerText,
 
-  // Accent — process cyan. `accent` is 3.5:1 on white: fills, borders and large
-  // text only. Anything small that carries words uses accentStrong (5.2:1).
+  // Accent — Horizon brand blue. Small words use accentStrong (5.2:1).
   accent: palette.accent,
   accentStrong: palette.accentStrong,
   accentTint: palette.accentTint,
   accentFocus: palette.accentFocus,
 
-  // Emphasis — process magenta. For the single most important thing on a
+  // Emphasis — a deeper blue, for the single most important thing on a
   // surface, and nothing else. If two things are emphasised, neither is.
   emphasis: palette.emphasis,
   emphasisTint: palette.emphasisTint,
 
-  // Editable grid cell — Jim2 tints columns you can type into.
+  // Editable grid cell — a faint tint marks borderless cells you can type into.
   editable: palette.editable,
 
   // Feedback — a full traffic light. These are information, not brand, and do
@@ -69,6 +68,7 @@ export const T = {
   inputHeight: density.inputHeight,
   radius: density.radius,
   radiusLg: density.radiusLg,
+  radiusField: density.radiusField,
 
   // Elevation
   shadowSm: elevation.shadowSm,
@@ -84,28 +84,34 @@ export const T = {
 
 // Workflow statuses, in the order a job moves through them.
 //
-// These are learned: staff read the colour before the word, so they are not
-// free to follow the brand. Two were changed and the rest were left alone.
+// Coloured by phase, from SAP Fiori's indication palette (sap_horizon
+// sapIndicationColor_N), so a colour says where a job is in its life rather
+// than giving eleven statuses eleven hues. The word and the stage stepper
+// carry the exact status. Semantic colours are kept for meaning:
 //
-//   New   was #1d4ed8, a blue close enough to ORDER's indigo that the two were
-//         hard to separate at badge size. It takes the process cyan instead,
-//         at the darker step so white text on it still passes.
-//   PROOF was #9333ea, a purple sitting beside QUOTE's violet with the same
-//         problem. It takes the press magenta, which is both distinguishable
-//         and the one place the emphasis colour earns a permanent home —
-//         PROOF is the status that means someone outside is waiting on you.
+//   Sales       QUOTE                        indication 7  violet
+//   Production  New, ORDER, In Progress, PRINT  indication 5  blue
+//               PROOF                        indication 3  orange — the one
+//               production status where someone outside is holding things up
+//   Fulfil      Pick/Pack, FINISH            indication 6  teal
+//   Billing     INVOICE, PAID                positive green
+//   Closed      CANCEL                       indication 10 grey
+//
+// 'In Progress' used to be the warning colour, so every job on the floor
+// looked like a problem. All values pass 4.5:1 as text on white and as a fill
+// behind white text.
 export const STATUS_COLORS = {
-  QUOTE: '#7c3aed',
-  New: palette.accentStrong,
-  ORDER: '#4f46e5',
-  'In Progress': palette.warn,
-  PROOF: palette.emphasis,
-  PRINT: '#c2410c',
-  'Pick/Pack': '#0e7490',
-  FINISH: palette.ok,
-  INVOICE: '#0f766e',
-  PAID: '#047857',
-  CANCEL: palette.muted,
+  QUOTE: '#5d36ff',
+  New: '#0064d9',
+  ORDER: '#0064d9',
+  'In Progress': '#0064d9',
+  PROOF: '#b95100',
+  PRINT: '#0064d9',
+  'Pick/Pack': '#046c7a',
+  FINISH: '#046c7a',
+  INVOICE: '#256f3a',
+  PAID: '#256f3a',
+  CANCEL: '#45484a',
 };
 
 export function statusColor(status) {

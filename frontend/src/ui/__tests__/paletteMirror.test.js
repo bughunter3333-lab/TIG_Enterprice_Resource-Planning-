@@ -37,6 +37,7 @@ const MIRROR = {
   'accent-tint': 'accentTint',
   'accent-focus': 'accentFocus',
   faint: 'faint',
+  text: 'text',
 };
 
 describe('index.css mirrors the palette', () => {
@@ -57,9 +58,9 @@ describe('index.css mirrors the palette', () => {
 
   test('the css carries no colour literal that is not a mirrored property', () => {
     // A hex written straight into a rule is the thing this file exists to stop.
-    // The scrollbar thumb is the one deliberate exception: it is a shade between
-    // hairline and faint that no token needs a name for.
-    const ALLOWED = new Set(['#c4bcab']);
+    // The scrollbar thumb is the one deliberate exception: SAP Horizon's
+    // sapScrollBar_FaceColor, which no other surface needs a token for.
+    const ALLOWED = new Set(['#7b91a8']);
     const body = css.slice(css.indexOf('}', css.indexOf(':root')));
     const literals = [...body.matchAll(/#[0-9a-fA-F]{3,8}\b/g)]
       .map(m => m[0].toLowerCase())

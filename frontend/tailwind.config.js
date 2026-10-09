@@ -1,4 +1,4 @@
-import { palette, type } from './src/ui/palette.js';
+import { palette, type, elevation } from './src/ui/palette.js';
 
 /**
  * The theme reads the same palette as src/ui/tokens.js.
@@ -22,7 +22,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Chrome — the machine: top bar, nav tree, status bar.
+        // Chrome — the shell bar (white in SAP Horizon).
         ink: {
           DEFAULT: palette.ink,
           raised: palette.inkRaised,
@@ -43,8 +43,7 @@ export default {
         faint: palette.faint,
         header: palette.headerText,
 
-        // Accent — process cyan. `accent` is 3.5:1 on white, so it is for
-        // fills, borders and large text; `accent-strong` (5.2:1) carries words.
+        // Accent — Horizon brand blue; `accent-strong` (5.2:1) carries words.
         accent: {
           DEFAULT: palette.accent,
           strong: palette.accentStrong,
@@ -52,7 +51,7 @@ export default {
           focus: palette.accentFocus,
         },
 
-        // Emphasis — process magenta, for one thing per surface.
+        // Emphasis — a deeper blue, for one thing per surface.
         emphasis: { DEFAULT: palette.emphasis, tint: palette.emphasisTint },
 
         // Traffic light. Information, not brand.
@@ -60,25 +59,27 @@ export default {
         warn: { DEFAULT: palette.warn, tint: palette.warnTint },
         danger: { DEFAULT: palette.danger, tint: palette.dangerTint },
 
-        // The Jim2 convention: a column you can type into is tinted.
+        // A borderless cell you can type into is faintly tinted.
         editable: palette.editable,
       },
 
       fontFamily: {
-        sans: [type.font.split(',')[0].replace(/'/g, ''), 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        // Quoted: a family name that starts with a digit is not a valid CSS
+        // identifier, and an unquoted `72` would void the whole declaration.
+        sans: ['"72"', '"72full"', 'Arial', 'Helvetica', 'sans-serif'],
+        mono: ['"72Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
       // Figures in a column have to line up, or the eye cannot compare them.
       fontVariantNumeric: { tabular: 'tabular-nums' },
 
       boxShadow: {
-        // Tinted with the chrome ink; pure black goes muddy on a warm ground.
-        sm: '0 1px 2px rgba(23,23,28,.07), 0 1px 1px rgba(23,23,28,.04)',
-        DEFAULT: '0 2px 8px rgba(23,23,28,.11), 0 1px 2px rgba(23,23,28,.06)',
-        header: '0 3px 5px -2px rgba(23,23,28,.10)',
-        chrome: '0 1px 3px rgba(23,23,28,.30)',
-        press: '3px 3px 0 rgba(23,23,28,.85)',
+        // SAP Horizon's shadows (palette.js `elevation`).
+        sm: elevation.shadowSm,
+        DEFAULT: elevation.shadowMd,
+        header: elevation.shadowHeader,
+        chrome: elevation.shadowChrome,
+        press: elevation.shadowPress,
       },
 
       transitionTimingFunction: {

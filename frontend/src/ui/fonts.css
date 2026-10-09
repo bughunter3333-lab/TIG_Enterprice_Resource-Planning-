@@ -1,0 +1,33 @@
+/* SAP 72 and 72 Mono — the SAP Fiori typefaces, from SAP's open-source theme
+   package @sap-theming/theming-base-content (Apache-2.0). Only the weights the
+   app uses are declared; each file is fetched the first time text needs it. */
+@font-face {
+  font-family: '72';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: '72';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72-Semibold.woff2') format('woff2');
+  font-weight: 500 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: '72';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72-Bold.woff2') format('woff2');
+  font-weight: 700 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: '72';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72-Italic.woff2') format('woff2');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: '72Mono';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72Mono-Regular.woff2') format('woff2');
+  font-weight: 400 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: '72Mono';
+  src: url('@sap-theming/theming-base-content/content/Base/baseLib/baseTheme/fonts/72Mono-Bold.woff2') format('woff2');
+  font-weight: 700 900; font-style: normal; font-display: swap;
+}
