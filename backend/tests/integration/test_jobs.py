@@ -941,6 +941,98 @@ class TestBalanceDueIsDerived:
 
 
 @pytest.mark.integration
+class TestMoneyFieldsAreServerOwned:
+    """Paid, invoiced, deposit and balance owing change only by recording a
+    payment or by invoicing.
+
+    The job form had Paid and Invoice dropdowns and sent all four fields on
+    every save, and both the create and the update endpoint wrote them straight
+    onto the job. A job could read Paid with no payment taken and nothing in
+    the ledger, and whatever balance the browser sent fed the credit-limit
+    check and the customer's balance. The invariant the rest of this file holds
+    -- `balance_due == total_inc - deposit` -- is now the server's on every
+    write, not the browser's.
+    """
+
+    def test_a_save_cannot_mark_a_job_paid_or_invoiced(self, client, db, make_customer):
+        make_customer(id="JOWN01", credit_limit=5000.0)
+        _make_job(
+            db, "J-OWN01", "JOWN01", status="ORDER", total_inc=330.0, total_ex=300.0
+        )
+
+        r = client.patch(
+            "/jobs/J-OWN01",
+            json={
+                "payment_status": "paid",
+                "invoice_status": "invoiced",
+                "deposit": 330.0,
+                "balance_due": 0,
+                "notes": "Rush — customer collecting",
+            },
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert (
+            body["notes"] == "Rush — customer collecting"
+        )  # ordinary fields still save
+        assert body["payment_status"] == "unpaid"
+        assert body["invoice_status"] == "not_invoiced"
+        assert float(body["deposit"]) == 0
+        assert float(body["balance_due"]) == pytest.approx(330.0)
+
+    def test_a_new_job_cannot_arrive_paid(self, client, make_customer):
+        make_customer(id="JOWN02")
+        r = client.post(
+            "/jobs/",
+            json={
+                "customer_id": "JOWN02",
+                "status": "QUOTE",
+                "total_ex": 100.0,
+                "tax": 10.0,
+                "total_inc": 110.0,
+                "deposit": 110.0,
+                "balance_due": 0,
+                "payment_status": "paid",
+                "invoice_status": "invoiced",
+            },
+        )
+        assert r.status_code in (200, 201)
+        body = r.json()
+        assert body["payment_status"] == "unpaid"
+        assert body["invoice_status"] == "not_invoiced"
+        assert float(body["deposit"]) == 0
+        assert float(body["balance_due"]) == pytest.approx(110.0)
+
+    def test_a_deposit_taken_survives_a_save_that_changes_the_total(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JOWN03", credit_limit=5000.0)
+        _make_job(
+            db, "J-OWN03", "JOWN03", status="ORDER", total_inc=110.0, total_ex=100.0
+        )
+        r = client.post("/jobs/J-OWN03/payment", json={"amount": 50.0, "method": "EFT"})
+        assert r.status_code == 200
+
+        # The form sends back what it loaded plus the new total; it has no
+        # business restating the deposit, and its balance is now stale.
+        r = client.patch(
+            "/jobs/J-OWN03",
+            json={
+                "total_ex": 200.0,
+                "tax": 20.0,
+                "total_inc": 220.0,
+                "deposit": 0,
+                "balance_due": 110.0,
+            },
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert float(body["deposit"]) == pytest.approx(50.0)
+        assert float(body["balance_due"]) == pytest.approx(170.0)
+        assert body["payment_status"] == "partial"
+
+
+@pytest.mark.integration
 class TestJobPayments:
     def test_record_payment_reduces_balance(self, client, db, make_customer):
         make_customer(id="JCUST20", credit_limit=5000.0)

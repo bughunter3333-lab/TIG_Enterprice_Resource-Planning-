@@ -728,6 +728,38 @@ def _stamp_invoiced(job: "Job", today: str) -> None:
     )
 
 
+# Whether a job is paid or invoiced, what has been taken against it and what
+# is still owed are facts about payments and invoicing, not fields a person
+# types. They change through `record_payment` and the invoicing boundary
+# (`_stamp_invoiced`). The job form used to offer Paid and Invoice dropdowns
+# and send all four on every save, and both create and update wrote them
+# straight onto the job -- so a job could read Paid with no payment taken and
+# nothing in the ledger, and the browser's balance fed the credit check and
+# the customer's balance. A create or a save that carries them is ignored for
+# them now.
+_SERVER_OWNED_MONEY = frozenset(
+    {"deposit", "balance_due", "payment_status", "invoice_status"}
+)
+
+
+def _settle_money(job: "Job") -> None:
+    """Re-derive what is owed, and the payment status, from the total and the
+    payments taken -- the invariant `balance_due == total_inc - deposit` that
+    invoicing and `record_payment` already keep."""
+    deposit = float(job.deposit or 0)
+    job.balance_due = max(0.0, round(float(job.total_inc or 0) - deposit, 2))
+    if job.status == "PAID":
+        # What the PAID transition says too; the ledger health check lists
+        # any PAID job that still owes.
+        job.payment_status = "paid"
+    elif deposit <= 0:
+        job.payment_status = "unpaid"
+    elif job.balance_due <= 0:
+        job.payment_status = "paid"
+    else:
+        job.payment_status = "partial"
+
+
 def _sync_invoice_or_refuse(job: "Job", db: Session) -> None:
     try:
         sync_invoice(db, job)
@@ -1089,7 +1121,12 @@ def create_job(
             missing_messages.append(message)
     if missing_messages:
         raise HTTPException(status_code=400, detail="; ".join(missing_messages))
-    job = Job(**{**body.model_dump(exclude={"items"}), "id": job_id})
+    job = Job(
+        **{**body.model_dump(exclude={"items", *_SERVER_OWNED_MONEY}), "id": job_id}
+    )
+    job.deposit = 0
+    job.invoice_status = "not_invoiced"
+    _settle_money(job)
     for item_data in body.items:
         job.items.append(JobItem(**_derive_line_split(item_data.model_dump(), db)))
     db.add(job)
@@ -1136,7 +1173,9 @@ def update_job(
     # Status is applied last, through the shared transition, so it is never just
     # another field in this setattr loop — that is how this endpoint used to move
     # a job into ORDER while reserving no stock at all.
-    update_data = body.model_dump(exclude_none=True, exclude={"items", "status"})
+    update_data = body.model_dump(
+        exclude_none=True, exclude={"items", "status", *_SERVER_OWNED_MONEY}
+    )
     for field, value in update_data.items():
         setattr(job, field, value)
 
@@ -1148,6 +1187,9 @@ def update_job(
         # current ones — and everything below iterates it.
         db.expire(job, ["items"])
         _recalculate_weight(job, db)
+
+    # The total may have moved; what is owed follows it, never the browser.
+    _settle_money(job)
 
     if body.status and body.status != job.status:
         if body.status == "ORDER":
