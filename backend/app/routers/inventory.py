@@ -7,7 +7,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.branches import normalize_branch
+from app.core.branches import BRANCHES, normalize_branch
 from app.core.stock_location import (
     DEFAULT_BRANCH,
     location_summary,
@@ -21,6 +21,7 @@ from app.core.reservations import (
     backordered_by_branch,
     committed_by_branch,
     committed_by_sku,
+    committed_in_branch,
     on_order_by_sku,
     on_order_total,
 )
@@ -221,6 +222,56 @@ def low_stock_alert(
         row["reorder_value"] = round(row["unit_cost"] * row["suggested_qty"], 2)
     total_value = round(sum(r["reorder_value"] for r in rows), 2)
     return {"count": len(rows), "reorder_value": total_value, "rows": rows}
+
+
+@router.get("/bin-map")
+def bin_map(
+    branch: str = Query("HQ"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Every bin in a branch that has stock slotted into it, for the 3D map.
+
+    One row per bin and SKU: a SKU with a primary and an overflow bin appears
+    twice. The stock record keeps one count per branch rather than per bin, so
+    on hand, committed and available are the SKU's figures for the branch, and
+    a bin's own quantity is not known -- it is not invented here. `max_qty` is
+    the bin's capacity as set on the Locations tab.
+    """
+    branch = normalize_branch(branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
+    rows = (
+        db.query(StockLocation, InventoryItem.name)
+        .join(InventoryItem, InventoryItem.sku == StockLocation.sku)
+        .filter(StockLocation.branch == branch)
+        .all()
+    )
+    committed = committed_in_branch(db, branch, [loc.sku for loc, _ in rows])
+    bins = []
+    for loc, name in rows:
+        reserved = committed.get(loc.sku, 0)
+        on_hand = loc.qty_on_hand or 0
+        for slot, code, capacity in (
+            ("primary", loc.primary_bin_1, loc.max_qty_bin_1),
+            ("overflow", loc.primary_bin_2, loc.max_qty_bin_2),
+        ):
+            if not code or not code.strip():
+                continue
+            bins.append(
+                {
+                    "bin": code.strip(),
+                    "slot": slot,
+                    "sku": loc.sku,
+                    "name": name,
+                    "max_qty": capacity,
+                    "qty_on_hand": on_hand,
+                    "committed_qty": reserved,
+                    "available_qty": max(0, on_hand - reserved),
+                }
+            )
+    bins.sort(key=lambda b: (b["bin"], b["sku"]))
+    return {"branch": branch, "bins": bins}
 
 
 @router.get("/movements")

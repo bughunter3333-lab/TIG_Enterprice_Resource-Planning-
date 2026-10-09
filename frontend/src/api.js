@@ -637,6 +637,9 @@ export const inventory = {
 // ── Stock Module ─────────────────────────────────────────────────────────────
 
 export const stock = {
+  // Every slotted bin in a branch, for the 3D warehouse map.
+  binMap: (branch) =>
+    request(`/inventory/bin-map?branch=${encodeURIComponent(branch)}`),
   locations: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/locations`),
 

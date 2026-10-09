@@ -1,259 +1,182 @@
-import { useState } from 'react';
-import { Download, Layers, Package, Search, Tag, Warehouse, X } from 'lucide-react';
+/**
+ * Warehouse — the racking in 3D, from the real bin data.
+ *
+ * Layout (aisles, bays, levels, boxes) is an admin setting per branch; what is
+ * in each box comes from GET /inventory/bin-map. Bins whose codes do not fit
+ * the racking are listed, never silently dropped. The 3D scene is loaded on
+ * demand so three.js costs nothing until this screen opens.
+ */
+import { Suspense, lazy, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Boxes, RotateCcw, Settings2 } from 'lucide-react';
+import * as api from '../../api';
+import { BRANCHES, DEFAULT_BRANCH } from '../../branches';
 import { T } from '../../ui/tokens';
-import { WAREHOUSE_ZONES } from './zones';
+import Button from '../../ui/Button';
+import { LEVEL_LETTERS, binPlacement, levelCount, validateLayout } from './layout';
+import { binStates, matchBins } from './occupancy';
+import { SearchPanel, BinPanel } from './WarehousePanels';
+import LayoutDialog from './LayoutDialog';
 
-export default function WarehouseModule({ exportToCSV, inventory, searchTerm, setSearchTerm }) {
-  const [selectedBin, setSelectedBin] = useState(null);
-  const [selectedWarehouseZone, setSelectedWarehouseZone] = useState('A');
+const Warehouse3D = lazy(() => import('./Warehouse3D'));
 
-  // Build bin occupancy map from inventory location field (format: Zone-Bay-Level, e.g. "A-05-3")
-  const binMap = {};
-  inventory.forEach(item => {
-    if (item.location) {
-      if (!binMap[item.location]) binMap[item.location] = [];
-      binMap[item.location].push(item);
-    }
+const layoutKey = (branch) => `warehouse_layout:${branch}`;
+
+function hasWebGL() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+  } catch {
+    return false;
+  }
+}
+
+function Facet({ label, value, tone, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active}
+      style={{
+        textAlign: 'left', border: `1px solid ${active ? T.accentStrong : T.hairline}`, borderRadius: T.radius,
+        background: active ? T.accentTint : T.panel, padding: '6px 12px', cursor: 'pointer', minWidth: 120, fontFamily: T.font,
+      }}>
+      <div style={{ fontSize: T.fsSmall, color: T.textMuted }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: tone ?? T.text, fontVariantNumeric: 'tabular-nums' }}>{value.toLocaleString('en-AU')}</div>
+    </button>
+  );
+}
+
+function Notice({ children, tone = T.textMuted }) {
+  return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: tone, fontSize: T.fsBase, padding: 24, textAlign: 'center' }}>{children}</div>;
+}
+
+export default function WarehouseModule({ currentUser, onOpenSku }) {
+  const queryClient = useQueryClient();
+  const [branch, setBranch] = useState(DEFAULT_BRANCH);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [resetKey, setResetKey] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [offMapOpen, setOffMapOpen] = useState(false);
+  const webgl = useMemo(hasWebGL, []);
+  const isAdmin = currentUser?.role === 'admin';
+
+  const layoutQuery = useQuery({
+    queryKey: ['admin-setting', layoutKey(branch)],
+    queryFn: () => api.adminSettings.get(layoutKey(branch)),
+    staleTime: 300_000,
+  });
+  const binsQuery = useQuery({
+    queryKey: ['bin-map', branch],
+    queryFn: () => api.stock.binMap(branch),
+    staleTime: 30_000,
+  });
+  const saveLayout = useMutation({
+    mutationFn: (layout) => api.adminSettings.set(layoutKey(branch), JSON.stringify(layout)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-setting', layoutKey(branch)] }),
   });
 
-  const zone = WAREHOUSE_ZONES.find(z => z.zone === selectedWarehouseZone) || WAREHOUSE_ZONES[0];
-  const bays = Array.from({ length: zone.bays }, (_, i) => String(i + 1).padStart(2, '0'));
-  const levels = Array.from({ length: zone.rows }, (_, i) => zone.rows - i);
+  const { layout, errors: layoutErrors } = useMemo(() => validateLayout(layoutQuery.data?.value), [layoutQuery.data]);
+  const rows = useMemo(() => binsQuery.data?.bins ?? [], [binsQuery.data]);
 
-  const getBinCode = (bay, level) => `${selectedWarehouseZone}-${bay}-${level}`;
-  const getBinStatus = (binCode) => {
-    const items = binMap[binCode] || [];
-    if (items.length === 0) return 'empty';
-    if (items.some(i => i.stock < i.reorderLevel)) return 'low';
-    return 'occupied';
-  };
+  const { onMap, offMap } = useMemo(() => {
+    const on = [];
+    const off = [];
+    for (const r of rows) {
+      const p = binPlacement(layout, r.bin);
+      if (p.ok) on.push({ ...r, bin: p.code });
+      else off.push({ ...r, reason: p.reason });
+    }
+    return { onMap: on, offMap: off };
+  }, [rows, layout]);
 
-  const zoneItems = inventory.filter(i => i.location && i.location.startsWith(selectedWarehouseZone + '-'));
-  const totalOccupied = bays.length * levels.length - bays.reduce((acc, bay) =>
-    acc + levels.filter(lvl => getBinStatus(getBinCode(bay, lvl)) === 'empty').length, 0);
+  const bins = useMemo(() => binStates(onMap), [onMap]);
+  const hits = useMemo(() => matchBins(onMap, query), [onMap, query]);
+  const results = useMemo(() => [...hits].sort().map((code) => {
+    const skus = bins.get(code)?.skus ?? [];
+    return { code, label: skus.map((s) => s.name || s.sku).join(', ') };
+  }), [hits, bins]);
+
+  const counts = useMemo(() => {
+    const c = { stocked: 0, empty: 0, over: 0 };
+    for (const b of bins.values()) c[b.state] += 1;
+    return c;
+  }, [bins]);
+  const totalBoxes = layout.aisles.length * layout.baysPerAisle * levelCount(layout) * layout.positions;
+
+  const placement = selected ? binPlacement(layout, selected) : null;
+  const focus = placement?.ok ? { ...placement, layout } : null;
+  const pick = (code) => setSelected(code);
+  const toggle = (f) => setFilter((cur) => (cur === f ? 'all' : f));
+
+  const loading = layoutQuery.isLoading || binsQuery.isLoading;
+  const failed = layoutQuery.error || binsQuery.error;
 
   return (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h2 className="text-2xl font-bold flex items-center" style={{ color: T.text }}>
-        <Warehouse className="w-6 h-6 mr-2" style={{ color: T.accentStrong }} />
-        Live Warehouse — Bin Location Map
-      </h2>
-      <div className="flex space-x-2">
-        <button
-          onClick={() => exportToCSV(zoneItems, `warehouse-zone-${selectedWarehouseZone}`)}
-          className="px-4 py-2 rounded-lg flex items-center text-sm font-medium"
-          style={{ background: T.hairlineSoft, color: T.text, border: `1px solid ${T.hairline}` }}
-        >
-          <Download className="w-4 h-4 mr-2" />Export Zone {selectedWarehouseZone}
-        </button>
-      </div>
-    </div>
-
-    {/* Zone selector cards */}
-    <div className="grid grid-cols-4 gap-4">
-      {WAREHOUSE_ZONES.map(z => (
-        <button
-          key={z.zone}
-          onClick={() => { setSelectedWarehouseZone(z.zone); setSelectedBin(null); }}
-          className="rounded-lg p-4 text-left transition-all hover:shadow-md"
-          style={{
-            background: T.panel,
-            border: `1px solid ${T.hairline}`,
-            outline: selectedWarehouseZone === z.zone ? `2px solid ${T.accentStrong}` : 'none',
-            outlineOffset: 2,
-          }}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xl font-bold" style={{ color: T.text }}>Zone {z.zone}</span>
-            <span className={`text-xs px-2 py-0.5 rounded font-medium ${z.utilization > 80 ? 'bg-danger-tint text-danger' : z.utilization > 60 ? 'bg-warn-tint text-warn' : 'bg-ok-tint text-ok'}`}>
-              {z.utilization}%
-            </span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 150px)', minHeight: 520, background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radiusLg, overflow: 'hidden', fontFamily: T.font }}>
+      <header style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${T.hairline}`, boxShadow: T.shadowHeader }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Boxes size={20} aria-hidden style={{ color: T.accentStrong }} />
+          <div>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.text }}>Warehouse</h1>
+            <p style={{ margin: 0, fontSize: T.fsSmall, color: T.textMuted }}>
+              {layout.aisles.length} aisles · {layout.baysPerAisle} bays each · levels A–{LEVEL_LETTERS[levelCount(layout) - 1]} on {layout.beams.length} beams · {layout.positions} boxes per level
+            </p>
           </div>
-          <p className="text-xs mb-2" style={{ color: T.textMuted }}>{z.description}</p>
-          <div className="w-full rounded-full h-1.5" style={{ background: T.hairline }}>
-            <div className={`h-1.5 rounded-full ${z.utilization > 80 ? 'bg-danger' : z.utilization > 60 ? 'bg-warn' : 'bg-ok'}`} style={{ width: `${z.utilization}%` }} />
-          </div>
-          <p className="text-xs mt-1" style={{ color: T.textFaint }}>{z.rows}×{z.bays} grid • {z.items} items</p>
-        </button>
-      ))}
-    </div>
-
-    <div className="grid grid-cols-3 gap-4">
-      {/* Rack bin map */}
-      <div className="col-span-2 rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center text-sm" style={{ color: T.text }}>
-            <Layers className="w-4 h-4 mr-2" style={{ color: T.accentStrong }} />
-            Zone {selectedWarehouseZone} — {zone.description}
-            <span className="ml-2 text-xs font-normal" style={{ color: T.textFaint }}>{zone.bays} bays × {zone.rows} levels</span>
-          </h3>
-          <div className="flex items-center space-x-3 text-xs" style={{ color: T.textMuted }}>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}></span>Empty</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-accent-tint border border-accent inline-block"></span>Occupied</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-danger-tint border border-danger inline-block"></span>Low Stock</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-ok-tint border border-ok inline-block ring-2 ring-ok"></span>Selected</span>
-          </div>
-        </div>
-
-        {/* Visual rack grid — levels top to bottom, bays left to right */}
-        <div className="overflow-auto rounded-lg p-3" style={{ maxHeight: '520px', background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
-          <table className="border-collapse mx-auto">
-            <thead>
-              <tr>
-                <th className="w-7 text-right pr-2 text-xs font-normal pb-1" style={{ color: T.textFaint }}>Lvl</th>
-                {bays.map(bay => (
-                  <th key={bay} className="text-center text-xs font-normal pb-1 px-0.5" style={{ minWidth: '72px', color: T.textMuted }}>
-                    Bay {bay}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {levels.map(level => (
-                <tr key={level}>
-                  <td className="text-right pr-2 text-xs font-mono align-middle py-0.5" style={{ color: T.textFaint }}>{level}</td>
-                  {bays.map(bay => {
-                    const binCode = getBinCode(bay, level);
-                    const items = binMap[binCode] || [];
-                    const status = getBinStatus(binCode);
-                    const isSelected = selectedBin === binCode;
-                    return (
-                      <td key={bay} className="px-0.5 py-0.5">
-                        <button
-                          onClick={() => setSelectedBin(isSelected ? null : binCode)}
-                          title={`${binCode}${items.length ? ': ' + items.map(i => i.name).join(', ') : ': Empty'}`}
-                          className={`w-full rounded border text-center transition-all hover:scale-105 flex flex-col items-center justify-center px-1 py-1.5 ${
-                              isSelected ? 'ring-2 ring-ok bg-ok-tint border-ok' :
-                              status === 'low' ? 'bg-danger-tint border-danger hover:bg-danger-tint' :
-                              status === 'occupied' ? 'bg-accent-tint border-accent hover:bg-accent-tint' :
-                              'bg-hairline-soft border-hairline hover:bg-white'
-                            }`}
-                        >
-                          <span className={`font-mono leading-none ${isSelected ? 'text-ok' : status === 'low' ? 'text-danger' : status === 'occupied' ? 'text-warn' : 'text-faint'}`} style={{ fontSize: '9px' }}>
-                            {binCode}
-                          </span>
-                          {items.length > 0 && (
-                            <span className={`font-semibold mt-0.5 ${status === 'low' ? 'text-danger' : 'text-warn'}`} style={{ fontSize: '10px' }}>
-                              {items.reduce((s, i) => s + i.stock, 0)} pcs
-                            </span>
-                          )}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              {/* Aisle indicator */}
-              <tr>
-                <td colSpan={zone.bays + 1} className="pt-2 pb-1">
-                  <div className="bg-warn border border-warn rounded text-center text-xs text-warn font-medium py-1 tracking-widest">
-                    ▼  AISLE  ▼
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Selected bin detail */}
-        {selectedBin && (
-          <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-sm flex items-center" style={{ color: T.text }}>
-                <Tag className="w-4 h-4 mr-1.5" style={{ color: T.accentStrong }} />
-                Bin: <span className="font-mono ml-1" style={{ color: T.accentStrong }}>{selectedBin}</span>
-              </h4>
-              <button onClick={() => setSelectedBin(null)} style={{ color: T.textFaint }}><X className="w-4 h-4" /></button>
-            </div>
-            {(binMap[selectedBin] || []).length === 0 ? (
-              <div className="rounded p-3 text-center" style={{ background: T.hairlineSoft }}>
-                <p className="text-sm" style={{ color: T.textFaint }}>Empty bin — available for stock</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {(binMap[selectedBin] || []).map(item => (
-                  <div key={item.sku} className="flex items-center justify-between rounded p-2" style={{ background: T.hairlineSoft }}>
-                    <div>
-                      <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ color: T.textMuted, background: T.hairline }}>{item.sku}</span>
-                      <span className="text-sm ml-2" style={{ color: T.text }}>{item.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm">
-                      <span className={`font-semibold ${item.stock < item.reorderLevel ? 'text-danger' : 'text-ok'}`}>
-                        Qty: {item.stock}
-                      </span>
-                      {item.stock < item.reorderLevel && (
-                        <span className="bg-danger-tint text-danger px-1.5 py-0.5 rounded text-xs">Low</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Occupancy summary */}
-        <div className="mt-3 pt-3 flex items-center justify-between text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textMuted }}>
-          <span>Zone {selectedWarehouseZone}: {totalOccupied} of {bays.length * levels.length} bins occupied</span>
-          <span>{zoneItems.filter(i => i.stock < i.reorderLevel).length} items low stock in this zone</span>
-        </div>
-      </div>
-
-      {/* Zone inventory sidebar */}
-      <div className="rounded-lg p-4 flex flex-col" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-        <h3 className="font-semibold mb-3 text-sm flex items-center" style={{ color: T.text }}>
-          <Package className="w-4 h-4 mr-2" style={{ color: T.textMuted }} />
-          Zone {selectedWarehouseZone} Stock
-          <span className="ml-1 px-1.5 py-0.5 rounded text-xs" style={{ background: T.accentTint, color: T.accentStrong }}>{zoneItems.length} SKUs</span>
-        </h3>
-        <div className="relative mb-3">
-          <Search className="w-4 h-4 absolute left-2.5 top-2.5" style={{ color: T.textFaint }} />
-          <input
-            type="text"
-            placeholder="Find item..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
-            style={{ border: `1px solid ${T.hairline}`, color: T.text }}
-          />
-        </div>
-        <div className="flex-1 space-y-1 overflow-y-auto" style={{ maxHeight: '560px' }}>
-          {zoneItems
-            .filter(i => !searchTerm || i.name.toLowerCase().includes(searchTerm.toLowerCase()) || i.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-            .sort((a, b) => (a.location || '').localeCompare(b.location || ''))
-            .map(item => (
-              <div
-                key={item.sku}
-                onClick={() => setSelectedBin(item.location)}
-                className="p-2 rounded cursor-pointer transition-colors"
-                style={{
-                  border: `1px solid ${selectedBin === item.location ? '#86efac' : 'transparent'}`,
-                  background: selectedBin === item.location ? '#f0fdf4' : T.panel,
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>{item.location}</span>
-                  <span className={`text-xs font-semibold ${item.stock < item.reorderLevel ? 'text-danger' : 'text-ok'}`}>
-                    {item.stock} {item.stock < item.reorderLevel ? '⚠' : ''}
-                  </span>
-                </div>
-                <p className="text-xs font-medium truncate mt-1" style={{ color: T.text }}>{item.name}</p>
-                <p className="text-xs" style={{ color: T.textFaint }}>{item.sku} • {item.category}</p>
-              </div>
-            ))}
-          {zoneItems.length === 0 && (
-            <div className="text-center py-10" style={{ color: T.textFaint }}>
-              <Warehouse className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No items in Zone {selectedWarehouseZone}.</p>
-              <p className="text-xs mt-1">Set inventory location to "{selectedWarehouseZone}-bay-level"</p>
-              <p className="text-xs mt-0.5" style={{ color: T.accentStrong }}>e.g. "{selectedWarehouseZone}-01-1"</p>
-            </div>
+          <div style={{ flex: 1 }} />
+          <label htmlFor="wh-branch" style={{ fontSize: T.fsSmall, color: T.textMuted }}>Branch</label>
+          <select id="wh-branch" value={branch} onChange={(e) => { setBranch(e.target.value); setSelected(null); }}
+            style={{ height: 28, border: `1px solid ${T.textMuted}`, borderRadius: T.radiusField, fontFamily: T.font, fontSize: T.fsBase, padding: '0 6px', background: T.panel, color: T.text }}>
+            {BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <Button variant="secondary" onClick={() => { setSelected(null); setResetKey((k) => k + 1); }}>
+            <RotateCcw size={14} aria-hidden style={{ marginRight: 6, verticalAlign: '-2px' }} />Reset view
+          </Button>
+          {isAdmin && (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              <Settings2 size={14} aria-hidden style={{ marginRight: 6, verticalAlign: '-2px' }} />Edit layout
+            </Button>
           )}
         </div>
-      </div>
-    </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }} role="group" aria-label="Highlight bins">
+          <Facet label="Boxes in the racking" value={totalBoxes} active={filter === 'all'} onClick={() => setFilter('all')} />
+          <Facet label="Stock on hand" value={counts.stocked} tone={T.accentStrong} active={filter === 'stocked'} onClick={() => toggle('stocked')} />
+          <Facet label="Slotted, none on hand" value={counts.empty} tone={counts.empty ? T.warn : T.text} active={filter === 'empty'} onClick={() => toggle('empty')} />
+          <Facet label="Over capacity" value={counts.over} tone={counts.over ? T.danger : T.text} active={filter === 'over'} onClick={() => toggle('over')} />
+          {offMap.length > 0 && <Facet label="Not on the map" value={offMap.length} tone={T.warn} active={false} onClick={() => setOffMapOpen(true)} />}
+        </div>
+        {layoutErrors.length > 0 && (
+          <p role="alert" style={{ margin: '8px 0 0', fontSize: T.fsSmall, color: T.warn }}>
+            The saved layout for {branch} is invalid ({layoutErrors.join('; ')}), so the default racking is shown.
+          </p>
+        )}
+      </header>
 
-  </div>
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <SearchPanel query={query} onQuery={setQuery} results={results} selected={selected} onPick={pick} offMap={offMap} offMapOpen={offMapOpen} onOffMapToggle={setOffMapOpen} />
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', position: 'relative' }}>
+          {failed ? (
+            <Notice tone={T.danger}>
+              Couldn't load the warehouse: {(failed.message || String(failed))}.{' '}
+              <button type="button" onClick={() => { layoutQuery.refetch(); binsQuery.refetch(); }} style={{ color: T.accentStrong, background: 'none', border: 'none', cursor: 'pointer', fontSize: 'inherit' }}>Try again</button>
+            </Notice>
+          ) : loading ? (
+            <Notice>Loading the racking…</Notice>
+          ) : !webgl ? (
+            <Notice>This browser can't draw 3D (WebGL is off). Search and bin details on the left still work.</Notice>
+          ) : (
+            <Suspense fallback={<Notice>Loading the 3D view…</Notice>}>
+              <Warehouse3D layout={layout} bins={bins} hits={hits} filter={filter} selected={selected} focus={focus} resetKey={resetKey} onSelect={pick} />
+            </Suspense>
+          )}
+        </main>
+        {placement?.ok && (
+          <BinPanel placement={placement} entry={bins.get(placement.code)} branch={branch} onClose={() => setSelected(null)} onOpenSku={onOpenSku} />
+        )}
+      </div>
+
+      {editing && (
+        <LayoutDialog layout={layout} branch={branch} onClose={() => setEditing(false)} onSave={(l) => saveLayout.mutateAsync(l)} />
+      )}
+    </div>
   );
 }
