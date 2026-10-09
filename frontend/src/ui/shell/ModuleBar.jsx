@@ -15,6 +15,20 @@ const MODULES = [
   { id: 'reports', label: 'Reports' },
 ];
 
+const iconButton = {
+  appearance: 'none', border: 'none', background: 'transparent', cursor: 'pointer',
+  width: 34, height: 34, borderRadius: '50%', alignSelf: 'center', flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: `background ${T.transition}`,
+};
+const hoverOn = (e) => { e.currentTarget.style.background = T.chromeHover; };
+const hoverOff = (e) => { e.currentTarget.style.background = 'transparent'; };
+
+/**
+ * The SAP Fiori shell bar (Horizon): white, a hairline and a soft shadow
+ * beneath, the product title at the left, the spaces as tabs marked by a
+ * brand-blue indicator, and search, notifications and the user at the right.
+ */
 export default function ModuleBar({
   activeModule, onNavigate, adminMode, onAdminToggle, currentUser,
   badges = {}, onNewJob, searchValue = '', onSearchChange, notifCount = 0,
@@ -36,164 +50,161 @@ export default function ModuleBar({
 
   return (
     <div style={{
-      height: 40, display: 'flex', alignItems: 'center',
-      padding: '0 10px', gap: 2, flexShrink: 0, fontFamily: T.font,
-      // Faint top-down sheen + a cast shadow so the chrome reads as a solid
-      // bar the app sits under, rather than a flat block of colour.
-      background: `linear-gradient(180deg, ${T.chromeRaised} 0%, ${T.chrome} 55%)`,
-      boxShadow: T.shadowChrome,
-      position: 'relative', zIndex: 20,
+      height: 48, display: 'flex', alignItems: 'stretch',
+      padding: '0 12px', gap: 2, flexShrink: 0, fontFamily: T.font,
+      background: T.chrome, borderBottom: `1px solid ${T.hairline}`,
+      boxShadow: T.shadowChrome, position: 'relative', zIndex: 20,
     }}>
       {onToggleTree && (
-        <div
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           aria-label={treeOpen ? 'Collapse tree' : 'Expand tree'}
           title={treeOpen ? 'Collapse tree' : 'Expand tree'}
           onClick={onToggleTree}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleTree(); } }}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 26, height: 26, borderRadius: 4, cursor: 'pointer',
-            color: treeOpen ? T.chromeText : T.chromeTextMuted, marginRight: 6, flexShrink: 0,
-          }}
+          style={{ ...iconButton, color: treeOpen ? T.chromeText : T.chromeTextMuted, marginRight: 4 }}
+          onMouseEnter={hoverOn}
+          onMouseLeave={hoverOff}
         >
-          <PanelLeft size={14} />
-        </div>
+          <PanelLeft size={16} />
+        </button>
       )}
 
-      <div style={{
-        width: 22, height: 22, background: T.accent, borderRadius: 4,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 8.5, fontWeight: 800, color: T.panel, marginRight: 10, flexShrink: 0,
-      }}>
-        TIG
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 14, flexShrink: 0 }}>
+        <div aria-hidden style={{
+          width: 26, height: 26, background: T.accent, borderRadius: 6,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 9, fontWeight: 800, color: T.panel, letterSpacing: '0.02em',
+        }}>
+          TIG
+        </div>
+        <span style={{ fontSize: 16, fontWeight: 700, color: T.chromeText, whiteSpace: 'nowrap' }}>Total Image</span>
       </div>
 
-      {MODULES.map(m => {
-        const active = !adminMode && activeModule === m.id;
-        const badge = m.badgeKey ? badges[m.badgeKey] : null;
-        return (
-          <button
-            key={m.id}
-            type="button"
-            // A real button rather than div+role+tabIndex+onKeyDown. The hand
-            // rolled version worked, but native gets Enter and Space, the focus
-            // ring, and the right role for free — and it is what a screen reader
-            // and a test driver both expect from primary navigation.
-            aria-current={active ? 'page' : undefined}
-            onClick={() => onNavigate(m.id)}
-            style={{
-              appearance: 'none', border: 'none', font: 'inherit',
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '5px 9px', borderRadius: 4, cursor: 'pointer', userSelect: 'none',
-              fontSize: T.fsGrid, fontWeight: active ? 700 : 500,
-              background: active ? T.chromeRaised : 'transparent',
-              color: active ? T.chromeText : T.chromeTextMuted,
-              boxShadow: active ? `inset 0 -2px 0 ${T.accent}` : 'none',
-              whiteSpace: 'nowrap',
-              // The hover handlers below change colour directly, and without
-              // this they snapped. T.transition existed and was not applied to
-              // any of the chrome.
-              transition: `color ${T.transition}, background ${T.transition}, box-shadow ${T.transition}`,
-            }}
-            onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.chromeText; }}
-            onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.chromeTextMuted; }}
-          >
-            {m.label}
-            {badge != null && badge > 0 && (
-              <span style={{
-                fontSize: 9.5, fontWeight: 700, background: T.chromeHover, color: T.chromeText,
-                borderRadius: 8, padding: '0 5px', lineHeight: '14px',
-              }}>
-                {badge}
-              </span>
-            )}
-          </button>
-        );
-      })}
+      <nav aria-label="Spaces" style={{ display: 'flex', alignItems: 'stretch', gap: 2, minWidth: 0, overflowX: 'auto' }}>
+        {MODULES.map(m => {
+          // The 3D warehouse is part of Stock, so Stock stays lit there.
+          const active = !adminMode && (activeModule === m.id || (m.id === 'inventory' && activeModule === 'warehouse'));
+          const badge = m.badgeKey ? badges[m.badgeKey] : null;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              // A real button: native Enter and Space, the focus ring, and the
+              // role a screen reader and a test driver expect from navigation.
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(m.id)}
+              style={{
+                appearance: 'none', border: 'none', font: 'inherit',
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '0 10px', cursor: 'pointer', userSelect: 'none', background: 'transparent',
+                fontSize: T.fsBase, fontWeight: active ? 700 : 400,
+                color: active ? T.accentStrong : T.chromeText,
+                // Horizon marks the selected tab with a brand-blue bar along its
+                // bottom edge.
+                boxShadow: active ? `inset 0 -3px 0 ${T.accentStrong}` : 'none',
+                whiteSpace: 'nowrap',
+                transition: `color ${T.transition}, background ${T.transition}`,
+              }}
+              onMouseEnter={e => { if (!active) hoverOn(e); }}
+              onMouseLeave={hoverOff}
+            >
+              {m.label}
+              {badge != null && badge > 0 && (
+                <span style={{
+                  fontSize: 12, fontWeight: 700, background: T.hairlineSoft, color: T.chromeText,
+                  borderRadius: 10, padding: '0 7px', lineHeight: '18px', fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
       <div style={{ flex: 1 }} />
 
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6, background: T.chromeRaised,
-        borderRadius: 4, padding: '4px 8px', width: 180, marginRight: 6,
-      }}>
-        <Search size={12} color={T.chromeTextMuted} />
-        <input
-          ref={searchRef}
-          value={searchValue}
-          onChange={e => onSearchChange(e.target.value)}
-          placeholder="Search…"
-          style={{
-            border: 'none', background: 'transparent', outline: 'none',
-            fontSize: T.fsSmall, color: T.chromeText, width: '100%', fontFamily: T.font,
-          }}
-        />
-      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 6, background: T.hairlineSoft,
+          borderRadius: 16, padding: '0 12px', height: 32, width: 240, cursor: 'text',
+        }}>
+          <Search size={14} color={T.chromeTextMuted} aria-hidden />
+          <input
+            ref={searchRef}
+            value={searchValue}
+            onChange={e => onSearchChange(e.target.value)}
+            placeholder="Search…"
+            aria-label="Search"
+            style={{
+              border: 'none', background: 'transparent', outline: 'none',
+              fontSize: T.fsBase, color: T.chromeText, width: '100%', fontFamily: T.font,
+            }}
+          />
+        </label>
 
-      <div
-        role="status"
-        aria-label={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
-        title={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
-        style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 5, marginRight: 2 }}
-      >
-        <Bell size={14} color={T.chromeTextMuted} />
-        {notifCount > 0 && (
-          <span style={{ position: 'absolute', top: 3, right: 2, width: 7, height: 7, background: T.danger, borderRadius: '50%', border: `1px solid ${T.chrome}` }} />
-        )}
-      </div>
-
-      {/* The primary action in the application, and it had no hover state and no
-          pressed state at all — it looked the same before, during and after a
-          click. It lifts on hover and presses in on mousedown now, which is
-          also the one bit of the sign-in screen's press language that belongs
-          on a control this size. */}
-      <button
-        type="button"
-        onClick={onNewJob}
-        style={{
-          background: T.accentStrong, color: '#fff', border: 'none', borderRadius: 4,
-          padding: '5px 11px', fontSize: T.fsSmall, fontWeight: 700, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 4, fontFamily: T.font, marginRight: 6,
-          transition: `background ${T.transition}, transform ${T.transition}`,
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = T.accent; }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = T.accentStrong;
-          e.currentTarget.style.transform = 'none';
-        }}
-        onMouseDown={e => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-        onMouseUp={e => { e.currentTarget.style.transform = 'none'; }}
-      >
-        <Plus size={12} /> New Job
-      </button>
-
-      {currentUser?.role === 'admin' && (
         <div
-          role="button"
-          tabIndex={0}
-          aria-label="Admin Tools"
-          title={adminMode ? 'Exit Admin' : 'Admin Tools'}
-          onClick={onAdminToggle}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAdminToggle(); } }}
+          role="status"
+          aria-label={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
+          title={notifCount > 0 ? `${notifCount} overdue jobs` : 'No notifications'}
+          style={{ ...iconButton, position: 'relative', cursor: 'default' }}
+        >
+          <Bell size={17} color={T.chromeText} />
+          {notifCount > 0 && (
+            <span aria-hidden style={{
+              position: 'absolute', top: 2, right: 0, minWidth: 16, height: 16, padding: '0 4px',
+              background: T.danger, color: T.panel, borderRadius: 8, fontSize: 10, fontWeight: 700,
+              lineHeight: '16px', textAlign: 'center', fontVariantNumeric: 'tabular-nums',
+            }}>
+              {notifCount > 99 ? '99+' : notifCount}
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onNewJob}
           style={{
+            background: T.accent, color: T.panel, border: `1px solid ${T.accent}`, borderRadius: T.radius,
+            height: 30, padding: '0 12px', fontSize: T.fsBase, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 5, fontFamily: T.font,
+            transition: `background ${T.transition}`,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = T.accentStrong; }}
+          onMouseLeave={e => { e.currentTarget.style.background = T.accent; }}
+        >
+          <Plus size={14} /> New Job
+        </button>
+
+        {currentUser?.role === 'admin' && (
+          <button
+            type="button"
+            aria-label="Admin Tools"
+            aria-pressed={!!adminMode}
+            title={adminMode ? 'Exit Admin' : 'Admin Tools'}
+            onClick={onAdminToggle}
+            style={{
+              ...iconButton,
+              background: adminMode ? T.accentTint : 'transparent',
+              color: adminMode ? T.accentStrong : T.chromeText,
+            }}
+            onMouseEnter={e => { if (!adminMode) hoverOn(e); }}
+            onMouseLeave={e => { if (!adminMode) hoverOff(e); }}
+          >
+            <Lock size={16} />
+          </button>
+        )}
+
+        <div
+          title={currentUser?.full_name || currentUser?.username || ''}
+          style={{
+            width: 32, height: 32, borderRadius: '50%', background: T.emphasis,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 26, height: 26, borderRadius: 4, cursor: 'pointer',
-            background: adminMode ? '#451a03' : 'transparent',
-            color: adminMode ? T.accent : T.chromeTextMuted, marginRight: 4,
+            fontSize: 12, fontWeight: 700, color: T.panel, flexShrink: 0, marginLeft: 2,
           }}
         >
-          <Lock size={13} />
+          {initials}
         </div>
-      )}
-
-      <div style={{
-        width: 24, height: 24, borderRadius: '50%', background: T.chromeHover,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 9, fontWeight: 700, color: T.chromeText, flexShrink: 0,
-      }}>
-        {initials}
       </div>
     </div>
   );

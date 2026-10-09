@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, Users, User, FileText, BarChart3, Warehouse, Plus, Edit, Trash2, Eye, DollarSign, TrendingUp, ShoppingCart, AlertCircle, X, Calendar, Printer, Download, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, Send, RefreshCw, PieChart, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, LayoutGrid, Clock } from 'lucide-react';
+import { Search, Package, Users, User, FileText, BarChart3, Plus, Edit, Trash2, DollarSign, AlertCircle, X, Printer, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, Clock } from 'lucide-react';
 import * as api from './api';
 import { PieChart as ResponsiveContainer } from 'recharts';
 import ReportsModule from './modules/ReportsModule';
@@ -36,6 +36,8 @@ import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
 import { countNeedingReorder, needsReorder } from './modules/stock/lowStock';
 import DraggableModal from './ui/DraggableModal';
+import ActionBar from './ui/shell/ActionBar';
+import { pageActions } from './ui/shell/pageActions';
 import DocumentPrint from './components/documents/DocumentPrint';
 import InvoiceDocument from './components/documents/InvoiceDocument';
 import ConfirmModal from './components/modals/ConfirmModal';
@@ -334,7 +336,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
   const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
-  const [stockReportOpen, setStockReportOpen] = useState(false);
   // Jim2 Dispatch list: batch-dispatch ready + invoiced jobs
   const [dispatchListOpen, setDispatchListOpen] = useState(false);
   const [dispatchListBusy, setDispatchListBusy] = useState(false);
@@ -370,7 +371,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobDetailTab, setJobDetailTab] = useState('job');
   const [pickState, setPickState] = useState({});
   const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
-  const [reportDropdownOpen, setReportDropdownOpen] = useState(false);
   const [jobsSort, setJobsSort] = useState({ col: 'dateIn', dir: 'desc' });
 
   // Customer detail
@@ -1632,7 +1632,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   Convert to Order →
                 </button>
               )}
-              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
+              <button onClick={() => openModal('job', activeJob)} disabled={!isJobEditable(activeJob)} title={jobLockReason(activeJob)} className="disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
                 <Edit className="w-3.5 h-3.5" />Edit
               </button>
               <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
@@ -4499,6 +4499,39 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
   // Document Print Modal (Picking Slip, Delivery Note, Job Sheet)
 
+  const pageHeader = pageActions({
+    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify,
+    selectedPO, selectedCardFile,
+    newJob: () => openModal('job'),
+    openDispatch: () => { setShowJobDetail(false); setDispatchListOpen(true); },
+    openSalesRegister: () => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' })),
+    createJobList: createEmptyJobList,
+    exportJobs: () => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); },
+    duplicateToSites: (job) => setDupSitesJob(job),
+    unprint: (job) => setUnprintModal({ open: true, job, loading: false, error: '' }),
+    newPO: () => openModal('po'),
+    editPO: (po) => openModal('po', po),
+    createPOList: () => createEmptyPOList(),
+    newCardFile: () => setCardFileModal({ open: true, editing: null }),
+    // The ribbon's edit passed the whole record where the form expects the
+    // ship code, and never loaded the form; this is the panel's own edit.
+    editCardFile: (card) => { setCardFileForm({ ...card }); setCardFileModal({ open: true, editing: card.shipCode }); },
+    newStockItem: () => openModal('inventory'),
+    openTransfer: () => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' })),
+    openAdjust: () => setStockAdjustModal(m => ({ ...m, show: true })),
+    openStocktake: () => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' })),
+    openWarehouse: () => setActiveModule('warehouse'),
+    openStockFlow: () => {
+      setStockFlowModal({ open: true, loading: true, data: null, search: '' });
+      api.inventory.stockFlow()
+        .then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d })))
+        .catch(e => { setStockFlowModal(m => ({ ...m, loading: false, data: [] })); notify(`Couldn't load stock flow: ${e?.message || e}`, { type: 'error' }); });
+    },
+    createStockList: () => createEmptyStockList(),
+    newCustomer: () => openModal('customer'),
+    newSupplier: () => openModal('supplier'),
+  });
+
   return (
     <AppShell
       activeModule={activeModule}
@@ -4555,712 +4588,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       onOpenPO={(poId) => { const po = (purchaseOrders ?? []).find(p => p.id === poId); if (po) { setSelectedPO(po); } setActiveModule('purchase-orders'); }}
     >
 
-      {/* ── Contextual Action Toolbar ── */}
-      <div className="shrink-0 bg-white border-b border-hairline overflow-x-auto">
-        <div className="flex items-center h-11 px-3 gap-0.5">
+      {/* ── Page header: the Fiori title and header toolbar (ui/shell/ActionBar).
+          It replaced the Jim2 ribbon, 97 of whose 135 buttons did nothing. */}
+      {pageHeader && <ActionBar {...pageHeader} />}
 
-          {/* ── JOBS ribbon (also used by Quotes) ── */}
-          {(activeModule === 'jobs' || activeModule === 'quotes') && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{activeModule === 'quotes' ? 'Add Quote' : 'Add Job'}</span>
-              </button>
-              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View Job</span>
-              </button>
-              <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return</span>
-              </button>
-              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Sales Reg.</span>
-              </button>
-              <button onClick={() => { setShowJobDetail(false); setDispatchListOpen(true); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dispatch</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Jobs</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button
-                disabled={!activeJob || !['INVOICE','PAID'].includes(activeJob?.status)}
-                onClick={() => activeJob && setUnprintModal({ open: true, job: activeJob, loading: false, error: '' })}
-                title={!activeJob ? 'Open a job first' : !['INVOICE','PAID'].includes(activeJob?.status) ? `Only available on INVOICE or PAID jobs (current: ${activeJob?.status})` : 'Revert this job from invoiced back to FINISH'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-              >
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && openInvoiceDoc(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Invoice Job</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Clone</span>
-              </button>
-              <button
-                disabled={!activeJob}
-                onClick={() => activeJob && setDupSitesJob(activeJob)}
-                title={!activeJob ? 'Open a job first' : 'Create one copy of this job per customer site'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-              >
-                <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">To Sites</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reply</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Forward</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Preview</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
-              </button>
-              <div className="relative">
-                <button
-                  disabled={!activeJob}
-                  onClick={() => setReportDropdownOpen(o => !o)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-                  title={activeJob ? 'Print a report for this job' : 'Open a job first'}
-                >
-                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-                </button>
-                {reportDropdownOpen && activeJob && (
-                  <div
-                    className="absolute left-0 top-full z-[9999] bg-white border border-hairline shadow-2xl min-w-[230px] py-1 text-[13px] rounded-lg"
-                    onMouseLeave={() => setReportDropdownOpen(false)}
-                    onClick={() => setReportDropdownOpen(false)}
-                  >
-                    {[
-                      { type: 'jobSheet',     label: 'TIG Job Sheet',                       action: () => setDocumentPrint({ type: 'jobSheet',     job: activeJob }) },
-                      { type: 'pickingSlip',  label: 'TIG Picking Slip',                    action: () => setDocumentPrint({ type: 'pickingSlip',  job: activeJob }) },
-                      { type: 'deliveryNote', label: 'TIG Delivery Note',                   action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                      { type: 'shipLabel',    label: 'Job Label',                           action: () => setDocumentPrint({ type: 'shipLabel',    job: activeJob }) },
-                      { type: 'shipLabel',    label: 'Ship Label – Total Image',            action: () => setDocumentPrint({ type: 'shipLabel',    job: activeJob }) },
-                      { type: 'deliveryNote', label: 'TIG Delivery Note – NZ',              action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                      null,
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => openInvoiceDoc(activeJob, 'proforma') },
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', action: () => openInvoiceDoc(activeJob, 'proformaBalance') },
-                      null,
-                      // These three used to download a ReportLab PDF built from a
-                      // second, independent layout. Every document in this menu is a
-                      // template now, so that PDF disagreed with the one the same
-                      // menu prints — two ways to get one document, producing
-                      // different paper. They open the template preview, which
-                      // prints to PDF itself.
-                      { type: 'jobSheet',    label: 'Job Sheet (print / PDF)',    action: () => setDocumentPrint({ type: 'jobSheet',    job: activeJob }) },
-                      { type: 'pickingSlip', label: 'Picking List (print / PDF)', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
-                      // No quote/invoice ternary here any more: the component picks
-                      // the quote template off the job's own status, so a call site
-                      // that guesses is a second place for the two to disagree.
-                      { type: 'invoice',     label: 'Invoice (print / PDF)',      action: () => openInvoiceDoc(activeJob) },
-                    ].map((r, i) =>
-                      r === null
-                        ? <div key={i} className="border-t border-hairline my-0.5" />
-                        : (
-                          <button
-                            key={i}
-                            disabled={r.disabled}
-                            onClick={r.action}
-                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-faint cursor-default' : 'hover:bg-accent-strong hover:text-white text-header'}`}
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0" />{r.label}
-                          </button>
-                        )
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button
-                disabled={!activeJob}
-                title={activeJob ? 'View job notes & internal comments' : 'Open a job first'}
-                onClick={() => { if (activeJob) { pinJob(activeJob); setShowJobDetail(true); } }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-              >
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── PURCHASES ribbon ── */}
-          {activeModule === 'purchase-orders' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('po')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Purchase</span>
-              </button>
-              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
-              </button>
-              <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return to Vendor</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">PO Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Job Reports</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── CARDFILES ribbon ── */}
-          {activeModule === 'card-files' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add CardFile</span>
-              </button>
-              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Time Sheets</span>
-              </button>
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Quick Add</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Merge</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reassign</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">CF Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── ITEMS (order-requirements) ribbon ── */}
-          {activeModule === 'order-requirements' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Item</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Item</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create Item List</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── STOCK (inventory) ribbon ── */}
-          {activeModule === 'inventory' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Stock</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Stock</span>
-              </button>
-              <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <RefreshCw className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Transfer Stock</span>
-              </button>
-              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Adjustments</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ShoppingCart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Procurement</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Packaging</span>
-              </button>
-              <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Warehouse Mgmt</span>
-              </button>
-              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <CheckSquare className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stocktake</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Tag className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Promo Pricing</span>
-              </button>
-              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Flow</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <div className="relative">
-                <button onClick={() => setStockReportOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-                </button>
-                {stockReportOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-64 py-1.5 overflow-hidden" onMouseLeave={() => setStockReportOpen(false)}>
-                    {(() => {
-                      const inv = inventory || [];
-                      const csvSafe = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-                      const rows = (arr) => arr.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, csvSafe(v)])));
-                      const reports = [
-                        {
-                          label: 'Stock List',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, category: i.category, supplier: i.supplier, on_hand: i.stock, committed: i.committed_qty, available: Math.max(0, (i.stock || 0) - (i.committed_qty || 0)), on_po: i.on_order_qty, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list'),
-                        },
-                        {
-                          label: 'Stock List — with GL Groups',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, gl_group: i.gl_group || '', item_type: i.item_type, location: i.location, on_hand: i.stock, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list-gl-groups'),
-                        },
-                        {
-                          label: 'Stock Valuation',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, unit_cost: i.unitCost, value: ((i.stock || 0) * (i.unitCost || 0)).toFixed(2) }))), 'stock-valuation'),
-                        },
-                        {
-                          label: 'Low Stock / Reorder',
-                          run: () => exportToCSV(rows(inv.filter(i => (i.stock || 0) <= (i.min_stock ?? i.reorderLevel ?? 0)).map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, min_stock: i.min_stock ?? i.reorderLevel ?? 0, on_po: i.on_order_qty, supplier: i.supplier }))), 'low-stock-reorder'),
-                        },
-                        {
-                          label: 'Stock List — 12 Month Sales',
-                          run: () => {
-                            const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
-                            const sold = {};
-                            (jobs || []).forEach(j => {
-                              if (['QUOTE', 'CANCEL'].includes(j.status)) return;
-                              const d = parseD(j.dateIn); if (!d || d < cutoff) return;
-                              (j.items || []).forEach(it => { if (it.stockCode) sold[it.stockCode] = (sold[it.stockCode] || 0) + (it.supply || it.qty || 0); });
-                            });
-                            exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, sold_12m: sold[i.sku] || 0, on_hand: i.stock, on_po: i.on_order_qty }))), 'stock-12-month-sales');
-                          },
-                        },
-                      ];
-                      return reports.map(r => (
-                        <button key={r.label} onClick={() => { if (!inv.length) { notify('No stock data loaded yet.', { type: 'error' }); return; } r.run(); setStockReportOpen(false); notify(`Exported ${r.label} (CSV)`, { type: 'success' }); }}
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-faint" />{r.label}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── ACCOUNTS ribbon ── */}
-          {/* No ribbon for Accounts: its navigation is the tab row inside the
-              module. This used to hold a dead "AP Bills" button and a disabled
-              "GST/BAS" one, which said BAS was unavailable directly above the
-              ledger's working BAS report. */}
-
-          {/* ── MANAGEMENT (reports) ribbon ── */}
-          {activeModule === 'reports' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reports</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <PieChart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Business Analysis</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Budgets</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Cash Flow</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Commission Rates</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Management</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── DASHBOARD ribbon ── */}
-          {activeModule === 'dashboard' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dashboard Board</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Trash2 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Delete</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Select Layout</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Combine Layout</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Widget</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Widget</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Widgets</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SCHEDULING ribbon ── */}
-          {activeModule === 'scheduling' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Schedule','Task','Day','Work Week','Week','Month','Year','Timeline','Current Job','Scheduler View'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <Calendar className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Group By</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Search className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Filters</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Resources</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Views</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Views</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── EMAIL ribbon ── */}
-          {activeModule === 'email' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Create List','Email Rules','Templates','Editor','Archive','Email Security','Send/Receive','Delete','Unread/Read','Move'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── eBUSINESS ribbon ── */}
-          {activeModule === 'ebusiness' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Vendor Prices</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Customer Feeds</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">eBusiness Trans.</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── DOCUMENTS ribbon ── */}
-          {activeModule === 'documents' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Add Document','View/Edit','Create List','Open','Save Properties','Delete','Actions','Checkout','Cancel Checkout','Large Icons','Show Hidden','List Layout'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── TOOLS (import) ribbon ── */}
-          {activeModule === 'import' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Options</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Setup</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Status</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Watchouts</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Currency Rates</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Groups</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">History</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Integration Config</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripting Engine</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report Designer</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Data</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Other</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Accounts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SETTINGS ribbon ── */}
-          {activeModule === 'settings' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Company','Bank & Payments','SMTP'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                  <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-          </>)}
-
-          {/* ── USER MANAGEMENT ribbon ── */}
-          {activeModule === 'user-management' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => {}} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Users</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── CUSTOMERS ribbon (hidden tab, accessible via nav) ── */}
-          {activeModule === 'customers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('customer')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Customer</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SUPPLIERS ribbon ── */}
-          {activeModule === 'suppliers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Supplier</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── WAREHOUSE ribbon ── */}
-          {activeModule === 'warehouse' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Items</span>
-              </button>
-            </div>
-          </>)}
-
-        </div>
-      </div>
-
-      {/* ── Live KPI Bar ── */}
+      {/* ── Live KPI Bar — job counts, so on the job pages only ── */}
+      {['dashboard', 'jobs', 'quotes'].includes(activeModule) && (
       <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
           { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => openQuickList('overdue') },
@@ -5287,13 +4620,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
           {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       </div>
+      )}
 
       {/* ── Content Row ── */}
       <div className="flex flex-1 min-h-0">
 
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <main className="flex-1 p-5 overflow-auto bg-[#f8fafc]">
+          <main className="flex-1 p-5 overflow-auto bg-paper">
             {loading && (
               <div className="flex items-center justify-center py-20 text-faint text-sm">Loading data...</div>
             )}
