@@ -1,3 +1,4 @@
+import { dayKey, formatDay } from '../../lib/dates';
 import DataGrid from '../../ui/DataGrid';
 import StatusBadge from '../../ui/StatusBadge';
 import { T } from '../../ui/tokens';
@@ -25,7 +26,8 @@ const COLUMNS = [
   { key: 'priority', label: 'Priority', width: 70 },
   { key: 'accMgr', label: 'Acc Mgr', width: 70 },
   { key: 'total', label: 'Total', width: 80, align: 'right', render: (j) => money(j.total) },
-  { key: 'due', label: 'Due', width: 90 },
+  // Stored as ISO or day-first text; shown one way and sorted by the day.
+  { key: 'due', label: 'Due', width: 100, render: (j) => formatDay(j.due) || '—', sortValue: (j) => dayKey(j.due) },
 ];
 
 export default function JobsList({ jobs, onJobClick, lockedStatus, groupBy }) {

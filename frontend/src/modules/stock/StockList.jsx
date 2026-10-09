@@ -41,7 +41,8 @@ export default function StockList({ items = [], selectedSku, onSelect }) {
         const t = qtyTone(i);
         return <span style={{ color: t.color, fontWeight: 600 }}>{Number(i.stock) || 0}</span>;
       } },
-    { key: 'avail', label: 'Avail', width: 60, align: 'right', render: (i) => availableQty(i) },
+    // No `avail` field exists on a row, so the column sorts by what it shows.
+    { key: 'avail', label: 'Avail', width: 60, align: 'right', render: (i) => availableQty(i), sortValue: (i) => availableQty(i) },
   ];
 
   return (

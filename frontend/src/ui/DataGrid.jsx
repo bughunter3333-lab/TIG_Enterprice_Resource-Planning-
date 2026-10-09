@@ -35,8 +35,12 @@ export default function DataGrid({
   const sorted = useMemo(() => {
     if (!rows || !sort) return rows ?? [];
     const { key, dir } = sort;
+    // A column may sort by something other than its raw field: a date stored
+    // in two shapes sorts by its day, a derived figure by its value.
+    const col = columns.find((c) => c.key === key);
+    const valueOf = col?.sortValue ?? ((row) => row[key]);
     return [...rows].sort((a, b) => {
-      const av = a[key], bv = b[key];
+      const av = valueOf(a), bv = valueOf(b);
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
@@ -45,7 +49,7 @@ export default function DataGrid({
         : String(av).localeCompare(String(bv), undefined, { numeric: true });
       return dir === 'asc' ? cmp : -cmp;
     });
-  }, [rows, sort]);
+  }, [rows, sort, columns]);
 
   // Jim2's job list groups by any column, and the despatch screen is that list
   // grouped by Ship#: fifteen jobs become four consignments. A column showing
