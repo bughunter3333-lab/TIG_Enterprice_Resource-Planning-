@@ -1,4 +1,6 @@
 import { parseD } from '../../ui/dates';
+import { todayKey } from '../../lib/dates';
+import { inView, viewLabel } from './jobMetrics';
 
 // Jim2 "Auto Pick Stock": allocate on-hand stock FIFO down the list order —
 // each job claims stock for its product lines before later jobs get any.
@@ -29,13 +31,21 @@ export function computeAutoPickAvailability(jobs, inventory) {
   return out;
 }
 
+// Quick filters are the shared job views (jobMetrics.js), so a count shown
+// anywhere and the list a quick filter opens are the same set. The ids are
+// kept because saved filters on the server store them; two predate the
+// shared names and map onto them.
+const QUICK_VIEW = {
+  overdue: 'overdue',
+  dueToday: 'dueToday',
+  thisWeek: 'thisWeek',
+  inProduction: 'inProduction',
+  needsInvoice: 'toInvoice',
+  myJobs: 'mine',
+};
+
 export const QUICK_FILTERS = [
-  { id: 'overdue', label: 'Overdue' },
-  { id: 'dueToday', label: 'Due Today' },
-  { id: 'thisWeek', label: 'This Week' },
-  { id: 'inProduction', label: 'In Production' },
-  { id: 'needsInvoice', label: 'Needs Invoice' },
-  { id: 'myJobs', label: 'My Jobs' },
+  ...Object.entries(QUICK_VIEW).map(([id, view]) => ({ id, label: viewLabel(view) })),
   { id: 'urgent', label: 'Urgent' },
 ];
 
@@ -168,21 +178,8 @@ export function filterJobs(jobs, f, currentUser, now = new Date()) {
     const matchesJobList = matchJobList(job, f.jobList, now);
 
     let matchesQuick = true;
-    if (f.quick) {
-      const todayStr = now.toISOString().split('T')[0];
-      const due = parseD(job.due);
-      const finished = ['PAID', 'CANCEL', 'FINISH', 'INVOICE'].includes(job.status);
-      if (f.quick === 'overdue') matchesQuick = !!due && due < now && !finished;
-      if (f.quick === 'dueToday') matchesQuick = !!due && due.toISOString().split('T')[0] === todayStr && !finished;
-      if (f.quick === 'thisWeek') {
-        const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
-        matchesQuick = !!due && due >= now && due <= weekEnd && !finished;
-      }
-      if (f.quick === 'inProduction') matchesQuick = ['In Progress', 'PROOF', 'PRINT', 'Pick/Pack'].includes(job.status);
-      if (f.quick === 'needsInvoice') matchesQuick = job.invoiceStatus === 'to_invoice' || job.status === 'FINISH';
-      if (f.quick === 'myJobs') matchesQuick = job.assignedTo === (currentUser?.full_name || currentUser?.username);
-      if (f.quick === 'urgent') matchesQuick = job.priority === 'Urgent';
-    }
+    if (f.quick === 'urgent') matchesQuick = job.priority === 'Urgent';
+    else if (f.quick) matchesQuick = inView(job, QUICK_VIEW[f.quick], { today: todayKey(now), user: currentUser });
 
     return matchesSearch && matchesStatus && matchesPriority && matchesCustomer && matchesAssigned && matchesDate && matchesShipCode && matchesGroup && matchesOpenFreight && matchesJobList && matchesQuick;
   });

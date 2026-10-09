@@ -10,7 +10,7 @@ const jobs = [
   { id: 'J2', status: 'ORDER', due: fmt(yesterday), accMgr: 'other' },
   { id: 'J3', status: 'Pick/Pack', due: null, accMgr: 'em' },
   { id: 'J4', status: 'PAID', due: fmt(yesterday), accMgr: 'em' },
-  // FINISH excluded from My Jobs/Overdue/Due Today by ACTIVE — pins the monolith-aligned rule
+  // FINISH is delivered, so it is in none of My jobs / Overdue / Due today (jobMetrics OPEN_WORK)
   { id: 'J5', status: 'FINISH', due: fmt(yesterday), accMgr: 'em' },
 ];
 
@@ -29,14 +29,14 @@ test('shows individual open jobs under Jobs and fires onOpenJob on click', () =>
   expect(base.onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ id: 'J1' }));
 });
 
-test('computes saved-list counts: My Jobs excludes PAID/CANCEL; Overdue uses due date', () => {
+test('computes saved-list counts from the shared job views', () => {
   render(<LiveTree {...base} />);
-  // My Jobs: J1, J3 (J4 is PAID) → 2
-  expect(screen.getByText('My Jobs').parentElement).toHaveTextContent('2');
+  // My jobs: J1, J3 (J4 is PAID, J5 FINISH) → 2
+  expect(screen.getByText('My jobs').parentElement).toHaveTextContent('2');
   // Overdue: J2 (yesterday, active) → 1; J4 excluded (PAID)
   expect(screen.getByText('Overdue').parentElement).toHaveTextContent('1');
-  // Due Today: J1 → 1
-  expect(screen.getByText('Due Today').parentElement).toHaveTextContent('1');
+  // Due today: J1 → 1
+  expect(screen.getByText('Due today').parentElement).toHaveTextContent('1');
   // Pick/Pack: J3 → 1
   expect(screen.getByText('Pick/Pack').parentElement).toHaveTextContent('1');
 });

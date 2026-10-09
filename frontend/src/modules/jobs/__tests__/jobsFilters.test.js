@@ -34,9 +34,11 @@ test('quick filter overdue excludes finished statuses', () => {
   expect(out.map(j => j.id)).toEqual(['1001']);
 });
 
-test('quick filter myJobs matches assignedTo against current user', () => {
+test('quick filter myJobs is my open work', () => {
+  // The shared 'mine' view (jobMetrics.js): assigned to or account-managed by
+  // me, and still to be delivered — 1003 is PAID, so it is no longer mine to do.
   const out = filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, quick: 'myJobs' }, { username: 'Emon' });
-  expect(out.map(j => j.id)).toEqual(['1001', '1003']);
+  expect(out.map(j => j.id)).toEqual(['1001']);
 });
 
 test('customerGroup filters on customerId prefix before the dot', () => {
@@ -177,6 +179,7 @@ test('time-sensitive quick filters are deterministic with injected now', () => {
 
   expect(ids('overdue')).toEqual(['A']);                 // D and E finished, excluded
   expect(ids('thisWeek')).toEqual(['B', 'C']);           // both future within 7 days
-  expect(ids('inProduction')).toEqual(['A', 'C']);       // A is PRINT (in production), C is In Progress
+  // The production phase (jobMetrics.js): ORDER through PRINT. B is an ORDER.
+  expect(ids('inProduction')).toEqual(['A', 'B', 'C']);
   expect(ids('needsInvoice')).toEqual(['D']);            // FINISH status
 });
