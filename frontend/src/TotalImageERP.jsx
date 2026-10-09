@@ -23,6 +23,7 @@ import JobsModule from './modules/jobs/JobsModule';
 import JobListBuilder from './modules/jobs/JobListBuilder';
 import DispatchList from './modules/jobs/DispatchList';
 import { matchJobList } from './modules/jobs/jobsFilters';
+import { jobsInView } from './modules/jobs/jobMetrics';
 import StockModule from './modules/stock/StockModule';
 import StockListBuilder from './modules/stock/StockListBuilder';
 import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
@@ -65,7 +66,7 @@ import CustomersDetail from './modules/customers/CustomersDetail';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
-import { parseD } from './lib/dates';
+import { parseD, todayKey } from './lib/dates';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
 import POListPage from './modules/saved-lists/POListPage';
 import StockListPage from './modules/saved-lists/StockListPage';
@@ -460,7 +461,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('dashboard'); }
         if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setActiveModule('customers'); }
         if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setActiveModule('reports'); }
-        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
+        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs' || activeModule === 'quotes') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
       }
       if (e.key === 'Escape') {
         if (globalSearchOpen) { setGlobalSearchOpen(false); return; }
@@ -486,12 +487,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
   const notifications = useMemo(() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
     const lowStockItems = inventory.filter(needsReorder);
-    const overdueJobs = jobs.filter(job => {
-      if (['FINISH','PAID','CANCEL'].includes(job.status)) return false;
-      try { const d = parseD(job.due); return d && d < now; } catch { return false; }
-    });
+    const overdueJobs = jobsInView(jobs, 'overdue');
 
     const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
     const expiringQuotes = jobs.filter(j => {
@@ -500,11 +497,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return d && d >= now && d <= in7Days;
     });
 
-    const dueTodayJobs = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
-      const d = parseD(j.due);
-      return d && d.toISOString().split('T')[0] === todayStr;
-    });
+    const dueTodayJobs = jobsInView(jobs, 'dueToday');
 
     const creditBreaches = customers.filter(c => {
       if (!c.creditLimit || c.creditLimit <= 0) return false;
@@ -564,7 +557,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     priority: 'Normal',
     type: 'Standard',
     quote: '',
-    dateIn: new Date().toISOString().split('T')[0],
+    dateIn: todayKey(),
     due: '',
     assignedTo: '',
     branch: 'HQ',
@@ -631,7 +624,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [poForm, setPoForm] = useState({
     supplierCode: '',
     supplier: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayKey(),
     expectedDate: '',
     notes: '',
     items: [],
@@ -665,8 +658,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         });
       } else {
         setJobForm({
-          customer: '', customerId: '', status: 'ORDER', priority: 'Normal',
-          type: 'Standard', quote: '', dateIn: new Date().toISOString().split('T')[0],
+          // From the Quotes screen a new job is a quote: an ORDER reserves stock
+          // and runs the credit check, which a quote must not.
+          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'ORDER', priority: 'Normal',
+          type: 'Standard', quote: '', dateIn: todayKey(),
           due: '', out: '', assignedTo: '', branch: 'HQ', shipToId: null, shippingAddress: '',
           paymentMethod: 'Account', custRef: '', ourRef: '', description: '', shipTo: '',
           projectNo: '', notes: '', paymentStatus: 'unpaid', commitmentDate: '', validityDate: '',
@@ -720,7 +715,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         setSupplierForm({ code: '', name: '', contact: '', email: '', phone: '', address: '', paymentTerms: 'Net 30', currency: 'AUD', status: 'Active' });
       }
     } else if (type === 'po') {
-      setPoForm({ supplierCode: '', supplier: '', date: new Date().toISOString().split('T')[0], expectedDate: '', notes: '', items: [] });
+      setPoForm({ supplierCode: '', supplier: '', date: todayKey(), expectedDate: '', notes: '', items: [] });
     }
 
     setShowModal(true);
@@ -1279,15 +1274,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
     const parseJobDate = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
-    const isOverdue = (j) => { if (['FINISH','PAID','CANCEL'].includes(j.status)) return false; const d = parseJobDate(j.due); return d && d < now; };
     const jobDateIn = (j) => { const d = parseJobDate(j.dateIn); return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : ''; };
     const revenueThisMonth = jobs.filter(j => jobDateIn(j) === thisMonth).reduce((s, j) => s + (j.total || 0), 0);
     const revenueLastMonth = jobs.filter(j => jobDateIn(j) === lastMonth).reduce((s, j) => s + (j.total || 0), 0);
     const revChange = revenueLastMonth > 0 ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth * 100) : null;
-    const overdueJobs = jobs.filter(isOverdue);
+    const overdueJobs = jobsInView(jobs, 'overdue');
     const quotesAwaitingApproval = jobs.filter(j => j.status === 'QUOTE').length;
-    const inProduction = jobs.filter(j => ['ORDER','In Progress','PROOF','PRINT','Pick/Pack'].includes(j.status)).length;
-    const toInvoice = jobs.filter(j => j.invoiceStatus === 'to_invoice').length;
+    const inProduction = jobsInView(jobs, 'inProduction').length;
+    const toInvoice = jobsInView(jobs, 'toInvoice').length;
     const statusBreakdown = {};
     ['QUOTE','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
 
@@ -1315,12 +1309,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     });
 
     // Jobs due today
-    const dueToday = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
-      const d = parseJobDate(j.due);
-      if (!d) return false;
-      return d.toISOString().split('T')[0] === todayStr;
-    });
+    const dueToday = jobsInView(jobs, 'dueToday');
 
     // Jobs due in next 48 hours (not today)
     const in48h = new Date(now); in48h.setHours(in48h.getHours() + 48);
@@ -1457,7 +1446,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${filename}_${todayKey()}.csv`;
     a.click();
   };
 
@@ -1551,6 +1540,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     setFilterOpenFreight(false);
     setFilterQuick(null);
     setActiveJobList(null);
+  };
+
+  // Opens the jobs list filtered to exactly what a count counted. The status
+  // strip's chips used to switch module without filtering ('11 Overdue'
+  // opened all jobs), or filter by a different rule than they counted by.
+  const openQuickList = (quick) => {
+    clearFilters();
+    setFilterQuick(quick);
+    setShowJobDetail(false);
+    setActiveModule('jobs');
   };
 
   const setJobsFilter = (key, value) => {
@@ -2309,28 +2308,45 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             {jobDetailTab === 'cost' && (
               <div className="space-y-4">
                 {(() => {
-                  const productLines = (activeJob.items || []).filter(i => i.displayType !== 'section' && i.displayType !== 'note');
-                  const totalCost = productLines.reduce((s, i) => s + (parseFloat(i.purchasePrice || 0) * (parseInt(i.order) || 0)), 0);
+                  // Only real figures. When no line had a cost this tab used to show
+                  // 55% / 30% / 15% of the subtotal as materials, labour and margin, in
+                  // the same tiles as real numbers; and lines with no cost counted as
+                  // pure margin. Now it says which lines are missing a cost instead.
+                  const productLines = (activeJob.items || [])
+                    .map((it, idx) => ({ it, lineNo: idx + 1 }))
+                    .filter(({ it }) => it.displayType !== 'section' && it.displayType !== 'note' && (parseFloat(it.order) || 0) > 0);
+                  const uncosted = productLines.filter(({ it }) => !(parseFloat(it.purchasePrice) > 0));
+                  const totalCost = productLines.reduce((s, { it }) => s + (parseFloat(it.purchasePrice || 0) * (parseFloat(it.order) || 0)), 0);
                   const grossMargin = (activeJob.subtotal || 0) - totalCost;
                   const marginPct = activeJob.subtotal > 0 ? (grossMargin / activeJob.subtotal * 100) : 0;
-                  const hasCostData = totalCost > 0;
+                  const missingNote = uncosted.length > 0 && (
+                    <p className="text-xs rounded px-3 py-2" role="note" style={{ background: T.warnTint, color: T.text, border: `1px solid ${T.hairline}` }}>
+                      No cost on {uncosted.length} of {productLines.length} line{productLines.length === 1 ? '' : 's'}
+                      {' '}(line {uncosted.map(u => u.lineNo).join(', ')}).
+                      {' '}{totalCost > 0 ? 'Margin below leaves them out, so it reads higher than it is.' : 'Add the supplier cost on the lines to see the margin.'}
+                    </p>
+                  );
+                  if (productLines.length === 0 || totalCost <= 0) {
+                    return missingNote || (
+                      <p className="text-xs" style={{ color: T.textMuted }}>No priced lines yet.</p>
+                    );
+                  }
                   return (
+                    <div className="space-y-2">
+                    {missingNote}
                     <div className="grid grid-cols-3 gap-4">
-                      {(hasCostData ? [
+                      {[
                         { label: 'Total Cost', value: totalCost.toFixed(2), tokenColor: T.text, note: 'From line item costs' },
                         { label: 'Gross Margin', value: grossMargin.toFixed(2), tokenColor: grossMargin >= 0 ? T.ok : T.danger, note: `${marginPct.toFixed(1)}% of revenue` },
                         { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, tokenColor: marginPct >= 30 ? T.ok : marginPct >= 15 ? 'text-warn' : T.danger, note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
-                      ] : [
-                        { label: 'Est. Materials', value: ((activeJob.subtotal || 0) * 0.55).toFixed(2), tokenColor: T.text, note: '~55% estimate' },
-                        { label: 'Est. Labour', value: ((activeJob.subtotal || 0) * 0.30).toFixed(2), tokenColor: T.text, note: '~30% estimate' },
-                        { label: 'Est. Margin', value: ((activeJob.subtotal || 0) * 0.15).toFixed(2), tokenColor: T.ok, note: '~15% estimate' },
-                      ]).map(row => (
+                      ].map(row => (
                         <div key={row.label} className="rounded-lg p-4 text-center" style={{ background: T.hairlineSoft }}>
                           <p className="text-xs mb-1" style={{ color: T.textMuted }}>{row.label}</p>
-                          <p className={`text-2xl font-bold${row.tokenColor === 'text-warn' ? ' text-warn' : ''}`} style={row.tokenColor !== 'text-warn' ? { color: row.tokenColor } : {}}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
+                          <p className={`text-2xl font-bold${row.tokenColor === 'text-warn' ? ' text-warn' : ''}`} style={row.tokenColor !== 'text-warn' ? { color: row.tokenColor } : {}}>{row.value.endsWith('%') ? row.value : `$${row.value}`}</p>
                           <p className="text-xs mt-1" style={{ color: T.textFaint }}>{row.note}</p>
                         </div>
                       ))}
+                    </div>
                     </div>
                   );
                 })()}
@@ -2829,22 +2845,22 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       </select>
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
-                    {/* Paid — semantic colours kept */}
-                    <div className="flex items-center gap-1">
+                    {/* Paid and Invoice are read-only: the server derives them from
+                        payments recorded and from invoicing, and ignores them on save.
+                        As dropdowns they let a job read Paid with no payment taken. */}
+                    <div className="flex items-center gap-1" title="Changes when a payment is recorded on the job">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
-                      <select value={jobForm.paymentStatus || 'unpaid'} onChange={e => setJobForm({...jobForm, paymentStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : 'bg-danger-tint text-danger border-danger'}`}>
-                        <option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option>
-                      </select>
+                      <span className={`border rounded px-1.5 py-0.5 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : ''}`}
+                        style={jobForm.paymentStatus === 'paid' || jobForm.paymentStatus === 'partial' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
+                        {{ paid: 'Paid', partial: 'Partial' }[jobForm.paymentStatus] || 'Unpaid'}
+                      </span>
                     </div>
-                    {/* Invoice status — semantic colours kept */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" title="Changes when the job is invoiced">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
-                      <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
-                        style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
-                        <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
-                      </select>
+                      <span className={`border rounded px-1.5 py-0.5 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
+                        style={jobForm.invoiceStatus === 'invoiced' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
+                        {{ invoiced: 'Invoiced', to_invoice: 'To invoice' }[jobForm.invoiceStatus] || 'Not invoiced'}
+                      </span>
                     </div>
                     {/* Proof — semantic colours kept */}
                     <div className="flex items-center gap-1">
@@ -3608,17 +3624,29 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                   </td>
                                 </tr>
 
-                                {/* Decoration sub-row */}
-                                {hasDecoration && (
-                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
+                                {/* Decoration sub-row. Every product line gets one: without
+                                    it a new line (decorationType 'None') had no way to be given
+                                    a method at all, since the method menu lived only in here. */}
+                                {!isSec && !isNote && (
+                                  <tr className={`${!hasDecoration ? '' : decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
                                     style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
                                     <td colSpan={14} className="px-2 py-0.5">
                                       <div className="flex items-center gap-2 relative">
-                                        <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
-                                          className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
-                                          {decOpt.emoji} {decOpt.l} <ChevronDown className="w-2.5 h-2.5 opacity-40" />
-                                        </button>
+                                        {hasDecoration ? (
+                                          <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
+                                            aria-label={`Line ${idx + 1} decoration: ${decOpt.l}`}
+                                            className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
+                                            {decOpt.emoji} {decOpt.l} <ChevronDown className="w-2.5 h-2.5 opacity-40" />
+                                          </button>
+                                        ) : (
+                                          <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
+                                            aria-label={`Add decoration to line ${idx + 1}`}
+                                            className="shrink-0 inline-flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium hover:underline"
+                                            style={{ color: T.accentStrong }}>
+                                            + Decoration
+                                          </button>
+                                        )}
                                         {openDecIdx === idx && (
                                           <>
                                             <div className="fixed inset-0 z-40" onClick={() => setOpenDecIdx(null)} />
@@ -3638,6 +3666,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                             </div>
                                           </>
                                         )}
+                                        {hasDecoration && (<>
                                         {/* Generic decoration code — works for any method (EMB/TRS/SP/DTF…) */}
                                         <input type="text" value={item.decCode || item.embCode || item.trsCode || ''} onChange={e => updateJobItem(idx, 'decCode', e.target.value)}
                                           className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
@@ -3663,6 +3692,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                           <option value="">Position…</option>
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
+                                        </>)}
                                       </div>
                                     </td>
                                     <td style={{ width: 24 }}></td>
@@ -4483,7 +4513,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       onNewJob={() => openModal('job')}
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      notifCount={(jobs ?? []).filter(j => !['PAID','CANCEL'].includes(j.status) && j.due && parseD(j.due) < new Date()).length}
+      notifCount={jobsInView(jobs, 'overdue').length}
       jobs={jobs ?? []}
       pinnedJobs={pinnedJobs}
       onOpenJob={pinJob}
@@ -4491,9 +4521,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       onSelectList={(listId) => {
         clearFilters();
         if (listId === 'mine') setFilterQuick('myJobs');
-        else if (listId === 'due-today') setFilterQuick('dueToday');
+        else if (listId === 'dueToday') setFilterQuick('dueToday');
         else if (listId === 'overdue') setFilterQuick('overdue');
-        else if (listId === 'pickpack') setFilterStatus('Pick/Pack');
+        else if (listId === 'pickPack') setFilterStatus('Pick/Pack');
         setShowJobDetail(false);
         setActiveModule('jobs');
       }}
@@ -4533,7 +4563,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
           {(activeModule === 'jobs' || activeModule === 'quotes') && (<>
             <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
               <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Job</span>
+                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{activeModule === 'quotes' ? 'Add Quote' : 'Add Job'}</span>
               </button>
               <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
                 <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View Job</span>
@@ -5224,9 +5254,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
                 <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Items</span>
               </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Bin Map</span>
-              </button>
             </div>
           </>)}
 
@@ -5236,11 +5263,11 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       {/* ── Live KPI Bar ── */}
       <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
-          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => { setActiveModule('jobs'); } },
-          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => { setActiveModule('jobs'); setFilterStatus('FINISH'); } },
+          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => openQuickList('overdue') },
+          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => openQuickList('dueToday') },
+          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => openQuickList('needsInvoice') },
           { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-warn',  bg: 'hover:bg-warn-tint',  text: 'text-warn',  border: 'border-warn',  action: () => setActiveModule('inventory') },
-          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => setActiveModule('jobs') },
+          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => openQuickList('inProduction') },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -5302,7 +5329,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'suppliers'          && <SuppliersModule deleteSupplier={deleteSupplier} exportToCSV={exportToCSV} inventory={inventory} openModal={openModal} purchaseOrders={purchaseOrders} searchTerm={searchTerm} setActiveModule={setActiveModule} setSearchTerm={setSearchTerm} suppliers={suppliers} />}
                 {!loading && activeModule === 'purchase-orders'    && (poListModal.open ? <POListPage deleteJobList={deleteJobList} openModal={openModal} poListModal={poListModal} purchaseOrders={purchaseOrders} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setPoListModal={setPoListModal} setSelectedPO={setSelectedPO} updateListFilter={updateListFilter} /> : <PurchaseOrdersDetail exportToCSV={exportToCSV} openModal={openModal} poStatusFilter={poStatusFilter} purchaseOrders={purchaseOrders} receivePO={receivePO} receiveQtys={receiveQtys} searchTerm={searchTerm} selectedPO={selectedPO} setPoStatusFilter={setPoStatusFilter} setReceiveQtys={setReceiveQtys} setSearchTerm={setSearchTerm} setSelectedPO={setSelectedPO} updatePOStatus={updatePOStatus} />)}
                 {!loading && activeModule === 'reports'            && renderReports()}
-                {!loading && activeModule === 'warehouse'          && <WarehouseModule exportToCSV={exportToCSV} inventory={inventory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                {!loading && activeModule === 'warehouse'          && <WarehouseModule currentUser={currentUser} onOpenSku={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }} />}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
