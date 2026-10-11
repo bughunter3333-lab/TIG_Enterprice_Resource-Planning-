@@ -104,13 +104,23 @@ two fingers zoom and turn on touch. A drag slides over the rack face when the
 camera is looking across at it and over the floor when it is looking down. A hint
 on the canvas names the gestures, in touch words on a touch screen.
 
-**Racking is solid to the camera.** Under the person's hand the eye stays on a
-walkway (`walkwayX`) and above the floor: it cannot back into the rack behind or
-swing through the one in front. An aisle is too narrow to back away from a rack, so
-scrolling out against the rack behind steps back down the aisle instead
-(`aisleView`), still looking at the same spot; from there scrolling out runs clear
-to receiving. The hover label is dropped whenever the view moves, because the box
-under the pointer is no longer the one it named.
+**Racking, to the camera.** A turn or a drag cannot carry the eye off the walkway
+it is standing on (`heldToWalkway`: held to *that* walkway, not the nearest one to
+where a quick move landed, and only the eye — the pivot stays). A zoom is let
+through: an aisle is too narrow to back away from a rack and see more of it, so
+scrolling out backs the eye through the racking behind, and everything between it
+and the open space in front of what it is looking at is cut away (`sightStart`
+sets the camera's near plane), as in a section drawing. Boxes that are cut away do
+not answer the pointer. The two kinds of move are told apart by distance: a turn or
+a drag leaves the eye exactly as far from its pivot as the last change did.
+
+An earlier version stepped the camera back down the aisle when a zoom-out was
+blocked. It guessed which gesture had been blocked and guessed wrong (a blocked
+turn stepped back; further out than the step, it pulled the view in), so it is
+gone: nothing here moves the camera except the hand, a pick, and Reset view.
+
+The hover label is dropped whenever the view moves, because the box under the
+pointer is no longer the one it named.
 
 Three things used to pull the view back and must stay fixed:
 
@@ -153,7 +163,9 @@ transaction, through the shared ledger paths.
 - The quantity is on the stock audit trail with the user's name (movement rows carry
   no user), and so is a changed pick location, with what it was before.
 - Agreeing to replace a bin is agreeing to replace *that* bin: the tick does not
-  carry over to another slot or to a box that has since changed.
+  carry over to another slot or to a box that has since changed, and the request
+  names the bin (`replace_bin`) so the server refuses if the slot holds a different
+  one by then. Saving bins on the Locations tab refreshes the map.
 - Once a save is on its way it cannot be called off, and it is never queued for
   later while offline. A save that fails after the form has gone is reported as a
   toast, as a success would be.
