@@ -14,14 +14,19 @@ vi.mock('../../../api', () => ({
   adminSettings: { get: vi.fn(), set: vi.fn() },
   stock: { binMap: vi.fn(), putAway: vi.fn(), locationSummary: vi.fn() },
 }));
+// Every `focus` the scene is handed, in order: a new object is a new fly-to.
+const scene = vi.hoisted(() => ({ focus: [] }));
 vi.mock('../Warehouse3D', () => ({
   // Stands in for clicking an empty box in the canvas.
-  default: ({ selected, onSelect }) => (
-    <div data-testid="scene">
-      scene {selected ?? 'none'}
-      <button type="button" onClick={() => onSelect('E.2.H.4')}>pick E.2.H.4</button>
-    </div>
-  ),
+  default: ({ selected, focus, onSelect }) => {
+    scene.focus.push(focus);
+    return (
+      <div data-testid="scene">
+        scene {selected ?? 'none'}
+        <button type="button" onClick={() => onSelect('E.2.H.4')}>pick E.2.H.4</button>
+      </div>
+    );
+  },
 }));
 
 const BINS = [
@@ -32,6 +37,7 @@ const BINS = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  scene.focus.length = 0;
   adminSettings.get.mockResolvedValue({ key: 'warehouse_layout:HQ', value: null });
   stock.binMap.mockResolvedValue({ branch: 'HQ', bins: BINS });
   stock.locationSummary.mockResolvedValue({ total_on_hand: 0, located: 0, unlocated: 0, in_sync: true });
@@ -66,6 +72,49 @@ test('finding a SKU lists its bin; picking it opens the bin with the branch figu
 
   fireEvent.click(within(panel).getByRole('button', { name: /Open item/ }));
   expect(onOpenSku).toHaveBeenCalledWith('AS-5001-NAV-L');
+});
+
+describe('where the camera is sent', () => {
+  const last = () => scene.focus[scene.focus.length - 1];
+
+  test('picking a box asks for a front view of it, and nothing else moves the camera', async () => {
+    renderWithQuery(<WarehouseModule currentUser={{ role: 'staff' }} onOpenSku={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'pick E.2.H.4' }));
+    const sent = last();
+    expect(sent.target).toHaveLength(3);
+    expect(sent.eye[2]).toBe(sent.target[2]); // square to the box's face
+
+    // Typing in the search redraws the screen; the camera must be left alone.
+    fireEvent.change(screen.getByLabelText('Find SKU, product or bin'), { target: { value: 'navy' } });
+    expect(last()).toBe(sent);
+  });
+
+  test('picking the same box again faces it again, after the view has been moved away', async () => {
+    renderWithQuery(<WarehouseModule currentUser={{ role: 'staff' }} onOpenSku={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'pick E.2.H.4' }));
+    const first = last();
+    fireEvent.click(screen.getByRole('button', { name: 'pick E.2.H.4' }));
+    expect(last()).not.toBe(first);
+    expect(last()).toEqual(first);
+  });
+
+  test('says how to move around the racking', async () => {
+    renderWithQuery(<WarehouseModule currentUser={{ role: 'staff' }} onOpenSku={() => {}} />);
+    await screen.findByTestId('scene');
+    expect(screen.getByText(/Drag to move/)).toHaveTextContent(/right-drag to turn.*scroll to zoom.*click a box to face it/i);
+  });
+
+  test('on a touch screen the hint names the gestures a touch screen has', async () => {
+    const real = window.matchMedia;
+    window.matchMedia = (query) => ({ matches: query === '(pointer: coarse)' });
+    try {
+      renderWithQuery(<WarehouseModule currentUser={{ role: 'staff' }} onOpenSku={() => {}} />);
+      await screen.findByTestId('scene');
+      expect(screen.getByText(/Drag to move/)).toHaveTextContent(/two fingers to turn.*pinch to zoom.*tap a box to face it/i);
+    } finally {
+      window.matchMedia = real;
+    }
+  });
 });
 
 test('only an admin can edit the racking layout, and it saves per branch', async () => {

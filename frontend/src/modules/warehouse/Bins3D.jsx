@@ -23,6 +23,8 @@ export const BOX = { d: SIZE.depth * 0.9, h: SIZE.level * 0.86, w: SIZE.box * 0.
 const OPENING = { h: BOX.h * 0.52, w: BOX.w * 0.84, y: BOX.h * 0.16 };
 const LABEL = { h: BOX.h * 0.2, w: BOX.w * 0.6, y: -BOX.h * 0.27 };
 
+const CLICK_SLOP_PX = 4;
+
 const tmp = new THREE.Object3D();
 const tint = new THREE.Color();
 
@@ -45,9 +47,8 @@ function shownState(code, entry, hits, filter) {
   return entry.state;
 }
 
-function place(mesh, i, x, y, z, scale = 1) {
+function place(mesh, i, x, y, z) {
   tmp.position.set(x, y, z);
-  tmp.scale.set(scale, scale, scale);
   tmp.updateMatrix();
   mesh.setMatrixAt(i, tmp.matrix);
 }
@@ -66,7 +67,9 @@ export function Bins({ cells, bins, hits, filter, selected, onHover, onSelect })
       const fx = frontX(c);
       const s = frontSign(c);
 
-      place(bodies.current, i, c.x, c.y, c.z, isSelected ? 1.06 : 1);
+      // The selected box changes colour, not size: grown, its body swallowed
+      // the opening and the label, and from the front it was a blank block.
+      place(bodies.current, i, c.x, c.y, c.z);
       bodies.current.setColorAt(i, isSelected ? tint.set(BIN_COLORS.selected) : kraft(i));
 
       place(openings.current, i, fx + s * 0.002, c.y + OPENING.y, c.z);
@@ -91,7 +94,8 @@ export function Bins({ cells, bins, hits, filter, selected, onHover, onSelect })
         args={[null, null, cells.length]}
         onPointerMove={(e) => { e.stopPropagation(); onHover(cells[e.instanceId]); }}
         onPointerOut={() => onHover(null)}
-        onClick={(e) => { e.stopPropagation(); onSelect(cells[e.instanceId].code); }}
+        // A drag that ends over a box is the end of a move, not a pick.
+        onClick={(e) => { e.stopPropagation(); if (e.delta <= CLICK_SLOP_PX) onSelect(cells[e.instanceId].code); }}
       >
         <boxGeometry args={[BOX.d, BOX.h, BOX.w]} />
         <meshStandardMaterial roughness={0.9} />

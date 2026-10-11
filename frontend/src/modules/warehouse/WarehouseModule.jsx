@@ -13,7 +13,7 @@ import * as api from '../../api';
 import { BRANCHES, DEFAULT_BRANCH } from '../../branches';
 import { T } from '../../ui/tokens';
 import Button from '../../ui/Button';
-import { LEVEL_LETTERS, binPlacement, levelCount, validateLayout } from './layout';
+import { LEVEL_LETTERS, binPlacement, frontView, levelCount, validateLayout } from './layout';
 import { binStates, matchBins } from './occupancy';
 import { SearchPanel, BinPanel } from './WarehousePanels';
 import LayoutDialog from './LayoutDialog';
@@ -54,10 +54,13 @@ export default function WarehouseModule({ currentUser, onOpenSku, inventory }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
+  const [pickCount, setPickCount] = useState(0);
   const [resetKey, setResetKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [offMapOpen, setOffMapOpen] = useState(false);
   const webgl = useMemo(hasWebGL, []);
+  // Which gestures to name in the hint: a touch screen has no right-drag or scroll.
+  const touchFirst = useMemo(() => typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches, []);
   const isAdmin = currentUser?.role === 'admin';
   // Putting stock into a box edits the stock position, which is admin or
   // manager work (the same gate as the Locations tab).
@@ -106,9 +109,16 @@ export default function WarehouseModule({ currentUser, onOpenSku, inventory }) {
   }, [bins]);
   const totalBoxes = layout.aisles.length * layout.baysPerAisle * levelCount(layout) * layout.positions;
 
-  const placement = selected ? binPlacement(layout, selected) : null;
-  const focus = placement?.ok ? { ...placement, layout } : null;
-  const pick = (code) => setSelected(code);
+  // Stable between renders: a new object here re-ran the camera's fly-to on
+  // every data refresh or keystroke, dragging the view back to the box.
+  const placement = useMemo(() => (selected ? binPlacement(layout, selected) : null), [selected, layout]);
+  const focus = useMemo(() => {
+    // pickCount is part of the memo so picking the same box again, after the
+    // view has been moved away, faces it again.
+    void pickCount;
+    return placement?.ok ? frontView(layout, placement) : null;
+  }, [placement, layout, pickCount]);
+  const pick = (code) => { setSelected(code); setPickCount((n) => n + 1); };
   const toggle = (f) => setFilter((cur) => (cur === f ? 'all' : f));
 
   const loading = layoutQuery.isLoading || binsQuery.isLoading;
@@ -167,9 +177,20 @@ export default function WarehouseModule({ currentUser, onOpenSku, inventory }) {
           ) : !webgl ? (
             <Notice>This browser can't draw 3D (WebGL is off). Search and bin details on the left still work.</Notice>
           ) : (
-            <Suspense fallback={<Notice>Loading the 3D view…</Notice>}>
-              <Warehouse3D layout={layout} bins={bins} hits={hits} filter={filter} selected={selected} focus={focus} resetKey={resetKey} onSelect={pick} />
-            </Suspense>
+            <>
+              <Suspense fallback={<Notice>Loading the 3D view…</Notice>}>
+                <Warehouse3D layout={layout} bins={bins} hits={hits} filter={filter} selected={selected} focus={focus} resetKey={resetKey} onSelect={pick} />
+              </Suspense>
+              <p style={{
+                position: 'absolute', left: 12, bottom: 12, margin: 0, padding: '4px 10px', pointerEvents: 'none',
+                fontSize: T.fsSmall, color: T.textMuted, background: T.panel, border: `1px solid ${T.hairline}`,
+                borderRadius: T.radiusField, boxShadow: T.shadowSm,
+              }}>
+                {touchFirst
+                  ? 'Drag to move · two fingers to turn · pinch to zoom · tap a box to face it'
+                  : 'Drag to move · right-drag to turn · scroll to zoom · click a box to face it'}
+              </p>
+            </>
           )}
         </main>
         {placement?.ok && (

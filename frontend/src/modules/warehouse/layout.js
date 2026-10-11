@@ -148,6 +148,75 @@ export function binPlacement(layout, code) {
   };
 }
 
+// How far across the walkway to stand from its centre, and how far above the
+// box's centre: a touch above keeps the view inside the camera's tilt limit.
+const FRONT_VIEW = { across: 0.7, rise: 0.12 };
+
+/**
+ * Where to stand to see a box from the front: in its own aisle, square to its
+ * face, level with it, back against the opposite rack. `p` is a binPlacement.
+ */
+export function frontView(layout, p) {
+  const across = p.side === 'right' ? -FRONT_VIEW.across : FRONT_VIEW.across;
+  return {
+    target: [p.x, p.y, p.z],
+    eye: [aisleX(layout, p.aisleIndex) + across, p.y + FRONT_VIEW.rise, p.z],
+  };
+}
+
+// How close to a rack face the camera may come.
+const WALK_MARGIN = 0.15;
+// Stepping back from a rack face: how far toward receiving, and how far up.
+const AISLE_VIEW = { back: 4.5, rise: 1.2 };
+
+function nearestAisleX(layout, x) {
+  let best = 0;
+  layout.aisles.forEach((_, i) => {
+    if (Math.abs(aisleX(layout, i) - x) < Math.abs(aisleX(layout, best) - x)) best = i;
+  });
+  return aisleX(layout, best);
+}
+
+/**
+ * `x` kept out of the racking. Inside the building and below the top of the
+ * racks, the only free space is the walkways, so a point in a rack comes back
+ * on the nearest walkway, short of the rack face. Above the racks or outside
+ * the building anywhere is free, and x comes back unchanged.
+ */
+export function walkwayX(layout, x, y, z) {
+  const ext = extent(layout);
+  const free = y >= closingBeamHeight(layout) + WALK_MARGIN
+    || z > WALK_MARGIN || z < -ext.length - WALK_MARGIN
+    || Math.abs(x) >= ext.width / 2 + WALK_MARGIN;
+  if (free) return x;
+  const centre = nearestAisleX(layout, x);
+  const reach = SIZE.aisle / 2 - WALK_MARGIN;
+  return Math.min(centre + reach, Math.max(centre - reach, x));
+}
+
+/** Whether the straight line from `a` to `b` ([x, y, z]) stays out of the racking. */
+export function clearPath(layout, a, b) {
+  const STEPS = 32;
+  for (let i = 0; i <= STEPS; i += 1) {
+    const t = i / STEPS;
+    const [x, y, z] = [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * t);
+    if (Math.abs(walkwayX(layout, x, y, z) - x) > 1e-9) return false;
+  }
+  return true;
+}
+
+/**
+ * Where to step back to from a rack face, to see more: the middle of the
+ * walkway, some paces toward receiving and a little higher, still looking at
+ * `target`. An aisle is too narrow to back straight away from a rack.
+ */
+export function aisleView(layout, target, eyeX) {
+  return {
+    target: [...target],
+    eye: [nearestAisleX(layout, eyeX), target[1] + AISLE_VIEW.rise, target[2] + AISLE_VIEW.back],
+  };
+}
+
 /** Every box in the racking, in a stable order — one instance each in the scene. */
 export function allCells(layout) {
   const cells = [];
