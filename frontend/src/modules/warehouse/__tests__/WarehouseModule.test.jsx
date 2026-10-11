@@ -173,7 +173,7 @@ describe('adding stock to a box', () => {
     // CAP-5PNL-BLK's primary is B.3.C.4, so this box defaults to its overflow bin.
     expect(stock.putAway.mock.calls[0][0]).toEqual({
       branch: 'HQ', bin: 'E.2.H.4', sku: 'CAP-5PNL-BLK', slot: 'overflow',
-      quantity: 12, new_stock: true, replace: false, max_qty: null, reason: null,
+      quantity: 12, new_stock: true, replace: false, replace_bin: null, max_qty: null, reason: null,
     });
   });
 
@@ -354,10 +354,15 @@ describe('adding stock to a box', () => {
     await vi.waitFor(() => expect(stock.putAway).toHaveBeenCalled());
     expect(within(panel).getByRole('button', { name: 'Cancel' })).toBeDisabled();
 
+    const said = [];
+    const unsubscribe = subscribe((n) => said.push(n));
     refuse(Object.assign(new Error('Request failed: 500'), { status: 500 }));
     expect(await within(panel).findByRole('alert')).toHaveTextContent(/Couldn't add the stock: Request failed: 500/);
     expect(within(panel).getByRole('button', { name: 'Cancel' })).toBeEnabled();
     expect(stock.putAway).toHaveBeenCalledTimes(1);
+    // Said once, in the form: not as a toast as well.
+    expect(said).toHaveLength(0);
+    unsubscribe();
   });
 
   test('a save that fails after the form has gone is still reported', async () => {
@@ -438,5 +443,127 @@ describe('adding stock to a box', () => {
     finish({ placed_unlocated: 0, on_hand_change: 0 });
     await vi.waitFor(() => expect(within(panel).getByRole('button', { name: /Add stock/ })).toBeInTheDocument());
     expect(search).toHaveFocus();
+  });
+
+  test('the request names the bin the tick was for', async () => {
+    stock.putAway.mockResolvedValue({ placed_unlocated: 0, on_hand_change: 0 });
+    const panel = await choose('navy', 'AS-5001-NAV-L');
+    fireEvent.click(within(panel).getByLabelText('Primary bin'));
+    fireEvent.click(within(panel).getByLabelText(/Its primary bin is A.1.A.1/));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Slot into E.2.H.4' }));
+    await vi.waitFor(() => expect(stock.putAway).toHaveBeenCalled());
+    expect(stock.putAway.mock.calls[0][0]).toMatchObject({ slot: 'primary', replace: true, replace_bin: 'A.1.A.1' });
+  });
+
+  test('ticking Replace fixes the slot, so a refreshed map cannot move the agreement to the other one', async () => {
+    // Both of the cap's bins are taken; the form starts on Primary because neither is free.
+    stock.binMap.mockResolvedValue({ branch: 'HQ', bins: [...BINS, { ...CAP, bin: 'D.1.A.1', slot: 'overflow' }] });
+    const { client } = renderWithQuery(<WarehouseModule currentUser={{ role: 'manager' }} inventory={INVENTORY} onOpenSku={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'pick E.2.H.4' }));
+    const panel = screen.getByRole('complementary', { name: 'Bin E.2.H.4' });
+    fireEvent.click(within(panel).getByRole('button', { name: /Add stock/ }));
+    fireEvent.change(within(panel).getByLabelText('Product'), { target: { value: 'cap' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /CAP-5PNL-BLK/ }));
+    fireEvent.click(within(panel).getByLabelText(/Its primary bin is B.3.C.4/));
+
+    // The overflow bin is cleared elsewhere. Unpinned, the default would now drift to Overflow.
+    stock.binMap.mockResolvedValue({ branch: 'HQ', bins: BINS });
+    await client.invalidateQueries({ queryKey: ['bin-map', 'HQ'] });
+    await vi.waitFor(() => expect(within(panel).getByText(/overflow bin —/)).toBeInTheDocument());
+    expect(within(panel).getByLabelText('Primary bin')).toBeChecked();
+    expect(within(panel).getByLabelText(/Its primary bin is B.3.C.4/)).toBeChecked();
+  });
+
+  test('a quantity typed for stock with no location does not come back when that stock has gone', async () => {
+    stock.locationSummary.mockResolvedValue({ total_on_hand: 50, located: 0, unlocated: 50, in_sync: false });
+    const { client } = renderWithQuery(<WarehouseModule currentUser={{ role: 'manager' }} inventory={INVENTORY} onOpenSku={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'pick E.2.H.4' }));
+    const panel = screen.getByRole('complementary', { name: 'Bin E.2.H.4' });
+    fireEvent.click(within(panel).getByRole('button', { name: /Add stock/ }));
+    fireEvent.change(within(panel).getByLabelText('Product'), { target: { value: 'cap' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /CAP-5PNL-BLK/ }));
+    fireEvent.change(await within(panel).findByLabelText(/How many of the 50/), { target: { value: '30' } });
+
+    // Someone else locates all of it: the field goes, and its number with it.
+    stock.locationSummary.mockResolvedValue({ total_on_hand: 50, located: 50, unlocated: 0, in_sync: true });
+    await client.invalidateQueries({ queryKey: ['stock-location-summary'] });
+    await vi.waitFor(() => expect(within(panel).queryByLabelText(/How many of the/)).not.toBeInTheDocument());
+    expect(within(panel).getByRole('button', { name: 'Slot into E.2.H.4' })).toBeEnabled();
+
+    stock.locationSummary.mockResolvedValue({ total_on_hand: 60, located: 50, unlocated: 10, in_sync: false });
+    await client.invalidateQueries({ queryKey: ['stock-location-summary'] });
+    expect(await within(panel).findByLabelText(/How many of the 10/)).toHaveValue(null);
+  });
+
+  test('choosing another product starts again: slot, agreement and what the stock is', async () => {
+    // Both products have both bins taken, and the same box as their primary bin,
+    // so nothing but a reset tells one product's choices from the other's.
+    const TEE = { ...CAP, sku: 'AS-5001-NAV-L', name: 'Staple Tee Navy L' };
+    stock.binMap.mockResolvedValue({ branch: 'HQ', bins: [
+      { ...CAP, bin: 'A.1.A.1' }, { ...CAP, bin: 'D.1.A.1', slot: 'overflow' },
+      { ...TEE, bin: 'A.1.A.1' }, { ...TEE, bin: 'D.2.A.1', slot: 'overflow' },
+    ] });
+    const panel = await choose('cap', 'CAP-5PNL-BLK');
+    const another = (text, sku) => {
+      fireEvent.click(within(panel).getByRole('button', { name: 'Change' }));
+      fireEvent.change(within(panel).getByLabelText('Product'), { target: { value: text } });
+      fireEvent.click(within(panel).getByRole('button', { name: new RegExp(sku) }));
+    };
+    fireEvent.click(within(panel).getByLabelText(/Its primary bin is A.1.A.1/));
+    fireEvent.click(within(panel).getByLabelText('New stock, not counted yet'));
+
+    another('navy', 'AS-5001-NAV-L');
+    expect(within(panel).getByLabelText(/Its primary bin is A.1.A.1/)).not.toBeChecked();
+    expect(within(panel).getByLabelText('Already on hand')).toBeChecked();
+
+    fireEvent.click(within(panel).getByLabelText('Overflow bin'));
+    another('cap', 'CAP-5PNL-BLK');
+    expect(within(panel).getByLabelText('Primary bin')).toBeChecked();
+  });
+
+  test('offline, the save fails there and then instead of waiting to fire later', async () => {
+    const { onlineManager } = await import('@tanstack/react-query');
+    stock.putAway.mockRejectedValue(new Error('Failed to fetch'));
+    const panel = await choose('cap', 'CAP-5PNL-BLK');
+    onlineManager.setOnline(false);
+    try {
+      fireEvent.click(within(panel).getByRole('button', { name: 'Slot into E.2.H.4' }));
+      expect(await within(panel).findByRole('alert')).toHaveTextContent(/Couldn't add the stock: Failed to fetch/);
+      expect(stock.putAway).toHaveBeenCalledTimes(1);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  test('a refused save gives the keyboard back to where it was', async () => {
+    let refuse;
+    stock.putAway.mockReturnValue(new Promise((_, reject) => { refuse = reject; }));
+    const panel = await choose('cap', 'CAP-5PNL-BLK');
+    const noteField = within(panel).getByLabelText('Note (optional)');
+    noteField.focus();
+    fireEvent.submit(within(panel).getByRole('form', { name: 'Add stock to E.2.H.4' }));
+    await vi.waitFor(() => expect(stock.putAway).toHaveBeenCalled());
+    // A browser drops focus to the page when the field is disabled for the
+    // save. jsdom leaves it there (and will not blur a disabled field), so
+    // move it off by way of something that can be blurred.
+    const elsewhere = document.body.appendChild(document.createElement('button'));
+    elsewhere.focus();
+    elsewhere.blur();
+    elsewhere.remove();
+    expect(document.body).toHaveFocus();
+    refuse(Object.assign(new Error('Request failed: 500'), { status: 500 }));
+    await within(panel).findByRole('alert');
+    await vi.waitFor(() => expect(noteField).toHaveFocus());
+  });
+
+  test('signed out mid-save, the failure is said aloud, because the sign-in page is about to replace the form', async () => {
+    const said = [];
+    const unsubscribe = subscribe((n) => said.push(n));
+    stock.putAway.mockRejectedValue(Object.assign(new Error('Not authenticated'), { status: 401 }));
+    const panel = await choose('cap', 'CAP-5PNL-BLK');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Slot into E.2.H.4' }));
+    await vi.waitFor(() => expect(said).toHaveLength(1));
+    expect(said[0]).toMatchObject({ type: 'error', message: "Couldn't add 5-Panel Cap Black to E.2.H.4: Not authenticated" });
+    unsubscribe();
   });
 });

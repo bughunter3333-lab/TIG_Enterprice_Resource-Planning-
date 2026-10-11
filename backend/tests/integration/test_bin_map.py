@@ -170,6 +170,23 @@ class TestPutAway:
         db.refresh(loc)
         assert loc.primary_bin_1 == "E.2.H.4" and loc.qty_on_hand == 3
 
+    def test_replacing_names_the_bin_being_replaced(self, client, db, make_inventory):
+        """The screen offered to replace A.1.A.1. If the slot holds C.5.B.2 by the
+        time the request arrives, that is not the bin anyone agreed to replace."""
+        make_inventory(sku="AS-5001-NAV-L", stock=0)
+        _slot(db, "AS-5001-NAV-L", "HQ", 0, "C.5.B.2", 40)
+        r = self._put(client, quantity=0, replace=True, replace_bin="A.1.A.1")
+        assert r.status_code == 409
+        assert "C.5.B.2" in r.json()["detail"]
+        loc = db.query(StockLocation).filter_by(sku="AS-5001-NAV-L", branch="HQ").one()
+        assert (loc.primary_bin_1, loc.max_qty_bin_1) == ("C.5.B.2", 40)
+
+        # Naming the bin that is there replaces it, however its code was typed.
+        r = self._put(client, quantity=0, replace=True, replace_bin=" c.05.b.2 ")
+        assert r.status_code == 200, r.text
+        db.refresh(loc)
+        assert loc.primary_bin_1 == "E.2.H.4"
+
     def test_the_overflow_slot_takes_a_second_box(self, client, db, make_inventory):
         make_inventory(sku="AS-5001-NAV-L", stock=0)
         _slot(db, "AS-5001-NAV-L", "HQ", 0, "A.1.A.1")
@@ -337,7 +354,7 @@ class TestPutAway:
         assert [(r.branch, r.field, r.old_value, r.new_value) for r in rows] == [
             (None, "location", "A-01-04", "E.2.H.4")
         ]
-        assert rows[0].changed_by
+        assert rows[0].changed_by == "testadmin"
 
         # Same box again: nothing changes, so nothing is recorded.
         assert self._put(client, quantity=0).status_code == 200

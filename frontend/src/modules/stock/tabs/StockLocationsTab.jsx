@@ -150,6 +150,9 @@ export default function StockLocationsTab({ sku, currentUser }) {
       qc.invalidateQueries({ queryKey: ['stock-locations', sku] });
       qc.invalidateQueries({ queryKey: ['stock-location-summary', sku] });
       qc.invalidateQueries({ queryKey: ['stock-history', sku] });
+      // The warehouse map draws these bins, and its Add stock form offers to
+      // replace the ones it knows about.
+      qc.invalidateQueries({ queryKey: ['bin-map'] });
       setEditing(false);
       setDrafts({});
     },

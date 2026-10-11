@@ -151,9 +151,10 @@ export default function PutAwayForm({ code, branch, inventory, rows, onDone, onC
       // Refused because the slot was taken since this screen loaded: fetch
       // the map again so the form can offer to replace it.
       if (error?.status === 409) queryClient.invalidateQueries({ queryKey: ['bin-map', branch] });
-      // The form has gone (another box, the panel closed, another screen):
-      // say it where a success would have been said.
-      if (!mounted.current) notify(`Couldn't add ${name || body.sku} to ${code}: ${error?.message || String(error)}`, { type: 'error' });
+      // The form has gone (another box, the panel closed, another screen) or
+      // is about to (signed out: the sign-in page replaces it before it can
+      // show anything): say it where a success would have been said.
+      if (!mounted.current || error?.status === 401) notify(`Couldn't add ${name || body.sku} to ${code}: ${error?.message || String(error)}`, { type: 'error' });
     },
   });
 
@@ -175,7 +176,10 @@ export default function PutAwayForm({ code, branch, inventory, rows, onDone, onC
     save.mutate({
       name: item?.name,
       body: {
-        branch, bin: code, sku, slot, quantity: qty, new_stock: isNew, replace,
+        branch, bin: code, sku, slot, quantity: qty, new_stock: isNew,
+        // Which bin the tick was for, so the server can refuse if the slot
+        // holds a different one by now.
+        replace, replace_bin: replace ? occupiedBy : null,
         max_qty: maxQty === '' ? null : Number(maxQty),
         reason: reason.trim() || null,
       },

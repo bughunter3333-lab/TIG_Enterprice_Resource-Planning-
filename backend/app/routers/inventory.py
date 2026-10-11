@@ -103,6 +103,9 @@ class PutAway(BaseModel):
     new_stock: bool = False
     max_qty: Optional[int] = Field(None, ge=1, le=100_000)
     replace: bool = False
+    # The bin the caller was shown and agreed to replace. If the slot holds a
+    # different one by now, the agreement does not cover it.
+    replace_bin: Optional[str] = Field(None, max_length=50)
     reason: Optional[str] = Field(None, max_length=200)
 
 
@@ -319,6 +322,11 @@ def _box_code(value: Optional[str]) -> Optional[str]:
     return f"{aisle.upper()}.{int(bay)}.{level.upper()}.{int(box)}"
 
 
+def _same_bin(a: str, b: str) -> bool:
+    """Two codes on file for one bin: the same box, or the same legacy text."""
+    return (_box_code(a) or a.strip().upper()) == (_box_code(b) or b.strip().upper())
+
+
 @router.post("/bin-map/put-away")
 def put_away(
     body: PutAway,
@@ -335,8 +343,9 @@ def put_away(
 
     A SKU's existing bin is never overwritten silently: if the chosen slot
     already holds another box, the request is refused naming it, unless
-    `replace` is set. A box the SKU already uses takes more stock with no slot
-    change. Quantity 0 slots without moving any stock.
+    `replace` is set - and, when `replace_bin` says which bin was agreed to,
+    only if that is still the one there. A box the SKU already uses takes more
+    stock with no slot change. Quantity 0 slots without moving any stock.
 
     Stock is counted per branch, not per box, so what `quantity` means has to
     be said, not guessed. Unless `new_stock` is set it is stock already on
@@ -392,7 +401,10 @@ def put_away(
     already_here = _same(loc.primary_bin_1) or _same(loc.primary_bin_2)
     if not already_here:
         current = (getattr(loc, bin_field) or "").strip()
-        if current and not body.replace:
+        agreed = body.replace and (
+            body.replace_bin is None or _same_bin(current, body.replace_bin)
+        )
+        if current and not agreed:
             raise HTTPException(
                 status_code=409,
                 detail=(
