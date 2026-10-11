@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel
-from typing import Optional, List
+import re
+
+from pydantic import BaseModel, Field
+from typing import Literal, Optional, List
 from datetime import datetime
 
 from app.database import get_db
@@ -33,6 +35,7 @@ from app.models.supplier_price_list import SupplierPriceList
 from app.core.dependencies import require_any, require_manager, require_staff
 from app.models.stock_audit import StockAuditEntry
 from app.core.stock_audit import (
+    record_item_change,
     record_location_change,
     record_location_deleted,
     snapshot_location,
@@ -84,6 +87,23 @@ class StockAdjust(BaseModel):
     adjustment: int
     reason: str
     branch: str = "HQ"
+
+
+class PutAway(BaseModel):
+    branch: str = "HQ"
+    # `bin` on the wire. Not `bin` in Python: the dead-column scan counts any
+    # Pydantic field name as a write, and StockMovement has an unwritten `bin`.
+    bin_code: str = Field(alias="bin", max_length=50)
+    sku: str
+    slot: Literal["primary", "overflow"] = "primary"
+    quantity: int = Field(0, ge=0, le=100_000)
+    # Whether `quantity` is stock the system has not counted yet. Off unless the
+    # caller says so: a quantity typed for stock already on hand must never
+    # raise the total.
+    new_stock: bool = False
+    max_qty: Optional[int] = Field(None, ge=1, le=100_000)
+    replace: bool = False
+    reason: Optional[str] = Field(None, max_length=200)
 
 
 class TransferRequest(BaseModel):
@@ -272,6 +292,182 @@ def bin_map(
             )
     bins.sort(key=lambda b: (b["bin"], b["sku"]))
     return {"branch": branch, "bins": bins}
+
+
+# aisle . bay . level . box, as the warehouse labels read: B.3.H.1
+_BIN_CODE = re.compile(r"^([A-Za-z]+)\.([0-9]+)\.([A-Za-z]+)\.([0-9]+)$")
+
+
+def _box_code(value: Optional[str]) -> Optional[str]:
+    """The one spelling of a box: ``b.03.h.01`` and ``B.3.H.1`` are the same box.
+
+    None when the text is not a box code at all. The map reads codes the same
+    way (frontend ``parseBin``), so the two agree on which box a stored code
+    means — compared as typed, a zero-padded code looked like a different box
+    and one box became both of a SKU's bins.
+
+    Letters are matched as plain A-Z before any case change. Upper-casing first
+    let other alphabets through and could lengthen the text (one "\ufb03"
+    becomes "FFI"), past what the column holds.
+    """
+    match = _BIN_CODE.match((value or "").strip())
+    if not match:
+        return None
+    aisle, bay, level, box = match.groups()
+    if int(bay) < 1 or int(box) < 1:
+        return None
+    return f"{aisle.upper()}.{int(bay)}.{level.upper()}.{int(box)}"
+
+
+@router.post("/bin-map/put-away")
+def put_away(
+    body: PutAway,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    """Put stock into a box from the warehouse map, in one transaction.
+
+    Slots the SKU into the box (its primary or overflow bin at the branch,
+    audited like any stock-position edit) and, when a quantity is given, posts
+    it through the stock ledger so the item, the branch position and the
+    movement history move together. Doing this as separate calls from the
+    browser could leave a box slotted with no stock, or stock with no box.
+
+    A SKU's existing bin is never overwritten silently: if the chosen slot
+    already holds another box, the request is refused naming it, unless
+    `replace` is set. A box the SKU already uses takes more stock with no slot
+    change. Quantity 0 slots without moving any stock.
+
+    Stock is counted per branch, not per box, so what `quantity` means has to
+    be said, not guessed. Unless `new_stock` is set it is stock already on
+    hand: nothing is added, and the only thing recorded is units that had no
+    location at all being placed at this branch (a "Put Away" movement, which
+    leaves the item total alone — as a stocktake and a transfer treat them).
+    With `new_stock` the quantity is added, raising the total. Inferring "new"
+    from a quantity counted received stock twice.
+
+    The item's pick location follows its primary bin at the default branch, so
+    a picking slip sends the picker to the box the map shows.
+    """
+    branch = normalize_branch(body.branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
+    code = _box_code(body.bin_code)
+    if code is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{body.bin_code}' is not an aisle.bay.level.box code, e.g. B.3.H.1",
+        )
+    item = db.query(InventoryItem).filter(InventoryItem.sku == body.sku).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    loc = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == body.sku, StockLocation.branch == branch)
+        .first()
+    )
+    created = loc is None
+    if created:
+        loc = StockLocation(
+            sku=body.sku,
+            branch=branch,
+            qty_on_hand=0,
+            committed_qty=0,
+            backorder_qty=0,
+            on_po_qty=0,
+        )
+        db.add(loc)
+        db.flush()
+    before = {} if created else snapshot_location(loc)
+
+    def _same(value):
+        return _box_code(value) == code
+
+    bin_field, max_field = (
+        ("primary_bin_1", "max_qty_bin_1")
+        if body.slot == "primary"
+        else ("primary_bin_2", "max_qty_bin_2")
+    )
+    already_here = _same(loc.primary_bin_1) or _same(loc.primary_bin_2)
+    if not already_here:
+        current = (getattr(loc, bin_field) or "").strip()
+        if current and not body.replace:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"{body.sku}'s {body.slot} bin at {branch} is {current}. "
+                    f"Replace it with {code}, or use the other slot."
+                ),
+            )
+        setattr(loc, bin_field, code)
+        # The capacity on file belonged to the box that was here before (or to
+        # one since cleared); a new box starts with its own, or with none.
+        setattr(loc, max_field, body.max_qty)
+    elif body.max_qty is not None:
+        setattr(
+            loc,
+            "max_qty_bin_1" if _same(loc.primary_bin_1) else "max_qty_bin_2",
+            body.max_qty,
+        )
+
+    # Picking slips print the item's location: keep it on the box the map
+    # shows, under its plain code, and say who moved it.
+    if branch == DEFAULT_BRANCH and _same(loc.primary_bin_1):
+        if (item.location or None) != code:
+            record_item_change(
+                db,
+                sku=body.sku,
+                field="location",
+                old=item.location,
+                new=code,
+                username=current_user.username,
+            )
+            item.location = code
+
+    note = body.reason or f"Put away into {code}"
+    placed = 0
+    if body.new_stock:
+        if body.quantity:
+            post_movement(
+                db,
+                sku=body.sku,
+                movement_type="Adjustment",
+                branch=branch,
+                quantity=body.quantity,
+                reference=code,
+                notes=note,
+            )
+    else:
+        placed = min(body.quantity, max(0, unlocated_qty(db, body.sku)))
+        place_unlocated(
+            db, sku=body.sku, branch=branch, quantity=placed, reference=code, notes=note
+        )
+    on_hand_change = body.quantity if body.new_stock else 0
+
+    # After the stock has moved, so the trail says who put the quantity in —
+    # the movement rows carry no user.
+    after = snapshot_location(loc)
+    if after != before:
+        record_location_change(
+            db,
+            sku=body.sku,
+            branch=branch,
+            action="created" if created else "updated",
+            before=before,
+            after=after,
+            username=current_user.username,
+        )
+    db.commit()
+    return {
+        "branch": branch,
+        "bin": code,
+        "sku": body.sku,
+        "slot": "primary" if _same(loc.primary_bin_1) else "overflow",
+        "placed_unlocated": placed,
+        "on_hand_change": on_hand_change,
+        "qty_on_hand": position_qty(db, body.sku, branch),
+    }
 
 
 @router.get("/movements")

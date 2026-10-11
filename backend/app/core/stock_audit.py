@@ -74,6 +74,24 @@ def record_location_change(
     return written
 
 
+def record_item_change(
+    db: Session, *, sku: str, field: str, old, new, username: str
+) -> None:
+    """A change to the item itself rather than to one of its branch positions."""
+    db.add(
+        StockAuditEntry(
+            sku=sku,
+            branch=None,
+            action="updated",
+            field=field,
+            old_value=_text(old),
+            new_value=_text(new),
+            changed_by=username,
+            changed_at=datetime.now(timezone.utc),
+        )
+    )
+
+
 def record_location_deleted(
     db: Session, *, sku: str, branch: str, username: str
 ) -> None:

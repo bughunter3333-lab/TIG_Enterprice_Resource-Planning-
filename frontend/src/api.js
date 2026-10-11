@@ -640,6 +640,9 @@ export const stock = {
   // Every slotted bin in a branch, for the 3D warehouse map.
   binMap: (branch) =>
     request(`/inventory/bin-map?branch=${encodeURIComponent(branch)}`),
+  // Slot a product into a box and add stock to it, in one transaction.
+  putAway: (body) =>
+    request('/inventory/bin-map/put-away', { method: 'POST', body }),
   locations: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/locations`),
 

@@ -3,9 +3,13 @@
  * selected bin on the right. Everything the canvas shows can also be reached
  * here from the keyboard — the 3D view is a picture, these are the controls.
  */
-import { Search, X, ExternalLink, MapPinOff } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Search, X, ExternalLink, MapPinOff, Plus } from 'lucide-react';
 import { T } from '../../ui/tokens';
+import Button from '../../ui/Button';
+import { notify } from '../../lib/notify';
 import { BIN_COLORS, LEGEND } from './binColors';
+import PutAwayForm from './PutAwayForm';
 
 const REASONS = {
   format: 'Not an aisle.bay.level.box code',
@@ -109,7 +113,28 @@ export function SearchPanel({ query, onQuery, results, selected, onPick, offMap,
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString('en-AU'));
 
-export function BinPanel({ placement, entry, branch, onClose, onOpenSku }) {
+// What a put-away did, as the server reports it: new stock raised the total,
+// on-hand stock with no location was placed (total unchanged), or the box
+// was only recorded.
+function putAwayMessage({ sku, name, placed, change }, code) {
+  const what = name || sku;
+  if (change > 0) return `Added ${fmt(change)} × ${what} to ${code} — total on hand up ${fmt(change)}`;
+  if (placed > 0) return `Put ${fmt(placed)} × ${what} into ${code} — already counted, total on hand unchanged`;
+  return `${what} slotted into ${code}`;
+}
+
+export function BinPanel({ placement, entry, branch, onClose, onOpenSku, canEdit, inventory, rows }) {
+  const [adding, setAdding] = useState(false);
+  const addStock = useRef(null);
+  const wasAdding = useRef(false);
+  // Closing the form removes whatever had focus; hand it back to the button
+  // that opened it, so the keyboard keeps its place in the panel. Only if it
+  // was lost: someone who has gone on to type elsewhere keeps their place.
+  useEffect(() => {
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (wasAdding.current && !adding && lost) addStock.current?.querySelector('button')?.focus();
+    wasAdding.current = adding;
+  }, [adding]);
   if (!placement) return null;
   const sideWords = placement.side === 'right' ? 'right-hand side' : 'left-hand side';
   return (
@@ -127,10 +152,32 @@ export function BinPanel({ placement, entry, branch, onClose, onOpenSku }) {
         </button>
       </div>
 
+      {canEdit && !adding && (
+        <div ref={addStock} style={{ padding: '10px 16px', borderBottom: `1px solid ${T.hairline}` }}>
+          <Button variant="primary" onClick={() => setAdding(true)}>
+            <Plus size={14} aria-hidden />Add stock
+          </Button>
+        </div>
+      )}
+      {canEdit && adding && (
+        <PutAwayForm
+          key={placement.code}
+          code={placement.code}
+          branch={branch}
+          inventory={inventory}
+          rows={rows}
+          onCancel={() => setAdding(false)}
+          onDone={(done) => {
+            setAdding(false);
+            notify(putAwayMessage(done, placement.code), { type: 'success' });
+          }}
+        />
+      )}
+
       <div style={{ padding: '12px 16px' }}>
         {!entry && <p style={{ fontSize: T.fsBase, color: T.textMuted, margin: 0 }}>Nothing is slotted into this box.</p>}
         {entry?.skus.map((s) => (
-          <section key={s.sku} style={{ padding: '10px 0', borderBottom: `1px solid ${T.hairlineSoft}` }}>
+          <section key={`${s.sku}:${s.slot}`} style={{ padding: '10px 0', borderBottom: `1px solid ${T.hairlineSoft}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: T.fsBase, color: T.text }}>{s.name || s.sku}</div>

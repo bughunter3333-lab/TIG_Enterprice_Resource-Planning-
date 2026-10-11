@@ -48,7 +48,7 @@ function Notice({ children, tone = T.textMuted }) {
   return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: tone, fontSize: T.fsBase, padding: 24, textAlign: 'center' }}>{children}</div>;
 }
 
-export default function WarehouseModule({ currentUser, onOpenSku }) {
+export default function WarehouseModule({ currentUser, onOpenSku, inventory }) {
   const queryClient = useQueryClient();
   const [branch, setBranch] = useState(DEFAULT_BRANCH);
   const [query, setQuery] = useState('');
@@ -59,6 +59,9 @@ export default function WarehouseModule({ currentUser, onOpenSku }) {
   const [offMapOpen, setOffMapOpen] = useState(false);
   const webgl = useMemo(hasWebGL, []);
   const isAdmin = currentUser?.role === 'admin';
+  // Putting stock into a box edits the stock position, which is admin or
+  // manager work (the same gate as the Locations tab).
+  const canEdit = ['admin', 'manager'].includes(currentUser?.role);
 
   const layoutQuery = useQuery({
     queryKey: ['admin-setting', layoutKey(branch)],
@@ -170,7 +173,7 @@ export default function WarehouseModule({ currentUser, onOpenSku }) {
           )}
         </main>
         {placement?.ok && (
-          <BinPanel placement={placement} entry={bins.get(placement.code)} branch={branch} onClose={() => setSelected(null)} onOpenSku={onOpenSku} />
+          <BinPanel key={placement.code} placement={placement} entry={bins.get(placement.code)} branch={branch} onClose={() => setSelected(null)} onOpenSku={onOpenSku} canEdit={canEdit} inventory={inventory} rows={rows} />
         )}
       </div>
 
