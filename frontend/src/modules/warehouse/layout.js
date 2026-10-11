@@ -226,6 +226,10 @@ export function heldToWalkway(layout, from, to) {
  * (the camera's near plane), as in a section drawing.
  */
 export function sightStart(layout, eye, target) {
+  // From above the racks or outside the building nothing needs cutting: the
+  // overview's own line of sight grazes the racking, and cutting there took
+  // the front of every rack off the opening view.
+  if (inTheOpen(layout, ...eye)) return 0;
   const span = Math.hypot(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]);
   if (span < 1e-6) return 0;
   const STEP = 0.05;

@@ -199,6 +199,15 @@ describe('sightStart', () => {
     expect(Math.abs(landing[0] - aisleX(L, 3))).toBeLessThan(SIZE.aisle / 2); // aisle B, not the one between
   });
 
+  test('the overview is never cut, wherever it looks', () => {
+    // The opening view: high over receiving, looking down into the building.
+    const ext = extent(L);
+    const over = [ext.width * 0.28, ext.height * 2.4 + 4, 9 + ext.length * 0.15];
+    expect(sightStart(L, over, [0, ext.height / 4, -ext.length / 2])).toBe(0);
+    expect(sightStart(L, over, target)).toBe(0);
+    expect(sightStart(L, [ext.right + 6, 2, -4], target)).toBe(0); // from outside, at the side
+  });
+
   test('from above the racks, or from the aisle behind the box, nothing is cut away', () => {
     expect(sightStart(L, [eye[0], closingBeamHeight(L) + 3, eye[2] + 2], target)).toBe(0);
     const aisleA = [aisleX(L, 4), eye[1], eye[2]];
