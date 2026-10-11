@@ -202,42 +202,36 @@ const onAisle = (centre, x) => {
 const isClear = (layout, x, y, z) => Math.abs(walkwayX(layout, x, y, z) - x) < 1e-9;
 
 /**
- * Where a sideways move may end on x. Racking is solid to someone standing in
- * an aisle: a move that starts on a walkway stays on THAT walkway — not the
- * one nearest to where it landed, or one quick move is carried through the
- * rack into the next aisle. A move that starts or ends in the open is not
- * held, and nor is an eye already among the racks (it got there by backing
- * away through them, which `sightStart` allows for).
+ * Where a move of the eye may end on x. Racking is solid:
+ * - above the racks or outside the building, anywhere;
+ * - from an aisle, only along THAT aisle's walkway — not the walkway nearest
+ *   to where the move landed, or one quick move is carried through the rack
+ *   into the next aisle (and an eye a hair off its walkway is still on it);
+ * - coming in from the open, onto the nearest walkway.
+ * `from` is where the eye was ([x, y, z], or null when unknown).
  */
 export function heldToWalkway(layout, from, to) {
   const [x, y, z] = to;
-  if (inTheOpen(layout, x, y, z) || inTheOpen(layout, ...from) || !isClear(layout, ...from)) return x;
-  return onAisle(nearestAisleX(layout, from[0]), x);
+  if (inTheOpen(layout, x, y, z)) return x;
+  const cameFromAnAisle = from && !inTheOpen(layout, ...from);
+  return onAisle(nearestAisleX(layout, cameFromAnAisle ? from[0] : x), x);
 }
 
+// Rising out of an aisle: how far above the racks, and how far toward receiving.
+const LIFT = { above: 3, back: 8 };
+
 /**
- * How far in front of the eye the picture should start, so that racking
- * between the eye and what it is looking at does not block the view: 0 when
- * nothing is in the way.
- *
- * An aisle is too narrow to back away from a rack and see more of it, so
- * backing away carries the eye into the racking behind. Rather than refuse
- * the move, everything up to the open space in front of `target` is cut away
- * (the camera's near plane), as in a section drawing.
+ * Where to go to see more than an aisle allows: straight up out of it and
+ * back toward receiving, still looking at `target`. An aisle is too narrow to
+ * back away from a rack, and the way up is always clear. The spot is fixed by
+ * the target, so asking again part-way there does not move it further off,
+ * and it is never nearer the target than the eye already is.
  */
-export function sightStart(layout, eye, target) {
-  // From above the racks or outside the building nothing needs cutting: the
-  // overview's own line of sight grazes the racking, and cutting there took
-  // the front of every rack off the opening view.
-  if (inTheOpen(layout, ...eye)) return 0;
-  const span = Math.hypot(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]);
-  if (span < 1e-6) return 0;
-  const STEP = 0.05;
-  const blocked = (t) => !isClear(layout, ...[0, 1, 2].map((k) => target[k] + ((eye[k] - target[k]) * t) / span));
-  let t = 0;
-  while (t < span && blocked(t)) t += STEP;   // out of whatever the target sits in
-  while (t < span && !blocked(t)) t += STEP;  // across the open space in front of it
-  return t >= span ? 0 : span - t;
+export function liftOut(layout, eye, target) {
+  return {
+    target: [...target],
+    eye: [eye[0], closingBeamHeight(layout) + LIFT.above, Math.max(eye[2], target[2] + LIFT.back)],
+  };
 }
 
 /** Whether the straight line from `a` to `b` ([x, y, z]) stays out of the racking. */

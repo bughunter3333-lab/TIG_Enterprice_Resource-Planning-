@@ -104,20 +104,24 @@ two fingers zoom and turn on touch. A drag slides over the rack face when the
 camera is looking across at it and over the floor when it is looking down. A hint
 on the canvas names the gestures, in touch words on a touch screen.
 
-**Racking, to the camera.** A turn or a drag cannot carry the eye off the walkway
-it is standing on (`heldToWalkway`: held to *that* walkway, not the nearest one to
-where a quick move landed, and only the eye — the pivot stays). A zoom is let
-through: an aisle is too narrow to back away from a rack and see more of it, so
-scrolling out backs the eye through the racking behind, and everything between it
-and the open space in front of what it is looking at is cut away (`sightStart`
-sets the camera's near plane), as in a section drawing. Boxes that are cut away do
-not answer the pointer. The two kinds of move are told apart by distance: a turn or
-a drag leaves the eye exactly as far from its pivot as the last change did.
+**Racking is solid to the camera.** Whatever the gesture, the eye never enters
+racking (`heldToWalkway`). From an aisle it stays on that aisle's walkway — that
+one, not the nearest to where a quick move landed. Coming in from above or outside,
+it lands on the nearest walkway. Above the racks and outside the building it is
+free. Only the eye is held, never the pivot; if that leaves the pivot nearer than
+the controls allow, the pivot is moved on, or the two keep correcting each other.
 
-An earlier version stepped the camera back down the aisle when a zoom-out was
-blocked. It guessed which gesture had been blocked and guessed wrong (a blocked
-turn stepped back; further out than the step, it pulled the view in), so it is
-gone: nothing here moves the camera except the hand, a pick, and Reset view.
+An aisle is too narrow to back away from a rack and see more of it. A scroll-out
+that the rack behind stops lifts the camera up out of the aisle instead
+(`liftOut`), still looking at the same spot, and from there the view is free. That
+it was a scroll-out is known from the wheel event itself.
+
+Three earlier versions did more and were wrong: one stepped back down the aisle
+whenever a zoom-out seemed blocked, guessing the gesture from how the camera had
+moved (a blocked turn stepped back too); one told a zoom from a turn by distance,
+and mistook the controls' own limits for a zoom; one cut the racking away with the
+near plane so the eye could back through it, which also cut the front off the
+overview. Nothing here infers a gesture or changes what is drawn.
 
 The hover label is dropped whenever the view moves, because the box under the
 pointer is no longer the one it named.

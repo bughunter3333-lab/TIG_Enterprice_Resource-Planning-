@@ -9,7 +9,7 @@
  */
 import {
   DEFAULT_LAYOUT, SIZE, aisleX, allCells, binPlacement, clearPath, closingBeamHeight, extent,
-  frontView, heldToWalkway, sightStart, validateLayout, walkwayX,
+  frontView, heldToWalkway, liftOut, validateLayout, walkwayX,
 } from '../layout';
 
 const L = DEFAULT_LAYOUT;
@@ -133,10 +133,12 @@ describe('clearPath', () => {
 
 describe('heldToWalkway', () => {
   const B = aisleX(L, 3);
+  const A = aisleX(L, 4);
   const edge = B + SIZE.aisle / 2; // the face of the rack on B's right
   const onWalkway = [B + 0.5, 1.5, -4];
+  const above = closingBeamHeight(L) + 1;
 
-  test('a sideways move from a walkway stops short of the rack', () => {
+  test('a move from a walkway stops short of the rack', () => {
     const x = heldToWalkway(L, onWalkway, [edge + 0.2, 1.5, -4]);
     expect(x).toBeLessThan(edge);
     expect(x).toBeGreaterThan(B);
@@ -144,7 +146,6 @@ describe('heldToWalkway', () => {
 
   test('a quick move is held on the walkway it started on, not carried to the next aisle', () => {
     // One fast step lands past the middle of the double rack, nearer aisle A.
-    const A = aisleX(L, 4);
     const x = heldToWalkway(L, onWalkway, [A - SIZE.aisle / 2 - 0.1, 1.5, -4]);
     expect(x).toBeLessThan(edge);
     expect(x).toBeGreaterThan(B);
@@ -152,66 +153,45 @@ describe('heldToWalkway', () => {
     expect(heldToWalkway(L, onWalkway, [A + 0.3, 1.5, -4])).toBeLessThan(edge);
   });
 
-  test('a move that starts or ends in the open is not held', () => {
-    const inRack = edge + 0.2;
-    const above = closingBeamHeight(L) + 1;
-    expect(heldToWalkway(L, [B, above, -4], [inRack, 1.5, -4])).toBe(inRack);   // came down from above
-    expect(heldToWalkway(L, [B, 1.5, 3], [inRack, 1.5, -4])).toBe(inRack);     // came in from receiving
-    expect(heldToWalkway(L, onWalkway, [inRack, above, -4])).toBe(inRack);     // rose above the racks
-    expect(heldToWalkway(L, onWalkway, [inRack, 1.5, 3])).toBe(inRack);        // left by the end of the aisle
+  test('an eye a hair off its walkway is still on that aisle', () => {
+    // Rounding, or the controls' own distance limits, can leave it just outside.
+    const kept = walkwayX(L, edge, 1.5, -4);
+    const hairOff = [kept + 0.0002, 1.5, -4];
+    expect(heldToWalkway(L, hairOff, [edge + 0.4, 1.5, -4])).toBe(kept);
+    expect(heldToWalkway(L, hairOff, [A, 1.5, -4])).toBe(kept);
   });
 
-  test('an eye already among the racks is not dragged back to a walkway', () => {
-    const inRack = [edge + 0.3, 1.5, -4];
-    expect(heldToWalkway(L, inRack, [edge + 0.6, 1.5, -4])).toBe(edge + 0.6);
+  test('a move that ends in the open is not held', () => {
+    const inRack = edge + 0.2;
+    expect(heldToWalkway(L, onWalkway, [inRack, above, -4])).toBe(inRack);  // rose above the racks
+    expect(heldToWalkway(L, onWalkway, [inRack, 1.5, 3])).toBe(inRack);     // left by the end of the aisle
+  });
+
+  test('coming in from the open, the eye lands on the nearest walkway, never in a rack', () => {
+    const intoRackNearA = A - SIZE.aisle / 2 - 0.1;
+    for (const from of [[B, above, -4], [B, 1.5, 3], null]) {
+      const x = heldToWalkway(L, from, [intoRackNearA, 1.5, -4]);
+      expect(walkwayX(L, x, 1.5, -4)).toBe(x);
+      expect(Math.abs(x - A)).toBeLessThan(SIZE.aisle / 2); // aisle A is nearer
+    }
   });
 });
 
-describe('sightStart', () => {
-  const box = binPlacement(L, 'B.3.H.3');       // right-hand rack of aisle B
-  const { eye, target } = frontView(L, box);
-  const backBy = (d) => [eye[0] - d, eye[1], eye[2]]; // straight back from the rack face
-  const at = (from, to, d) => {
-    const len = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
-    return [0, 1, 2].map((k) => from[k] + ((to[k] - from[k]) * d) / len);
-  };
-  const clear = (p) => walkwayX(L, ...p) === p[0];
-
-  test('standing in the aisle in front of the box, nothing is cut away', () => {
-    expect(sightStart(L, eye, target)).toBe(0);
-  });
-
-  test('backed into the rack behind, the picture starts where that rack ends', () => {
-    const behind = backBy(0.6);
-    const start = sightStart(L, behind, target);
-    expect(start).toBeGreaterThan(0);
-    expect(clear(behind)).toBe(false);
-    // From there on, the line of sight is on the box's own walkway.
-    expect(clear(at(behind, target, start + 0.05))).toBe(true);
-    expect(clear(at(behind, target, start - 0.1))).toBe(false);
-  });
-
-  test('from two aisles back, everything up to the box’s own walkway is cut away', () => {
-    const far = backBy(2 * (SIZE.aisle + 2 * SIZE.depth) + 0.4);
-    const start = sightStart(L, far, target);
-    const landing = at(far, target, start + 0.05);
-    expect(clear(landing)).toBe(true);
-    expect(Math.abs(landing[0] - aisleX(L, 3))).toBeLessThan(SIZE.aisle / 2); // aisle B, not the one between
-  });
-
-  test('the overview is never cut, wherever it looks', () => {
-    // The opening view: high over receiving, looking down into the building.
-    const ext = extent(L);
-    const over = [ext.width * 0.28, ext.height * 2.4 + 4, 9 + ext.length * 0.15];
-    expect(sightStart(L, over, [0, ext.height / 4, -ext.length / 2])).toBe(0);
-    expect(sightStart(L, over, target)).toBe(0);
-    expect(sightStart(L, [ext.right + 6, 2, -4], target)).toBe(0); // from outside, at the side
-  });
-
-  test('from above the racks, or from the aisle behind the box, nothing is cut away', () => {
-    expect(sightStart(L, [eye[0], closingBeamHeight(L) + 3, eye[2] + 2], target)).toBe(0);
-    const aisleA = [aisleX(L, 4), eye[1], eye[2]];
-    expect(sightStart(L, aisleA, target)).toBe(0);
+describe('liftOut', () => {
+  test('rises out of the aisle, above the racks, still looking at the same spot', () => {
+    const front = frontView(L, binPlacement(L, 'B.5.D.3'));
+    const up = liftOut(L, front.eye, front.target);
+    expect(up.target).toEqual(front.target);
+    expect(up.eye[1]).toBeGreaterThan(closingBeamHeight(L) + 1);
+    // Nothing in the way of getting there, and it is further off, never nearer.
+    expect(clearPath(L, front.eye, up.eye)).toBe(true);
+    const reach = (e) => Math.hypot(e[0] - front.target[0], e[1] - front.target[1], e[2] - front.target[2]);
+    expect(reach(up.eye)).toBeGreaterThan(reach(front.eye));
+    // Asked again part-way up, it is the same spot: scrolling on does not push it away.
+    const partWay = [0, 1, 2].map((k) => (front.eye[k] + up.eye[k]) / 2);
+    expect(liftOut(L, partWay, front.target).eye).toEqual(up.eye);
+    // From up there nothing holds the eye.
+    expect(heldToWalkway(L, up.eye, [up.eye[0] + 3, up.eye[1], up.eye[2]])).toBe(up.eye[0] + 3);
   });
 });
 
