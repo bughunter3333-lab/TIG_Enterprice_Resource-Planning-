@@ -27,6 +27,13 @@ const CLICK_SLOP_PX = 4;
 
 const tmp = new THREE.Object3D();
 const tint = new THREE.Color();
+const facing = new THREE.Vector3();
+
+// Nearer than the camera's near plane, a box is not drawn (Warehouse3D cuts
+// the view clear of racking the eye has backed into), so it must not answer
+// the pointer either. Returning without stopping the event hands it on to
+// the next box along the ray.
+const cutAway = (e) => e.point.clone().sub(e.camera.position).dot(e.camera.getWorldDirection(facing)) < e.camera.near;
 
 /** Which way the box's open front faces on x: toward the aisle. */
 export const frontSign = (cell) => (cell.side === 'right' ? -1 : 1);
@@ -92,10 +99,10 @@ export function Bins({ cells, bins, hits, filter, selected, onHover, onSelect })
       <instancedMesh
         ref={bodies}
         args={[null, null, cells.length]}
-        onPointerMove={(e) => { e.stopPropagation(); onHover(cells[e.instanceId]); }}
+        onPointerMove={(e) => { if (cutAway(e)) return; e.stopPropagation(); onHover(cells[e.instanceId]); }}
         onPointerOut={() => onHover(null)}
         // A drag that ends over a box is the end of a move, not a pick.
-        onClick={(e) => { e.stopPropagation(); if (e.delta <= CLICK_SLOP_PX) onSelect(cells[e.instanceId].code); }}
+        onClick={(e) => { if (cutAway(e)) return; e.stopPropagation(); if (e.delta <= CLICK_SLOP_PX) onSelect(cells[e.instanceId].code); }}
       >
         <boxGeometry args={[BOX.d, BOX.h, BOX.w]} />
         <meshStandardMaterial roughness={0.9} />

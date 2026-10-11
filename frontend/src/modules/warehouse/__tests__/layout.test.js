@@ -8,8 +8,8 @@
  *   six boxes across each level
  */
 import {
-  DEFAULT_LAYOUT, SIZE, aisleView, aisleX, allCells, binPlacement, clearPath, closingBeamHeight, extent,
-  frontView, validateLayout, walkwayX,
+  DEFAULT_LAYOUT, SIZE, aisleX, allCells, binPlacement, clearPath, closingBeamHeight, extent,
+  frontView, heldToWalkway, sightStart, validateLayout, walkwayX,
 } from '../layout';
 
 const L = DEFAULT_LAYOUT;
@@ -131,16 +131,78 @@ describe('clearPath', () => {
   });
 });
 
-describe('aisleView', () => {
-  test('steps back down the middle of the aisle, toward receiving, still looking at the same spot', () => {
-    const front = frontView(L, binPlacement(L, 'B.5.D.3'));
-    const back = aisleView(L, front.target, front.eye[0]);
-    expect(back.target).toEqual(front.target);
-    expect(back.eye[0]).toBe(aisleX(L, 3));
-    expect(back.eye[2]).toBeGreaterThan(front.eye[2]); // nearer receiving
-    expect(back.eye[1]).toBeGreaterThan(front.target[1]);
-    // Reached without passing through a rack.
-    expect(clearPath(L, front.eye, back.eye)).toBe(true);
+describe('heldToWalkway', () => {
+  const B = aisleX(L, 3);
+  const edge = B + SIZE.aisle / 2; // the face of the rack on B's right
+  const onWalkway = [B + 0.5, 1.5, -4];
+
+  test('a sideways move from a walkway stops short of the rack', () => {
+    const x = heldToWalkway(L, onWalkway, [edge + 0.2, 1.5, -4]);
+    expect(x).toBeLessThan(edge);
+    expect(x).toBeGreaterThan(B);
+  });
+
+  test('a quick move is held on the walkway it started on, not carried to the next aisle', () => {
+    // One fast step lands past the middle of the double rack, nearer aisle A.
+    const A = aisleX(L, 4);
+    const x = heldToWalkway(L, onWalkway, [A - SIZE.aisle / 2 - 0.1, 1.5, -4]);
+    expect(x).toBeLessThan(edge);
+    expect(x).toBeGreaterThan(B);
+    // ... and right across the next aisle too.
+    expect(heldToWalkway(L, onWalkway, [A + 0.3, 1.5, -4])).toBeLessThan(edge);
+  });
+
+  test('a move that starts or ends in the open is not held', () => {
+    const inRack = edge + 0.2;
+    const above = closingBeamHeight(L) + 1;
+    expect(heldToWalkway(L, [B, above, -4], [inRack, 1.5, -4])).toBe(inRack);   // came down from above
+    expect(heldToWalkway(L, [B, 1.5, 3], [inRack, 1.5, -4])).toBe(inRack);     // came in from receiving
+    expect(heldToWalkway(L, onWalkway, [inRack, above, -4])).toBe(inRack);     // rose above the racks
+    expect(heldToWalkway(L, onWalkway, [inRack, 1.5, 3])).toBe(inRack);        // left by the end of the aisle
+  });
+
+  test('an eye already among the racks is not dragged back to a walkway', () => {
+    const inRack = [edge + 0.3, 1.5, -4];
+    expect(heldToWalkway(L, inRack, [edge + 0.6, 1.5, -4])).toBe(edge + 0.6);
+  });
+});
+
+describe('sightStart', () => {
+  const box = binPlacement(L, 'B.3.H.3');       // right-hand rack of aisle B
+  const { eye, target } = frontView(L, box);
+  const backBy = (d) => [eye[0] - d, eye[1], eye[2]]; // straight back from the rack face
+  const at = (from, to, d) => {
+    const len = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+    return [0, 1, 2].map((k) => from[k] + ((to[k] - from[k]) * d) / len);
+  };
+  const clear = (p) => walkwayX(L, ...p) === p[0];
+
+  test('standing in the aisle in front of the box, nothing is cut away', () => {
+    expect(sightStart(L, eye, target)).toBe(0);
+  });
+
+  test('backed into the rack behind, the picture starts where that rack ends', () => {
+    const behind = backBy(0.6);
+    const start = sightStart(L, behind, target);
+    expect(start).toBeGreaterThan(0);
+    expect(clear(behind)).toBe(false);
+    // From there on, the line of sight is on the box's own walkway.
+    expect(clear(at(behind, target, start + 0.05))).toBe(true);
+    expect(clear(at(behind, target, start - 0.1))).toBe(false);
+  });
+
+  test('from two aisles back, everything up to the box’s own walkway is cut away', () => {
+    const far = backBy(2 * (SIZE.aisle + 2 * SIZE.depth) + 0.4);
+    const start = sightStart(L, far, target);
+    const landing = at(far, target, start + 0.05);
+    expect(clear(landing)).toBe(true);
+    expect(Math.abs(landing[0] - aisleX(L, 3))).toBeLessThan(SIZE.aisle / 2); // aisle B, not the one between
+  });
+
+  test('from above the racks, or from the aisle behind the box, nothing is cut away', () => {
+    expect(sightStart(L, [eye[0], closingBeamHeight(L) + 3, eye[2] + 2], target)).toBe(0);
+    const aisleA = [aisleX(L, 4), eye[1], eye[2]];
+    expect(sightStart(L, aisleA, target)).toBe(0);
   });
 });
 

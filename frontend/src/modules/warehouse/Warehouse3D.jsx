@@ -7,10 +7,10 @@
  * The canvas renders on demand: nothing redraws while the view is still.
  */
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, invalidate as redraw, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { SIZE, aisleView, aisleX, allCells, clearPath, extent, walkwayX } from './layout';
+import { SIZE, aisleX, allCells, clearPath, extent, heldToWalkway, sightStart } from './layout';
 import { BIN_COLORS } from './binColors';
 import { BOX, BinCodes, Bins } from './Bins3D';
 import Racking from './Racking3D';
@@ -42,6 +42,7 @@ const TOUCHES = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 const FACING_RACK_FROM = Math.PI / 3;
 const MIN_CAMERA_HEIGHT = 0.15;
 const MIN_DISTANCE = 1.2;
+const NEAR = 0.1;
 // A frame drawn after the canvas has sat idle reports the whole idle time as
 // its step; taken at face value the easing arrives in that one frame.
 const MAX_EASE_STEP = 1 / 30;
@@ -125,22 +126,26 @@ function Floor({ layout }) {
   );
 }
 
-/** Takes the camera to a box, an aisle or the overview — until the person takes over. */
-function CameraRig({ focus, controls, home, layout, goal, onSettle }) {
+/**
+ * Takes the camera to a box or the overview — until the person takes over —
+ * and keeps the view clear of racking the eye has backed into.
+ */
+function CameraRig({ focus, controls, home, layout, byRig, onSettle }) {
   const { camera, invalidate } = useThree();
+  const goal = useRef(null);
 
   // The overview: on opening, on "Reset view" and for a new layout. Not when
   // a box is deselected — closing its panel leaves the view where it is.
   useEffect(() => {
     goal.current = planMove(layout, camera, controls, home.position.toArray(), home.target.toArray());
     invalidate();
-  }, [home, layout, camera, controls, goal, invalidate]);
+  }, [home, layout, camera, controls, invalidate]);
 
   useEffect(() => {
     if (!focus) return;
     goal.current = planMove(layout, camera, controls, focus.eye, focus.target);
     invalidate();
-  }, [focus, layout, camera, controls, goal, invalidate]);
+  }, [focus, layout, camera, controls, invalidate]);
 
   // A drag or a scroll ends the move at once: the view is theirs, and an
   // easing that kept running would pull against the mouse.
@@ -150,21 +155,34 @@ function CameraRig({ focus, controls, home, layout, goal, onSettle }) {
     const release = () => { goal.current = null; };
     c.addEventListener('start', release);
     return () => c.removeEventListener('start', release);
-  }, [controls, goal]);
+  }, [controls]);
 
   useFrame((_, dt) => {
-    const g = goal.current;
     const c = controls.current;
-    if (!g || !c) return;
-    const k = g.cut ? 1 : 1 - Math.exp(-Math.min(dt, MAX_EASE_STEP) * 5);
-    camera.position.lerp(g.position, k);
-    c.target.lerp(g.target, k);
-    c.update();
-    if (camera.position.distanceTo(g.position) < 0.01 && c.target.distanceTo(g.target) < 0.01) {
-      goal.current = null;
-      onSettle();
-    } else {
-      invalidate();
+    if (!c) return;
+    const g = goal.current;
+    if (g) {
+      const k = g.cut ? 1 : 1 - Math.exp(-Math.min(dt, MAX_EASE_STEP) * 5);
+      camera.position.lerp(g.position, k);
+      c.target.lerp(g.target, k);
+      // Marked as the rig's own, so the rule that holds a person's sideways
+      // moves to the walkway does not stop this short of where it is going.
+      byRig.current = true;
+      c.update();
+      byRig.current = false;
+      if (camera.position.distanceTo(g.position) < 0.01 && c.target.distanceTo(g.target) < 0.01) {
+        goal.current = null;
+        onSettle();
+      } else {
+        invalidate();
+      }
+    }
+    // Backed into the racking behind (an aisle is too narrow to back away
+    // from a rack), the picture starts beyond it: a section, not a carton.
+    const near = Math.max(NEAR, sightStart(layout, camera.position.toArray(), c.target.toArray()));
+    if (Math.abs(camera.near - near) > 1e-3) {
+      camera.near = near;
+      camera.updateProjectionMatrix();
     }
   });
   return null;
@@ -199,29 +217,13 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
 
   const hoverEntry = hover ? bins.get(hover.code) : null;
 
-  // What the camera is being taken to, if anything (CameraRig eases it).
-  const goal = useRef(null);
-  // A gesture in progress, and how far the eye was from what it looks at when
-  // the gesture began: further than that now means it is zooming out.
-  const gesture = useRef(null);
-  const beginGesture = () => {
+  // True while CameraRig is moving the camera itself.
+  const byRig = useRef(false);
+  // What the last change left: where the eye was, and how far from its pivot.
+  const last = useRef(null);
+  const aimDrag = () => {
     const c = controls.current;
-    if (!c) return;
-    c.screenSpacePanning = c.getPolarAngle() > FACING_RACK_FROM;
-    gesture.current = { reach: c.object.position.distanceTo(c.target) };
-  };
-  const endGesture = () => {
-    const c = controls.current;
-    // Backing away from a rack ends at the rack behind. To see more, step back
-    // down the aisle instead, still looking at the same spot — once the hand
-    // is off, so the move does not pull against it.
-    if (c && gesture.current?.blockedZoomOut) {
-      const back = aisleView(layout, c.target.toArray(), c.object.position.x);
-      goal.current = planMove(layout, c.object, controls, back.eye, back.target);
-      redraw();
-    }
-    gesture.current = null;
-    readView();
+    if (c) c.screenSpacePanning = c.getPolarAngle() > FACING_RACK_FROM;
   };
   const keepInFreeSpace = () => {
     const c = controls.current;
@@ -236,15 +238,17 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
       eye.y += lift;
       c.target.y += lift;
     }
-    // The rest is for the person's own moves only: the rig plans its moves
-    // clear, and holding it back mid-flight would strand it short of its goal.
-    if (!gesture.current) return;
-    const kept = walkwayX(layout, eye.x, eye.y, eye.z);
-    if (kept === eye.x) return;
-    if (eye.distanceTo(c.target) > gesture.current.reach + 1e-6) gesture.current.blockedZoomOut = true;
-    // Racking is solid: the eye stays on the walkway (the eye only — moving
-    // the target with it would push the pivot deeper into the rack each time).
-    eye.x = kept;
+    // Racking is solid to a turn or a drag: the eye stays on the walkway it
+    // is standing on (the eye only — moving the pivot with it would push the
+    // pivot deeper into the rack each time). A zoom is let through; backing
+    // away through a rack is the only way to see more of the one in front,
+    // and CameraRig cuts the view clear. The two are told apart by distance:
+    // a turn or a drag leaves the eye exactly as far from its pivot as the
+    // last change did, and only a zoom alters that.
+    const before = last.current;
+    const zoomed = !before || Math.abs(eye.distanceTo(c.target) - before.reach) > 1e-4;
+    if (!zoomed && !byRig.current) eye.x = heldToWalkway(layout, before.eye, eye.toArray());
+    last.current = { eye: eye.toArray(), reach: eye.distanceTo(c.target) };
   };
 
   return (
@@ -292,11 +296,11 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
         mouseButtons={MOUSE_BUTTONS}
         touches={TOUCHES}
         zoomToCursor
-        onStart={beginGesture}
+        onStart={aimDrag}
         onChange={keepInFreeSpace}
-        onEnd={endGesture}
+        onEnd={readView}
       />
-      <CameraRig focus={focus} controls={controls} home={home} layout={layout} goal={goal} onSettle={readView} />
+      <CameraRig focus={focus} controls={controls} home={home} layout={layout} byRig={byRig} onSettle={readView} />
     </Canvas>
   );
 }

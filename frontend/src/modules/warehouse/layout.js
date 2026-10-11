@@ -166,8 +166,6 @@ export function frontView(layout, p) {
 
 // How close to a rack face the camera may come.
 const WALK_MARGIN = 0.15;
-// Stepping back from a rack face: how far toward receiving, and how far up.
-const AISLE_VIEW = { back: 4.5, rise: 1.2 };
 
 function nearestAisleX(layout, x) {
   let best = 0;
@@ -184,14 +182,58 @@ function nearestAisleX(layout, x) {
  * the building anywhere is free, and x comes back unchanged.
  */
 export function walkwayX(layout, x, y, z) {
+  if (inTheOpen(layout, x, y, z)) return x;
+  return onAisle(nearestAisleX(layout, x), x);
+}
+
+/** Above the racks or outside the building: nothing to walk into. */
+function inTheOpen(layout, x, y, z) {
   const ext = extent(layout);
-  const free = y >= closingBeamHeight(layout) + WALK_MARGIN
+  return y >= closingBeamHeight(layout) + WALK_MARGIN
     || z > WALK_MARGIN || z < -ext.length - WALK_MARGIN
     || Math.abs(x) >= ext.width / 2 + WALK_MARGIN;
-  if (free) return x;
-  const centre = nearestAisleX(layout, x);
+}
+
+const onAisle = (centre, x) => {
   const reach = SIZE.aisle / 2 - WALK_MARGIN;
   return Math.min(centre + reach, Math.max(centre - reach, x));
+};
+
+const isClear = (layout, x, y, z) => Math.abs(walkwayX(layout, x, y, z) - x) < 1e-9;
+
+/**
+ * Where a sideways move may end on x. Racking is solid to someone standing in
+ * an aisle: a move that starts on a walkway stays on THAT walkway — not the
+ * one nearest to where it landed, or one quick move is carried through the
+ * rack into the next aisle. A move that starts or ends in the open is not
+ * held, and nor is an eye already among the racks (it got there by backing
+ * away through them, which `sightStart` allows for).
+ */
+export function heldToWalkway(layout, from, to) {
+  const [x, y, z] = to;
+  if (inTheOpen(layout, x, y, z) || inTheOpen(layout, ...from) || !isClear(layout, ...from)) return x;
+  return onAisle(nearestAisleX(layout, from[0]), x);
+}
+
+/**
+ * How far in front of the eye the picture should start, so that racking
+ * between the eye and what it is looking at does not block the view: 0 when
+ * nothing is in the way.
+ *
+ * An aisle is too narrow to back away from a rack and see more of it, so
+ * backing away carries the eye into the racking behind. Rather than refuse
+ * the move, everything up to the open space in front of `target` is cut away
+ * (the camera's near plane), as in a section drawing.
+ */
+export function sightStart(layout, eye, target) {
+  const span = Math.hypot(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]);
+  if (span < 1e-6) return 0;
+  const STEP = 0.05;
+  const blocked = (t) => !isClear(layout, ...[0, 1, 2].map((k) => target[k] + ((eye[k] - target[k]) * t) / span));
+  let t = 0;
+  while (t < span && blocked(t)) t += STEP;   // out of whatever the target sits in
+  while (t < span && !blocked(t)) t += STEP;  // across the open space in front of it
+  return t >= span ? 0 : span - t;
 }
 
 /** Whether the straight line from `a` to `b` ([x, y, z]) stays out of the racking. */
@@ -200,21 +242,9 @@ export function clearPath(layout, a, b) {
   for (let i = 0; i <= STEPS; i += 1) {
     const t = i / STEPS;
     const [x, y, z] = [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * t);
-    if (Math.abs(walkwayX(layout, x, y, z) - x) > 1e-9) return false;
+    if (!isClear(layout, x, y, z)) return false;
   }
   return true;
-}
-
-/**
- * Where to step back to from a rack face, to see more: the middle of the
- * walkway, some paces toward receiving and a little higher, still looking at
- * `target`. An aisle is too narrow to back straight away from a rack.
- */
-export function aisleView(layout, target, eyeX) {
-  return {
-    target: [...target],
-    eye: [nearestAisleX(layout, eyeX), target[1] + AISLE_VIEW.rise, target[2] + AISLE_VIEW.back],
-  };
 }
 
 /** Every box in the racking, in a stable order — one instance each in the scene. */
