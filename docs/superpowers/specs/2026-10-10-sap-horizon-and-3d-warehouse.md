@@ -87,8 +87,82 @@ The scene is lazy-loaded (three.js, React Three Fiber 8, Drei 9 — pinned for
 React 18) and renders on demand. Headless SwiftShader does not draw troika text;
 check labels on a real GPU (`--use-angle=d3d11`).
 
+### Moving around (2026-10-11)
+
+Clicking a box — in the scene or in the search results — takes the camera to a
+**front view** of it: standing in the box's own aisle, square to its face, level
+with it (`layout.js` `frontView`). Picking the same box again faces it again.
+
+The move is eased only where a person could travel it: in a straight line that
+stays out of the racking (`clearPath`) and does not have to turn right round.
+Anything else — another aisle, the facing rack — is a cut. Eased, those moves flew
+through cartons and over the top of the rack.
+
+After that the view belongs to the person, as on a map: **drag moves**, right-drag
+(or Ctrl/Shift-drag) turns, scroll zooms toward the cursor; one finger moves and
+two fingers zoom and turn on touch. A drag slides over the rack face when the
+camera is looking across at it and over the floor when it is looking down. A hint
+on the canvas names the gestures, in touch words on a touch screen.
+
+**Racking is solid to the camera.** Under the person's hand the eye stays on a
+walkway (`walkwayX`) and above the floor: it cannot back into the rack behind or
+swing through the one in front. An aisle is too narrow to back away from a rack, so
+scrolling out against the rack behind steps back down the aisle instead
+(`aisleView`), still looking at the same spot; from there scrolling out runs clear
+to receiving. The hover label is dropped whenever the view moves, because the box
+under the pointer is no longer the one it named.
+
+Three things used to pull the view back and must stay fixed:
+
+- `focus` is memoised. A new object on every render re-ran the fly-to whenever the
+  screen re-rendered (a data refresh, a keystroke).
+- A drag that ends over a box is not a click (`e.delta` in `Bins3D`).
+- Any drag or scroll cancels the easing; deselecting a box does not fly home. Only
+  first load, "Reset view" and a new layout go to the overview.
+
+The selected box keeps its size: scaled up, its body covered its own opening and
+label, and from the front it was a blank yellow block.
+
+### Adding stock to a box (2026-10-11)
+
+The bin panel has **Add stock** for admins and managers (the same gate as the
+Locations tab): choose the product, whether the box becomes its primary or overflow
+bin, and what is going in. `POST /inventory/bin-map/put-away` does it in one
+transaction, through the shared ledger paths.
+
+- A product's existing bin is never replaced silently: the server answers 409 naming
+  it unless `replace` is set, and the form then offers the choice.
+- A box is one box however its code was typed. `E.02.H.04` on file is the box the
+  map draws as E.2.H.4; both sides compare the parsed code, and new codes are stored
+  plain.
+- Stock is counted per branch, not per box, so the form asks what is going in
+  instead of guessing from a quantity. **Already on hand** is the default: nothing
+  is added, and the only thing recorded is units that had no location at all being
+  placed at this branch (a "Put Away" movement that leaves the item total alone, as
+  a stocktake and a transfer treat them). **New stock** has to be chosen, and its
+  quantity is an "Adjustment" that raises the total (`new_stock` on the request).
+  Inferring "new" from a typed quantity counted received stock twice. The form says
+  what the total will do before saving, and the confirmation reports what the
+  server did.
+- The item's pick location (`InventoryItem.location`, which picking slips and the
+  job pick list print) follows its primary bin at HQ, under the plain code, so a
+  re-slotted product sends the picker to the box the map shows. Editing bins on the
+  Locations tab does not do this yet.
+- A slot given a different box starts with that box's capacity or none; it does not
+  inherit the previous box's.
+- The quantity is on the stock audit trail with the user's name (movement rows carry
+  no user), and so is a changed pick location, with what it was before.
+- Agreeing to replace a bin is agreeing to replace *that* bin: the tick does not
+  carry over to another slot or to a box that has since changed.
+- Once a save is on its way it cannot be called off, and it is never queued for
+  later while offline. A save that fails after the form has gone is reported as a
+  toast, as a success would be.
+
 ## Next
 
-The S/4HANA shell (shell bar with search, notifications and profile; Jim2 ribbons
-removed), a role-based home, a sign-in page in the same world, then list report and
-object page layouts for jobs, stock, purchasing and customers.
+Done since this was written: the S/4HANA shell bar with page headers (Jim2 ribbons
+removed) and the sign-in page.
+
+Still to do: a role-based home, then list report and object page layouts for jobs,
+stock, purchasing and customers. In the warehouse: the 86 legacy bin codes need
+re-slotting to aisle.bay.level.box before they appear on the map.
