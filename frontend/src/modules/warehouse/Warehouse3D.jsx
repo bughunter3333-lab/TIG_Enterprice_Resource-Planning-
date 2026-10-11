@@ -27,8 +27,10 @@ function SelectedOutline({ cell }) {
   );
 }
 
-// Codes are printed on the labels of the aisle the camera is standing in —
-// the only faces it can read — nearest first, once it is close enough.
+// Codes are printed on the labels of the aisle being looked at — the only
+// faces that can be read — nearest first, once the eye is close enough. The
+// aisle looked at, not the one stood in: backed through the rack behind, the
+// eye is in the next aisle along, whose boxes are cut away.
 const CODE_REACH = { z: 4.5, maxDistance: 9, max: 320 };
 
 // Moving is the main gesture, as on a map: drag moves, right-drag (or Ctrl-
@@ -71,7 +73,7 @@ function nearbyCells(cells, view, layout) {
   let aisle = 0;
   let best = Infinity;
   layout.aisles.forEach((_, i) => {
-    const d = Math.abs(aisleX(layout, i) - view.cameraX);
+    const d = Math.abs(aisleX(layout, i) - view.x);
     if (d < best) { best = d; aisle = i; }
   });
   const far = (c) => (c.x - view.x) ** 2 + (c.y - view.y) ** 2 + (c.z - view.z) ** 2;
@@ -200,7 +202,6 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
     if (!c) return;
     setView({
       x: c.target.x, y: c.target.y, z: c.target.z,
-      cameraX: c.object.position.x,
       distance: c.object.position.distanceTo(c.target),
     });
   };
