@@ -1,0 +1,37 @@
+# Netlify — hosts the frontend (static Vite build). Mirrors frontend/vercel.json.
+# The backend (FastAPI) stays on Render and the database on Supabase; Netlify
+# proxies /api/* to the backend server-side, so the browser only talks to the
+# Netlify domain and the backend's SameSite=Lax auth cookies keep working with
+# no CORS changes. See DEPLOY.md → "Frontend on Netlify".
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Backend proxy. Backend routes live at root (/auth/login, /health, …), so
+# /api/auth/login → https://tig-erp-api.onrender.com/auth/login.
+# If Render gave the service a different host, change it here (and in vercel.json).
+[[redirects]]
+  from = "/api/*"
+  to = "https://tig-erp-api.onrender.com/:splat"
+  status = 200
+  force = true
+
+# Single-page app: every other path serves index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

@@ -62,6 +62,17 @@ Run `python seed_data.py` (no args) to populate a realistic dataset: 6 customers
 
 - **Only if** Render appended a suffix (because `tig-erp-api` was globally taken): edit `frontend/vercel.json` → change the host to the real one Render shows, keeping the `/api/:path*` → `https://<host>/:path*` shape (backend routes live at root: `/auth/login`, `/health`, …), then commit and push — Vercel redeploys automatically.
 
+## Frontend on Netlify (alternative to Vercel)
+
+`netlify.toml` at the repo root does the same job as `frontend/vercel.json`: it builds `frontend/`, proxies `/api/*` to the Render backend server-side (so cookies and CORS need no changes), serves `index.html` for every other path, and sets the same security headers.
+
+1. Netlify → **Add new site → Import an existing project** → connect this GitHub repo.
+2. Leave the build settings blank — Netlify reads them from `netlify.toml` (base `frontend`, command `npm run build`, publish `dist`, Node 20).
+3. Deploy. Open the Netlify URL → **Sign In** with the seeded admin.
+4. If login 404s: check the backend host in `netlify.toml`'s `/api/*` redirect matches the real Render URL and that `https://<render-host>/health` is green.
+
+Run only one of Vercel or Netlify against production, or keep both pointed at the same backend — they are interchangeable.
+
 ## Step 5 — Verify
 
 1. Open the Vercel URL → **Sign In** with the seeded admin.
