@@ -6,9 +6,10 @@ export default defineConfig({
   plugins: [react()],
   define: {
     // Visible build marker so we can confirm which version is actually live.
-    // Vercel sets VERCEL_GIT_COMMIT_SHA at build time; falls back to a timestamp locally.
+    // Vercel sets VERCEL_GIT_COMMIT_SHA and Netlify sets COMMIT_REF at build time;
+    // falls back to a timestamp locally.
     __BUILD_ID__: JSON.stringify(
-      (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) ||
+      (process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_REF || '').slice(0, 7) ||
         new Date().toISOString().slice(0, 16).replace('T', ' ')
     ),
   },
