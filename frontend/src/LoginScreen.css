@@ -111,6 +111,11 @@
 }
 .signin-error svg { flex-shrink: 0; margin-top: 1px; }
 
+/* Choosing a password (modules/auth/ChoosePasswordScreen.jsx). */
+.signin-field-problem { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--s-negative); }
+.signin-field input[aria-invalid="true"] { border-color: var(--s-negative); }
+.signin-note { margin: -8px 0 16px; font-size: 13px; line-height: 1.4; color: var(--s-label); }
+
 .signin-code {
   height: 52px; text-align: center; letter-spacing: .5em; font-size: 24px;
   font-family: '72Mono', ui-monospace, monospace;

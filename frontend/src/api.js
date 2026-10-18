@@ -1310,6 +1310,8 @@ export const documentTemplates = {
 
 export const users = {
   list: () => request('/users'),
+  // What each role can do, counted from the gates on the server's own routes.
+  access: () => request('/users/access'),
   create: (data) => request('/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),

@@ -7,10 +7,16 @@ from app.core.security import decode_token
 from app.models.user import User
 
 
-def get_current_user(
+def get_signed_in_user(
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> User:
+    """Who the sign-in cookie belongs to, and nothing more.
+
+    Only `GET /users/me` stops here: a person who still has to choose their
+    own password must be told who they are and that they have to. Everything
+    else goes through `get_current_user`.
+    """
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated",
@@ -34,12 +40,38 @@ def get_current_user(
     return user
 
 
+def get_current_user(user: User = Depends(get_signed_in_user)) -> User:
+    """The signed-in account, once it is using a password of its own.
+
+    A password an admin chose (a new account, or a reset) is known to two
+    people, so until the person replaces it the API answers nothing but who
+    they are (`get_signed_in_user`) and the change itself (`/auth/change-
+    password`). Signing out and refreshing a token still work; neither grants
+    anything. Every gate below is built on this, and the sign-in routes that
+    read the cookie themselves (`routers/auth.py`, `_require_authenticated`)
+    apply it too, so no route can be reached round it.
+    """
+    if user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "password_change_required",
+                "message": "Choose your own password before going on.",
+            },
+        )
+    return user
+
+
 def require_role(*roles: str):
     def checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in roles:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return current_user
 
+    # Which roles this gate lets through, readable from outside: the access
+    # table on the admin screen is built from the gates themselves
+    # (app.core.access), so it cannot say something the server does not do.
+    checker.roles = roles
     return checker
 
 

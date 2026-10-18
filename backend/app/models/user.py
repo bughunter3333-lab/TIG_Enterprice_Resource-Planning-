@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, false, func
 from app.database import Base
 
 
@@ -17,6 +17,12 @@ class User(Base):
     totp_enabled = Column(Boolean, default=False)
     # Bumped on password change to invalidate all previously-issued JWTs.
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    # The password was chosen by an admin (a new account, or a reset), so two
+    # people know it. Until the person chooses their own, signing in gets them
+    # only as far as doing that (core/dependencies.py, get_current_user).
+    must_change_password = Column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # SSO fields — populated when migrating to SSO later
     sso_provider = Column(String(50), nullable=True)
     sso_subject = Column(String(255), nullable=True)

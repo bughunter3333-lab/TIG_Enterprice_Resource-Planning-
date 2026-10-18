@@ -6,7 +6,6 @@ import { PieChart as ResponsiveContainer } from 'recharts';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
 import SettingsModule from './modules/SettingsModule';
-import UserManagement from './modules/UserManagement';
 import StylesModule from './modules/StylesModule';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
@@ -4638,7 +4637,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               </div>
             )}
             {adminMode ? (
-              <AdminPanel />
+              <AdminPanel currentUser={currentUser} />
             ) : (
               <>
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
@@ -4669,7 +4668,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
                 {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
-                {!loading && activeModule === 'user-management'    && <UserManagement currentUser={currentUser} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
                 {!loading && activeModule === 'accounts' && (
                   <AccountingModule suppliers={suppliers} currentUser={currentUser} />

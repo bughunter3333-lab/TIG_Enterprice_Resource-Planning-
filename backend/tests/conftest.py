@@ -16,7 +16,7 @@ from starlette.testclient import TestClient
 
 from app.database import Base, get_db
 from app.main import app
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_signed_in_user
 from app.core.security import hash_password
 from app.models.user import User
 from app.models.customer import Customer
@@ -162,6 +162,7 @@ def client(test_db_session, admin_user):
 
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_signed_in_user] = _override_user
 
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
@@ -184,6 +185,7 @@ def staff_client(test_db_session, staff_user):
 
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_signed_in_user] = _override_user
 
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
@@ -207,6 +209,7 @@ async def async_client(test_db_session, admin_user):
 
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_signed_in_user] = _override_user
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

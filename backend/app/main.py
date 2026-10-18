@@ -1,5 +1,6 @@
 import uuid
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -72,6 +73,31 @@ async def _rate_limited(request: Request, exc: RateLimitExceeded) -> JSONRespons
 
 
 app.add_exception_handler(RateLimitExceeded, _rate_limited)
+
+
+async def _invalid_request(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # FastAPI's own answer repeats what was sent — `input` — beside each
+    # error: a refused password, or the whole body (current password and all)
+    # when another field was missing. Which field, and why, is all the screen
+    # reads and all that goes back.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {
+                    "type": e.get("type"),
+                    "loc": list(e.get("loc", ())),
+                    "msg": e.get("msg"),
+                }
+                for e in exc.errors()
+            ]
+        },
+    )
+
+
+app.add_exception_handler(RequestValidationError, _invalid_request)
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):

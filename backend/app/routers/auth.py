@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 import math
-import re
 
 from app.database import get_db
+from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.core.security import (
+    MAX_PASSWORD_CHARS,
+    validate_password_strength,
     verify_password,
     hash_password,
     create_access_token,
@@ -41,8 +43,8 @@ def _as_utc(value: Optional[datetime]) -> Optional[datetime]:
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(max_length=50)
+    password: str = Field(max_length=MAX_PASSWORD_CHARS)
 
 
 class MFAVerifyRequest(BaseModel):
@@ -54,19 +56,13 @@ class MFASetupConfirmRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = Field(max_length=MAX_PASSWORD_CHARS)
+    new_password: str = Field(max_length=MAX_PASSWORD_CHARS)
 
     @field_validator("new_password")
     @classmethod
     def password_strength(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Password must contain at least one digit")
-        return v
+        return validate_password_strength(v)
 
 
 @router.post("/login")
@@ -113,7 +109,7 @@ def login(
         # branch returns early and used to skip the commit that saves it.
         db.commit()
         # Issue short-lived pre-MFA token; full access granted after /verify-2fa
-        pre_token = create_pre_mfa_token(user.id)
+        pre_token = create_pre_mfa_token(user.id, user.token_version or 0)
         response.set_cookie("pre_mfa_token", pre_token, max_age=300, **COOKIE_OPTS)
         return {"requires_2fa": True}
 
@@ -146,6 +142,10 @@ def verify_2fa(
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.totp_secret:
         raise HTTPException(status_code=401, detail="User not found")
+    # The same two checks every other token gets. Without them a sign-in begun
+    # before a password reset or a deactivation could still be finished.
+    if not user.is_active or payload.get("tv", 0) != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Invalid or expired MFA session")
     if not verify_totp(user.totp_secret, body.code):
         raise HTTPException(status_code=401, detail="Invalid 2FA code")
 
@@ -230,10 +230,18 @@ def change_password(
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
-    user = _require_authenticated(access_token, db)
+    user = _require_authenticated(access_token, db, allow_temporary_password=True)
     if not verify_password(body.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password incorrect")
+    # Typing the one an admin gave back in would clear the flag below and
+    # leave the password still known to two people.
+    if verify_password(body.new_password, user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="The new password has to be different from the current one.",
+        )
     user.hashed_password = hash_password(body.new_password)
+    user.must_change_password = False
     # Invalidate every previously-issued JWT (e.g. on other devices)...
     user.token_version = (user.token_version or 0) + 1
     db.commit()
@@ -266,7 +274,9 @@ def _issue_tokens(response: Response, user: User):
     )
 
 
-def _require_authenticated(token: Optional[str], db: Session) -> User:
+def _require_authenticated(
+    token: Optional[str], db: Session, allow_temporary_password: bool = False
+) -> User:
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(token)
@@ -281,6 +291,11 @@ def _require_authenticated(token: Optional[str], db: Session) -> User:
         raise HTTPException(status_code=401, detail="Not authenticated")
     if payload.get("tv", 0) != user.token_version:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    # Still on a password an admin chose: only the change of it is open — not
+    # least the second factor, or whoever else knows the given password could
+    # bind the account to their own authenticator first.
+    if user.must_change_password and not allow_temporary_password:
+        get_current_user(user)
     return user
 
 
@@ -292,4 +307,5 @@ def _user_info(user: User) -> dict:
         "email": user.email,
         "role": user.role,
         "totp_enabled": user.totp_enabled,
+        "must_change_password": user.must_change_password,
     }

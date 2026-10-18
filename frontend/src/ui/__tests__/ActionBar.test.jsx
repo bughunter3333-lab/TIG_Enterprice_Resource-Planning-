@@ -36,7 +36,7 @@ describe('pageActions', () => {
   });
 
   test('a page with nothing to offer gets no bar', () => {
-    for (const m of ['scheduling', 'email', 'import', 'settings', 'user-management', 'warehouse', 'reports', 'dashboard']) {
+    for (const m of ['scheduling', 'email', 'import', 'settings', 'warehouse', 'reports', 'dashboard']) {
       expect(pageActions(ctx({ activeModule: m }))).toBeNull();
     }
   });
