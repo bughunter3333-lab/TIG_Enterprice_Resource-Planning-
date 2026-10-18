@@ -23,7 +23,7 @@ export const BOX = { d: SIZE.depth * 0.9, h: SIZE.level * 0.86, w: SIZE.box * 0.
 const OPENING = { h: BOX.h * 0.52, w: BOX.w * 0.84, y: BOX.h * 0.16 };
 const LABEL = { h: BOX.h * 0.2, w: BOX.w * 0.6, y: -BOX.h * 0.27 };
 
-const CLICK_SLOP_PX = 4;
+export const CLICK_SLOP_PX = 4;
 
 const tmp = new THREE.Object3D();
 const tint = new THREE.Color();

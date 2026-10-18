@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-import re
 
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List
@@ -9,6 +8,9 @@ from datetime import datetime
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
+from app.core.bin_codes import box_code as _box_code
+from app.core.bin_codes import parse_box_code, same_bin as _same_bin, tidy
+from app.core.racking import box_problem, checked_bin, layout_for
 from app.core.branches import BRANCHES, normalize_branch
 from app.core.stock_location import (
     DEFAULT_BRANCH,
@@ -136,29 +138,59 @@ class StocktakeRequest(BaseModel):
     items: List[StocktakeItemIn]
 
 
+# What a bin holds at most: the same bound as a put-away's.
+MAX_BIN_QTY = 100_000
+
+
 class LocationCreate(BaseModel):
-    branch: str
-    zone: Optional[str] = None
+    branch: str = Field(max_length=50)
+    zone: Optional[str] = Field(None, max_length=20)
     qty_on_hand: int = 0
     committed_qty: int = 0
     backorder_qty: int = 0
     on_po_qty: int = 0
-    primary_bin_1: Optional[str] = None
-    max_qty_bin_1: Optional[int] = None
-    primary_bin_2: Optional[str] = None
-    max_qty_bin_2: Optional[int] = None
+    primary_bin_1: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_1: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+    primary_bin_2: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_2: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
 
 
 class LocationUpdate(BaseModel):
-    zone: Optional[str] = None
+    zone: Optional[str] = Field(None, max_length=20)
     qty_on_hand: Optional[int] = None
     committed_qty: Optional[int] = None
     backorder_qty: Optional[int] = None
     on_po_qty: Optional[int] = None
-    primary_bin_1: Optional[str] = None
-    max_qty_bin_1: Optional[int] = None
-    primary_bin_2: Optional[str] = None
-    max_qty_bin_2: Optional[int] = None
+    primary_bin_1: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_1: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+    primary_bin_2: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_2: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+
+
+BIN_FIELDS = (("primary_bin_1", "Primary bin 1"), ("primary_bin_2", "Primary bin 2"))
+
+
+def _moved(on_file: Optional[str], sent: Optional[str]) -> bool:
+    """Whether a bin sent in a change is a different bin from the one on file.
+
+    One sent back as the same box (or the same old text, or still empty) has
+    not moved.
+    """
+    if not tidy(sent) or not tidy(on_file):
+        return tidy(sent) != tidy(on_file)
+    return not _same_bin(on_file, sent)
+
+
+def _two_boxes(first: Optional[str], second: Optional[str]) -> None:
+    """A position's two bins are two boxes: refuse one box given as both."""
+    if first and second and _same_bin(first, second):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Primary bin 2 is the same box as primary bin 1 ({first}). "
+                "A position's two bins are two different boxes."
+            ),
+        )
 
 
 class PriceBreakpointIn(BaseModel):
@@ -249,7 +281,7 @@ def low_stock_alert(
 
 @router.get("/bin-map")
 def bin_map(
-    branch: str = Query("HQ"),
+    branch: str = Query("HQ", max_length=20),
     db: Session = Depends(get_db),
     _: User = Depends(require_any),
 ):
@@ -297,36 +329,6 @@ def bin_map(
     return {"branch": branch, "bins": bins}
 
 
-# aisle . bay . level . box, as the warehouse labels read: B.3.H.1
-_BIN_CODE = re.compile(r"^([A-Za-z]+)\.([0-9]+)\.([A-Za-z]+)\.([0-9]+)$")
-
-
-def _box_code(value: Optional[str]) -> Optional[str]:
-    """The one spelling of a box: ``b.03.h.01`` and ``B.3.H.1`` are the same box.
-
-    None when the text is not a box code at all. The map reads codes the same
-    way (frontend ``parseBin``), so the two agree on which box a stored code
-    means — compared as typed, a zero-padded code looked like a different box
-    and one box became both of a SKU's bins.
-
-    Letters are matched as plain A-Z before any case change. Upper-casing first
-    let other alphabets through and could lengthen the text (one "\ufb03"
-    becomes "FFI"), past what the column holds.
-    """
-    match = _BIN_CODE.match((value or "").strip())
-    if not match:
-        return None
-    aisle, bay, level, box = match.groups()
-    if int(bay) < 1 or int(box) < 1:
-        return None
-    return f"{aisle.upper()}.{int(bay)}.{level.upper()}.{int(box)}"
-
-
-def _same_bin(a: str, b: str) -> bool:
-    """Two codes on file for one bin: the same box, or the same legacy text."""
-    return (_box_code(a) or a.strip().upper()) == (_box_code(b) or b.strip().upper())
-
-
 @router.post("/bin-map/put-away")
 def put_away(
     body: PutAway,
@@ -366,6 +368,12 @@ def put_away(
         raise HTTPException(
             status_code=400,
             detail=f"'{body.bin_code}' is not an aisle.bay.level.box code, e.g. B.3.H.1",
+        )
+    missing = box_problem(layout_for(db, branch), parse_box_code(code))
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{code}' is not in the racking at {branch}: {missing}",
         )
     item = db.query(InventoryItem).filter(InventoryItem.sku == body.sku).first()
     if not item:
@@ -679,16 +687,26 @@ def add_location(
 ):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
+    # A position under a name that is not a branch is stock nothing else reads.
+    branch = normalize_branch(body.branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
     if (
         db.query(StockLocation)
-        .filter(StockLocation.sku == sku, StockLocation.branch == body.branch)
+        .filter(StockLocation.sku == sku, StockLocation.branch == branch)
         .first()
     ):
         raise HTTPException(
             status_code=409,
-            detail=f"Location '{body.branch}' already exists for this SKU",
+            detail=f"Location '{branch}' already exists for this SKU",
         )
-    loc = StockLocation(sku=sku, **body.model_dump())
+    fields = body.model_dump()
+    fields["branch"] = branch
+    fields["zone"] = (body.zone or "").strip() or None
+    for field, label in BIN_FIELDS:
+        fields[field] = checked_bin(db, branch, fields[field], label)
+    _two_boxes(fields["primary_bin_1"], fields["primary_bin_2"])
+    loc = StockLocation(sku=sku, **fields)
     db.add(loc)
     db.flush()
     record_location_change(
@@ -738,7 +756,29 @@ def update_location(
     # exclude_unset, not exclude_none. A field the caller never mentioned is
     # left alone; one sent explicitly as null is a bin being emptied. Under
     # exclude_none a bin could be filled and then never cleared again.
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    sent = dict(changes)
+    if "zone" in changes:
+        changes["zone"] = (changes["zone"] or "").strip() or None
+    # A bin being set has to be a box in this branch's racking. One that is
+    # only being sent back as it stands is left as it is.
+    for field, label in BIN_FIELDS:
+        if field in changes:
+            changes[field] = checked_bin(
+                db, loc.branch, changes[field], label, current=getattr(loc, field)
+            )
+    # Two bins are two boxes — judged when a bin is being changed. A row whose
+    # bins are already one box (from before this was checked) and are only
+    # being sent back as they stand can still have its other fields saved.
+    if any(
+        field in sent and _moved(getattr(loc, field), sent[field])
+        for field, _ in BIN_FIELDS
+    ):
+        _two_boxes(
+            changes.get("primary_bin_1", loc.primary_bin_1),
+            changes.get("primary_bin_2", loc.primary_bin_2),
+        )
+    for field, value in changes.items():
         setattr(loc, field, value)
     record_location_change(
         db,

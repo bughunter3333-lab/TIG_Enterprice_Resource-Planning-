@@ -21,7 +21,7 @@ const REASONS = {
 
 const sectionTitle = { fontSize: T.fsSmall, fontWeight: 700, color: T.textMuted, margin: '14px 0 6px' };
 
-export function SearchPanel({ query, onQuery, results, selected, onPick, offMap, offMapOpen, onOffMapToggle }) {
+export function SearchPanel({ query, onQuery, results, selected, onPick, offMap, offMapOpen, onOffMapToggle, children }) {
   return (
     <aside aria-label="Find a bin" style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: `1px solid ${T.hairline}`, background: T.panel }}>
       <div style={{ padding: 12, borderBottom: `1px solid ${T.hairline}` }}>
@@ -88,6 +88,8 @@ export function SearchPanel({ query, onQuery, results, selected, onPick, offMap,
           Selected box: yellow. The open shelf above the top beam holds excess boxes and is not mapped by bin.
         </p>
 
+        {children}
+
         {offMap.length > 0 && (
           <details open={offMapOpen} onToggle={(e) => onOffMapToggle(e.currentTarget.open)} style={{ marginTop: 14 }}>
             <summary style={{ fontSize: T.fsSmall, fontWeight: 700, color: T.warn, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -123,7 +125,7 @@ function putAwayMessage({ sku, name, placed, change }, code) {
   return `${what} slotted into ${code}`;
 }
 
-export function BinPanel({ placement, entry, branch, onClose, onOpenSku, canEdit, inventory, rows }) {
+export function BinPanel({ placement, entry, branch, onClose, onOpenSku, canEdit, inventory, rows, section, sectionColor }) {
   const [adding, setAdding] = useState(false);
   const addStock = useRef(null);
   const wasAdding = useRef(false);
@@ -145,6 +147,12 @@ export function BinPanel({ placement, entry, branch, onClose, onOpenSku, canEdit
           <p style={{ margin: '4px 0 0', fontSize: T.fsSmall, color: T.textMuted }}>
             Aisle {placement.aisle} · Bay {placement.bay}, {sideWords} · Level {placement.level} · Box {placement.position}
           </p>
+          {section && (
+            <p style={{ margin: '6px 0 0', fontSize: T.fsSmall, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 2, background: sectionColor }} />
+              In {section.customer_name}’s section
+            </p>
+          )}
         </div>
         <button type="button" aria-label="Close bin details" onClick={onClose}
           style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: T.textMuted, padding: 4 }}>

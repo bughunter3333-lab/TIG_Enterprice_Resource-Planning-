@@ -24,6 +24,14 @@ export function parseBin(bin) {
   };
 }
 
+/**
+ * A bin code as it should read while it is typed: its letters in capitals, as
+ * the labels on the boxes are printed. Only a–z are changed, so the text never
+ * changes length (in other alphabets a capital can be two letters) and the
+ * caret in a field stays where it was.
+ */
+export const capitals = (text) => String(text ?? '').replace(/[a-z]/g, (letter) => letter.toUpperCase());
+
 // Anything that does not parse — an empty bin, a legacy code, a free-text note
 // — sorts after every real location, so it collects at the end of the slip
 // instead of interrupting the walk.

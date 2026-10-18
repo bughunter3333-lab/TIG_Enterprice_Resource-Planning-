@@ -6,7 +6,7 @@
  * building is a handful of draw calls.
  * The canvas renders on demand: nothing redraws while the view is still.
  */
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, invalidate as redraw, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -14,6 +14,9 @@ import { SIZE, aisleX, allCells, clearPath, extent, heldToWalkway, liftOut } fro
 import { BIN_COLORS } from './binColors';
 import { BOX, BinCodes, Bins } from './Bins3D';
 import Racking from './Racking3D';
+import { WalkLines, WalkRig } from './Walk3D';
+import Sections from './Sections3D';
+import { sectionFor } from './sections';
 import { T } from '../../ui/tokens';
 
 /** A crisp outline round the selected box, so it reads at any distance. */
@@ -46,6 +49,9 @@ const MIN_DISTANCE = 1.2;
 // its step; taken at face value the easing arrives in that one frame.
 const MAX_EASE_STEP = 1 / 30;
 const ORIGIN = new THREE.Vector3();
+const NO_SECTIONS = [];
+const NO_NUDGES = [];
+const NO_COLORS = new Map();
 
 /**
  * A camera move. It is eased only where a person could travel it: in a
@@ -126,9 +132,49 @@ function Floor({ layout }) {
 }
 
 /** Takes the camera to a box, out of an aisle or to the overview — until the person takes over. */
-function CameraRig({ focus, controls, home, layout, goal, byRig, onSettle }) {
+function CameraRig({ focus, controls, home, layout, goal, byRig, walking, onSettle }) {
   const { camera, invalidate } = useThree();
   const opened = useRef(false);
+  const wasWalking = useRef(false);
+  const overviewAsked = useRef(false);
+
+  // Walking an aisle is WalkRig's work (Walk3D.jsx), with the controls off.
+  // Going in, whatever this was doing is dropped. Coming out, the camera
+  // rises out of the aisle to look back down at where it stood — a cut, as
+  // stepping in was.
+  //
+  // A layout effect, not a passive one: the commit that ends a walk switches
+  // the controls back on, and a frame drawn before this had run let them act
+  // on the walk's camera with their aim from before the walk — it could come
+  // out above the wrong aisle. This runs in that same commit. "Reset view"
+  // ends a walk and asks for the overview in one go; the overview's effect
+  // runs after this and wins.
+  useLayoutEffect(() => {
+    const c = controls.current;
+    if (walking) {
+      goal.current = null;
+    } else if (wasWalking.current && c) {
+      const eye = camera.position;
+      // The controls were off and are still aimed where the walk began. Aim
+      // them where the eye was looking (never upward: they cannot look up,
+      // and would move the eye to make it so).
+      const ahead = camera.getWorldDirection(new THREE.Vector3());
+      ahead.y = Math.min(ahead.y, -0.08);
+      c.target.copy(eye).addScaledVector(ahead.normalize(), MIN_DISTANCE * 2);
+      if (overviewAsked.current) {
+        // Asked for during the walk: planned now, from where the eye is now.
+        goal.current = planMove(layout, camera, controls, home.position.toArray(), home.target.toArray());
+      } else {
+        const up = liftOut(layout, eye.toArray(), [eye.x, Math.min(eye.y, 1), eye.z]);
+        goal.current = { position: new THREE.Vector3(...up.eye), target: new THREE.Vector3(...up.target), cut: true };
+      }
+      invalidate();
+    }
+    overviewAsked.current = false;
+    wasWalking.current = walking;
+    // `home` is read only when a walk ends; a new overview by itself is the next effect's business.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walking, layout, camera, controls, goal, invalidate]);
 
   // The overview: on opening, on "Reset view" and for a new layout. Not when
   // a box is deselected — closing its panel leaves the view where it is.
@@ -144,6 +190,12 @@ function CameraRig({ focus, controls, home, layout, goal, byRig, onSettle }) {
       onSettle();
       return;
     }
+    // During a walk the eye will be somewhere else by the time it ends, so
+    // only the asking is remembered; the move is planned then.
+    if (c && !c.enabled) {
+      overviewAsked.current = true;
+      return;
+    }
     goal.current = planMove(layout, camera, controls, home.position.toArray(), home.target.toArray());
     invalidate();
     // onSettle only reads the controls; leaving it out keeps this to real changes of the overview.
@@ -151,7 +203,8 @@ function CameraRig({ focus, controls, home, layout, goal, byRig, onSettle }) {
   }, [home, layout, camera, controls, goal, invalidate]);
 
   useEffect(() => {
-    if (!focus) return;
+    // During a walk the controls are off, and WalkRig faces the box itself.
+    if (!focus || controls.current?.enabled === false) return;
     goal.current = planMove(layout, camera, controls, focus.eye, focus.target);
     invalidate();
   }, [focus, layout, camera, controls, goal, invalidate]);
@@ -169,7 +222,8 @@ function CameraRig({ focus, controls, home, layout, goal, byRig, onSettle }) {
   useFrame((_, dt) => {
     const g = goal.current;
     const c = controls.current;
-    if (!g || !c) return;
+    // Nothing of this rig's moves the camera during a walk.
+    if (!g || !c || !c.enabled) return;
     const k = g.cut ? 1 : 1 - Math.exp(-Math.min(dt, MAX_EASE_STEP) * 5);
     camera.position.lerp(g.position, k);
     c.target.lerp(g.target, k);
@@ -188,9 +242,22 @@ function CameraRig({ focus, controls, home, layout, goal, byRig, onSettle }) {
   return null;
 }
 
-export default function Warehouse3D({ layout, bins, hits, filter, selected, focus, resetKey, onSelect }) {
+/**
+ * `walk` is set while an aisle is being walked (`{ aisleIndex, z, side }`, a
+ * new object for each place it is sent); `nudges` are the walk controls
+ * pressed, oldest first, each `{ kind, id }`; `onWalk(aisleIndex, z)` is a
+ * click on an aisle's line, and `onWalkAt({ aisleIndex, bays })` says where
+ * the walk has got to — `walkAisle` is that aisle, for lighting its line.
+ * `sections` is the racking marked for companies, `sectionColors` each
+ * company's colour, and `draft` a section being marked.
+ */
+export default function Warehouse3D({
+  layout, bins, hits, filter, selected, focus, resetKey, onSelect, walk, walkAisle = null, nudges = NO_NUDGES, onWalk, onWalkAt,
+  sections = NO_SECTIONS, sectionColors = NO_COLORS, draft = null,
+}) {
   const controls = useRef();
   const [hover, setHover] = useState(null);
+  const [overLine, setOverLine] = useState(false);
   const cells = useMemo(() => allCells(layout), [layout]);
   const selectedCell = useMemo(() => cells.find((c) => c.code === selected) ?? null, [cells, selected]);
   const [view, setView] = useState(null);
@@ -216,6 +283,12 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
   }, [layout, resetKey]);
 
   const hoverEntry = hover ? bins.get(hover.code) : null;
+  const hoverSection = hover ? sectionFor(sections, hover) : null;
+  // The view has moved, so the box the pointer was over is no longer under
+  // it; the label comes back with the next move of the pointer.
+  const dropHover = () => setHover((h) => (h ? null : h));
+  // Walking, codes are printed for what is in reach of the eye itself.
+  const showFrom = ([x, y, z]) => setView({ x, y, z, cameraX: x, distance: 0 });
 
   // What the camera is being taken to, if anything (CameraRig moves it).
   const goal = useRef(null);
@@ -228,16 +301,18 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
   const scrollingOut = useRef(false);
   const stoppedByRack = useRef(false);
 
+  // The controls still hear a pointer released or cancelled while they are
+  // switched off for a walk, and report it as a gesture ending. During a walk
+  // their gestures are nobody's: acting on one reprinted the box codes round
+  // where the map had last been aimed.
   const aimDrag = () => {
     const c = controls.current;
-    if (c) c.screenSpacePanning = c.getPolarAngle() > FACING_RACK_FROM;
+    if (c?.enabled) c.screenSpacePanning = c.getPolarAngle() > FACING_RACK_FROM;
   };
   const keepInFreeSpace = () => {
     const c = controls.current;
     if (!c) return;
-    // The view has moved, so the box the pointer was over is no longer under
-    // it; the label comes back with the next move of the pointer.
-    setHover((h) => (h ? null : h));
+    dropHover();
     const eye = c.object.position;
     // Sliding down a rack face stops at the floor, not beneath it.
     const lift = MIN_CAMERA_HEIGHT - eye.y;
@@ -263,10 +338,14 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
   };
   const endGesture = () => {
     const c = controls.current;
+    if (!c?.enabled) {
+      stoppedByRack.current = false;
+      return;
+    }
     // An aisle is too narrow to back away from a rack. Scrolling out against
     // the rack behind rises out of the aisle instead, still looking at the
     // same spot; from up there the view is free.
-    if (c && stoppedByRack.current) {
+    if (stoppedByRack.current) {
       const up = liftOut(layout, c.object.position.toArray(), c.target.toArray());
       goal.current = planMove(layout, c.object, controls, up.eye, up.target);
       redraw();
@@ -280,7 +359,7 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
       frameloop="demand"
       dpr={[1, 2]}
       camera={{ fov: 42, near: 0.1, far: 250, position: home.position.toArray() }}
-      style={{ background: BIN_COLORS.sky, cursor: hover ? 'pointer' : 'grab' }}
+      style={{ background: BIN_COLORS.sky, cursor: hover || overLine ? 'pointer' : 'grab' }}
       // Known for certain to be a scroll-out, rather than guessed from how
       // the camera moved: set on the way down to the controls, cleared on
       // the way back up.
@@ -293,12 +372,17 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
       <directionalLight position={[8, 14, 10]} intensity={1.15} />
       <directionalLight position={[-10, 6, -6]} intensity={0.35} />
       <Floor layout={layout} />
+      <WalkLines layout={layout} walking={walk ? walkAisle ?? walk.aisleIndex : null} onWalk={onWalk} onOver={setOverLine} />
       <Racking layout={layout} />
       <Bins cells={cells} bins={bins} hits={hits} filter={filter} selected={selected} onHover={setHover} onSelect={onSelect} />
       {/* Its own boundary: the label font loads on first use, and the racking
           must not vanish while it does. */}
       <Suspense fallback={null}>
         <BinCodes cells={near} bins={bins} hits={hits} filter={filter} />
+      </Suspense>
+      {/* Its own boundary too: the company signs use the same font. */}
+      <Suspense fallback={null}>
+        <Sections layout={layout} sections={sections} colors={sectionColors} draft={draft} labelled={!walk} />
       </Suspense>
       <SelectedOutline cell={selectedCell} />
       {hover && (
@@ -310,6 +394,7 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
             <span style={{ fontFamily: T.fontMono, fontWeight: 700 }}>{hover.code}</span>
             <span style={{ color: T.textMuted }}>
               {' · '}{hoverEntry ? `${hoverEntry.skus.length} SKU${hoverEntry.skus.length === 1 ? '' : 's'}` : 'nothing slotted'}
+              {hoverSection && ` · ${hoverSection.customer_name}`}
             </span>
           </div>
         </Html>
@@ -317,6 +402,7 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
       <OrbitControls
         ref={controls}
         makeDefault
+        enabled={!walk}
         enableDamping={false}
         minDistance={MIN_DISTANCE}
         maxDistance={80}
@@ -328,7 +414,11 @@ export default function Warehouse3D({ layout, bins, hits, filter, selected, focu
         onChange={keepInFreeSpace}
         onEnd={endGesture}
       />
-      <CameraRig focus={focus} controls={controls} home={home} layout={layout} goal={goal} byRig={byRig} onSettle={readView} />
+      <CameraRig focus={focus} controls={controls} home={home} layout={layout} goal={goal} byRig={byRig} walking={!!walk} onSettle={readView} />
+      {walk && (
+        <WalkRig layout={layout} walk={walk} nudges={nudges} focus={focus} cell={selectedCell} lastEye={lastEye}
+          onMove={dropHover} onView={showFrom} onAt={onWalkAt} />
+      )}
     </Canvas>
   );
 }

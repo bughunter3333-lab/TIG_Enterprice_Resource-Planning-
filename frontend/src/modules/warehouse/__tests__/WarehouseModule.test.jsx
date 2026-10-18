@@ -6,13 +6,14 @@
  */
 import { screen, fireEvent, within } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
-import { adminSettings, stock } from '../../../api';
+import { adminSettings, rackSections, stock } from '../../../api';
 import { subscribe } from '../../../lib/notify';
 import WarehouseModule from '../WarehouseModule';
 
 vi.mock('../../../api', () => ({
   adminSettings: { get: vi.fn(), set: vi.fn() },
   stock: { binMap: vi.fn(), putAway: vi.fn(), locationSummary: vi.fn() },
+  rackSections: { list: vi.fn(), create: vi.fn(), remove: vi.fn() },
 }));
 // Every `focus` the scene is handed, in order: a new object is a new fly-to.
 const scene = vi.hoisted(() => ({ focus: [] }));
@@ -41,6 +42,7 @@ beforeEach(() => {
   adminSettings.get.mockResolvedValue({ key: 'warehouse_layout:HQ', value: null });
   stock.binMap.mockResolvedValue({ branch: 'HQ', bins: BINS });
   stock.locationSummary.mockResolvedValue({ total_on_hand: 0, located: 0, unlocated: 0, in_sync: true });
+  rackSections.list.mockResolvedValue({ branch: 'HQ', sections: [] });
   // jsdom cannot draw; pretend WebGL exists so the (stubbed) scene renders.
   window.WebGLRenderingContext = function WebGLRenderingContext() {};
   HTMLCanvasElement.prototype.getContext = () => ({});

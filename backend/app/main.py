@@ -37,6 +37,7 @@ from app.routers import (
     analytics,
     saved_lists,
     dispatch_sessions,
+    rack_sections,
 )
 from app.routers.admin_settings import router as admin_settings_router
 
@@ -139,4 +140,5 @@ app.include_router(analytics.router)
 app.include_router(admin_settings_router)
 app.include_router(saved_lists.router)
 app.include_router(dispatch_sessions.router)
+app.include_router(rack_sections.router)
 app.include_router(accounting.router)

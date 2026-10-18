@@ -697,6 +697,15 @@ export const stock = {
     request(`/inventory/${encodeURIComponent(sku)}/sales`),
 };
 
+// ── Rack sections (racking marked for a company, on the warehouse map) ───────
+
+export const rackSections = {
+  list: (branch) => request(`/rack-sections?branch=${encodeURIComponent(branch)}`),
+  // `from_bin` and `to_bin` are opposite corners on one rack face, in either order.
+  create: (body) => request('/rack-sections', { method: 'POST', body }),
+  remove: (id) => request(`/rack-sections/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
 // ── AI Assistant ─────────────────────────────────────────────────────────────
 
 export const ai = {

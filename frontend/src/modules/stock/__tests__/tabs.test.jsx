@@ -7,6 +7,7 @@ import StockTransactionsTab from '../tabs/StockTransactionsTab';
 import StockCommittedTab from '../tabs/StockCommittedTab';
 
 vi.mock('../../../api', () => ({
+  adminSettings: { get: vi.fn((key) => Promise.resolve({ key, value: null })) },
   stock: { locations: vi.fn(), locationSummary: vi.fn(), pricing: vi.fn(), transactions: vi.fn(), committed: vi.fn() },
 }));
 import { stock } from '../../../api';

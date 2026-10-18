@@ -111,6 +111,16 @@ export function bayZ(layout, bay) {
   return -Math.floor((bay - 1) / 2) * bayLength(layout);
 }
 
+/**
+ * The two bays either side of a spot on the walkway — `{ odd, even }`, `even`
+ * null where the last bay has nothing facing it — or null beyond the racking.
+ */
+export function baysAt(layout, z) {
+  const odd = Math.floor(-z / bayLength(layout)) * 2 + 1;
+  if (z > 0 || odd > layout.baysPerAisle) return null;
+  return { odd, even: odd < layout.baysPerAisle ? odd + 1 : null };
+}
+
 function place(layout, aisleIndex, bay, levelIndex, position) {
   const side = bayside(layout, bay);
   return {
@@ -150,7 +160,7 @@ export function binPlacement(layout, code) {
 
 // How far across the walkway to stand from its centre, and how far above the
 // box's centre: a touch above keeps the view inside the camera's tilt limit.
-const FRONT_VIEW = { across: 0.7, rise: 0.12 };
+export const FRONT_VIEW = { across: 0.7, rise: 0.12 };
 
 /**
  * Where to stand to see a box from the front: in its own aisle, square to its
@@ -277,9 +287,19 @@ export function validateLayout(raw) {
   if (typeof raw === 'string') {
     try { value = JSON.parse(raw); } catch { return { layout: DEFAULT_LAYOUT, errors: ['Not valid JSON'] }; }
   }
+  // `null`, a number, a list: JSON, but not a layout. (Reading `.aisles` off
+  // null threw, and took the screen that asked down with it.)
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return { layout: DEFAULT_LAYOUT, errors: ['Not a layout'] };
+  }
   const errors = [];
-  const aisles = Array.isArray(value.aisles) ? value.aisles.map((a) => String(a).trim().toUpperCase()) : [];
-  if (aisles.length < 1 || aisles.length > 26 || aisles.some((a) => !/^[A-Z]+$/.test(a)) || new Set(aisles).size !== aisles.length) {
+  // Names only: a number or a null among them is not an aisle. The server
+  // reads the same setting by the same rules (backend/app/core/racking.py),
+  // and a shared list of cases holds the two together (layoutCases.json).
+  const named = Array.isArray(value.aisles) && value.aisles.every((a) => typeof a === 'string');
+  const aisles = named ? value.aisles.map((a) => a.trim().toUpperCase()) : [];
+  // At most ten letters: what a rack section's aisle, and a bin code, can hold.
+  if (aisles.length < 1 || aisles.length > 26 || aisles.some((a) => !/^[A-Z]{1,10}$/.test(a)) || new Set(aisles).size !== aisles.length) {
     errors.push('Aisles must be 1–26 distinct letters');
   }
   if (!isInt(value.baysPerAisle, 1, 60)) errors.push('Bays per aisle must be 1–60');

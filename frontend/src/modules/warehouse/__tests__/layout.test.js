@@ -11,6 +11,7 @@ import {
   DEFAULT_LAYOUT, SIZE, aisleX, allCells, binPlacement, clearPath, closingBeamHeight, extent,
   frontView, heldToWalkway, liftOut, validateLayout, walkwayX,
 } from '../layout';
+import layoutCases from './layoutCases.json';
 
 const L = DEFAULT_LAYOUT;
 
@@ -226,5 +227,39 @@ describe('validateLayout', () => {
 
   test('nothing stored is not an error', () => {
     expect(validateLayout(null)).toEqual({ layout: L, errors: [] });
+  });
+});
+
+describe('a stored layout is read as the server reads it', () => {
+  // One list, run here and by backend/tests/unit/test_racking.py.
+  test.each(layoutCases.cases.map((c) => [c.why, c]))('%s', (_, c) => {
+    const { layout, errors } = validateLayout(c.raw);
+    if (c.reads === 'default') {
+      expect(layout).toBe(L);
+      expect(errors.length).toBeGreaterThan(0);
+    } else {
+      expect(layout).toEqual({ version: 1, ...c.reads });
+      expect(errors).toEqual([]);
+    }
+  });
+
+  test('nesting too deep to read is the default, not an error thrown at the screen', () => {
+    expect(validateLayout('['.repeat(100000) + ']'.repeat(100000)).layout).toBe(L);
+  });
+
+  test('JSON that is not a layout says so', () => {
+    for (const raw of ['null', '[]', '7', '"text"']) expect(validateLayout(raw)).toEqual({ layout: L, errors: ['Not a layout'] });
+  });
+});
+
+describe('binPlacement at the edges of a code', () => {
+  test('a level of two letters is not a level this racking has, whatever its letters', () => {
+    expect(binPlacement(L, 'B.1.AB.1')).toEqual({ ok: false, reason: 'level' });
+    expect(binPlacement(L, 'B.1.AA.1')).toEqual({ ok: false, reason: 'level' });
+  });
+
+  test('bays and boxes are numbered from 1', () => {
+    expect(binPlacement(L, 'B.0.A.1')).toEqual({ ok: false, reason: 'bay' });
+    expect(binPlacement(L, 'B.1.A.0')).toEqual({ ok: false, reason: 'position' });
   });
 });

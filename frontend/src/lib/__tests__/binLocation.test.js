@@ -54,3 +54,20 @@ describe('walk order', () => {
     expect(compareBins('b.3.h.1', 'B.3.H.1')).toBe(0);
   });
 });
+
+describe('capitals', () => {
+  test('a code reads in capitals however it is typed', async () => {
+    const { capitals } = await import('../binLocation');
+    expect(capitals('b.3.h.1')).toBe('B.3.H.1');
+    expect(capitals('B.3.h.1')).toBe('B.3.H.1');
+    expect(capitals('')).toBe('');
+    expect(capitals(null)).toBe('');
+  });
+
+  test('it never changes how long the text is, so a caret stays where it was', async () => {
+    const { capitals } = await import('../binLocation');
+    // In German a capital sharp s is two letters; it is left alone.
+    for (const text of ['straße', 'a-01-04', 'b.10.aa.12', 'ǆ']) expect(capitals(text)).toHaveLength(text.length);
+    expect(capitals('straße')).toBe('STRAßE');
+  });
+});

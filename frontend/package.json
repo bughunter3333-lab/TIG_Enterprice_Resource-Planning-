@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:scene": "vitest run --config scene-probes/vitest.config.mjs",
     "lint": "eslint src e2e",
     "lint:fix": "eslint src e2e --fix",
     "format": "prettier --write",

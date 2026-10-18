@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { stock } from '../../../api';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { adminSettings, stock } from '../../../api';
 import { BRANCHES } from '../../../branches';
 import Button from '../../../ui/Button';
 import { T } from '../../../ui/tokens';
 import { parseBin } from '../../../lib/binLocation';
+import BinField from '../../warehouse/BinField';
+import { validateLayout } from '../../warehouse/layout';
+import { MAX_BIN_QTY, MAX_ZONE_LENGTH, rowProblems, storedBinProblems } from '../locationRules';
 import StockHistoryPanel from './StockHistoryPanel';
 
 /**
@@ -19,6 +22,11 @@ import StockHistoryPanel from './StockHistoryPanel';
  * Editing is behind a mode rather than always-on. A stock position is what
  * every price and every pick reads from; a grid of live inputs invites a
  * mistyped bin from someone who only came to look.
+ *
+ * A bin is a real box in the branch's racking (locationRules.js; the server
+ * holds the same rule). One that is not cannot be saved, and the grid says
+ * exactly what is wrong with it. Bins already on file from before that was
+ * checked are flagged, in both modes, until they are re-slotted.
  */
 
 const CAN_EDIT = ['admin', 'manager'];
@@ -68,41 +76,44 @@ const cell = (width, align) => ({
   fontSize: T.fsGrid, overflow: 'hidden', whiteSpace: 'nowrap',
 });
 
-function BinInput({ value, onChange, placeholder }) {
+const inputBox = (wrong) => ({
+  width: '100%', height: 22, fontSize: T.fsGrid, padding: '0 5px', borderRadius: T.radius - 1,
+  background: T.panel, color: T.text, border: `1px solid ${wrong ? T.danger : T.hairline}`, outline: 'none',
+});
+
+function BinInput({ value, onValue, layout, placeholder, name, problem }) {
   const parsed = parseBin(value.trim());
-  const unknown = value.trim() && !parsed;
   return (
-    <input
+    // Offers the real boxes what is typed could become, and shows it in
+    // capitals while it leads to one (BinField).
+    <BinField
       value={value}
-      onChange={onChange}
+      onValue={onValue}
+      layout={layout}
       placeholder={placeholder}
-      // A code that does not parse is not refused — a receiving bay is a real
-      // place with no aisle — but it is marked, because the common cause is a
-      // typo in one that should have.
-      title={parsed
-        ? `Aisle ${parsed.aisle} · Bay ${parsed.bay} · Level ${parsed.level} · Position ${parsed.position}`
-        : 'Not a racking code — saved as a plain location name'}
-      style={{
-        width: '100%', height: 22, fontFamily: T.fontMono, fontSize: T.fsGrid,
-        padding: '0 5px', borderRadius: T.radius - 1, background: T.panel, color: T.text,
-        border: `1px solid ${unknown ? T.accent : T.hairline}`, outline: 'none',
-      }}
+      aria-label={name}
+      aria-invalid={problem ? true : undefined}
+      maxLength={50}
+      title={problem
+        ?? (parsed ? `Aisle ${parsed.aisle} · Bay ${parsed.bay} · Level ${parsed.level} · Position ${parsed.position}` : undefined)}
+      style={{ ...inputBox(problem), fontFamily: T.fontMono }}
     />
   );
 }
 
-function NumInput({ value, onChange }) {
+function NumInput({ value, onChange, name, problem }) {
   return (
     <input
-      type="number" min="0" value={value} onChange={onChange}
-      style={{
-        width: '100%', height: 22, fontSize: T.fsGrid, textAlign: 'right',
-        padding: '0 5px', borderRadius: T.radius - 1, background: T.panel, color: T.text,
-        border: `1px solid ${T.hairline}`, outline: 'none',
-      }}
+      type="number" min="0" max={MAX_BIN_QTY} step="1" value={value} onChange={onChange}
+      aria-label={name}
+      aria-invalid={problem ? true : undefined}
+      title={problem ?? undefined}
+      style={{ ...inputBox(problem), textAlign: 'right' }}
     />
   );
 }
+
+const layoutKey = (branch) => `warehouse_layout:${branch}`;
 
 export default function StockLocationsTab({ sku, currentUser }) {
   const qc = useQueryClient();
@@ -129,6 +140,23 @@ export default function StockLocationsTab({ sku, currentUser }) {
   // appear, or its stock becomes invisible rather than merely misfiled.
   const extra = (data || []).map((l) => l.branch).filter((b) => !BRANCHES.includes(b));
   const rows = [...BRANCHES, ...extra];
+
+  // The racking each branch has: for every branch while editing (a bin field
+  // offers the boxes that exist as soon as a letter is typed), otherwise for
+  // the ones with a bin on file to judge. Until a branch's layout has arrived
+  // only the shape of its codes is judged — the server has the last word.
+  const judged = editing ? rows : rows.filter((b) => byBranch[b]?.primary_bin_1 || byBranch[b]?.primary_bin_2);
+  const layouts = useQueries({
+    queries: judged.map((branch) => ({
+      queryKey: ['admin-setting', layoutKey(branch)],
+      queryFn: () => adminSettings.get(layoutKey(branch)),
+      staleTime: 300_000,
+    })),
+  });
+  const layoutOf = (branch) => {
+    const found = layouts[judged.indexOf(branch)];
+    return found?.isSuccess ? validateLayout(found.data?.value).layout : null;
+  };
 
   const save = useMutation({
     mutationFn: async (pending) => {
@@ -167,17 +195,27 @@ export default function StockLocationsTab({ sku, currentUser }) {
   // captured blanks, and saving then cleared every record it had not yet seen.
   const draftFor = (branch) => drafts[branch] ?? toDraft(byBranch[branch]);
 
-  const setField = (branch, field) => (e) => {
-    const { value } = e.target;
+  const setValue = (branch, field) => (value) => {
     setDrafts((d) => ({ ...d, [branch]: { ...(d[branch] ?? toDraft(byBranch[branch])), [field]: value } }));
   };
+  const setField = (branch, field) => (e) => setValue(branch, field)(e.target.value);
+
+  // Only rows that were typed into, and only those whose values actually
+  // moved — typing a character and deleting it again is not an edit.
+  const pending = Object.entries(drafts).filter(
+    ([branch, draft]) => JSON.stringify(draft) !== JSON.stringify(toDraft(byBranch[branch])),
+  );
+  // What stops each of those being saved. Rows nobody changed are not judged:
+  // an old bin on one of them is flagged below, not a reason to block others.
+  const problems = Object.fromEntries(pending.map(([branch, draft]) => [branch, rowProblems(layoutOf(branch), draft, byBranch[branch])]));
+  const blocked = Object.entries(problems).filter(([, list]) => list.length > 0);
+  const wrong = (branch, field) => problems[branch]?.find((p) => p.field === field)?.text;
+  // Bins on file that are not boxes in their branch's racking.
+  const onFile = rows.flatMap((branch) => storedBinProblems(layoutOf(branch), byBranch[branch]).map((p) => ({ ...p, branch })));
+  const flagged = (branch, field) => onFile.find((p) => p.branch === branch && p.field === field);
 
   const submit = () => {
-    // Only rows that were typed into, and only those whose values actually
-    // moved — typing a character and deleting it again is not an edit.
-    const pending = Object.entries(drafts).filter(
-      ([branch, draft]) => JSON.stringify(draft) !== JSON.stringify(toDraft(byBranch[branch])),
-    );
+    if (blocked.length) return;
     if (!pending.length) { cancel(); return; }
     save.mutate(pending);
   };
@@ -221,7 +259,7 @@ export default function StockLocationsTab({ sku, currentUser }) {
         {editing ? (
           <>
             <Button size="sm" variant="ghost" onClick={cancel} disabled={save.isPending}>Cancel</Button>
-            <Button size="sm" variant="primary" onClick={submit} disabled={save.isPending}>
+            <Button size="sm" variant="primary" onClick={submit} disabled={save.isPending || blocked.length > 0}>
               {save.isPending ? 'Saving…' : 'Save'}
             </Button>
           </>
@@ -244,6 +282,22 @@ export default function StockLocationsTab({ sku, currentUser }) {
         <div role="alert" style={{ fontSize: T.fsSmall, color: T.danger, marginBottom: 6 }}>
           {save.error.message || 'Could not save locations'}
         </div>
+      )}
+
+      {editing && blocked.length > 0 && (
+        <ul role="alert" aria-label="What has to be fixed before saving" style={{ listStyle: 'none', margin: '0 0 6px', padding: 0, fontSize: T.fsSmall, color: T.danger }}>
+          {blocked.flatMap(([branch, list]) => list.map((p) => (
+            <li key={`${branch}:${p.field}:${p.text}`}><strong>{branch}</strong> · {p.text}</li>
+          )))}
+        </ul>
+      )}
+
+      {onFile.length > 0 && (
+        <p style={{ margin: '0 0 6px', fontSize: T.fsSmall, color: T.warn }}>
+          {onFile.length === 1 ? 'One bin on file is' : `${onFile.length} bins on file are`} not a box in the racking:{' '}
+          {onFile.map((p) => `${p.branch} ${p.value}`).join(', ')}.
+          {canEdit ? ' Edit to re-slot or clear.' : ''}
+        </p>
       )}
 
       {error ? (
@@ -275,28 +329,34 @@ export default function StockLocationsTab({ sku, currentUser }) {
                 {editing && draft ? (
                   <>
                     <div role="cell" style={cell(70)}>
-                      <input value={draft.zone} onChange={setField(branch, 'zone')}
-                        style={{ width: '100%', height: 22, fontSize: T.fsGrid, padding: '0 5px', borderRadius: T.radius - 1, background: T.panel, color: T.text, border: `1px solid ${T.hairline}`, outline: 'none' }} />
+                      <input value={draft.zone} onChange={setField(branch, 'zone')} aria-label={`${branch} zone`} maxLength={MAX_ZONE_LENGTH}
+                        style={inputBox(wrong(branch, 'zone'))} />
                     </div>
                     <div role="cell" style={cell(130)}>
-                      <BinInput value={draft.primary_bin_1} onChange={setField(branch, 'primary_bin_1')} placeholder="B.3.H.1" />
+                      <BinInput value={draft.primary_bin_1} onValue={setValue(branch, 'primary_bin_1')} layout={layoutOf(branch)} placeholder="B.3.H.1"
+                        name={`${branch} primary bin 1`} problem={wrong(branch, 'primary_bin_1')} />
                     </div>
                     <div role="cell" style={cell(80, 'right')}>
-                      <NumInput value={draft.max_qty_bin_1} onChange={setField(branch, 'max_qty_bin_1')} />
+                      <NumInput value={draft.max_qty_bin_1} onChange={setField(branch, 'max_qty_bin_1')}
+                        name={`${branch} max qty 1`} problem={wrong(branch, 'max_qty_bin_1')} />
                     </div>
                     <div role="cell" style={cell(130)}>
-                      <BinInput value={draft.primary_bin_2} onChange={setField(branch, 'primary_bin_2')} placeholder="Overflow" />
+                      <BinInput value={draft.primary_bin_2} onValue={setValue(branch, 'primary_bin_2')} layout={layoutOf(branch)} placeholder="Overflow"
+                        name={`${branch} primary bin 2`} problem={wrong(branch, 'primary_bin_2')} />
                     </div>
                     <div role="cell" style={cell(80, 'right')}>
-                      <NumInput value={draft.max_qty_bin_2} onChange={setField(branch, 'max_qty_bin_2')} />
+                      <NumInput value={draft.max_qty_bin_2} onChange={setField(branch, 'max_qty_bin_2')}
+                        name={`${branch} max qty 2`} problem={wrong(branch, 'max_qty_bin_2')} />
                     </div>
                   </>
                 ) : (
                   <>
                     <div role="cell" style={cell(70)}>{loc?.zone || ''}</div>
-                    <div role="cell" style={{ ...cell(130), fontFamily: T.fontMono }}>{loc?.primary_bin_1 || ''}</div>
+                    <div role="cell" title={flagged(branch, 'primary_bin_1')?.text ? `“${loc.primary_bin_1}” ${flagged(branch, 'primary_bin_1').text}` : undefined}
+                      style={{ ...cell(130), fontFamily: T.fontMono, color: flagged(branch, 'primary_bin_1') ? T.warn : undefined }}>{loc?.primary_bin_1 || ''}</div>
                     <div role="cell" style={cell(80, 'right')}>{loc?.max_qty_bin_1 ?? ''}</div>
-                    <div role="cell" style={{ ...cell(130), fontFamily: T.fontMono }}>{loc?.primary_bin_2 || ''}</div>
+                    <div role="cell" title={flagged(branch, 'primary_bin_2')?.text ? `“${loc.primary_bin_2}” ${flagged(branch, 'primary_bin_2').text}` : undefined}
+                      style={{ ...cell(130), fontFamily: T.fontMono, color: flagged(branch, 'primary_bin_2') ? T.warn : undefined }}>{loc?.primary_bin_2 || ''}</div>
                     <div role="cell" style={cell(80, 'right')}>{loc?.max_qty_bin_2 ?? ''}</div>
                   </>
                 )}

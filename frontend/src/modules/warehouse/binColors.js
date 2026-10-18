@@ -23,8 +23,15 @@ export const BIN_COLORS = {
   floor: '#dfe3e6',
   bench: '#cfd5da',
   receiving: '#d1efff', // sapAccentBackgroundColor6
+  walk: '#0070f2',      // sapBrandColor — the line down each aisle, as on a street map
   sky: '#f5f6f7',       // sapBackgroundColor
 };
+
+// One per company with a section of racking marked for it, in turn. Horizon's
+// accent colours, less the ones that already mean something here: blue is
+// stock on hand and the uprights, orange the beams and an empty slot, red
+// over capacity, yellow the selected box. All carry white text.
+export const SECTION_COLORS = ['#046c7a', '#a100c2', '#256f3a', '#5d36ff', '#ba066c', '#5b738b', '#6c32a9'];
 
 // The legend: a box's label colour is its state.
 export const LEGEND = [
