@@ -8,10 +8,10 @@ managers at all — so the table is built from the gates the routes carry, and
 what it says is what the server enforces.
 """
 
-from typing import Optional
+from typing import Iterator, Optional
 
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 
 from app.core.dependencies import ROLES, get_current_user, get_signed_in_user
 
@@ -50,7 +50,21 @@ AREAS = {
 READS = {"GET", "HEAD", "OPTIONS"}
 
 
-def route_roles(route: APIRoute) -> Optional[tuple[str, ...]]:
+def api_routes(app: FastAPI) -> Iterator[RouteContext]:
+    """Every endpoint the app serves, as it is served.
+
+    Since FastAPI 0.141 `app.routes` holds each included router as one wrapper
+    rather than its routes, so walking it for `APIRoute`s finds none and every
+    route reads as ungated. `iter_route_contexts` opens the wrappers; each
+    context answers `path`, `methods`, `tags` and `dependant` with whatever the
+    include added (a prefix, router-level dependencies) already applied.
+    """
+    for context in iter_route_contexts(app.routes):
+        if isinstance(context.original_route, APIRoute):
+            yield context
+
+
+def route_roles(route: APIRoute | RouteContext) -> Optional[tuple[str, ...]]:
     """The roles a route lets through.
 
     Every role when it only asks for a sign-in; None when no gate is declared
@@ -79,9 +93,7 @@ def access_table(app: FastAPI) -> dict:
     without this deciding how to word it.
     """
     areas: dict[str, dict] = {}
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
+    for route in api_routes(app):
         allowed = route_roles(route)
         if allowed is None:
             continue

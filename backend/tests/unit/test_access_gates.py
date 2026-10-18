@@ -13,9 +13,9 @@ day it is added.
 """
 
 import pytest
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 
-from app.core.access import access_table, route_roles
+from app.core.access import access_table, api_routes, route_roles
 from app.core.dependencies import (
     ROLES,
     get_current_user,
@@ -47,10 +47,9 @@ SELF_CHECKED = {
 
 
 def _routes():
-    for route in app.routes:
-        if isinstance(route, APIRoute):
-            for method in route.methods:
-                yield method, route.path, route_roles(route)
+    for route in api_routes(app):
+        for method in route.methods:
+            yield method, route.path, route_roles(route)
 
 
 @pytest.mark.unit
@@ -86,8 +85,8 @@ class TestOnlyWhoAmIAsksNoMore:
 
         skipping = {
             (method, route.path)
-            for route in app.routes
-            if isinstance(route, APIRoute) and reaches_signed_in_only(route.dependant)
+            for route in api_routes(app)
+            if reaches_signed_in_only(route.dependant)
             for method in route.methods
         }
         assert skipping == {("GET", "/users/me")}
@@ -173,9 +172,8 @@ class TestWhatTheWalkCanSee:
         can see. If one is added, a person has to look at how it is closed."""
         docs = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
         unread = [
-            f"{type(route).__name__} {getattr(route, 'path', route)}"
-            for route in app.routes
-            if not isinstance(route, APIRoute)
-            and getattr(route, "path", None) not in docs
+            f"{type(route.original_route).__name__} {route.path}"
+            for route in iter_route_contexts(app.routes)
+            if not isinstance(route.original_route, APIRoute) and route.path not in docs
         ]
         assert not unread, unread
