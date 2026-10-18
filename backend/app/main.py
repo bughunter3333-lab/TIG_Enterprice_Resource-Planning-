@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
 
@@ -126,9 +127,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
         )
+        # Browsers reach the API through the frontend host's proxy, whose CDN
+        # may keep an answer for the next caller. Answers carry one person's
+        # data, so none is stored — by the CDN or by the browser.
+        response.headers.setdefault("Cache-Control", "no-store")
         return response
 
 
+# Every open screen re-fetches its lists each minute, through two hosts that
+# meter the bytes they carry (Render, then the frontend's rewrite on Vercel).
+# JSON shrinks several times over; answers under 1 KB are not worth it. Added
+# first so it sits next to the routes: the middleware added after it re-sends
+# a body in pieces, and a body that arrives in pieces is compressed whatever
+# its size.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
