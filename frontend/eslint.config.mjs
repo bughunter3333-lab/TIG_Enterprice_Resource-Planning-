@@ -84,7 +84,7 @@ export default [
   {
     // Test files run under vitest globals and may legitimately hold unused
     // scaffolding while a test is being written.
-    files: ['**/__tests__/**', '**/*.test.{js,jsx}', 'src/test/**', 'src/test-setup.js'],
+    files: ['**/__tests__/**', '**/*.test.{js,jsx}', 'src/test/**', 'src/test-setup.js', 'scene-probes/**'],
     languageOptions: {
       globals: { ...globals.node, ...globals.vitest },
     },

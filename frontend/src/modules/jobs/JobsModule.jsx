@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import FilterBar from '../../ui/FilterBar';
 import Button from '../../ui/Button';
 import JobsList from './JobsList';
@@ -54,6 +54,11 @@ export default function JobsModule({
 
   const availableFiltered = lockedStatus ? available.filter(a => a.key !== 'status') : available;
 
+  // Grouping is a view concern, not a filter — it changes how the same rows
+  // read, not which rows they are. Jim2's despatch screen is this list grouped
+  // by Ship#: fifteen jobs become four consignments.
+  const [groupBy, setGroupBy] = useState('');
+
   const removeFilter = (key) => {
     const def = CHIP_DEFS.find(d => d.key === key);
     onFilterChange(key, def ? def.inactive : 'all');
@@ -72,6 +77,27 @@ export default function JobsModule({
               {chips.length > 0 && (
                 <Button size="sm" variant="ghost" onClick={onClearFilters}>Clear all</Button>
               )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: T.fsSmall, color: T.textMuted }}>
+                Group
+                <select
+                  aria-label="Group by"
+                  value={groupBy}
+                  onChange={e => setGroupBy(e.target.value)}
+                  style={{
+                    height: T.inputHeight, fontSize: T.fsSmall, color: T.text,
+                    background: T.panel, border: `1px solid ${T.hairline}`,
+                    borderRadius: T.radius, padding: '0 6px',
+                  }}
+                >
+                  <option value="">None</option>
+                  <option value="shipTo">Ship#</option>
+                  {/* Meaningless where the module pins the status — every row
+                      would land in one band. */}
+                  {!lockedStatus && <option value="status">Status</option>}
+                  <option value="customer">Customer</option>
+                  <option value="accMgr">Acc Mgr</option>
+                </select>
+              </label>
               <Button
                 size="sm"
                 variant={viewMode === 'table' ? 'primary' : 'secondary'}
@@ -94,7 +120,7 @@ export default function JobsModule({
       </div>
       {viewMode === 'board'
         ? <JobsBoard jobs={filtered} onJobClick={onJobClick} />
-        : <JobsList jobs={filtered} onJobClick={onJobClick} lockedStatus={lockedStatus} />}
+        : <JobsList jobs={filtered} onJobClick={onJobClick} lockedStatus={lockedStatus} groupBy={groupBy} />}
     </div>
   );
 }

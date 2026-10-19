@@ -2,42 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System — "press room" ────────────────────────────────────────
-   Ink chrome, warm paper ground, white data panels, process cyan as the live
-   accent. The palette lives in src/ui/palette.js and is read by both
-   tailwind.config.js and src/ui/tokens.js.
-
-   CSS cannot import that module, so the handful of values below are mirrored as
-   custom properties instead of being pasted in as literals. Previously they
-   were literals, and the old accent (#2b7bd4) went on leaking into new work
-   from this file long after the tokens had moved on — keyboard focus was still
-   painting steel-blue onto a screen that had no steel-blue left in it. */
+/* ── ERP Design System — SAP Fiori "Horizon" ─────────────────────────────────
+   SAP S/4HANA's theme. The palette lives in src/ui/palette.js (every value
+   sourced from SAP's sap_horizon theme variables) and is read by both
+   tailwind.config.js and src/ui/tokens.js. CSS cannot import that module, so
+   the few values needed here are mirrored as custom properties. */
 
 :root {
-  --paper: #f1eee8;
+  --paper: #f5f6f7;
   --panel: #ffffff;
-  --hairline: #d8d3c8;
-  --hairline-soft: #ebe7de;
-  --accent: #0090c8;
-  --accent-strong: #00719e;
-  --accent-tint: #d9f0fa;
-  --accent-focus: #7fcbe8;
-  --faint: #686874;
+  --hairline: #d9d9d9;
+  --hairline-soft: #eaecee;
+  --accent: #0070f2;
+  --accent-strong: #0064d9;
+  --accent-tint: #ebf8ff;
+  --accent-focus: #0032a5;
+  --faint: #5b738b;
+  --text: #131e29;
 }
 
-/* Type foundation: Archivo for UI — a grotesque with a large x-height and a
-   narrow set width, so it holds more per column than IBM Plex Sans did at the
-   same size while reading better small. Tabular numerals everywhere, because a
-   figure that does not line up with the one above it cannot be compared.
-   IDs, SKUs, money and dates use IBM Plex Mono via .font-mono. */
+/* SAP 72 for the UI (declared in src/ui/fonts.css), with tabular figures
+   everywhere so a column of numbers lines up. Codes, IDs and money use 72 Mono
+   via .font-mono. */
 html, body {
-  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  font-family: '72', '72full', Arial, Helvetica, sans-serif;
 }
 body {
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background: var(--paper);
+  color: var(--text);
 }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
@@ -51,10 +46,10 @@ body {
   appearance: textfield;
 }
 
-/* ── Scrollbar — warm, to sit with the paper ground ── */
+/* ── Scrollbar — Horizon's slate ── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--hairline-soft); }
-::-webkit-scrollbar-thumb { background: #c4bcab; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #7b91a8; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
 /* ── One focus language, app-wide ──────────────────────────────────────────

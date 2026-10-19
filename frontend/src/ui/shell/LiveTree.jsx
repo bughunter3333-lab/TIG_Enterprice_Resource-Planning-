@@ -1,35 +1,18 @@
 import { useState } from 'react';
 import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes, FileText, ShoppingCart } from 'lucide-react';
 import { T, statusColor } from '../tokens';
-import { parseD } from '../dates';
+import { todayKey } from '../../lib/dates';
+import { inView, viewLabel } from '../../modules/jobs/jobMetrics';
 
-// Matches the monolith's dominant active-job semantics (e.g. TotalImageERP.jsx:1637,1734):
-// FINISH jobs are done-awaiting-invoice and don't need workflow attention here.
-const ACTIVE = (j) => !['FINISH', 'PAID', 'CANCEL'].includes(j.status);
-
-// Local-time comparison (deliberate divergence from the monolith's UTC string compare):
-// a job due 12/06 counts as "due today" from local midnight, not from 10:00 AEST.
-const isToday = (d) => {
-  if (!d) return false;
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-};
-
-const isOverdue = (d) => {
-  if (!d) return false;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return d < startOfToday;
-};
-
-// Built-in "quick" lists — convenience filters that ship with the app, alongside
-// the user's own saved lists (Jim2 lets users build their own; these are presets).
-export const SAVED_LISTS = [
-  { id: 'mine', label: 'My Jobs', test: (j, user) => ACTIVE(j) && j.accMgr === user?.username },
-  { id: 'due-today', label: 'Due Today', test: (j) => ACTIVE(j) && isToday(parseD(j.due)) },
-  { id: 'overdue', label: 'Overdue', test: (j) => ACTIVE(j) && isOverdue(parseD(j.due)) },
-  { id: 'pickpack', label: 'Pick/Pack', test: (j) => j.status === 'Pick/Pack' },
-];
+// Built-in quick lists — the shared job views (modules/jobs/jobMetrics.js), so
+// each count here is the length of the list it opens, and agrees with the
+// status strip and the quick filters. They sit alongside the user's own saved
+// lists (Jim2 lets users build their own; these are presets).
+export const SAVED_LISTS = ['mine', 'dueToday', 'overdue', 'pickPack'].map((id) => ({
+  id,
+  label: viewLabel(id),
+  test: (j, user) => inView(j, id, { today: todayKey(), user }),
+}));
 
 function SectionLabel({ children }) {
   return (

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, false, func
 from app.database import Base
 
 
@@ -10,15 +10,26 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     full_name = Column(String(100), nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    # roles: admin | staff | overseas_staff
+    # roles: admin | manager | staff | overseas_staff
     role = Column(String(20), nullable=False, default="staff")
     is_active = Column(Boolean, default=True)
     totp_secret = Column(String(64), nullable=True)
     totp_enabled = Column(Boolean, default=False)
     # Bumped on password change to invalidate all previously-issued JWTs.
     token_version = Column(Integer, nullable=False, default=0, server_default="0")
+    # The password was chosen by an admin (a new account, or a reset), so two
+    # people know it. Until the person chooses their own, signing in gets them
+    # only as far as doing that (core/dependencies.py, get_current_user).
+    must_change_password = Column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # SSO fields — populated when migrating to SSO later
     sso_provider = Column(String(50), nullable=True)
     sso_subject = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+    # Per-account lockout. The IP rate limit on /auth/login is easy to walk
+    # around — spread the guesses across addresses and every one gets a fresh
+    # allowance — so the account itself counts failures and locks.
+    failed_login_count = Column(Integer, nullable=False, default=0, server_default="0")
+    locked_until = Column(DateTime(timezone=True), nullable=True)
