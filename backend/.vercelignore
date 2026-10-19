@@ -3,3 +3,8 @@ tests/
 .env
 *.bat
 Dockerfile
+# Lint settings only (black, ruff). Vercel's Python build installs from a
+# pyproject.toml whenever the deployment has one, and reads requirements.txt
+# only when it does not; this one has no [project] table, so `uv lock` failed
+# the build.
+pyproject.toml

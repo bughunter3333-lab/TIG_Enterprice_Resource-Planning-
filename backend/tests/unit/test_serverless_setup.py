@@ -6,6 +6,9 @@ starts, and a connection string with a percent-encoded password going through
 Alembic's ini parser.
 """
 
+import tomllib
+from pathlib import Path
+
 import pytest
 from alembic.config import Config
 from sqlalchemy.pool import NullPool
@@ -97,3 +100,20 @@ class TestMigratingOnDeploy:
         monkeypatch.setattr(script.subprocess, "call", lambda args: 1)
         env = {"VERCEL_ENV": "production", "DATABASE_URL": SUPABASE}
         assert script.main(env) == 1
+
+
+@pytest.mark.unit
+class TestVercelInstall:
+    def test_dependencies_come_from_requirements_txt(self):
+        # Vercel's Python build installs from pyproject.toml whenever the
+        # deployment has one and reads requirements.txt only when it does not.
+        # A pyproject.toml with no [project] table fails the build at `uv lock`,
+        # so it has to stay out of the deployment.
+        backend = Path(__file__).resolve().parents[2]
+        pyproject = tomllib.loads((backend / "pyproject.toml").read_text())
+        ignored = [
+            line.strip()
+            for line in (backend / ".vercelignore").read_text().splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+        assert "project" in pyproject or "pyproject.toml" in ignored
