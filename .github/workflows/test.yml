@@ -144,7 +144,10 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # jsdom 30 needs ^22.22.2 || ^24.15.0 || >=26: its undici calls
+          # zlib.createZstdDecompress at load, which Node 20 does not have, so
+          # every test file fails before it runs.
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
