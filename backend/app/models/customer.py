@@ -33,3 +33,8 @@ class Customer(Base):
         cascade="all, delete-orphan",
         order_by="CustomerShipTo.code",
     )
+    rack_sections = relationship(
+        "RackSection",
+        back_populates="customer",
+        cascade="all, delete-orphan",
+    )

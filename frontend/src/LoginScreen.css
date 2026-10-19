@@ -1,0 +1,137 @@
+/* ── Sign-in — SAP Fiori Horizon ───────────────────────────────────────────
+   One card on Horizon's light ground. Colours are Horizon's own theme values
+   (see src/ui/palette.js for the SAP variable behind each); this file cannot
+   import the palette module, so the few it needs are named once below. */
+
+.signin {
+  --s-ground: #f5f6f7;      /* sapBackgroundColor */
+  --s-ground-2: #e1f4ff;    /* sapInformationBackground */
+  --s-card: #ffffff;
+  --s-text: #131e29;        /* sapTextColor */
+  --s-label: #556b82;       /* sapContent_LabelColor */
+  --s-field-border: #556b81;/* sapField_BorderColor */
+  --s-brand: #0070f2;       /* sapBrandColor */
+  --s-brand-strong: #0064d9;/* sapLinkColor */
+  --s-focus: #0032a5;       /* sapContent_FocusColor */
+  --s-negative: #aa0808;    /* sapNegativeTextColor */
+  --s-negative-bg: #ffeaf4; /* sapErrorBackground */
+  --s-hairline: #d9d9d9;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  font-family: '72', '72full', Arial, Helvetica, sans-serif;
+  color: var(--s-text);
+  background:
+    radial-gradient(1200px 600px at 85% -10%, var(--s-ground-2) 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, #eaf2fb 0%, transparent 55%),
+    var(--s-ground);
+}
+
+.signin-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--s-card);
+  border-radius: 16px;                 /* sapTile_BorderCornerRadius */
+  box-shadow: 0 0 0 1px rgba(34, 53, 72, .08), 0 10px 30px rgba(34, 53, 72, .12);
+  padding: 32px;
+  animation: signin-in 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes signin-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signin-card { animation: none; }
+}
+
+.signin-head { margin-bottom: 20px; }
+.signin-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.signin-mark {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--s-brand); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; letter-spacing: .02em;
+}
+.signin-product { font-size: 16px; font-weight: 700; }
+.signin-head h1 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.25; }
+.signin-head p { margin: 6px 0 0; font-size: 14px; color: var(--s-label); line-height: 1.45; }
+
+.signin-field { margin-bottom: 16px; }
+.signin-field label {
+  display: block; font-size: 14px; color: var(--s-label); margin-bottom: 6px;
+}
+.signin-field input, .signin-code {
+  width: 100%; height: 40px; padding: 0 12px;
+  font: inherit; font-size: 16px; color: var(--s-text);
+  background: #fff; border: 1px solid var(--s-field-border); border-radius: 4px;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.signin-field input:hover, .signin-code:hover { border-color: var(--s-brand-strong); }
+.signin-field input:focus-visible, .signin-code:focus-visible {
+  outline: none; border-color: var(--s-brand-strong); box-shadow: 0 0 0 2px var(--s-focus);
+}
+
+.signin-pass { position: relative; }
+.signin-pass input { padding-right: 44px; }
+.signin-reveal {
+  position: absolute; right: 4px; top: 4px; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; background: transparent; color: var(--s-label); cursor: pointer;
+}
+.signin-reveal:hover { background: #eaecee; color: var(--s-text); }
+
+.signin-btn {
+  width: 100%; height: 40px; margin-top: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font: inherit; font-size: 16px; font-weight: 700;
+  color: #fff; background: var(--s-brand); border: 1px solid var(--s-brand); border-radius: 8px;
+  cursor: pointer; transition: background 120ms;
+}
+.signin-btn:hover:not(:disabled) { background: var(--s-brand-strong); border-color: var(--s-brand-strong); }
+.signin-btn:focus-visible { outline: 2px solid var(--s-focus); outline-offset: 2px; }
+.signin-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.signin-link {
+  display: block; margin: 16px auto 0; padding: 4px 8px;
+  font: inherit; font-size: 14px; color: var(--s-brand-strong);
+  background: none; border: none; border-radius: 4px; cursor: pointer;
+}
+.signin-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.signin-link:focus-visible { outline: 2px solid var(--s-focus); }
+
+.signin-error {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin-bottom: 16px; padding: 10px 12px;
+  font-size: 14px; line-height: 1.4; color: var(--s-negative);
+  background: var(--s-negative-bg); border: 1px solid #f53232; border-radius: 8px;
+}
+.signin-error svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Choosing a password (modules/auth/ChoosePasswordScreen.jsx). */
+.signin-field-problem { margin: 6px 0 0; font-size: 13px; line-height: 1.4; color: var(--s-negative); }
+.signin-field input[aria-invalid="true"] { border-color: var(--s-negative); }
+.signin-note { margin: -8px 0 16px; font-size: 13px; line-height: 1.4; color: var(--s-label); }
+
+.signin-code {
+  height: 52px; text-align: center; letter-spacing: .5em; font-size: 24px;
+  font-family: '72Mono', ui-monospace, monospace;
+}
+.signin-pips { display: flex; justify-content: center; gap: 8px; margin: 12px 0 8px; }
+.signin-pips i { width: 8px; height: 8px; border-radius: 50%; background: var(--s-hairline); transition: background 120ms; }
+.signin-pips i.on { background: var(--s-brand); }
+
+.signin-qr { display: flex; justify-content: center; margin-bottom: 16px; }
+.signin-qr img { display: block; padding: 8px; border: 1px solid var(--s-hairline); border-radius: 8px; background: #fff; }
+
+.signin-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff;
+  animation: signin-spin 700ms linear infinite;
+}
+@keyframes signin-spin { to { transform: rotate(360deg); } }
+
+.signin-foot { margin-top: 24px; font-size: 12px; color: var(--s-label); }

@@ -28,7 +28,7 @@ const TABS = [
   { id: 'committed', label: 'Committed' },
 ];
 
-export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO }) {
+export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO, currentUser }) {
   const [tab, setTab] = useState('details');
   // Reset to Details whenever the selected item changes.
   useEffect(() => { setTab('details'); }, [item?.sku]);
@@ -50,7 +50,7 @@ export default function StockDetailPanel({ item, onNavigateJob, onNavigatePO }) 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 10 }}>
         {tab === 'details' && <StockDetailsTab item={item} />}
-        {tab === 'locations' && <StockLocationsTab sku={item.sku} />}
+        {tab === 'locations' && <StockLocationsTab sku={item.sku} currentUser={currentUser} />}
         {tab === 'descriptions' && <StockDescriptionsTab item={item} />}
         {tab === 'pricing' && <StockPricingTab sku={item.sku} />}
         {tab === 'onhand' && <StockOnHandTab sku={item.sku} onNavigatePO={onNavigatePO} />}

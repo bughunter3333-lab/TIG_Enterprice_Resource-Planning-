@@ -1,13 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel
-from typing import Optional, List
+
+from pydantic import BaseModel, Field
+from typing import Literal, Optional, List
 from datetime import datetime
 
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
-from app.core.branches import normalize_branch
+from app.core.bin_codes import box_code as _box_code
+from app.core.bin_codes import parse_box_code, same_bin as _same_bin, tidy
+from app.core.racking import box_problem, checked_bin, layout_for
+from app.core.branches import BRANCHES, normalize_branch
 from app.core.stock_location import (
     DEFAULT_BRANCH,
     location_summary,
@@ -21,6 +25,7 @@ from app.core.reservations import (
     backordered_by_branch,
     committed_by_branch,
     committed_by_sku,
+    committed_in_branch,
     on_order_by_sku,
     on_order_total,
 )
@@ -29,7 +34,14 @@ from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.supplier import Supplier
 from app.models.supplier_price_list import SupplierPriceList
-from app.core.dependencies import require_any, require_staff
+from app.core.dependencies import require_any, require_manager, require_staff
+from app.models.stock_audit import StockAuditEntry
+from app.core.stock_audit import (
+    record_item_change,
+    record_location_change,
+    record_location_deleted,
+    snapshot_location,
+)
 from app.models.user import User
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -79,6 +91,26 @@ class StockAdjust(BaseModel):
     branch: str = "HQ"
 
 
+class PutAway(BaseModel):
+    branch: str = "HQ"
+    # `bin` on the wire. Not `bin` in Python: the dead-column scan counts any
+    # Pydantic field name as a write, and StockMovement has an unwritten `bin`.
+    bin_code: str = Field(alias="bin", max_length=50)
+    sku: str
+    slot: Literal["primary", "overflow"] = "primary"
+    quantity: int = Field(0, ge=0, le=100_000)
+    # Whether `quantity` is stock the system has not counted yet. Off unless the
+    # caller says so: a quantity typed for stock already on hand must never
+    # raise the total.
+    new_stock: bool = False
+    max_qty: Optional[int] = Field(None, ge=1, le=100_000)
+    replace: bool = False
+    # The bin the caller was shown and agreed to replace. If the slot holds a
+    # different one by now, the agreement does not cover it.
+    replace_bin: Optional[str] = Field(None, max_length=50)
+    reason: Optional[str] = Field(None, max_length=200)
+
+
 class TransferRequest(BaseModel):
     from_sku: str
     to_sku: Optional[str] = None
@@ -106,29 +138,59 @@ class StocktakeRequest(BaseModel):
     items: List[StocktakeItemIn]
 
 
+# What a bin holds at most: the same bound as a put-away's.
+MAX_BIN_QTY = 100_000
+
+
 class LocationCreate(BaseModel):
-    branch: str
-    zone: Optional[str] = None
+    branch: str = Field(max_length=50)
+    zone: Optional[str] = Field(None, max_length=20)
     qty_on_hand: int = 0
     committed_qty: int = 0
     backorder_qty: int = 0
     on_po_qty: int = 0
-    primary_bin_1: Optional[str] = None
-    max_qty_bin_1: Optional[int] = None
-    primary_bin_2: Optional[str] = None
-    max_qty_bin_2: Optional[int] = None
+    primary_bin_1: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_1: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+    primary_bin_2: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_2: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
 
 
 class LocationUpdate(BaseModel):
-    zone: Optional[str] = None
+    zone: Optional[str] = Field(None, max_length=20)
     qty_on_hand: Optional[int] = None
     committed_qty: Optional[int] = None
     backorder_qty: Optional[int] = None
     on_po_qty: Optional[int] = None
-    primary_bin_1: Optional[str] = None
-    max_qty_bin_1: Optional[int] = None
-    primary_bin_2: Optional[str] = None
-    max_qty_bin_2: Optional[int] = None
+    primary_bin_1: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_1: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+    primary_bin_2: Optional[str] = Field(None, max_length=50)
+    max_qty_bin_2: Optional[int] = Field(None, ge=0, le=MAX_BIN_QTY)
+
+
+BIN_FIELDS = (("primary_bin_1", "Primary bin 1"), ("primary_bin_2", "Primary bin 2"))
+
+
+def _moved(on_file: Optional[str], sent: Optional[str]) -> bool:
+    """Whether a bin sent in a change is a different bin from the one on file.
+
+    One sent back as the same box (or the same old text, or still empty) has
+    not moved.
+    """
+    if not tidy(sent) or not tidy(on_file):
+        return tidy(sent) != tidy(on_file)
+    return not _same_bin(on_file, sent)
+
+
+def _two_boxes(first: Optional[str], second: Optional[str]) -> None:
+    """A position's two bins are two boxes: refuse one box given as both."""
+    if first and second and _same_bin(first, second):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Primary bin 2 is the same box as primary bin 1 ({first}). "
+                "A position's two bins are two different boxes."
+            ),
+        )
 
 
 class PriceBreakpointIn(BaseModel):
@@ -215,6 +277,217 @@ def low_stock_alert(
         row["reorder_value"] = round(row["unit_cost"] * row["suggested_qty"], 2)
     total_value = round(sum(r["reorder_value"] for r in rows), 2)
     return {"count": len(rows), "reorder_value": total_value, "rows": rows}
+
+
+@router.get("/bin-map")
+def bin_map(
+    branch: str = Query("HQ", max_length=20),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Every bin in a branch that has stock slotted into it, for the 3D map.
+
+    One row per bin and SKU: a SKU with a primary and an overflow bin appears
+    twice. The stock record keeps one count per branch rather than per bin, so
+    on hand, committed and available are the SKU's figures for the branch, and
+    a bin's own quantity is not known -- it is not invented here. `max_qty` is
+    the bin's capacity as set on the Locations tab.
+    """
+    branch = normalize_branch(branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
+    rows = (
+        db.query(StockLocation, InventoryItem.name)
+        .join(InventoryItem, InventoryItem.sku == StockLocation.sku)
+        .filter(StockLocation.branch == branch)
+        .all()
+    )
+    committed = committed_in_branch(db, branch, [loc.sku for loc, _ in rows])
+    bins = []
+    for loc, name in rows:
+        reserved = committed.get(loc.sku, 0)
+        on_hand = loc.qty_on_hand or 0
+        for slot, code, capacity in (
+            ("primary", loc.primary_bin_1, loc.max_qty_bin_1),
+            ("overflow", loc.primary_bin_2, loc.max_qty_bin_2),
+        ):
+            if not code or not code.strip():
+                continue
+            bins.append(
+                {
+                    "bin": code.strip(),
+                    "slot": slot,
+                    "sku": loc.sku,
+                    "name": name,
+                    "max_qty": capacity,
+                    "qty_on_hand": on_hand,
+                    "committed_qty": reserved,
+                    "available_qty": max(0, on_hand - reserved),
+                }
+            )
+    bins.sort(key=lambda b: (b["bin"], b["sku"]))
+    return {"branch": branch, "bins": bins}
+
+
+@router.post("/bin-map/put-away")
+def put_away(
+    body: PutAway,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    """Put stock into a box from the warehouse map, in one transaction.
+
+    Slots the SKU into the box (its primary or overflow bin at the branch,
+    audited like any stock-position edit) and, when a quantity is given, posts
+    it through the stock ledger so the item, the branch position and the
+    movement history move together. Doing this as separate calls from the
+    browser could leave a box slotted with no stock, or stock with no box.
+
+    A SKU's existing bin is never overwritten silently: if the chosen slot
+    already holds another box, the request is refused naming it, unless
+    `replace` is set - and, when `replace_bin` says which bin was agreed to,
+    only if that is still the one there. A box the SKU already uses takes more
+    stock with no slot change. Quantity 0 slots without moving any stock.
+
+    Stock is counted per branch, not per box, so what `quantity` means has to
+    be said, not guessed. Unless `new_stock` is set it is stock already on
+    hand: nothing is added, and the only thing recorded is units that had no
+    location at all being placed at this branch (a "Put Away" movement, which
+    leaves the item total alone — as a stocktake and a transfer treat them).
+    With `new_stock` the quantity is added, raising the total. Inferring "new"
+    from a quantity counted received stock twice.
+
+    The item's pick location follows its primary bin at the default branch, so
+    a picking slip sends the picker to the box the map shows.
+    """
+    branch = normalize_branch(body.branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
+    code = _box_code(body.bin_code)
+    if code is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{body.bin_code}' is not an aisle.bay.level.box code, e.g. B.3.H.1",
+        )
+    missing = box_problem(layout_for(db, branch), parse_box_code(code))
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{code}' is not in the racking at {branch}: {missing}",
+        )
+    item = db.query(InventoryItem).filter(InventoryItem.sku == body.sku).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    loc = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == body.sku, StockLocation.branch == branch)
+        .first()
+    )
+    created = loc is None
+    if created:
+        loc = StockLocation(
+            sku=body.sku,
+            branch=branch,
+            qty_on_hand=0,
+            committed_qty=0,
+            backorder_qty=0,
+            on_po_qty=0,
+        )
+        db.add(loc)
+        db.flush()
+    before = {} if created else snapshot_location(loc)
+
+    def _same(value):
+        return _box_code(value) == code
+
+    bin_field, max_field = (
+        ("primary_bin_1", "max_qty_bin_1")
+        if body.slot == "primary"
+        else ("primary_bin_2", "max_qty_bin_2")
+    )
+    already_here = _same(loc.primary_bin_1) or _same(loc.primary_bin_2)
+    if not already_here:
+        current = (getattr(loc, bin_field) or "").strip()
+        agreed = body.replace and (
+            body.replace_bin is None or _same_bin(current, body.replace_bin)
+        )
+        if current and not agreed:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"{body.sku}'s {body.slot} bin at {branch} is {current}. "
+                    f"Replace it with {code}, or use the other slot."
+                ),
+            )
+        setattr(loc, bin_field, code)
+        # The capacity on file belonged to the box that was here before (or to
+        # one since cleared); a new box starts with its own, or with none.
+        setattr(loc, max_field, body.max_qty)
+    elif body.max_qty is not None:
+        setattr(
+            loc,
+            "max_qty_bin_1" if _same(loc.primary_bin_1) else "max_qty_bin_2",
+            body.max_qty,
+        )
+
+    # Picking slips print the item's location: keep it on the box the map
+    # shows, under its plain code, and say who moved it.
+    if branch == DEFAULT_BRANCH and _same(loc.primary_bin_1):
+        if (item.location or None) != code:
+            record_item_change(
+                db,
+                sku=body.sku,
+                field="location",
+                old=item.location,
+                new=code,
+                username=current_user.username,
+            )
+            item.location = code
+
+    note = body.reason or f"Put away into {code}"
+    placed = 0
+    if body.new_stock:
+        if body.quantity:
+            post_movement(
+                db,
+                sku=body.sku,
+                movement_type="Adjustment",
+                branch=branch,
+                quantity=body.quantity,
+                reference=code,
+                notes=note,
+            )
+    else:
+        placed = min(body.quantity, max(0, unlocated_qty(db, body.sku)))
+        place_unlocated(
+            db, sku=body.sku, branch=branch, quantity=placed, reference=code, notes=note
+        )
+    on_hand_change = body.quantity if body.new_stock else 0
+
+    # After the stock has moved, so the trail says who put the quantity in —
+    # the movement rows carry no user.
+    after = snapshot_location(loc)
+    if after != before:
+        record_location_change(
+            db,
+            sku=body.sku,
+            branch=branch,
+            action="created" if created else "updated",
+            before=before,
+            after=after,
+            username=current_user.username,
+        )
+    db.commit()
+    return {
+        "branch": branch,
+        "bin": code,
+        "sku": body.sku,
+        "slot": "primary" if _same(loc.primary_bin_1) else "overflow",
+        "placed_unlocated": placed,
+        "on_hand_change": on_hand_change,
+        "qty_on_hand": position_qty(db, body.sku, branch),
+    }
 
 
 @router.get("/movements")
@@ -410,21 +683,41 @@ def add_location(
     sku: str,
     body: LocationCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
         raise HTTPException(status_code=404, detail="Item not found")
+    # A position under a name that is not a branch is stock nothing else reads.
+    branch = normalize_branch(body.branch)
+    if branch not in BRANCHES:
+        raise HTTPException(status_code=400, detail=f"Unknown branch: {branch}")
     if (
         db.query(StockLocation)
-        .filter(StockLocation.sku == sku, StockLocation.branch == body.branch)
+        .filter(StockLocation.sku == sku, StockLocation.branch == branch)
         .first()
     ):
         raise HTTPException(
             status_code=409,
-            detail=f"Location '{body.branch}' already exists for this SKU",
+            detail=f"Location '{branch}' already exists for this SKU",
         )
-    loc = StockLocation(sku=sku, **body.model_dump())
+    fields = body.model_dump()
+    fields["branch"] = branch
+    fields["zone"] = (body.zone or "").strip() or None
+    for field, label in BIN_FIELDS:
+        fields[field] = checked_bin(db, branch, fields[field], label)
+    _two_boxes(fields["primary_bin_1"], fields["primary_bin_2"])
+    loc = StockLocation(sku=sku, **fields)
     db.add(loc)
+    db.flush()
+    record_location_change(
+        db,
+        sku=sku,
+        branch=loc.branch,
+        action="created",
+        before={},
+        after=snapshot_location(loc),
+        username=current_user.username,
+    )
     db.commit()
     db.refresh(loc)
     return {
@@ -450,7 +743,7 @@ def update_location(
     branch: str,
     body: LocationUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     loc = (
         db.query(StockLocation)
@@ -459,8 +752,43 @@ def update_location(
     )
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    before = snapshot_location(loc)
+    # exclude_unset, not exclude_none. A field the caller never mentioned is
+    # left alone; one sent explicitly as null is a bin being emptied. Under
+    # exclude_none a bin could be filled and then never cleared again.
+    changes = body.model_dump(exclude_unset=True)
+    sent = dict(changes)
+    if "zone" in changes:
+        changes["zone"] = (changes["zone"] or "").strip() or None
+    # A bin being set has to be a box in this branch's racking. One that is
+    # only being sent back as it stands is left as it is.
+    for field, label in BIN_FIELDS:
+        if field in changes:
+            changes[field] = checked_bin(
+                db, loc.branch, changes[field], label, current=getattr(loc, field)
+            )
+    # Two bins are two boxes — judged when a bin is being changed. A row whose
+    # bins are already one box (from before this was checked) and are only
+    # being sent back as they stand can still have its other fields saved.
+    if any(
+        field in sent and _moved(getattr(loc, field), sent[field])
+        for field, _ in BIN_FIELDS
+    ):
+        _two_boxes(
+            changes.get("primary_bin_1", loc.primary_bin_1),
+            changes.get("primary_bin_2", loc.primary_bin_2),
+        )
+    for field, value in changes.items():
         setattr(loc, field, value)
+    record_location_change(
+        db,
+        sku=sku,
+        branch=loc.branch,
+        action="updated",
+        before=before,
+        after=snapshot_location(loc),
+        username=current_user.username,
+    )
     db.commit()
     db.refresh(loc)
     return {
@@ -485,7 +813,7 @@ def delete_location(
     sku: str,
     branch: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_manager),
 ):
     loc = (
         db.query(StockLocation)
@@ -495,8 +823,39 @@ def delete_location(
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
     db.delete(loc)
+    record_location_deleted(db, sku=sku, branch=branch, username=current_user.username)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{sku}/history")
+def get_stock_history(
+    sku: str,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Who changed this SKU, and to what. Newest first."""
+    rows = (
+        db.query(StockAuditEntry)
+        .filter(StockAuditEntry.sku == sku)
+        .order_by(StockAuditEntry.changed_at.desc(), StockAuditEntry.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "branch": r.branch,
+            "action": r.action,
+            "field": r.field,
+            "old_value": r.old_value,
+            "new_value": r.new_value,
+            "changed_by": r.changed_by,
+            "changed_at": r.changed_at.isoformat() if r.changed_at else None,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/{sku}/pricing")

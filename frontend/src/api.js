@@ -1,5 +1,23 @@
 const BASE = '/api';
 
+// A gateway, a proxy or a host that has stopped serving answers with HTML, not
+// JSON, so `detail` comes back empty and the status number is the only thing
+// left to show. Name the condition instead — an operator can act on "the server
+// is down" and cannot act on "503".
+const UNREACHABLE_STATUSES = [502, 503, 504];
+
+function errorMessage(detail, status, fallback) {
+  if (Array.isArray(detail)) return detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+  if (typeof detail === 'string') return detail;
+  // A structured detail carries a written message — flattening it to the
+  // status code throws away the only part a person can act on.
+  if (detail && detail.message) return detail.message;
+  if (UNREACHABLE_STATUSES.includes(status)) {
+    return "Can't reach the server — it may be down or restarting.";
+  }
+  return fallback;
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -8,21 +26,14 @@ async function request(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  if (res.status === 401) {
-    window.dispatchEvent(new Event('auth:logout'));
-    throw new Error('Unauthenticated');
-  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = err.detail;
-    const msg = Array.isArray(detail)
-      ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
-      : typeof detail === 'string'
-        ? detail
-        // A structured detail carries a written message — flattening it to the
-        // status code throws away the only part a person can act on.
-        : (detail && detail.message) || `Request failed: ${res.status}`;
-    const error = new Error(msg);
+    // Reading the body first matters: a rejected sign-in is a 401 like any
+    // other, and returning early on the status threw away the server's reason
+    // ("Invalid username or password") in favour of the HTTP condition.
+    if (res.status === 401) window.dispatchEvent(new Event('auth:logout'));
+    const error = new Error(errorMessage(detail, res.status, `Request failed: ${res.status}`));
     error.status = res.status;
     error.detail = detail;
     throw error;
@@ -36,10 +47,13 @@ function normalizeJob(j) {
   if (!j) return j;
   const totalEx = parseFloat(j.total_ex ?? j.subtotal ?? 0);
   const totalInc = parseFloat(j.total_inc ?? j.total ?? 0);
-  const tax = parseFloat(j.tax ?? (totalInc - totalEx) ?? 0);
+  const tax = parseFloat(j.tax ?? (totalInc - totalEx));
   const rawItems = j.items ?? [];
   // The version this copy was loaded at, sent back on save so a concurrent
-  // edit conflicts instead of being silently overwritten.
+  // edit conflicts instead of being silently overwritten. A counter, not a
+  // timestamp: `updated_at` moves about once every 10ms, so two saves in one
+  // tick shared a token and the stale one was accepted as current.
+  const version = j.version ?? j.jobVersion ?? null;
   const updatedAt = j.updated_at ?? j.updatedAt ?? null;
   const cost = rawItems
     .filter(i => (i.display_type ?? i.displayType ?? 'product') === 'product')
@@ -48,6 +62,7 @@ function normalizeJob(j) {
   const marginPct = totalEx > 0 ? Math.round((marginTotal / totalEx) * 100) : 0;
   return {
     id: j.id,
+    version,
     updatedAt,
     customer: j.customer_name ?? j.customer,
     customerId: j.customer_id ?? j.customerId,
@@ -74,6 +89,7 @@ function normalizeJob(j) {
     description: j.description ?? '',
     shipTo: j.ship_to ?? j.shipTo ?? '',
     projectNo: j.project_no ?? j.projectNo ?? '',
+    itemNo: j.item_no ?? j.itemNo ?? '',
     serialNo: j.serial_no ?? j.serialNo ?? '',
     nameContact: j.name_contact ?? j.nameContact ?? '',
     // Jim2 Sprint-2 fields
@@ -319,6 +335,7 @@ export const jobs = {
     description: data.description,
     ship_to: data.shipTo,
     project_no: data.projectNo,
+      item_no: data.itemNo || undefined,
     serial_no: data.serialNo,
     name_contact: data.nameContact,
     // Jim2 Sprint-2 fields
@@ -378,7 +395,7 @@ export const jobs = {
 
   update: (id, data) => request(`/jobs/${id}`, {
     method: 'PATCH',
-    headers: data.updatedAt ? { 'If-Match': data.updatedAt } : undefined,
+    headers: data.version != null ? { 'If-Match': String(data.version) } : undefined,
     body: {
     customer_id: data.customerId,
     customer_name: data.customer,
@@ -462,8 +479,27 @@ export const jobs = {
     })) : undefined,
   }}).then(normalizeJob),
 
-  updateStatus: (id, status) =>
-    request(`/jobs/${id}/status`, { method: 'POST', body: { status } }).then(normalizeJob),
+  // allowNegativeStock is the deliberate acceptance of a short stock count when
+  // invoicing. The server refuses with 409 unless it is set.
+  // One request for the whole batch. Each job is judged on its own and the
+  // response says which ones did not move and why.
+  bulkStatus: (jobIds, status, { allowNegativeStock = false } = {}) =>
+    request('/jobs/bulk-status', {
+      method: 'POST',
+      body: { job_ids: jobIds, status, allow_negative_stock: allowNegativeStock },
+    }),
+
+  // Jim2's "Create Similar". Carries the order; leaves the source job's own
+  // fulfilment behind. Overrides let a multi-site rollout point each copy at
+  // the next address.
+  duplicate: (id, overrides = {}) =>
+    request(`/jobs/${id}/duplicate`, { method: 'POST', body: overrides }).then(normalizeJob),
+
+  updateStatus: (id, status, { allowNegativeStock = false } = {}) =>
+    request(`/jobs/${id}/status`, {
+      method: 'POST',
+      body: allowNegativeStock ? { status, allow_negative_stock: true } : { status },
+    }).then(normalizeJob),
 
   // Jim2 Pick/Pack: persist per-line picked quantities.
   // picks: [{ item_id, qty_pick }] → { allPicked, job }
@@ -601,6 +637,12 @@ export const inventory = {
 // ── Stock Module ─────────────────────────────────────────────────────────────
 
 export const stock = {
+  // Every slotted bin in a branch, for the 3D warehouse map.
+  binMap: (branch) =>
+    request(`/inventory/bin-map?branch=${encodeURIComponent(branch)}`),
+  // Slot a product into a box and add stock to it, in one transaction.
+  putAway: (body) =>
+    request('/inventory/bin-map/put-away', { method: 'POST', body }),
   locations: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/locations`),
 
@@ -612,6 +654,9 @@ export const stock = {
 
   deleteLocation: (sku, branch) =>
     request(`/inventory/${encodeURIComponent(sku)}/locations/${encodeURIComponent(branch)}`, { method: 'DELETE' }),
+
+  history: (sku) =>
+    request(`/inventory/${encodeURIComponent(sku)}/history`),
 
   pricing: (sku) =>
     request(`/inventory/${encodeURIComponent(sku)}/pricing`),
@@ -652,6 +697,15 @@ export const stock = {
     request(`/inventory/${encodeURIComponent(sku)}/sales`),
 };
 
+// ── Rack sections (racking marked for a company, on the warehouse map) ───────
+
+export const rackSections = {
+  list: (branch) => request(`/rack-sections?branch=${encodeURIComponent(branch)}`),
+  // `from_bin` and `to_bin` are opposite corners on one rack face, in either order.
+  create: (body) => request('/rack-sections', { method: 'POST', body }),
+  remove: (id) => request(`/rack-sections/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
 // ── AI Assistant ─────────────────────────────────────────────────────────────
 
 export const ai = {
@@ -663,6 +717,9 @@ export const ai = {
 // ── Customers ────────────────────────────────────────────────────────────────
 
 export const customers = {
+  // The backend has served these since the ship-to work; nothing on this side
+  // ever asked for them, so a customer's sites were unreachable from the app.
+  shipTos: (customerId) => request(`/customers/${customerId}/ship-tos`),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/customers${q ? `?${q}` : ''}`).then(r => r.map(normalizeCustomer));
@@ -1121,9 +1178,47 @@ function normalizeBill(b) {
     paidDate: b.paid_date ?? '',
     paidAmount: parseFloat(b.paid_amount ?? 0),
     notes: b.notes ?? '',
+    accountId: b.account_id ?? null,
     createdAt: b.created_at,
   };
 }
+
+// ── General ledger ───────────────────────────────────────────────────────────
+
+const ledgerQuery = (params) => {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v != null && v !== ''),
+  ).toString();
+  return q ? `?${q}` : '';
+};
+
+export const accounting = {
+  accounts: (asAt) => request(`/accounting/accounts${ledgerQuery({ as_at: asAt })}`),
+  // What a bill can be coded to — readable by staff, no balances.
+  accountOptions: () => request('/accounting/accounts/options'),
+  createAccount: (data) => request('/accounting/accounts', { method: 'POST', body: data }),
+  updateAccount: (id, data) => request(`/accounting/accounts/${id}`, { method: 'PATCH', body: data }),
+
+  journals: (params = {}) => request(`/accounting/journals${ledgerQuery(params)}`),
+  journal: (id) => request(`/accounting/journals/${id}`),
+  postJournal: (data) => request('/accounting/journals', { method: 'POST', body: data }),
+  reverseJournal: (id, reason) =>
+    request(`/accounting/journals/${id}/reverse`, { method: 'POST', body: { reason: reason || null } }),
+
+  trialBalance: (asAt) => request(`/accounting/reports/trial-balance${ledgerQuery({ as_at: asAt })}`),
+  profitLoss: (from, to) =>
+    request(`/accounting/reports/profit-loss${ledgerQuery({ date_from: from, date_to: to })}`),
+  balanceSheet: (asAt) => request(`/accounting/reports/balance-sheet${ledgerQuery({ as_at: asAt })}`),
+  generalLedger: (accountId, from, to) =>
+    request(`/accounting/reports/general-ledger/${accountId}${ledgerQuery({ date_from: from, date_to: to })}`),
+  bas: (from, to) => request(`/accounting/reports/bas${ledgerQuery({ date_from: from, date_to: to })}`),
+
+  health: () => request('/accounting/health'),
+  lockDate: () => request('/accounting/lock-date'),
+  setLockDate: (value) =>
+    request('/accounting/lock-date', { method: 'PUT', body: { lock_date: value || null } }),
+  backfill: () => request('/accounting/backfill', { method: 'POST' }),
+};
 
 export const supplierBills = {
   list: (params = {}) => {
@@ -1146,6 +1241,7 @@ export const supplierBills = {
     amount_inc: data.amountInc || 0,
     status: data.status || 'pending',
     notes: data.notes || null,
+    account_id: data.accountId || null,
   }}).then(normalizeBill),
 
   update: (id, data) => request(`/ap/bills/${id}`, { method: 'PATCH', body: {
@@ -1161,6 +1257,10 @@ export const supplierBills = {
     amount_inc: data.amountInc,
     status: data.status,
     notes: data.notes,
+    // Sent only when the caller named it, so a partial update — a status change,
+    // say — cannot wipe the account. When named, null is sent as null: that is
+    // how a bill goes back to "decide by kind".
+    ...('accountId' in data ? { account_id: data.accountId ?? null } : {}),
   }}).then(normalizeBill),
 
   pay: (id, paidAmount, paidDate) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {
@@ -1191,10 +1291,27 @@ export const settings = {
   testSmtp: () => request('/settings/smtp-test', { method: 'POST' }),
 };
 
+// ── Document templates ──────────────────────────────────────────────────────
+// The designed layout of each printed document. `list` returns a map keyed by
+// document type; a type that is absent has never been edited, and the client
+// falls back to the built-in default rather than to an empty page.
+
+export const documentTemplates = {
+  list: () => request('/document-templates'),
+  save: (docType, template) =>
+    request(`/document-templates/${docType}`, {
+      method: 'PUT',
+      body: { name: template.name, spec: template },
+    }),
+  reset: (docType) => request(`/document-templates/${docType}`, { method: 'DELETE' }),
+};
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export const users = {
   list: () => request('/users'),
+  // What each role can do, counted from the gates on the server's own routes.
+  access: () => request('/users/access'),
   create: (data) => request('/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),
@@ -1214,13 +1331,10 @@ async function uploadCSV(path, file) {
     credentials: 'include',
     body: form,
   });
-  if (res.status === 401) {
-    window.dispatchEvent(new Event('auth:logout'));
-    throw new Error('Unauthenticated');
-  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Upload failed: ${res.status}`);
+    if (res.status === 401) window.dispatchEvent(new Event('auth:logout'));
+    throw new Error(errorMessage(err.detail, res.status, `Upload failed: ${res.status}`));
   }
   return res.json();
 }

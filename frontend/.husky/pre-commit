@@ -1,0 +1,14 @@
+# Frontend only, and only what is actually staged.
+#
+# Runs ESLint, not Prettier. Formatting is a separate decision that has not been
+# taken yet (docs/backlog.md F1): this codebase is dense enough that Prettier
+# rewrites about 2.3 lines for every line in a file it touches, so adopting it
+# per-file would put a large reformat on top of every small fix.
+#
+# The backend is not here on purpose: ruff and black live in the backend venv
+# and are not on PATH for most shells, so this hook would either fail commits
+# over a missing tool — which teaches people to reach for --no-verify and
+# removes the hook entirely — or skip silently and imply a check that never
+# ran. CI runs ruff and black unconditionally, which is the honest place for a
+# check that cannot rely on a local environment.
+cd frontend && npx lint-staged

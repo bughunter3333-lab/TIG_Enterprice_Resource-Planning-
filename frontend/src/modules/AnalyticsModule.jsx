@@ -188,7 +188,7 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
           <div>
             <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Outstanding A/R</span>
-              <DollarSign className="w-4 h-4 text-emerald-600" />
+              <DollarSign className="w-4 h-4 text-ok" />
             </div>
             <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{fmt$(data.outstanding_receivables)}</p>
           </div>
@@ -198,7 +198,7 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
             </span>
             {dso && (
               <span className={`px-1.5 py-0.5 rounded-full font-bold ${
-                dso.dso_days < 20 ? 'bg-green-50 text-green-700' : dso.dso_days < 35 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                dso.dso_days < 20 ? 'bg-ok-tint text-ok' : dso.dso_days < 35 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'
               }`}>
                 {dso.collection_health_rating}
               </span>
@@ -235,7 +235,7 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
           <div>
             <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Active Backlog</span>
-              <Clock className="w-4 h-4 text-blue-600" />
+              <Clock className="w-4 h-4 text-accent-strong" />
             </div>
             <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{data.active_jobs_count} Jobs</p>
           </div>
@@ -244,11 +244,11 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
               {data.stagnant_jobs_count} stagnant (&gt;30d)
             </span>
             {data.overdue_jobs_count > 0 ? (
-              <span className="px-1.5 py-0.5 bg-red-50 text-red-700 font-bold rounded-full">
+              <span className="px-1.5 py-0.5 bg-danger-tint text-danger font-bold rounded-full">
                 {data.overdue_jobs_count} Overdue
               </span>
             ) : (
-              <span className="px-1.5 py-0.5 bg-green-50 text-green-700 font-bold rounded-full">
+              <span className="px-1.5 py-0.5 bg-ok-tint text-ok font-bold rounded-full">
                 All Current
               </span>
             )}
@@ -260,13 +260,13 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
           <div>
             <div className="flex items-center justify-between" style={{ color: T.textMuted }}>
               <span className="text-xs font-semibold uppercase tracking-wider">Churn Risk Accounts</span>
-              <Users className="w-4 h-4 text-purple-600" />
+              <Users className="w-4 h-4 text-emphasis" />
             </div>
             <p className="text-2xl font-bold mt-2" style={{ color: T.text }}>{data.high_risk_churn_count} Clients</p>
           </div>
           <div className="pt-2 mt-4 flex justify-between items-center text-[11px]" style={{ borderTop: `1px solid ${T.hairline}` }}>
             <span style={{ color: T.textMuted }}>Inactive &gt;120 days</span>
-            <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 font-bold rounded-full">
+            <span className="px-1.5 py-0.5 bg-emphasis-tint text-emphasis font-bold rounded-full">
               Follow-up Needed
             </span>
           </div>
@@ -290,9 +290,9 @@ function renderOverviewTab({ overviewQuery, forecastQuery, dsoQuery, churnQuery,
                 <div key={idx} className="py-3.5 flex items-start justify-between gap-3 text-xs" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                   <div className="flex gap-2.5 items-start">
                     {item.type === 'critical' ? (
-                      <AlertTriangle className="w-4.5 h-4.5 text-red-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4.5 h-4.5 text-danger shrink-0 mt-0.5" />
                     ) : item.type === 'warning' ? (
-                      <AlertTriangle className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-4.5 h-4.5 text-warn shrink-0 mt-0.5" />
                     ) : (
                       <HelpCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" style={{ color: T.accentStrong }} />
                     )}
@@ -401,12 +401,12 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
             </div>
             <div className="flex justify-between items-center text-xs">
               <span style={{ color: T.textMuted }}>Blended Ensemble Forecast</span>
-              <span className="font-bold text-indigo-700">{fmt$(data.ensemble_forecast)}</span>
+              <span className="font-bold text-accent-strong">{fmt$(data.ensemble_forecast)}</span>
             </div>
             <div className="pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
               <div className="flex justify-between items-center text-xs">
                 <span style={{ color: T.textMuted }}>Monthly Trend Slope</span>
-                <span className={`font-semibold ${data.trend_slope >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${data.trend_slope >= 0 ? 'text-ok' : 'text-danger'}`}>
                   {data.trend_slope >= 0 ? '+' : ''}{fmt$(data.trend_slope)} / mo
                 </span>
               </div>
@@ -418,7 +418,7 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
             <div className="flex justify-between items-center text-xs">
               <span style={{ color: T.textMuted }}>Confidence Interval</span>
               <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                data.confidence === 'High' ? 'bg-green-50 text-green-700' : data.confidence === 'Moderate' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                data.confidence === 'High' ? 'bg-ok-tint text-ok' : data.confidence === 'Moderate' ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'
               }`}>{data.confidence}</span>
             </div>
           </div>
@@ -471,7 +471,7 @@ function renderDsoTab({ dsoQuery }) {
       {/* DSO Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className={`p-5 rounded-xl border flex flex-col justify-between ${
-          data.dso_days < 20 ? 'bg-green-50 border-green-200 text-green-800' : data.dso_days < 35 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-red-50 border-red-200 text-red-800'
+          data.dso_days < 20 ? 'bg-ok-tint border-ok text-ok' : data.dso_days < 35 ? 'bg-warn-tint border-warn text-warn' : 'bg-danger-tint border-danger text-danger'
         }`}>
           <div>
             <span className="text-xs uppercase tracking-wider font-semibold opacity-75">Days Sales Outstanding (DSO)</span>
@@ -492,17 +492,17 @@ function renderDsoTab({ dsoQuery }) {
           <div>
             <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: T.textMuted }}>Accounts Status</span>
             <div className="grid grid-cols-3 gap-1 mt-3 text-center">
-              <div className="bg-green-50 p-1.5 rounded">
-                <p className="text-[10px] text-green-700 font-bold">Paid</p>
-                <p className="text-sm font-semibold text-green-800">{data.paid_jobs_count}</p>
+              <div className="bg-ok-tint p-1.5 rounded">
+                <p className="text-[10px] text-ok font-bold">Paid</p>
+                <p className="text-sm font-semibold text-ok">{data.paid_jobs_count}</p>
               </div>
-              <div className="bg-blue-50 p-1.5 rounded">
-                <p className="text-[10px] text-blue-800 font-bold">Partial</p>
-                <p className="text-sm font-semibold text-blue-900">{data.partially_paid_jobs_count}</p>
+              <div className="bg-accent-tint p-1.5 rounded">
+                <p className="text-[10px] text-accent-strong font-bold">Partial</p>
+                <p className="text-sm font-semibold text-accent-strong">{data.partially_paid_jobs_count}</p>
               </div>
-              <div className="bg-red-50 p-1.5 rounded">
-                <p className="text-[10px] text-red-700 font-bold">Unpaid</p>
-                <p className="text-sm font-semibold text-red-800">{data.unpaid_invoices_count}</p>
+              <div className="bg-danger-tint p-1.5 rounded">
+                <p className="text-[10px] text-danger font-bold">Unpaid</p>
+                <p className="text-sm font-semibold text-danger">{data.unpaid_invoices_count}</p>
               </div>
             </div>
           </div>
@@ -534,7 +534,7 @@ function renderDsoTab({ dsoQuery }) {
                   <tr key={idx} style={{ borderTop: `1px solid ${T.hairline}` }}>
                     <td className="px-4 py-2.5 font-semibold" style={{ color: T.accentStrong }}>{r.customer_id}</td>
                     <td className="px-4 py-2.5 font-medium" style={{ color: T.text }}>{r.customer_name}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-red-600">{fmt$(r.balance_due)}</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-danger">{fmt$(r.balance_due)}</td>
                   </tr>
                 ))
               )}
@@ -578,7 +578,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
         <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
           <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Throughput Class</span>
           <p className={`text-2xl font-extrabold mt-2 ${
-            data.throughput_rating === 'Fast' ? 'text-green-600' : data.throughput_rating === 'Moderate' ? 'text-amber-600' : 'text-red-600'
+            data.throughput_rating === 'Fast' ? 'text-ok' : data.throughput_rating === 'Moderate' ? 'text-warn' : 'text-danger'
           }`}>{data.throughput_rating}</p>
           <span className="text-[9px] block mt-1" style={{ color: T.textFaint }}>Relative performance index</span>
         </div>
@@ -618,7 +618,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
               <h3 className="font-bold text-sm" style={{ color: T.text }}>Stagnant Backlog Alert Log</h3>
               <p className="text-[11px]" style={{ color: T.textMuted }}>Active jobs exceeding 1.5x average turnaround ({Math.round(data.average_turnaround_days * 1.5)} days)</p>
             </div>
-            <div className="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-bold">
+            <div className="bg-danger-tint text-danger px-2 py-1 rounded text-xs font-bold">
               {data.backlog.at_risk_count} At-Risk
             </div>
           </div>
@@ -644,9 +644,9 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                       <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
                       <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
+                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
                       </td>
-                      <td className="px-3 py-2 text-right font-bold text-red-600">{j.days_open} days</td>
+                      <td className="px-3 py-2 text-right font-bold text-danger">{j.days_open} days</td>
                     </tr>
                   ))
                 )}
@@ -675,10 +675,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#3b82f6' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">A Items (Top 80% Capital)</span>
+              <span className="text-[11px] font-bold text-accent-strong uppercase tracking-wider">A Items (Top 80% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.a_value)}</p>
             </div>
-            <span className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
         </div>
@@ -687,10 +687,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#22c55e' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-green-600 uppercase tracking-wider">B Items (Next 15% Capital)</span>
+              <span className="text-[11px] font-bold text-ok uppercase tracking-wider">B Items (Next 15% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.b_value)}</p>
             </div>
-            <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded font-bold">{sum.b_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-ok-tint text-ok px-2 py-0.5 rounded font-bold">{sum.b_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.b_skus_count} SKUs. Mid-priority stock buffers.</p>
         </div>
@@ -699,10 +699,10 @@ function renderAbcTab({ abcQuery }) {
         <div className="rounded-xl p-5 shadow-sm" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
           <div className="flex justify-between items-start">
             <div>
-              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
+              <span className="text-[11px] font-bold text-accent-strong uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.c_value)}</p>
             </div>
-            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.c_skus_count} SKUs. Low-priority stock units.</p>
         </div>
@@ -732,7 +732,7 @@ function renderAbcTab({ abcQuery }) {
                   <td className="px-4 py-2.5 font-medium truncate max-w-xs" style={{ color: T.text }}>{item.name}</td>
                   <td className="px-4 py-2.5 text-center font-semibold" style={{ color: T.textMuted }}>{item.stock}</td>
                   <td className="px-4 py-2.5 text-right" style={{ color: T.textMuted }}>{fmt$(item.unit_cost)}</td>
-                  <td className="px-4 py-2.5 text-right font-bold text-indigo-700">{fmt$(item.stock_value)}</td>
+                  <td className="px-4 py-2.5 text-right font-bold text-accent-strong">{fmt$(item.stock_value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -761,13 +761,13 @@ function renderChurnTab({ churnQuery }) {
         </div>
 
         <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#ef4444' }}>
-          <span className="text-[10px] text-red-600 font-bold uppercase tracking-wider">High Risk Churn (&gt;120d)</span>
-          <p className="text-3xl font-extrabold text-red-700 mt-2">{sum.high_risk_count}</p>
+          <span className="text-[10px] text-danger font-bold uppercase tracking-wider">High Risk Churn (&gt;120d)</span>
+          <p className="text-3xl font-extrabold text-danger mt-2">{sum.high_risk_count}</p>
         </div>
 
         <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}`, borderLeftWidth: 4, borderLeftColor: '#f59e0b' }}>
-          <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">At Risk Inactive (60-120d)</span>
-          <p className="text-3xl font-extrabold text-amber-700 mt-2">{sum.at_risk_count}</p>
+          <span className="text-[10px] text-warn font-bold uppercase tracking-wider">At Risk Inactive (60-120d)</span>
+          <p className="text-3xl font-extrabold text-warn mt-2">{sum.at_risk_count}</p>
         </div>
 
         <div className="rounded-xl p-4 shadow-sm text-center" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
@@ -804,7 +804,7 @@ function renderChurnTab({ churnQuery }) {
                     <td className="px-4 py-2.5 font-mono font-bold" style={{ color: T.accentStrong }}>{c.customer_id}</td>
                     <td className="px-4 py-2.5 font-medium" style={{ color: T.text }}>{c.customer_name}</td>
                     <td className="px-4 py-2.5 text-center" style={{ color: T.textMuted }}>{c.last_order_date || '—'}</td>
-                    <td className="px-4 py-2.5 text-center font-bold text-red-600">{c.days_inactive} days</td>
+                    <td className="px-4 py-2.5 text-center font-bold text-danger">{c.days_inactive} days</td>
                     <td className="px-4 py-2.5 text-right font-bold" style={{ color: T.text }}>{fmt$(c.ltv_spend)}</td>
                   </tr>
                 ))
@@ -916,7 +916,7 @@ function renderAnomaliesTab({ anomaliesQuery }) {
             <h3 className="font-bold text-sm" style={{ color: T.text }}>Stock Consumption Spikes (Z-Score &gt; 2.0σ)</h3>
             <p className="text-[11px]" style={{ color: T.textMuted }}>Consumption outflows that deviate significantly from historical standard deviation levels</p>
           </div>
-          <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
+          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded text-xs font-bold font-mono">
             {stock.length} Spikes
           </span>
         </div>
@@ -942,9 +942,9 @@ function renderAnomaliesTab({ anomaliesQuery }) {
                   <tr key={item.sku} style={{ borderTop: `1px solid ${T.hairline}` }}>
                     <td className="px-4 py-2.5 font-mono font-bold" style={{ color: T.accentStrong }}>{item.sku}</td>
                     <td className="px-4 py-2.5 font-medium truncate max-w-xs" style={{ color: T.text }}>{item.name}</td>
-                    <td className="px-4 py-2.5 text-center font-bold text-red-600">{item.recent_outflow} pcs</td>
+                    <td className="px-4 py-2.5 text-center font-bold text-danger">{item.recent_outflow} pcs</td>
                     <td className="px-4 py-2.5 text-center" style={{ color: T.textMuted }}>{item.avg_outflow} pcs</td>
-                    <td className="px-4 py-2.5 text-right font-extrabold text-red-600">+{item.z_score} σ</td>
+                    <td className="px-4 py-2.5 text-right font-extrabold text-danger">+{item.z_score} σ</td>
                   </tr>
                 ))
               )}
@@ -960,7 +960,7 @@ function renderAnomaliesTab({ anomaliesQuery }) {
             <h3 className="font-bold text-sm" style={{ color: T.text }}>Monthly Revenue Outliers (Z-Score &gt; 2.0σ)</h3>
             <p className="text-[11px]" style={{ color: T.textMuted }}>Monthly invoice aggregates that deviate significantly from baseline standard deviation</p>
           </div>
-          <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
+          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded text-xs font-bold font-mono">
             {revenue.length} Outliers
           </span>
         </div>
@@ -987,10 +987,10 @@ function renderAnomaliesTab({ anomaliesQuery }) {
                     <td className="px-4 py-2.5 font-mono font-semibold" style={{ color: T.text }}>{fmt$(item.revenue)}</td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        item.type === 'spike' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        item.type === 'spike' ? 'bg-ok-tint text-ok' : 'bg-danger-tint text-danger'
                       }`}>{item.type.toUpperCase()}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-right font-extrabold text-red-600">{item.z_score} σ</td>
+                    <td className="px-4 py-2.5 text-right font-extrabold text-danger">{item.z_score} σ</td>
                   </tr>
                 ))
               )}

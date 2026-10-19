@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoginScreen from './LoginScreen';
 import TotalImageERP from './TotalImageERP';
+import ChoosePasswordScreen from './modules/auth/ChoosePasswordScreen';
 import { auth } from './api';
 
 export default function App() {
@@ -25,14 +26,20 @@ export default function App() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Loading...</div>
+      <div className="min-h-screen bg-hairline-soft flex items-center justify-center">
+        <div className="text-muted text-sm">Loading...</div>
       </div>
     );
   }
 
   if (!currentUser) {
     return <LoginScreen onLogin={setCurrentUser} />;
+  }
+
+  // Signed in with a password an admin chose: the server answers nothing else
+  // until the person has replaced it.
+  if (currentUser.must_change_password) {
+    return <ChoosePasswordScreen user={currentUser} onDone={setCurrentUser} onLogout={handleLogout} />;
   }
 
   return <TotalImageERP currentUser={currentUser} onLogout={handleLogout} />;

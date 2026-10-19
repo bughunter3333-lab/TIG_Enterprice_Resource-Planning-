@@ -2,20 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System — Jim2 steel-blue business palette, IBM Plex type ──
-   The palette lives in src/ui/tokens.js (the `T` object) and is the single
-   source of truth. The few values below are duplicated here only because CSS
-   cannot read JS; keep them in step with tokens.js. */
+/* ── ERP Design System — SAP Fiori "Horizon" ─────────────────────────────────
+   SAP S/4HANA's theme. The palette lives in src/ui/palette.js (every value
+   sourced from SAP's sap_horizon theme variables) and is read by both
+   tailwind.config.js and src/ui/tokens.js. CSS cannot import that module, so
+   the few values needed here are mirrored as custom properties. */
 
-/* Type foundation: IBM Plex Sans for UI; tabular numerals so figures align in
-   dense tables and totals. IDs/SKUs/money use IBM Plex Mono via .font-mono. */
+:root {
+  --paper: #f5f6f7;
+  --panel: #ffffff;
+  --hairline: #d9d9d9;
+  --hairline-soft: #eaecee;
+  --accent: #0070f2;
+  --accent-strong: #0064d9;
+  --accent-tint: #ebf8ff;
+  --accent-focus: #0032a5;
+  --faint: #5b738b;
+  --text: #131e29;
+}
+
+/* SAP 72 for the UI (declared in src/ui/fonts.css), with tabular figures
+   everywhere so a column of numbers lines up. Codes, IDs and money use 72 Mono
+   via .font-mono. */
 html, body {
-  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: '72', '72full', Arial, Helvetica, sans-serif;
 }
 body {
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  background: var(--paper);
+  color: var(--text);
 }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
@@ -29,17 +46,17 @@ body {
   appearance: textfield;
 }
 
-/* ── Scrollbar — cool grey to sit with the steel-blue chrome ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #eef1f4; }
-::-webkit-scrollbar-thumb { background: #c3ccd6; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #8a949e; }
+/* ── Scrollbar — Horizon's slate ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #7b91a8; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
 /* ── One focus language, app-wide ──────────────────────────────────────────
-   Every focusable control gets the same accent ring (T.accentFocus #9dc7ee),
-   so keyboard focus never changes appearance between an input, a button and
-   a tab. :focus-visible means mouse clicks don't light it up, only keyboard.
-   Inline `focus:ring-*` utilities still win where a screen sets one. */
+   Every focusable control gets the same accent ring, so keyboard focus never
+   changes appearance between an input, a button and a tab. :focus-visible means
+   a mouse click does not light it up, only the keyboard. Inline focus:ring-*
+   utilities still win where a screen sets one. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
@@ -47,15 +64,39 @@ button:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #9dc7ee;
-  border-color: #2b7bd4;
+  box-shadow: 0 0 0 2px var(--accent-focus);
+  border-color: var(--accent);
 }
 
-/* Borderless in-cell inputs (the Jim2 type-straight-into-the-grid fields)
-   must not sprout a ring — it would break the seamless look — so they take
-   a tint plus an underline instead. Still unmistakably focused. */
+/* Borderless in-cell inputs (the Jim2 type-straight-into-the-grid fields) must
+   not sprout a ring — it would break the seamless look — so they take a tint
+   plus an underline instead. Still unmistakably focused. */
 .line-items-table input:focus-visible,
 input.cell-input:focus-visible {
-  box-shadow: inset 0 -2px 0 0 #2b7bd4;
-  background: #eff6ff;
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+  background: var(--accent-tint);
+}
+
+/* ── Printing a document template ──────────────────────────────────────────
+   printDocument() mounts the document into #print-root and calls print(). The
+   application itself is hidden for the duration, so the sheet carries only the
+   document — no chrome, no nav, no modal behind it. The @page rule that sets
+   the paper size is generated per call, because @page cannot read a custom
+   property and the size depends on which template is printing. */
+#print-root { display: none; }
+
+@media print {
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; }
+
+  /* Tables must break between rows, never through one, and a header repeats
+     on every page — a picking list that runs to two pages is otherwise
+     unreadable on the second. */
+  .doc-page { box-shadow: none !important; }
+  .doc-table thead { display: table-header-group; }
+  .doc-table tr { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Zebra shading and rules are set as inline colour, which most browsers drop
+     when printing to save ink. These documents are read in a warehouse. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

@@ -3,29 +3,29 @@ import { ChevronLeft, ChevronRight, Calendar, Users, Filter, Clock, AlertCircle,
 import { T } from '../ui/tokens';
 
 const STATUS_COLORS = {
-  QUOTE: 'bg-gray-100 text-gray-700 border-gray-300',
-  New: 'bg-blue-100 text-blue-800 border-blue-300',
-  ORDER: 'bg-blue-100 text-blue-800 border-blue-300',
-  'In Progress': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  PROOF: 'bg-purple-100 text-purple-700 border-purple-300',
-  PRINT: 'bg-indigo-100 text-indigo-700 border-indigo-300',
-  'Pick/Pack': 'bg-cyan-100 text-cyan-700 border-cyan-300',
-  FINISH: 'bg-green-100 text-green-800 border-green-300',
-  INVOICE: 'bg-teal-100 text-teal-700 border-teal-300',
-  PAID: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  CANCEL: 'bg-red-100 text-red-700 border-red-300',
+  QUOTE: 'bg-hairline-soft text-header border-hairline',
+  New: 'bg-accent-tint text-accent-strong border-accent',
+  ORDER: 'bg-accent-tint text-accent-strong border-accent',
+  'In Progress': 'bg-warn-tint text-warn border-warn',
+  PROOF: 'bg-emphasis-tint text-emphasis border-emphasis',
+  PRINT: 'bg-accent-tint text-accent-strong border-accent',
+  'Pick/Pack': 'bg-accent-tint text-accent-strong border-accent',
+  FINISH: 'bg-ok-tint text-ok border-ok',
+  INVOICE: 'bg-accent-tint text-accent-strong border-accent',
+  PAID: 'bg-ok-tint text-ok border-ok',
+  CANCEL: 'bg-danger-tint text-danger border-danger',
 };
 
 const DEC_COLORS = {
-  EMB:    { dot: 'bg-purple-500',  pill: 'bg-purple-50 text-purple-700',  label: 'Embroidery' },
-  TRS:    { dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700',  label: 'Transfer' },
-  Screen: { dot: 'bg-blue-600',    pill: 'bg-blue-50 text-blue-800',      label: 'Screen Print' },
-  DTF:    { dot: 'bg-teal-500',    pill: 'bg-teal-50 text-teal-700',      label: 'DTF' },
-  Laser:  { dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700',        label: 'Laser' },
-  Sub:    { dot: 'bg-pink-500',    pill: 'bg-pink-50 text-pink-700',      label: 'Sublimation' },
-  Pad:    { dot: 'bg-blue-700',    pill: 'bg-blue-50 text-blue-800',      label: 'Pad Print' },
-  Vinyl:  { dot: 'bg-green-500',   pill: 'bg-green-50 text-green-700',    label: 'Vinyl Cut' },
-  None:   { dot: 'bg-gray-300',    pill: 'bg-gray-50 text-gray-500',      label: 'None' },
+  EMB:    { dot: 'bg-emphasis',  pill: 'bg-emphasis-tint text-emphasis',  label: 'Embroidery' },
+  TRS:    { dot: 'bg-accent-strong',  pill: 'bg-accent-tint text-accent-strong',  label: 'Transfer' },
+  Screen: { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Screen Print' },
+  DTF:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'DTF' },
+  Laser:  { dot: 'bg-danger',     pill: 'bg-danger-tint text-danger',        label: 'Laser' },
+  Sub:    { dot: 'bg-emphasis',    pill: 'bg-emphasis-tint text-emphasis',      label: 'Sublimation' },
+  Pad:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Pad Print' },
+  Vinyl:  { dot: 'bg-ok',   pill: 'bg-ok-tint text-ok',    label: 'Vinyl Cut' },
+  None:   { dot: 'bg-hairline',    pill: 'bg-panel-alt text-muted',      label: 'None' },
 };
 
 const PROD_STATUSES = ['ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'FINISH'];
@@ -83,16 +83,16 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
         <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>#{job.id}</span>
         <div className="flex items-center gap-1 shrink-0">
           {job.priority === 'Urgent' && <span className="text-[10px] px-1 rounded font-bold leading-4" style={{ background: T.dangerTint, color: T.danger }}>URG</span>}
-          {job.priority === 'High' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1 rounded font-bold leading-4">HIGH</span>}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
+          {job.priority === 'High' && <span className="text-[10px] bg-accent-tint text-accent-strong px-1 rounded font-bold leading-4">HIGH</span>}
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-hairline-soft text-muted'}`}>{job.status}</span>
         </div>
       </div>
       <p className="text-xs font-semibold truncate leading-tight" style={{ color: T.text }}>{job.customer}</p>
       {decs.length > 0 && (
         <div className="flex gap-1 flex-wrap mt-1.5">
           {decs.slice(0, 2).map(d => (
-            <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium ${DEC_COLORS[d]?.pill || 'bg-gray-50 text-gray-500'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full inline-block ${DEC_COLORS[d]?.dot || 'bg-gray-400'}`} />
+            <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-medium ${DEC_COLORS[d]?.pill || 'bg-panel-alt text-muted'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${DEC_COLORS[d]?.dot || 'bg-faint'}`} />
               {DEC_COLORS[d]?.label || d}
             </span>
           ))}
@@ -273,11 +273,11 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             Today
           </button>
           <div className="flex items-center rounded-lg overflow-hidden shadow-sm" style={{ border: `1px solid ${T.hairline}`, background: T.panel }}>
-            <button onClick={() => setWeekStart(w => addDays(w, -7))} className="p-2 transition-colors hover:bg-gray-50">
+            <button onClick={() => setWeekStart(w => addDays(w, -7))} className="p-2 transition-colors hover:bg-panel-alt">
               <ChevronLeft className="w-4 h-4" style={{ color: T.textMuted }} />
             </button>
             <span className="px-3 text-sm font-semibold min-w-48 text-center" style={{ color: T.text }}>{weekLabel}</span>
-            <button onClick={() => setWeekStart(w => addDays(w, 7))} className="p-2 transition-colors hover:bg-gray-50">
+            <button onClick={() => setWeekStart(w => addDays(w, 7))} className="p-2 transition-colors hover:bg-panel-alt">
               <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
             </button>
           </div>
@@ -438,7 +438,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             return (
               <div className="rounded-lg p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-purple-500" />
+                  <Clock className="w-4 h-4 text-emphasis" />
                   <h3 className="text-sm font-semibold" style={{ color: T.text }}>Dec. Mix</h3>
                 </div>
                 <div className="space-y-1.5">
@@ -469,7 +469,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
                     <button
                       key={job.id}
                       onClick={() => onPinJob && onPinJob(job)}
-                      className="w-full text-left p-1.5 rounded transition-colors hover:bg-gray-50"
+                      className="w-full text-left p-1.5 rounded transition-colors hover:bg-panel-alt"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs font-bold" style={{ color: T.accentStrong }}>#{job.id}</span>

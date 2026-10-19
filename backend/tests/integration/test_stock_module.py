@@ -54,10 +54,10 @@ def test_update_location_bin(client, make_inventory):
     make_inventory(sku="SKU001")
     client.post("/inventory/SKU001/locations", json={"branch": "HQ", "qty_on_hand": 5})
     resp = client.patch(
-        "/inventory/SKU001/locations/HQ", json={"primary_bin_1": "Shelf-A1"}
+        "/inventory/SKU001/locations/HQ", json={"primary_bin_1": "B.3.H.1"}
     )
     assert resp.status_code == 200
-    assert resp.json()["primary_bin_1"] == "Shelf-A1"
+    assert resp.json()["primary_bin_1"] == "B.3.H.1"
 
 
 @pytest.mark.integration

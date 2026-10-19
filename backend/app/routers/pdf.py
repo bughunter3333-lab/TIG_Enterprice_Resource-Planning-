@@ -76,7 +76,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     # ── Header ────────────────────────────────────────────────────────────────
     header_data = [
         [
-            Paragraph(company.company_name or "Total Image Group", h1),
+            Paragraph(company.company_name or "Total Image", h1),
             Paragraph(
                 title,
                 ParagraphStyle(
@@ -304,7 +304,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
         story.append(Spacer(1, 3 * mm))
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    footer_text = f"{company.company_name or 'Total Image Group'}"
+    footer_text = f"{company.company_name or 'Total Image'}"
     if company.abn:
         footer_text += f"  |  ABN {company.abn}"
     if company.website:
@@ -354,7 +354,7 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image Group", h1),
+                Paragraph(company.company_name or "Total Image", h1),
                 Paragraph(
                     "PICKING SLIP",
                     ParagraphStyle(
@@ -577,7 +577,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image Group", h1),
+                Paragraph(company.company_name or "Total Image", h1),
                 Paragraph(
                     "JOB SHEET",
                     ParagraphStyle(
@@ -816,7 +816,7 @@ def _build_statement(
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image Group", h1),
+                Paragraph(company.company_name or "Total Image", h1),
                 Paragraph(
                     "STATEMENT OF ACCOUNT",
                     ParagraphStyle(
@@ -999,7 +999,7 @@ def _build_statement(
             story.append(Paragraph(pl, small))
         story.append(Spacer(1, 3 * mm))
 
-    footer_text = f"{company.company_name or 'Total Image Group'}"
+    footer_text = f"{company.company_name or 'Total Image'}"
     if company.abn:
         footer_text += f"  |  ABN {company.abn}"
     story.append(
@@ -1064,7 +1064,7 @@ def customer_statement_pdf(
     }
 
     company = db.query(CompanySettings).first() or CompanySettings(
-        company_name="Total Image Group"
+        company_name="Total Image"
     )
     pdf_bytes = _build_statement(customer, lines, totals, company, date_from, date_to)
 
@@ -1089,7 +1089,7 @@ def job_pdf(
         raise HTTPException(status_code=404, detail="Job not found")
 
     company = db.query(CompanySettings).first() or CompanySettings(
-        company_name="Total Image Group"
+        company_name="Total Image"
     )
 
     if type == "picking-slip":
