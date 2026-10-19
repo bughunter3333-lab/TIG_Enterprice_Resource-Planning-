@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LoginScreen from './LoginScreen';
 import TotalImageERP from './TotalImageERP';
+import ChoosePasswordScreen from './modules/auth/ChoosePasswordScreen';
 import { auth } from './api';
 
 export default function App() {
@@ -33,6 +34,12 @@ export default function App() {
 
   if (!currentUser) {
     return <LoginScreen onLogin={setCurrentUser} />;
+  }
+
+  // Signed in with a password an admin chose: the server answers nothing else
+  // until the person has replaced it.
+  if (currentUser.must_change_password) {
+    return <ChoosePasswordScreen user={currentUser} onDone={setCurrentUser} onLogout={handleLogout} />;
   }
 
   return <TotalImageERP currentUser={currentUser} onLogout={handleLogout} />;

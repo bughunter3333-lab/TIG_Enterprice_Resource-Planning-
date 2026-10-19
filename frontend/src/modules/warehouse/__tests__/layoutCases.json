@@ -1,0 +1,69 @@
+{
+  "about": "Stored racking layouts and how they are read. The map (layout.js validateLayout) and the server (backend/app/core/racking.py read_layout) must read every one the same way, or a bin the screen calls a real box is refused on save. Both test suites run this list: layout.test.js and backend/tests/unit/test_racking.py. `reads` is the layout it becomes, or \"default\" when it is not usable and the default racking stands in.",
+  "cases": [
+    {
+      "why": "a sound layout, aisles tidied to capitals",
+      "raw": "{\"version\":1,\"aisles\":[\"a\",\"B \"],\"baysPerAisle\":4,\"beams\":[2,3],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"left\"}",
+      "reads": { "aisles": ["A", "B"], "baysPerAisle": 4, "beams": [2, 3], "excessShelf": false, "positions": 3, "oddSide": "left" }
+    },
+    {
+      "why": "whole numbers written with a decimal point or an exponent are still whole",
+      "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":4.0,\"beams\":[2.0,1e0],\"excessShelf\":true,\"positions\":1e1,\"oddSide\":\"right\"}",
+      "reads": { "aisles": ["A"], "baysPerAisle": 4, "beams": [2, 1], "excessShelf": true, "positions": 10, "oddSide": "right" }
+    },
+    {
+      "why": "keys it does not know are ignored",
+      "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\",\"colour\":\"blue\",\"version\":9}",
+      "reads": { "aisles": ["A"], "baysPerAisle": 2, "beams": [2], "excessShelf": false, "positions": 3, "oddSide": "right" }
+    },
+    {
+      "why": "the limits themselves: 26 aisles, 60 bays, 26 levels, 20 boxes, a ten-letter aisle",
+      "raw": "{\"aisles\":[\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\",\"I\",\"J\",\"K\",\"L\",\"M\",\"N\",\"O\",\"P\",\"Q\",\"R\",\"S\",\"T\",\"U\",\"V\",\"W\",\"X\",\"Y\",\"ABCDEFGHIJ\"],\"baysPerAisle\":60,\"beams\":[13,13],\"excessShelf\":false,\"positions\":20,\"oddSide\":\"left\"}",
+      "reads": { "aisles": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "ABCDEFGHIJ"], "baysPerAisle": 60, "beams": [13, 13], "excessShelf": false, "positions": 20, "oddSide": "left" }
+    },
+    {
+      "why": "a byte-order mark stuck to an aisle is trimmed like any other space",
+      "raw": "{\"aisles\":[\"\\ufeffA\\ufeff\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}",
+      "reads": { "aisles": ["A"], "baysPerAisle": 2, "beams": [2], "excessShelf": false, "positions": 3, "oddSide": "right" }
+    },
+    { "why": "not JSON", "raw": "not json", "reads": "default" },
+    { "why": "JSON, but a list", "raw": "[]", "reads": "default" },
+    { "why": "JSON, but null", "raw": "null", "reads": "default" },
+    { "why": "JSON, but a number", "raw": "7", "reads": "default" },
+    { "why": "JSON, but text", "raw": "\"E D C B A\"", "reads": "default" },
+    { "why": "NaN is not JSON", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\",\"extra\":NaN}", "reads": "default" },
+    { "why": "nor is Infinity", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":Infinity,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "no aisles", "raw": "{\"aisles\":[],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "aisles missing", "raw": "{\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "aisles as one piece of text", "raw": "{\"aisles\":\"AB\",\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "the same aisle twice once tidied", "raw": "{\"aisles\":[\"A\",\" a\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle with a digit in it", "raw": "{\"aisles\":[\"A1\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle that is blank", "raw": "{\"aisles\":[\"  \"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle in another alphabet", "raw": "{\"aisles\":[\"\\u00c9\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle name longer than a bin code can carry", "raw": "{\"aisles\":[\"ABCDEFGHIJK\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle that is null, not a name", "raw": "{\"aisles\":[null],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle that is a number", "raw": "{\"aisles\":[1],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "an aisle that is a list", "raw": "{\"aisles\":[[\"A\"]],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "a control character stuck to an aisle is not a space", "raw": "{\"aisles\":[\"A\\u001f\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "27 aisles", "raw": "{\"aisles\":[\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\",\"I\",\"J\",\"K\",\"L\",\"M\",\"N\",\"O\",\"P\",\"Q\",\"R\",\"S\",\"T\",\"U\",\"V\",\"W\",\"X\",\"Y\",\"Z\",\"AA\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "no bays", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":0,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "61 bays", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":61,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "half a bay", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2.5,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "bays as text", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":\"4\",\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "bays as true", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":true,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "bays as null", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":null,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "bays missing", "raw": "{\"aisles\":[\"A\"],\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "a number of bays too long to be a number at all", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "no beams", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "a beam with no rows", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[0],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "more levels than letters", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[20,7],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "beams as text", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":\"3\",\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "half a row", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2.5],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "a row count as text", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[\"2\"],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "no boxes on a level", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":0,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "21 boxes on a level", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":21,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "the excess shelf as text", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":\"yes\",\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "the excess shelf missing", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"positions\":3,\"oddSide\":\"right\"}", "reads": "default" },
+    { "why": "odd bays on neither side", "raw": "{\"aisles\":[\"A\"],\"baysPerAisle\":2,\"beams\":[2],\"excessShelf\":false,\"positions\":3,\"oddSide\":\"middle\"}", "reads": "default" }
+  ]
+}

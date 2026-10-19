@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, Users, User, FileText, BarChart3, Warehouse, Plus, Edit, Trash2, Eye, DollarSign, TrendingUp, ShoppingCart, AlertCircle, X, Calendar, Printer, Download, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, Send, RefreshCw, PieChart, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, LayoutGrid, Clock } from 'lucide-react';
+import { Search, Package, Users, User, FileText, BarChart3, Plus, Edit, Trash2, DollarSign, AlertCircle, X, Printer, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, Clock } from 'lucide-react';
 import * as api from './api';
 import { PieChart as ResponsiveContainer } from 'recharts';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
 import SettingsModule from './modules/SettingsModule';
-import UserManagement from './modules/UserManagement';
 import StylesModule from './modules/StylesModule';
 import SchedulingModule from './modules/SchedulingModule';
-import AccountsPayableModule from './modules/AccountsPayableModule';
+import AccountingModule from './modules/accounting/AccountingModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
@@ -23,6 +22,7 @@ import JobsModule from './modules/jobs/JobsModule';
 import JobListBuilder from './modules/jobs/JobListBuilder';
 import DispatchList from './modules/jobs/DispatchList';
 import { matchJobList } from './modules/jobs/jobsFilters';
+import { jobsInView } from './modules/jobs/jobMetrics';
 import StockModule from './modules/stock/StockModule';
 import StockListBuilder from './modules/stock/StockListBuilder';
 import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
@@ -35,6 +35,8 @@ import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
 import { countNeedingReorder, needsReorder } from './modules/stock/lowStock';
 import DraggableModal from './ui/DraggableModal';
+import ActionBar from './ui/shell/ActionBar';
+import { pageActions } from './ui/shell/pageActions';
 import DocumentPrint from './components/documents/DocumentPrint';
 import InvoiceDocument from './components/documents/InvoiceDocument';
 import ConfirmModal from './components/modals/ConfirmModal';
@@ -52,6 +54,7 @@ import PurchaseOrderForm from './components/forms/PurchaseOrderForm';
 import SupplierForm from './components/forms/SupplierForm';
 import ImportModule from './modules/import/ImportModule';
 import CardFileFormModal from './modules/card-files/CardFileFormModal';
+import DuplicateToSites from './modules/jobs/DuplicateToSites';
 import WarehouseModule from './modules/warehouse/WarehouseModule';
 import { WAREHOUSE_ZONES } from './modules/warehouse/zones';
 import SupplierPriceListPanel from './modules/suppliers/SupplierPriceListPanel';
@@ -64,7 +67,7 @@ import CustomersDetail from './modules/customers/CustomersDetail';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
-import { parseD } from './lib/dates';
+import { parseD, todayKey } from './lib/dates';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
 import POListPage from './modules/saved-lists/POListPage';
 import StockListPage from './modules/saved-lists/StockListPage';
@@ -104,6 +107,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [filterQuick, setFilterQuick] = useState(null);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
+  const [dupSitesJob, setDupSitesJob] = useState(null);
   const [paymentModal, setPaymentModal] = useState({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
   const [stockAdjustModal, setStockAdjustModal] = useState({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' });
   const [commentInput, setCommentInput] = useState('');
@@ -118,7 +122,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [locationDropdown, setLocationDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [supplierDropdown, setSupplierDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [searchSuggestOpen, setSearchSuggestOpen] = useState(false);
-  const [colWidths, setColWidths] = useState({ stock: 130, desc: 210, order: 58, supply: 56, bord: 52, priceEx: 76, priceInc: 76, margin: 52, total: 76, hide: 32 });
+  // Column set and order follow Jim2's job line grid exactly:
+  // Status · PO# · PO Due · Stock Code · Description · Order · Supply · B. Ord ·
+  // Qty Pick · Price Ex. · Price Inc. · Tax · Hide · Total.
+  // Margin lives on Jim2's Cost tab, not here, so it is no longer a column.
+  const [colWidths, setColWidths] = useState({ status: 80, poNo: 74, poDue: 78, stock: 130, desc: 210, order: 56, supply: 58, bord: 54, qtyPick: 58, priceEx: 76, priceInc: 76, tax: 36, hide: 36, total: 78 });
   const [lineItemsHeight, setLineItemsHeight] = useState(480);
   const [ctxMenu, setCtxMenu] = useState({ visible: false, x: 0, y: 0, rowIdx: -1 });
 
@@ -327,7 +335,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Purchase Lists — same per-node model over purchase orders (node = 'purchases').
   const [poListModal, setPoListModal] = useState({ open: false, draft: { ...EMPTY_PO_LIST }, editingId: null });
-  const [stockReportOpen, setStockReportOpen] = useState(false);
   // Jim2 Dispatch list: batch-dispatch ready + invoiced jobs
   const [dispatchListOpen, setDispatchListOpen] = useState(false);
   const [dispatchListBusy, setDispatchListBusy] = useState(false);
@@ -363,7 +370,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobDetailTab, setJobDetailTab] = useState('job');
   const [pickState, setPickState] = useState({});
   const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
-  const [reportDropdownOpen, setReportDropdownOpen] = useState(false);
   const [jobsSort, setJobsSort] = useState({ col: 'dateIn', dir: 'desc' });
 
   // Customer detail
@@ -454,7 +460,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('dashboard'); }
         if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setActiveModule('customers'); }
         if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setActiveModule('reports'); }
-        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
+        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs' || activeModule === 'quotes') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
       }
       if (e.key === 'Escape') {
         if (globalSearchOpen) { setGlobalSearchOpen(false); return; }
@@ -480,12 +486,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
   const notifications = useMemo(() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
     const lowStockItems = inventory.filter(needsReorder);
-    const overdueJobs = jobs.filter(job => {
-      if (['FINISH','PAID','CANCEL'].includes(job.status)) return false;
-      try { const d = parseD(job.due); return d && d < now; } catch { return false; }
-    });
+    const overdueJobs = jobsInView(jobs, 'overdue');
 
     const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
     const expiringQuotes = jobs.filter(j => {
@@ -494,11 +496,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return d && d >= now && d <= in7Days;
     });
 
-    const dueTodayJobs = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
-      const d = parseD(j.due);
-      return d && d.toISOString().split('T')[0] === todayStr;
-    });
+    const dueTodayJobs = jobsInView(jobs, 'dueToday');
 
     const creditBreaches = customers.filter(c => {
       if (!c.creditLimit || c.creditLimit <= 0) return false;
@@ -558,7 +556,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     priority: 'Normal',
     type: 'Standard',
     quote: '',
-    dateIn: new Date().toISOString().split('T')[0],
+    dateIn: todayKey(),
     due: '',
     assignedTo: '',
     branch: 'HQ',
@@ -625,7 +623,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [poForm, setPoForm] = useState({
     supplierCode: '',
     supplier: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayKey(),
     expectedDate: '',
     notes: '',
     items: [],
@@ -659,8 +657,10 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         });
       } else {
         setJobForm({
-          customer: '', customerId: '', status: 'ORDER', priority: 'Normal',
-          type: 'Standard', quote: '', dateIn: new Date().toISOString().split('T')[0],
+          // From the Quotes screen a new job is a quote: an ORDER reserves stock
+          // and runs the credit check, which a quote must not.
+          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'ORDER', priority: 'Normal',
+          type: 'Standard', quote: '', dateIn: todayKey(),
           due: '', out: '', assignedTo: '', branch: 'HQ', shipToId: null, shippingAddress: '',
           paymentMethod: 'Account', custRef: '', ourRef: '', description: '', shipTo: '',
           projectNo: '', notes: '', paymentStatus: 'unpaid', commitmentDate: '', validityDate: '',
@@ -714,7 +714,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         setSupplierForm({ code: '', name: '', contact: '', email: '', phone: '', address: '', paymentTerms: 'Net 30', currency: 'AUD', status: 'Active' });
       }
     } else if (type === 'po') {
-      setPoForm({ supplierCode: '', supplier: '', date: new Date().toISOString().split('T')[0], expectedDate: '', notes: '', items: [] });
+      setPoForm({ supplierCode: '', supplier: '', date: todayKey(), expectedDate: '', notes: '', items: [] });
     }
 
     setShowModal(true);
@@ -979,9 +979,26 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         shipTo: job.shipTo,
         custRef: job.custRef || '',
         ourRef: job.ourRef || '',
+        priceLevel: job.priceLevel || '',
+        accMgr: job.accMgr || '',
+        branch: job.branch || '',
+        projectNo: job.projectNo || '',
         description: job.description || '',
         notes: job.notes || '',
-        items: (job.items || []).map(it => ({ ...it, id: undefined })),
+        // Everything except the source job's own fulfilment. Spreading the
+        // line wholesale carried its picked and delivered quantities, its
+        // purchase order number and its line status onto the copy, which
+        // attached the new job's goods to somebody else's purchase order.
+        items: (job.items || []).map(it => ({
+          ...it,
+          id: undefined,
+          qtyPick: 0,
+          qtyDelivered: 0,
+          qtyInvoiced: 0,
+          poNo: '',
+          poDue: '',
+          itemStatus: '',
+        })),
       }));
     }, 0);
   };
@@ -1003,19 +1020,28 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   const bulkStatusChange = async (status) => {
     const ids = [...selectedJobIds];
-    const failed = [];
-    for (const id of ids) {
-      try {
-        await api.jobs.updateStatus(id, status);
-      } catch (e) {
-        failed.push(`#${id} ${e?.message || 'refused'}`);
-      }
+    // One request rather than one per job. Sixty-eight round trips gave no
+    // single answer at the end about what happened; the server judges each job
+    // on its own and reports the ones that would not move.
+    let result;
+    try {
+      result = await api.jobs.bulkStatus(ids, status);
+    } catch (e) {
+      notify(e?.message || 'Bulk status update failed', { type: 'error' });
+      return;
     }
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
     setSelectedJobIds(new Set());
     setBulkActionOpen(false);
-    if (failed.length) {
-      notify(`${failed.length} of ${ids.length} jobs did not move to ${status} — ${failed.join('; ')}`, { type: 'error' });
+    if (result.failed?.length) {
+      const detail = result.failed.map(f => `#${f.job_id} ${f.reason}`).join('; ');
+      notify(
+        `${result.moved} of ${ids.length} moved to ${status}. ${result.failed.length} did not — ${detail}`,
+        { type: 'error' },
+      );
+    } else {
+      notify(`${result.moved} job${result.moved === 1 ? '' : 's'} moved to ${status}`);
     }
   };
 
@@ -1165,12 +1191,32 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     } catch (e) { setApiError(e.message); }
   };
 
-  const updateJobStatus = async (jobId, newStatus) => {
+  const updateJobStatus = async (jobId, newStatus, { allowNegativeStock = false } = {}) => {
     try {
-      const updated = await api.jobs.updateStatus(jobId, newStatus);
+      const updated = await api.jobs.updateStatus(jobId, newStatus, { allowNegativeStock });
       updatePinnedJob(updated);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    } catch (e) { setApiError(e.message); }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (e) {
+      // Invoicing more than the system holds is refused rather than silently
+      // taking stock negative. A wrong count is ordinary, so offer to accept it
+      // instead of leaving the person stuck — matched on the message as well as
+      // the code, because a save conflict is also a 409.
+      if (e?.status === 409 && /stock below zero/i.test(e.message || '')) {
+        setConfirmModal({
+          show: true,
+          message: `${e.message}
+
+Invoice anyway? The shortfall will be recorded on the job.`,
+          onConfirm: () => {
+            setConfirmModal({ show: false, message: '', onConfirm: null });
+            updateJobStatus(jobId, newStatus, { allowNegativeStock: true });
+          },
+        });
+        return;
+      }
+      setApiError(e.message);
+    }
   };
 
   const updateJobDue = async (jobId, newDue) => {
@@ -1227,15 +1273,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
     const parseJobDate = (str) => { if (!str) return null; const s = str.split(' ')[0]; const p = s.split('/'); return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s); };
-    const isOverdue = (j) => { if (['FINISH','PAID','CANCEL'].includes(j.status)) return false; const d = parseJobDate(j.due); return d && d < now; };
     const jobDateIn = (j) => { const d = parseJobDate(j.dateIn); return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : ''; };
     const revenueThisMonth = jobs.filter(j => jobDateIn(j) === thisMonth).reduce((s, j) => s + (j.total || 0), 0);
     const revenueLastMonth = jobs.filter(j => jobDateIn(j) === lastMonth).reduce((s, j) => s + (j.total || 0), 0);
     const revChange = revenueLastMonth > 0 ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth * 100) : null;
-    const overdueJobs = jobs.filter(isOverdue);
+    const overdueJobs = jobsInView(jobs, 'overdue');
     const quotesAwaitingApproval = jobs.filter(j => j.status === 'QUOTE').length;
-    const inProduction = jobs.filter(j => ['ORDER','In Progress','PROOF','PRINT','Pick/Pack'].includes(j.status)).length;
-    const toInvoice = jobs.filter(j => j.invoiceStatus === 'to_invoice').length;
+    const inProduction = jobsInView(jobs, 'inProduction').length;
+    const toInvoice = jobsInView(jobs, 'toInvoice').length;
     const statusBreakdown = {};
     ['QUOTE','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
 
@@ -1263,12 +1308,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     });
 
     // Jobs due today
-    const dueToday = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
-      const d = parseJobDate(j.due);
-      if (!d) return false;
-      return d.toISOString().split('T')[0] === todayStr;
-    });
+    const dueToday = jobsInView(jobs, 'dueToday');
 
     // Jobs due in next 48 hours (not today)
     const in48h = new Date(now); in48h.setHours(in48h.getHours() + 48);
@@ -1405,7 +1445,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${filename}_${todayKey()}.csv`;
     a.click();
   };
 
@@ -1501,6 +1541,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setActiveJobList(null);
   };
 
+  // Opens the jobs list filtered to exactly what a count counted. The status
+  // strip's chips used to switch module without filtering ('11 Overdue'
+  // opened all jobs), or filter by a different rule than they counted by.
+  const openQuickList = (quick) => {
+    clearFilters();
+    setFilterQuick(quick);
+    setShowJobDetail(false);
+    setActiveModule('jobs');
+  };
+
   const setJobsFilter = (key, value) => {
     const setters = {
       searchTerm: setSearchTerm,
@@ -1581,7 +1631,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                   Convert to Order →
                 </button>
               )}
-              <button onClick={() => openModal('job', activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
+              <button onClick={() => openModal('job', activeJob)} disabled={!isJobEditable(activeJob)} title={jobLockReason(activeJob)} className="disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
                 <Edit className="w-3.5 h-3.5" />Edit
               </button>
               <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
@@ -1858,7 +1908,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
                       <tr>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO #</th>
+                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO#</th>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO Due</th>
                         <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Stock Code</th>
                         <th className="px-2 py-1.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
@@ -1866,8 +1916,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Supply</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>B. Ord</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Qty Pick</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex.</th>
+                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc.</th>
                         <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Tax</th>
                         <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Hide</th>
                         <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Total</th>
@@ -2257,28 +2307,45 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
             {jobDetailTab === 'cost' && (
               <div className="space-y-4">
                 {(() => {
-                  const productLines = (activeJob.items || []).filter(i => i.displayType !== 'section' && i.displayType !== 'note');
-                  const totalCost = productLines.reduce((s, i) => s + (parseFloat(i.purchasePrice || 0) * (parseInt(i.order) || 0)), 0);
+                  // Only real figures. When no line had a cost this tab used to show
+                  // 55% / 30% / 15% of the subtotal as materials, labour and margin, in
+                  // the same tiles as real numbers; and lines with no cost counted as
+                  // pure margin. Now it says which lines are missing a cost instead.
+                  const productLines = (activeJob.items || [])
+                    .map((it, idx) => ({ it, lineNo: idx + 1 }))
+                    .filter(({ it }) => it.displayType !== 'section' && it.displayType !== 'note' && (parseFloat(it.order) || 0) > 0);
+                  const uncosted = productLines.filter(({ it }) => !(parseFloat(it.purchasePrice) > 0));
+                  const totalCost = productLines.reduce((s, { it }) => s + (parseFloat(it.purchasePrice || 0) * (parseFloat(it.order) || 0)), 0);
                   const grossMargin = (activeJob.subtotal || 0) - totalCost;
                   const marginPct = activeJob.subtotal > 0 ? (grossMargin / activeJob.subtotal * 100) : 0;
-                  const hasCostData = totalCost > 0;
+                  const missingNote = uncosted.length > 0 && (
+                    <p className="text-xs rounded px-3 py-2" role="note" style={{ background: T.warnTint, color: T.text, border: `1px solid ${T.hairline}` }}>
+                      No cost on {uncosted.length} of {productLines.length} line{productLines.length === 1 ? '' : 's'}
+                      {' '}(line {uncosted.map(u => u.lineNo).join(', ')}).
+                      {' '}{totalCost > 0 ? 'Margin below leaves them out, so it reads higher than it is.' : 'Add the supplier cost on the lines to see the margin.'}
+                    </p>
+                  );
+                  if (productLines.length === 0 || totalCost <= 0) {
+                    return missingNote || (
+                      <p className="text-xs" style={{ color: T.textMuted }}>No priced lines yet.</p>
+                    );
+                  }
                   return (
+                    <div className="space-y-2">
+                    {missingNote}
                     <div className="grid grid-cols-3 gap-4">
-                      {(hasCostData ? [
+                      {[
                         { label: 'Total Cost', value: totalCost.toFixed(2), tokenColor: T.text, note: 'From line item costs' },
                         { label: 'Gross Margin', value: grossMargin.toFixed(2), tokenColor: grossMargin >= 0 ? T.ok : T.danger, note: `${marginPct.toFixed(1)}% of revenue` },
                         { label: 'Margin %', value: `${marginPct.toFixed(1)}%`, tokenColor: marginPct >= 30 ? T.ok : marginPct >= 15 ? 'text-warn' : T.danger, note: marginPct >= 30 ? 'Healthy' : marginPct >= 15 ? 'OK' : 'Low' },
-                      ] : [
-                        { label: 'Est. Materials', value: ((activeJob.subtotal || 0) * 0.55).toFixed(2), tokenColor: T.text, note: '~55% estimate' },
-                        { label: 'Est. Labour', value: ((activeJob.subtotal || 0) * 0.30).toFixed(2), tokenColor: T.text, note: '~30% estimate' },
-                        { label: 'Est. Margin', value: ((activeJob.subtotal || 0) * 0.15).toFixed(2), tokenColor: T.ok, note: '~15% estimate' },
-                      ]).map(row => (
+                      ].map(row => (
                         <div key={row.label} className="rounded-lg p-4 text-center" style={{ background: T.hairlineSoft }}>
                           <p className="text-xs mb-1" style={{ color: T.textMuted }}>{row.label}</p>
-                          <p className={`text-2xl font-bold${row.tokenColor === 'text-warn' ? ' text-warn' : ''}`} style={row.tokenColor !== 'text-warn' ? { color: row.tokenColor } : {}}>{row.value.startsWith('%') ? row.value : `$${row.value}`}</p>
+                          <p className={`text-2xl font-bold${row.tokenColor === 'text-warn' ? ' text-warn' : ''}`} style={row.tokenColor !== 'text-warn' ? { color: row.tokenColor } : {}}>{row.value.endsWith('%') ? row.value : `$${row.value}`}</p>
                           <p className="text-xs mt-1" style={{ color: T.textFaint }}>{row.note}</p>
                         </div>
                       ))}
+                    </div>
                     </div>
                   );
                 })()}
@@ -2777,22 +2844,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                       </select>
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
-                    {/* Paid — semantic colours kept */}
-                    <div className="flex items-center gap-1">
+                    {/* Paid and Invoice are read-only: the server derives them from
+                        payments recorded and from invoicing, and ignores them on save.
+                        As dropdowns they let a job read Paid with no payment taken. */}
+                    <div className="flex items-center gap-1" title="Changes when a payment is recorded on the job">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
-                      <select value={jobForm.paymentStatus || 'unpaid'} onChange={e => setJobForm({...jobForm, paymentStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : 'bg-danger-tint text-danger border-danger'}`}>
-                        <option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option>
-                      </select>
+                      <span className={`border rounded px-1.5 py-0.5 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : ''}`}
+                        style={jobForm.paymentStatus === 'paid' || jobForm.paymentStatus === 'partial' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
+                        {{ paid: 'Paid', partial: 'Partial' }[jobForm.paymentStatus] || 'Unpaid'}
+                      </span>
                     </div>
-                    {/* Invoice status — semantic colours kept */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" title="Changes when the job is invoiced">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
-                      <select value={jobForm.invoiceStatus || 'not_invoiced'} onChange={e => setJobForm({...jobForm, invoiceStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : jobForm.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
-                        style={jobForm.invoiceStatus === 'invoiced' || jobForm.invoiceStatus === 'to_invoice' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
-                        <option value="not_invoiced">Not Invoiced</option><option value="to_invoice">To Invoice</option><option value="invoiced">Invoiced</option>
-                      </select>
+                      <span className={`border rounded px-1.5 py-0.5 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
+                        style={jobForm.invoiceStatus === 'invoiced' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
+                        {{ invoiced: 'Invoiced', to_invoice: 'To invoice' }[jobForm.invoiceStatus] || 'Not invoiced'}
+                      </span>
                     </div>
                     {/* Proof — semantic colours kept */}
                     <div className="flex items-center gap-1">
@@ -3283,21 +3350,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                     <p className="text-sm text-center py-4" style={{ color: T.textFaint }}>No items yet. Click "Add Item" to begin.</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="line-items-table border-collapse" style={{ tableLayout: 'fixed', width: '100%', minWidth: 820, fontSize: 12 }}>
+                      <table className="line-items-table border-collapse" style={{ tableLayout: 'fixed', width: '100%', minWidth: 1150, fontSize: 12 }}>
                         <thead>
                           <tr className="select-none" style={{ background: T.hairlineSoft, borderBottom: `2px solid ${T.hairline}`, color: T.textMuted }}>
                             <th className="px-1 py-1 text-center text-[11px] font-semibold" style={{ width: 26, borderRight: `1px solid ${T.hairline}` }}>#</th>
                             {[
+                              { key: 'status', label: 'Status', align: 'left' },
+                              { key: 'poNo', label: 'PO#', align: 'left' },
+                              { key: 'poDue', label: 'PO Due', align: 'left' },
                               { key: 'stock', label: 'Stock Code', align: 'left' },
                               { key: 'desc', label: 'Description', align: 'left' },
-                              { key: 'order', label: 'Ord', align: 'right' },
-                              { key: 'supply', label: 'Sup', align: 'right' },
-                              { key: 'bord', label: 'B.Ord', align: 'right', color: 'text-accent' },
-                              { key: 'priceEx', label: 'Price Ex', align: 'right' },
-                              { key: 'priceInc', label: 'Price Inc', align: 'right' },
-                              { key: 'margin', label: 'M%', align: 'right', color: 'text-ok' },
+                              { key: 'order', label: 'Order', align: 'right' },
+                              { key: 'supply', label: 'Supply', align: 'right' },
+                              { key: 'bord', label: 'B. Ord', align: 'right', color: 'text-accent' },
+                              { key: 'qtyPick', label: 'Qty Pick', align: 'right' },
+                              { key: 'priceEx', label: 'Price Ex.', align: 'right' },
+                              { key: 'priceInc', label: 'Price Inc.', align: 'right' },
+                              { key: 'tax', label: 'Tax', align: 'center' },
+                              { key: 'hide', label: 'Hide', align: 'center' },
                               { key: 'total', label: 'Total', align: 'right', color: 'text-header' },
-                              { key: 'hide', label: 'H', align: 'center' },
                             ].map(col => (
                               <th key={col.key} className={`text-${col.align} px-1 py-1 text-[11px] font-semibold relative ${col.color || ''}`} style={{ width: colWidths[col.key], borderRight: `1px solid ${T.hairline}`, color: col.color ? undefined : T.textMuted }}>
                                 {col.label}
@@ -3388,12 +3459,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   </td>
 
                                   {isSec || isNote ? (
-                                    <td colSpan={11} className="px-2 py-0.5">
+                                    <td colSpan={14} className="px-2 py-0.5">
                                       <input type="text" value={item.description || ''} onChange={e => updateJobItem(idx, 'description', e.target.value)}
                                         className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-accent-strong' : 'italic text-warn'}`}
                                         placeholder={isSec ? 'Section heading…' : 'Note or instruction…'} />
                                     </td>
                                   ) : (<>
+                                    {/* Status / PO# / PO Due — read-only.
+                                        Jim2 shows all three on the line; here they are written
+                                        by the system, not the operator: item_status by the pick
+                                        endpoint (Picked / Partial), and the PO fields by the
+                                        purchase-order link. Making them typable would let
+                                        someone enter a PO number that does not exist and a
+                                        status the next pick overwrites. */}
+                                    <td className="px-1 py-0.5 text-[11px] truncate" style={{ width: colWidths.status, borderRight: `1px solid ${T.hairline}`, color: item.itemStatus ? T.text : T.textFaint }} title={item.itemStatus || 'Set when the line is picked or received'}>
+                                      {item.itemStatus || '—'}
+                                    </td>
+                                    <td className="px-1 py-0.5 text-[11px] font-mono truncate" style={{ width: colWidths.poNo, borderRight: `1px solid ${T.hairline}`, color: item.poNo ? T.accentStrong : T.textFaint }} title={item.poNo ? `Purchase order ${item.poNo}` : 'No purchase order raised against this line'}>
+                                      {item.poNo || '—'}
+                                    </td>
+                                    <td className="px-1 py-0.5 text-[11px] tabular-nums truncate" style={{ width: colWidths.poDue, borderRight: `1px solid ${T.hairline}`, color: item.poDue ? T.text : T.textFaint }}>
+                                      {item.poDue || '—'}
+                                    </td>
+
                                     {/* Stock Code */}
                                     <td className="px-0.5 py-0.5 relative" style={{ width: colWidths.stock, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="text" value={skuQ}
@@ -3491,8 +3579,16 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                         min="0" placeholder="0" />
                                     </td>
 
-                                    {/* Price Ex */}
-                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceEx, borderRight: `1px solid ${T.hairline}` }}>
+                                    {/* Qty Pick — read-only. Owned by the Pick/Pack panel, which
+                                        posts to /jobs/{id}/pick; a second editor here would let
+                                        the two disagree about what was picked. */}
+                                    <td className="px-1 py-0.5 text-right text-[11px] tabular-nums" style={{ width: colWidths.qtyPick, borderRight: `1px solid ${T.hairline}`, color: item.qtyPick > 0 ? T.text : T.textFaint }} title="Set in Pick/Pack">
+                                      {item.qtyPick || '—'}
+                                    </td>
+
+                                    {/* Price Ex — tinted, because Jim2 tints the cells you can
+                                        type into and `editable` exists in the palette for it. */}
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.priceEx, borderRight: `1px solid ${T.hairline}`, background: T.editable }}>
                                       <input type="number" step="0.01" value={item.priceEx || ''} onChange={e => updateJobItem(idx, 'priceEx', e.target.value)} className={`${ciR} font-medium`} min="0" />
                                     </td>
 
@@ -3501,23 +3597,22 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                       <input type="number" step="0.01" value={item.priceInc || ''} onChange={e => updateJobItem(idx, 'priceInc', e.target.value)} className={ciR} min="0" />
                                     </td>
 
-                                    {/* Margin % */}
-                                    <td className="px-1 py-0.5 text-right" style={{ width: colWidths.margin, borderRight: `1px solid ${T.hairline}` }}
-                                      title={isLowMargin ? `Low margin: ${(item.marginPercent || 0).toFixed(1)}% < 15%` : ''}>
-                                      <span className={`text-[11px] font-semibold ${isLowMargin ? 'text-danger' : item.marginPercent > 0 ? 'text-ok' : item.marginPercent < 0 ? 'text-danger' : ''}`}
-                                        style={!isLowMargin && item.marginPercent === 0 ? { color: T.textFaint } : undefined}>
-                                        {item.priceEx > 0 && item.purchasePrice > 0 ? `${isLowMargin ? '⚠' : ''}${(item.marginPercent || 0).toFixed(0)}%` : '—'}
-                                      </span>
-                                    </td>
-
-                                    {/* Total */}
-                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] tabular-nums" style={{ width: colWidths.total, borderRight: `1px solid ${T.hairline}`, color: T.text }}>
-                                      ${(parseFloat(item.total) || 0).toFixed(2)}
+                                    {/* Tax — the per-line tax code. G is taxable, and a GST-free
+                                        line carries its own code, so this is the operator's to set. */}
+                                    <td className="px-0.5 py-0.5" style={{ width: colWidths.tax, borderRight: `1px solid ${T.hairline}`, background: T.editable }}>
+                                      <input type="text" maxLength={4} value={item.taxType ?? ''} placeholder="G"
+                                        onChange={e => updateJobItem(idx, 'taxType', e.target.value.toUpperCase())}
+                                        className={`${ci} text-center uppercase`} title="Tax code — G for taxable" />
                                     </td>
 
                                     {/* Hide */}
                                     <td className="px-0.5 py-0.5 text-center" style={{ width: colWidths.hide, borderRight: `1px solid ${T.hairline}` }}>
                                       <input type="checkbox" className="w-3 h-3 accent-accent-strong cursor-pointer" checked={item.hide || false} onChange={e => updateJobItem(idx, 'hide', e.target.checked)} title="Hide from customer documents" />
+                                    </td>
+
+                                    {/* Total — last, as in Jim2 */}
+                                    <td className="px-1 py-0.5 text-right font-bold text-[11px] tabular-nums" style={{ width: colWidths.total, borderRight: `1px solid ${T.hairline}`, color: T.text }}>
+                                      ${(parseFloat(item.total) || 0).toFixed(2)}
                                     </td>
                                   </>)}
 
@@ -3528,17 +3623,29 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                   </td>
                                 </tr>
 
-                                {/* Decoration sub-row */}
-                                {hasDecoration && (
-                                  <tr className={`${decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
+                                {/* Decoration sub-row. Every product line gets one: without
+                                    it a new line (decorationType 'None') had no way to be given
+                                    a method at all, since the method menu lived only in here. */}
+                                {!isSec && !isNote && (
+                                  <tr className={`${!hasDecoration ? '' : decOpt.v === 'EMB' ? 'bg-emphasis-tint/50' : decOpt.v === 'TRS' || decOpt.v === 'SP' ? 'bg-accent-tint/50' : decOpt.v === 'DTF' ? 'bg-accent-tint/50' : decOpt.v === 'SCR' ? 'bg-danger-tint/50' : 'bg-panel-alt/50'}`}
                                     style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <td className="text-center text-[10px] select-none" style={{ width: 26, borderRight: `1px solid ${T.hairline}`, color: T.textFaint }}>↳</td>
-                                    <td colSpan={10} className="px-2 py-0.5">
+                                    <td colSpan={14} className="px-2 py-0.5">
                                       <div className="flex items-center gap-2 relative">
-                                        <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
-                                          className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
-                                          {decOpt.emoji} {decOpt.l} <ChevronDown className="w-2.5 h-2.5 opacity-40" />
-                                        </button>
+                                        {hasDecoration ? (
+                                          <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
+                                            aria-label={`Line ${idx + 1} decoration: ${decOpt.l}`}
+                                            className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
+                                            {decOpt.emoji} {decOpt.l} <ChevronDown className="w-2.5 h-2.5 opacity-40" />
+                                          </button>
+                                        ) : (
+                                          <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
+                                            aria-label={`Add decoration to line ${idx + 1}`}
+                                            className="shrink-0 inline-flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium hover:underline"
+                                            style={{ color: T.accentStrong }}>
+                                            + Decoration
+                                          </button>
+                                        )}
                                         {openDecIdx === idx && (
                                           <>
                                             <div className="fixed inset-0 z-40" onClick={() => setOpenDecIdx(null)} />
@@ -3558,6 +3665,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                             </div>
                                           </>
                                         )}
+                                        {hasDecoration && (<>
                                         {/* Generic decoration code — works for any method (EMB/TRS/SP/DTF…) */}
                                         <input type="text" value={item.decCode || item.embCode || item.trsCode || ''} onChange={e => updateJobItem(idx, 'decCode', e.target.value)}
                                           className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
@@ -3583,6 +3691,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                                           <option value="">Position…</option>
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
+                                        </>)}
                                       </div>
                                     </td>
                                     <td style={{ width: 24 }}></td>
@@ -4389,6 +4498,39 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Document Print Modal (Picking Slip, Delivery Note, Job Sheet)
 
+  const pageHeader = pageActions({
+    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify,
+    selectedPO, selectedCardFile,
+    newJob: () => openModal('job'),
+    openDispatch: () => { setShowJobDetail(false); setDispatchListOpen(true); },
+    openSalesRegister: () => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' })),
+    createJobList: createEmptyJobList,
+    exportJobs: () => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); },
+    duplicateToSites: (job) => setDupSitesJob(job),
+    unprint: (job) => setUnprintModal({ open: true, job, loading: false, error: '' }),
+    newPO: () => openModal('po'),
+    editPO: (po) => openModal('po', po),
+    createPOList: () => createEmptyPOList(),
+    newCardFile: () => setCardFileModal({ open: true, editing: null }),
+    // The ribbon's edit passed the whole record where the form expects the
+    // ship code, and never loaded the form; this is the panel's own edit.
+    editCardFile: (card) => { setCardFileForm({ ...card }); setCardFileModal({ open: true, editing: card.shipCode }); },
+    newStockItem: () => openModal('inventory'),
+    openTransfer: () => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' })),
+    openAdjust: () => setStockAdjustModal(m => ({ ...m, show: true })),
+    openStocktake: () => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' })),
+    openWarehouse: () => setActiveModule('warehouse'),
+    openStockFlow: () => {
+      setStockFlowModal({ open: true, loading: true, data: null, search: '' });
+      api.inventory.stockFlow()
+        .then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d })))
+        .catch(e => { setStockFlowModal(m => ({ ...m, loading: false, data: [] })); notify(`Couldn't load stock flow: ${e?.message || e}`, { type: 'error' }); });
+    },
+    createStockList: () => createEmptyStockList(),
+    newCustomer: () => openModal('customer'),
+    newSupplier: () => openModal('supplier'),
+  });
+
   return (
     <AppShell
       activeModule={activeModule}
@@ -4403,7 +4545,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       onNewJob={() => openModal('job')}
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      notifCount={(jobs ?? []).filter(j => !['PAID','CANCEL'].includes(j.status) && j.due && parseD(j.due) < new Date()).length}
+      notifCount={jobsInView(jobs, 'overdue').length}
       jobs={jobs ?? []}
       pinnedJobs={pinnedJobs}
       onOpenJob={pinJob}
@@ -4411,9 +4553,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       onSelectList={(listId) => {
         clearFilters();
         if (listId === 'mine') setFilterQuick('myJobs');
-        else if (listId === 'due-today') setFilterQuick('dueToday');
+        else if (listId === 'dueToday') setFilterQuick('dueToday');
         else if (listId === 'overdue') setFilterQuick('overdue');
-        else if (listId === 'pickpack') setFilterStatus('Pick/Pack');
+        else if (listId === 'pickPack') setFilterStatus('Pick/Pack');
         setShowJobDetail(false);
         setActiveModule('jobs');
       }}
@@ -4445,722 +4587,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       onOpenPO={(poId) => { const po = (purchaseOrders ?? []).find(p => p.id === poId); if (po) { setSelectedPO(po); } setActiveModule('purchase-orders'); }}
     >
 
-      {/* ── Contextual Action Toolbar ── */}
-      <div className="shrink-0 bg-white border-b border-hairline overflow-x-auto">
-        <div className="flex items-center h-11 px-3 gap-0.5">
+      {/* ── Page header: the Fiori title and header toolbar (ui/shell/ActionBar).
+          It replaced the Jim2 ribbon, 97 of whose 135 buttons did nothing. */}
+      {pageHeader && <ActionBar {...pageHeader} />}
 
-          {/* ── JOBS ribbon (also used by Quotes) ── */}
-          {(activeModule === 'jobs' || activeModule === 'quotes') && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('job')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Job</span>
-              </button>
-              <button onClick={() => { if (activeJob) { setShowJobDetail(true); setActiveModule('jobs'); } }} disabled={!activeJob} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View Job</span>
-              </button>
-              <button onClick={() => createEmptyJobList(activeModule === 'quotes' ? 'quotes' : 'jobs')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return</span>
-              </button>
-              <button onClick={() => setSalesRegModal(m => ({ ...m, open: true, data: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Sales Reg.</span>
-              </button>
-              <button onClick={() => { setShowJobDetail(false); setDispatchListOpen(true); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dispatch</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.totalInc || 0, amount: '', method: 'Credit Card' })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Jobs</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button
-                disabled={!activeJob || !['INVOICE','PAID'].includes(activeJob?.status)}
-                onClick={() => activeJob && setUnprintModal({ open: true, job: activeJob, loading: false, error: '' })}
-                title={!activeJob ? 'Open a job first' : !['INVOICE','PAID'].includes(activeJob?.status) ? `Only available on INVOICE or PAID jobs (current: ${activeJob?.status})` : 'Revert this job from invoiced back to FINISH'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-              >
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && openInvoiceDoc(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Invoice Job</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled={!activeJob} onClick={() => activeJob && openModal('job', activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && cloneJob(activeJob)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Copy className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Clone</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reply</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Forward</span>
-              </button>
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Preview</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled={!activeJob} onClick={() => activeJob && setDocumentPrint({ type: 'jobSheet', job: activeJob })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button onClick={() => { const filtered = jobs.filter(j => filterStatus === 'all' || j.status === filterStatus); exportToCSV(filtered.map(j => ({ ID: j.id, Customer: j.customer, Status: j.status, DateIn: j.dateIn, Due: j.due, Invoice: j.invoice || '', Total: j.total, Balance: j.balanceDue, Priority: j.priority })), 'jobs'); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
-              </button>
-              <div className="relative">
-                <button
-                  disabled={!activeJob}
-                  onClick={() => setReportDropdownOpen(o => !o)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-                  title={activeJob ? 'Print a report for this job' : 'Open a job first'}
-                >
-                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-                </button>
-                {reportDropdownOpen && activeJob && (
-                  <div
-                    className="absolute left-0 top-full z-[9999] bg-white border border-hairline shadow-2xl min-w-[230px] py-1 text-[13px] rounded-lg"
-                    onMouseLeave={() => setReportDropdownOpen(false)}
-                    onClick={() => setReportDropdownOpen(false)}
-                  >
-                    {[
-                      { type: 'jobSheet',     label: 'TIG Job Sheet',                       action: () => setDocumentPrint({ type: 'jobSheet',     job: activeJob }) },
-                      { type: 'pickingSlip',  label: 'TIG Picking Slip',                    action: () => setDocumentPrint({ type: 'pickingSlip',  job: activeJob }) },
-                      { type: 'deliveryNote', label: 'TIG Delivery Note',                   action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                      { type: 'shipLabel',    label: 'Job Label',                           action: () => setDocumentPrint({ type: 'shipLabel',    job: activeJob }) },
-                      { type: 'shipLabel',    label: 'Ship Label – Total Image',            action: () => setDocumentPrint({ type: 'shipLabel',    job: activeJob }) },
-                      { type: 'deliveryNote', label: 'TIG Delivery Note – NZ',              action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                      null,
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice',            action: () => openInvoiceDoc(activeJob, 'proforma') },
-                      { type: 'invoice',      label: 'TIG TAX Proforma Invoice Balance ONLY', action: () => openInvoiceDoc(activeJob, 'proformaBalance') },
-                      null,
-                      // These three used to download a ReportLab PDF built from a
-                      // second, independent layout. Every document in this menu is a
-                      // template now, so that PDF disagreed with the one the same
-                      // menu prints — two ways to get one document, producing
-                      // different paper. They open the template preview, which
-                      // prints to PDF itself.
-                      { type: 'jobSheet',    label: 'Job Sheet (print / PDF)',    action: () => setDocumentPrint({ type: 'jobSheet',    job: activeJob }) },
-                      { type: 'pickingSlip', label: 'Picking List (print / PDF)', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
-                      // No quote/invoice ternary here any more: the component picks
-                      // the quote template off the job's own status, so a call site
-                      // that guesses is a second place for the two to disagree.
-                      { type: 'invoice',     label: 'Invoice (print / PDF)',      action: () => openInvoiceDoc(activeJob) },
-                    ].map((r, i) =>
-                      r === null
-                        ? <div key={i} className="border-t border-hairline my-0.5" />
-                        : (
-                          <button
-                            key={i}
-                            disabled={r.disabled}
-                            onClick={r.action}
-                            className={`w-full text-left px-4 py-1.5 flex items-center gap-2.5 ${r.disabled ? 'text-faint cursor-default' : 'hover:bg-accent-strong hover:text-white text-header'}`}
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0" />{r.label}
-                          </button>
-                        )
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button
-                disabled={!activeJob}
-                title={activeJob ? 'View job notes & internal comments' : 'Open a job first'}
-                onClick={() => { if (activeJob) { pinJob(activeJob); setShowJobDetail(true); } }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40"
-              >
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── PURCHASES ribbon ── */}
-          {activeModule === 'purchase-orders' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('po')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Purchase</span>
-              </button>
-              <button disabled={!selectedPO} onClick={() => selectedPO && openModal('po', selectedPO)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
-              </button>
-              <button onClick={() => createEmptyPOList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Truck className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Return to Vendor</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">PO Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Job Reports</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── CARDFILES ribbon ── */}
-          {activeModule === 'card-files' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add CardFile</span>
-              </button>
-              <button disabled={!selectedCardFile} onClick={() => selectedCardFile && setCardFileModal({ open: true, editing: selectedCardFile })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors disabled:opacity-40">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Time Sheets</span>
-              </button>
-              <button onClick={() => setCardFileModal({ open: true, editing: null })} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Quick Add</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Merge</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reassign</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Payment</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">CF Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Print</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <FileSpreadsheet className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Excel</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── ITEMS (order-requirements) ribbon ── */}
-          {activeModule === 'order-requirements' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Item</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Item</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create Item List</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── STOCK (inventory) ribbon ── */}
-          {activeModule === 'inventory' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Stock</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">View/Edit Stock</span>
-              </button>
-              <button onClick={() => createEmptyStockList()} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <ClipboardList className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Create List</span>
-              </button>
-              <button onClick={() => setTransferModal(m => ({ ...m, open: true, fromSku: '', toSku: '', toLocation: '', quantity: 1, reference: '', notes: '', error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <RefreshCw className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Transfer Stock</span>
-              </button>
-              <button onClick={() => setStockAdjustModal(m => ({ ...m, show: true }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Adjustments</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ShoppingCart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Procurement</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Packaging</span>
-              </button>
-              <button onClick={() => setActiveModule('warehouse')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Warehouse Mgmt</span>
-              </button>
-              <button onClick={() => setStocktakeModal(m => ({ ...m, open: true, method: 'Informed', reference: '', items: inventory.map(i => ({ sku: i.sku, name: i.name, currentStock: i.stock, countedQty: i.stock, notes: '' })), results: null, error: '' }))} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <CheckSquare className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stocktake</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Tag className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Promo Pricing</span>
-              </button>
-              <button onClick={() => { setStockFlowModal({ open: true, loading: true, data: null, search: '' }); api.inventory.stockFlow().then(d => setStockFlowModal(m => ({ ...m, loading: false, data: d }))).catch(e => setStockFlowModal(m => ({ ...m, loading: false, data: [] }))); }} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Flow</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Printer className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Unprint</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Box className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Pick/Pack</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <div className="relative">
-                <button onClick={() => setStockReportOpen(o => !o)} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                  <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report ▾</span>
-                </button>
-                {stockReportOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-64 py-1.5 overflow-hidden" onMouseLeave={() => setStockReportOpen(false)}>
-                    {(() => {
-                      const inv = inventory || [];
-                      const csvSafe = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-                      const rows = (arr) => arr.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, csvSafe(v)])));
-                      const reports = [
-                        {
-                          label: 'Stock List',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, category: i.category, supplier: i.supplier, on_hand: i.stock, committed: i.committed_qty, available: Math.max(0, (i.stock || 0) - (i.committed_qty || 0)), on_po: i.on_order_qty, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list'),
-                        },
-                        {
-                          label: 'Stock List — with GL Groups',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, gl_group: i.gl_group || '', item_type: i.item_type, location: i.location, on_hand: i.stock, cost: i.unitCost, sell: i.unitPrice }))), 'stock-list-gl-groups'),
-                        },
-                        {
-                          label: 'Stock Valuation',
-                          run: () => exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, unit_cost: i.unitCost, value: ((i.stock || 0) * (i.unitCost || 0)).toFixed(2) }))), 'stock-valuation'),
-                        },
-                        {
-                          label: 'Low Stock / Reorder',
-                          run: () => exportToCSV(rows(inv.filter(i => (i.stock || 0) <= (i.min_stock ?? i.reorderLevel ?? 0)).map(i => ({ code: i.sku, description: i.name, on_hand: i.stock, min_stock: i.min_stock ?? i.reorderLevel ?? 0, on_po: i.on_order_qty, supplier: i.supplier }))), 'low-stock-reorder'),
-                        },
-                        {
-                          label: 'Stock List — 12 Month Sales',
-                          run: () => {
-                            const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
-                            const sold = {};
-                            (jobs || []).forEach(j => {
-                              if (['QUOTE', 'CANCEL'].includes(j.status)) return;
-                              const d = parseD(j.dateIn); if (!d || d < cutoff) return;
-                              (j.items || []).forEach(it => { if (it.stockCode) sold[it.stockCode] = (sold[it.stockCode] || 0) + (it.supply || it.qty || 0); });
-                            });
-                            exportToCSV(rows(inv.map(i => ({ code: i.sku, description: i.name, sold_12m: sold[i.sku] || 0, on_hand: i.stock, on_po: i.on_order_qty }))), 'stock-12-month-sales');
-                          },
-                        },
-                      ];
-                      return reports.map(r => (
-                        <button key={r.label} onClick={() => { if (!inv.length) { notify('No stock data loaded yet.', { type: 'error' }); return; } r.run(); setStockReportOpen(false); notify(`Exported ${r.label} (CSV)`, { type: 'success' }); }}
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-faint" />{r.label}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── ACCOUNTS ribbon ── */}
-          {activeModule === 'accounts' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <DollarSign className="w-5 h-5 text-accent-strong" /><span className="text-[9px] text-accent-strong whitespace-nowrap font-semibold">AP Bills</span>
-              </button>
-              {[['Users','Debtors (AR)'],['BarChart3','GST/BAS']].map(([, lbl]) => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-          </>)}
-
-          {/* ── MANAGEMENT (reports) ribbon ── */}
-          {activeModule === 'reports' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('reports')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Reports</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <PieChart className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Business Analysis</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Budgets</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Cash Flow</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <TrendingUp className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Commission Rates</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Management</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── DASHBOARD ribbon ── */}
-          {activeModule === 'dashboard' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('dashboard')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Mgmt Dashboard</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Dashboard Board</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Edit className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Edit</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Trash2 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Delete</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Select Layout</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Combine Layout</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Add Widget</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Widget</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <LayoutGrid className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Widgets</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SCHEDULING ribbon ── */}
-          {activeModule === 'scheduling' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Schedule','Task','Day','Work Week','Week','Month','Year','Timeline','Current Job','Scheduler View'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <Calendar className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Group By</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Search className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Filters</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Resources</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Manage Views</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Eye className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Views</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── EMAIL ribbon ── */}
-          {activeModule === 'email' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Create List','Email Rules','Templates','Editor','Archive','Email Security','Send/Receive','Delete','Unread/Read','Move'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Mail className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Other</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Send className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Email Actions</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── eBUSINESS ribbon ── */}
-          {activeModule === 'ebusiness' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Vendor Stock Feeds</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Vendor Prices</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Customer Feeds</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">eBusiness Trans.</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── DOCUMENTS ribbon ── */}
-          {activeModule === 'documents' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Add Document','View/Edit','Create List','Open','Save Properties','Delete','Actions','Checkout','Cancel Checkout','Large Icons','Show Hidden','List Layout'].map(lbl => (
-                <button disabled key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                  <FileText className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Layers className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Related</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── TOOLS (import) ribbon ── */}
-          {activeModule === 'import' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Options</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Setup</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Status</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <AlertCircle className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Watchouts</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <DollarSign className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Currency Rates</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Groups</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <User className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Security</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Clock className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">History</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <ExternalLink className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Integration Config</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BookOpen className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Scripting Engine</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <BarChart3 className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Report Designer</span>
-              </button>
-              <button className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Download className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Import Data</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Other</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <CreditCard className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Tools Accounts</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SETTINGS ribbon ── */}
-          {activeModule === 'settings' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              {['Company','Bank & Payments','SMTP'].map(lbl => (
-                <button key={lbl} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                  <Settings className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">{lbl}</span>
-                </button>
-              ))}
-            </div>
-          </>)}
-
-          {/* ── USER MANAGEMENT ribbon ── */}
-          {activeModule === 'user-management' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => {}} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Users className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Users</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── CUSTOMERS ribbon (hidden tab, accessible via nav) ── */}
-          {activeModule === 'customers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('customer')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Customer</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── SUPPLIERS ribbon ── */}
-          {activeModule === 'suppliers' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => openModal('supplier')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Plus className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">New Supplier</span>
-              </button>
-            </div>
-          </>)}
-
-          {/* ── WAREHOUSE ribbon ── */}
-          {activeModule === 'warehouse' && (<>
-            <div className="flex items-center gap-0.5 pr-2 mr-1 border-r border-hairline">
-              <button onClick={() => setActiveModule('inventory')} className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-hairline-soft rounded-md text-header text-[13px] font-medium transition-colors">
-                <Package className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Stock Items</span>
-              </button>
-              <button disabled className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-faint text-[13px] font-medium opacity-40 cursor-default">
-                <Warehouse className="w-5 h-5 text-muted" /><span className="whitespace-nowrap">Bin Map</span>
-              </button>
-            </div>
-          </>)}
-
-        </div>
-      </div>
-
-      {/* ── Live KPI Bar ── */}
+      {/* ── Live KPI Bar — job counts, so on the job pages only ── */}
+      {['dashboard', 'jobs', 'quotes'].includes(activeModule) && (
       <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
         {[
-          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => { setActiveModule('jobs'); setFilterStatus('all'); setSearchTerm(''); } },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => { setActiveModule('jobs'); } },
-          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => { setActiveModule('jobs'); setFilterStatus('FINISH'); } },
+          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => openQuickList('overdue') },
+          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => openQuickList('dueToday') },
+          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => openQuickList('needsInvoice') },
           { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-warn',  bg: 'hover:bg-warn-tint',  text: 'text-warn',  border: 'border-warn',  action: () => setActiveModule('inventory') },
-          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => setActiveModule('jobs') },
+          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => openQuickList('inProduction') },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -5180,13 +4619,14 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       </div>
+      )}
 
       {/* ── Content Row ── */}
       <div className="flex flex-1 min-h-0">
 
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <main className="flex-1 p-5 overflow-auto bg-[#f8fafc]">
+          <main className="flex-1 p-5 overflow-auto bg-paper">
             {loading && (
               <div className="flex items-center justify-center py-20 text-faint text-sm">Loading data...</div>
             )}
@@ -5197,7 +4637,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
               </div>
             )}
             {adminMode ? (
-              <AdminPanel />
+              <AdminPanel currentUser={currentUser} />
             ) : (
               <>
                 {!loading && activeModule === 'dashboard'          && renderDashboard()}
@@ -5212,6 +4652,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {!loading && activeModule === 'inventory' && (stockListModal.open ? <StockListPage deleteJobList={deleteJobList} inventory={inventory} openModal={openModal} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setStockFocusSku={setStockFocusSku} setStockListModal={setStockListModal} stockListModal={stockListModal} updateListFilter={updateListFilter} /> : (
                   <StockModule
                     inventory={inventory}
+                    currentUser={currentUser}
                     focusSku={stockFocusSku}
                     onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}
@@ -5221,16 +4662,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
                 {!loading && activeModule === 'suppliers'          && <SuppliersModule deleteSupplier={deleteSupplier} exportToCSV={exportToCSV} inventory={inventory} openModal={openModal} purchaseOrders={purchaseOrders} searchTerm={searchTerm} setActiveModule={setActiveModule} setSearchTerm={setSearchTerm} suppliers={suppliers} />}
                 {!loading && activeModule === 'purchase-orders'    && (poListModal.open ? <POListPage deleteJobList={deleteJobList} openModal={openModal} poListModal={poListModal} purchaseOrders={purchaseOrders} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setPoListModal={setPoListModal} setSelectedPO={setSelectedPO} updateListFilter={updateListFilter} /> : <PurchaseOrdersDetail exportToCSV={exportToCSV} openModal={openModal} poStatusFilter={poStatusFilter} purchaseOrders={purchaseOrders} receivePO={receivePO} receiveQtys={receiveQtys} searchTerm={searchTerm} selectedPO={selectedPO} setPoStatusFilter={setPoStatusFilter} setReceiveQtys={setReceiveQtys} setSearchTerm={setSearchTerm} setSelectedPO={setSelectedPO} updatePOStatus={updatePOStatus} />)}
                 {!loading && activeModule === 'reports'            && renderReports()}
-                {!loading && activeModule === 'warehouse'          && <WarehouseModule exportToCSV={exportToCSV} inventory={inventory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
+                {!loading && activeModule === 'warehouse'          && <WarehouseModule currentUser={currentUser} inventory={inventory} customers={customers} onOpenSku={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }} />}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
                 {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
-                {!loading && activeModule === 'user-management'    && <UserManagement currentUser={currentUser} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
                 {!loading && activeModule === 'accounts' && (
-                  <AccountsPayableModule suppliers={suppliers} />
+                  <AccountingModule suppliers={suppliers} currentUser={currentUser} />
                 )}
                 {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
                   <div className="flex flex-col items-center justify-center h-64 text-faint">
@@ -5416,6 +4856,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       <StocktakeModal setStocktakeModal={setStocktakeModal} stocktakeModal={stocktakeModal} />
       <StockFlowModal setStockFlowModal={setStockFlowModal} stockFlowModal={stockFlowModal} />
       <InvoiceDocument invoiceJob={invoiceJob} invoiceVariant={invoiceVariant} setInvoiceJob={setInvoiceJob} />
+      {dupSitesJob && (
+        <DuplicateToSites
+          job={dupSitesJob}
+          onClose={() => setDupSitesJob(null)}
+          onCreated={() => queryClient.invalidateQueries({ queryKey: ['jobs'] })}
+        />
+      )}
       <DocumentPrint documentPrint={documentPrint} inventory={inventory} setDocumentPrint={setDocumentPrint} />
       {emailModalJob && <EmailJobModal job={emailModalJob} customers={customers} onClose={() => setEmailModalJob(null)} />}
       {matrixPopup !== null && (

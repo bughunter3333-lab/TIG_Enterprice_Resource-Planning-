@@ -6,8 +6,10 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from app.database import get_db
-from app.core.reservations import COMMITTED_STATUSES
+from app.core.reservations import COMMITTED_STATUSES, committed_total
 from app.core.stock_ledger import post_movement, reverse_job_movements
+from app.core.ledger import LedgerError
+from app.core.ledger_postings import has_posted_invoice, sync_invoice, sync_payment
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.customer import Customer
@@ -75,9 +77,12 @@ class JobItemSchema(BaseModel):
     color_count: Optional[int] = None
     dec_position: Optional[str] = None
     order_qty: int = 0
-    supply_qty: int = 0
+    # None means "work it out"; 0 means "supply nothing from stock", which is a
+    # real choice on a line that is entirely bought in. The job form always
+    # sends both, so this only affects callers that omit them.
+    supply_qty: Optional[int] = None
     qty: int = 0
-    b_ord: int = 0
+    b_ord: Optional[int] = None
     qty_pick: int = 0
     qty_delivered: int = 0
     qty_invoiced: int = 0
@@ -120,6 +125,8 @@ class _JobSharedFields(BaseModel):
     our_ref: Optional[str] = None
     description: Optional[str] = None
     ship_to: Optional[str] = None
+    # Jim2's Item#: NOP.ONLINE for a portal order, SALE for one keyed by hand.
+    item_no: Optional[str] = None
     project_no: Optional[str] = None
     serial_no: Optional[str] = None
     name_contact: Optional[str] = None
@@ -173,12 +180,33 @@ class JobUpdate(_JobSharedFields):
 
 class StatusUpdate(BaseModel):
     status: str
+    # Invoicing goods the system says do not exist is refused by default. A
+    # wrong count is ordinary, so it can be accepted deliberately, and the
+    # acceptance is written onto the job.
+    allow_negative_stock: bool = False
 
 
 class CommentCreate(BaseModel):
     comment: str
     inc: bool = False
     is_internal: bool = False
+
+
+class BulkStatusRequest(BaseModel):
+    job_ids: List[str] = Field(min_length=1)
+    status: str
+    allow_negative_stock: bool = False
+
+
+class DuplicateRequest(BaseModel):
+    """Overrides for the copy. Everything omitted carries over from the source."""
+
+    ship_to: Optional[str] = None
+    ship_to_id: Optional[int] = None
+    shipping_address: Optional[str] = None
+    cust_ref: Optional[str] = None
+    due: Optional[str] = None
+    status: str = "QUOTE"
 
 
 class LockToggle(BaseModel):
@@ -482,14 +510,94 @@ def _reconcile_items(job: "Job", incoming: List["JobItemSchema"], db: Session) -
         else:
             # No id, or an id this job does not own — either way it is new here,
             # and a new row does want the defaults.
-            job.items.append(JobItem(**line.model_dump(exclude={"id"})))
+            job.items.append(
+                JobItem(**_derive_line_split(line.model_dump(exclude={"id"}), db))
+            )
 
     for item_id, item in existing.items():
         if item_id not in seen:
             db.delete(item)
 
 
-def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
+def _derive_line_split(data: dict, db: Session) -> dict:
+    """Fill in supply and back-order for a line that did not state them.
+
+    Mirrors the job form: supply what is available, back-order the rest, and
+    cap supply at availability rather than at stock on hand, so two orders
+    cannot both reserve the same units. A line with no stock code has nothing
+    to reserve and nothing to procure -- that is how the freight and decoration
+    lines read in Jim2, Order 1 / Supply 1 / B.Ord 0.
+
+    Only called for lines that omitted the fields. An explicit zero is a
+    decision and is left alone.
+    """
+    supply_given = data.get("supply_qty") is not None
+    bord_given = data.get("b_ord") is not None
+    if supply_given and bord_given:
+        return data
+
+    order = int(data.get("order_qty") or 0)
+    sku = data.get("stock_code")
+
+    if not sku:
+        supply = order
+        back_order = 0
+    else:
+        inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+        if inv is None:
+            # Not a stocked line. Nothing to reserve; the whole quantity has to
+            # be bought, which is what the buying screen is for.
+            supply, back_order = 0, order
+        else:
+            # committed_total, not InventoryItem.committed_qty. The stored
+            # column is not maintained -- inventory.py derives commitment from
+            # the open jobs themselves and overrides it on read, "so what the
+            # grid shows cannot drift from the documents it describes".
+            # Reading the column here made every line look fully suppliable.
+            committed = committed_total(db, sku)
+            available = max(0, int(inv.stock or 0) - committed)
+            supply = min(order, available)
+            back_order = max(0, order - supply)
+
+    if not supply_given:
+        data["supply_qty"] = supply
+    if not bord_given:
+        data["b_ord"] = back_order
+    return data
+
+
+def _on_hand_shortfalls(job: "Job", db: Session) -> dict:
+    """SKUs this job would push below zero on hand, and by how much.
+
+    Quantities are summed per SKU: two lines of three against five on hand is
+    short by one even though neither line is. Uses supply_qty because that is
+    what _deplete_on_hand actually ships.
+    """
+    wanted: dict = {}
+    for item in job.items:
+        if not item.stock_code or item.display_type != "product":
+            continue
+        qty = int(item.supply_qty or 0)
+        if qty > 0:
+            wanted[item.stock_code] = wanted.get(item.stock_code, 0) + qty
+    if not wanted:
+        return {}
+
+    rows = db.query(InventoryItem).filter(InventoryItem.sku.in_(list(wanted))).all()
+    on_hand = {r.sku: int(r.stock or 0) for r in rows}
+    return {
+        sku: qty - on_hand[sku]
+        for sku, qty in wanted.items()
+        if sku in on_hand and qty > on_hand[sku]
+    }
+
+
+def _apply_status_transition(
+    job: "Job",
+    new_status: str,
+    db: Session,
+    allow_negative_stock: bool = False,
+) -> None:
     """Move `job` to `new_status` and run every side effect that implies.
 
     Every path that changes a job's status must come through here. Three used to
@@ -516,6 +624,25 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     if old_status == new_status:
         return
 
+    # Checked before anything is mutated. Raising after `job.status` has been
+    # reassigned leaves the job holding a status the caller was refused, and
+    # any later commit in the same session persists it.
+    entering_depleted = (
+        old_status not in _DEPLETED_STATUSES and new_status in _DEPLETED_STATUSES
+    )
+    shortfalls = _on_hand_shortfalls(job, db) if entering_depleted else {}
+    if shortfalls and not allow_negative_stock:
+        detail = ", ".join(
+            f"{sku} short by {qty}" for sku, qty in sorted(shortfalls.items())
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Invoicing this job would take stock below zero: {detail}. "
+                "Check the count, or invoice anyway to accept it."
+            ),
+        )
+
     job.status = new_status
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -529,14 +656,37 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
     was_depleted = old_status in _DEPLETED_STATUSES
     now_depleted = new_status in _DEPLETED_STATUSES
     if not was_depleted and now_depleted:
+        # Refused above unless it was accepted deliberately. Getting here with
+        # a shortfall means somebody chose to bill goods the system says do not
+        # exist, and that decision belongs in the job's history rather than
+        # only in a stock figure that has quietly gone negative.
+        if shortfalls:
+            now = datetime.now()
+            db.add(
+                JobComment(
+                    job_id=job.id,
+                    date=now.strftime("%d/%m/%Y"),
+                    time=now.strftime("%H:%M"),
+                    initials="SYS",
+                    author_name="System",
+                    status=new_status,
+                    is_internal=True,
+                    comment=(
+                        "Invoiced with insufficient stock on hand: "
+                        + ", ".join(
+                            f"{sku} short by {qty}"
+                            for sku, qty in sorted(shortfalls.items())
+                        )
+                    ),
+                )
+            )
         _deplete_on_hand(job, db)
     elif was_depleted and not now_depleted:
         _restore_on_hand(job, db)
 
     # Compliance timestamps
-    if new_status == "INVOICE" and not job.invoice_date:
-        job.invoice_date = today
-        job.invoice_status = "invoiced"
+    if new_status in _DEPLETED_STATUSES:
+        _stamp_invoiced(job, today)
     if new_status == "PAID":
         job.payment_status = "paid"
         if not job.payment_date:
@@ -546,6 +696,75 @@ def _apply_status_transition(job: "Job", new_status: str, db: Session) -> None:
 
     if new_status in ("INVOICE", "PAID", "CANCEL"):
         _recalculate_customer_balance(job.customer_id, db)
+
+    # The revenue crosses the same boundary the stock does: entering INVOICE or
+    # PAID posts the invoice, leaving them reverses it. Unprint, edit and
+    # re-invoice therefore reads in the ledger as posted, reversed, posted.
+    _sync_invoice_or_refuse(job, db)
+
+
+def _stamp_invoiced(job: "Job", today: str) -> None:
+    """What becoming invoiced writes onto a job, from every path that does it.
+
+    Once only on INVOICE, so a job sent straight to PAID — or created already
+    invoiced, or imported — carried no invoice date. The BAS report selects by
+    invoice date, so those sales were silently absent from it; the ledger found
+    this by disagreeing with it. Keyed on the invoiced boundary now, the same
+    one stock and the ledger use.
+    """
+    if job.invoice_date:
+        return
+    job.invoice_date = today
+    job.invoice_status = "invoiced"
+    # What the customer owes, worked out here rather than in the browser.
+    # This was only ever computed in the job form, so a job invoiced by an
+    # import, a feed, a portal or a script carried a balance of zero, and
+    # every consumer of the field believed it -- the credit-limit check at job
+    # creation, the customer statement, the sales register and the receivables
+    # figures. The invariant is total inc GST less whatever has already been
+    # taken; `record_payment` maintains it from here.
+    job.balance_due = max(
+        0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
+    )
+
+
+# Whether a job is paid or invoiced, what has been taken against it and what
+# is still owed are facts about payments and invoicing, not fields a person
+# types. They change through `record_payment` and the invoicing boundary
+# (`_stamp_invoiced`). The job form used to offer Paid and Invoice dropdowns
+# and send all four on every save, and both create and update wrote them
+# straight onto the job -- so a job could read Paid with no payment taken and
+# nothing in the ledger, and the browser's balance fed the credit check and
+# the customer's balance. A create or a save that carries them is ignored for
+# them now.
+_SERVER_OWNED_MONEY = frozenset(
+    {"deposit", "balance_due", "payment_status", "invoice_status"}
+)
+
+
+def _settle_money(job: "Job") -> None:
+    """Re-derive what is owed, and the payment status, from the total and the
+    payments taken -- the invariant `balance_due == total_inc - deposit` that
+    invoicing and `record_payment` already keep."""
+    deposit = float(job.deposit or 0)
+    job.balance_due = max(0.0, round(float(job.total_inc or 0) - deposit, 2))
+    if job.status == "PAID":
+        # What the PAID transition says too; the ledger health check lists
+        # any PAID job that still owes.
+        job.payment_status = "paid"
+    elif deposit <= 0:
+        job.payment_status = "unpaid"
+    elif job.balance_due <= 0:
+        job.payment_status = "paid"
+    else:
+        job.payment_status = "partial"
+
+
+def _sync_invoice_or_refuse(job: "Job", db: Session) -> None:
+    try:
+        sync_invoice(db, job)
+    except LedgerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 def _recalculate_weight(job: "Job", db: Session) -> None:
@@ -573,10 +792,21 @@ def _recalculate_weight(job: "Job", db: Session) -> None:
 
 
 def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
-    """Recompute customer.balance as sum of balance_due across all active jobs."""
+    """Recompute customer.balance as sum of balance_due across all active jobs.
+
+    The flush matters. `SessionLocal` is built with `autoflush=False`, so the
+    SUM below reads what is on disk and not what the caller has just changed in
+    memory. Both callers modify `balance_due` immediately beforehand -- the
+    INVOICE transition establishes it, `record_payment` reduces it -- so
+    without this the customer's balance is always one write behind: invoicing
+    two jobs left the balance holding only the first, and taking a payment
+    recalculated the balance from the amount owed before it.
+    """
     if not customer_id:
         return
     from sqlalchemy import func as sqlfunc
+
+    db.flush()
 
     total = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0))
@@ -651,6 +881,73 @@ def _get_initials(user: "User") -> str:
 @router.get("/next-id")
 def get_next_job_id(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     return {"next_id": _next_job_id(db)}
+
+
+@router.post("/bulk-status")
+def bulk_status(
+    body: BulkStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Move many jobs to one status, judging each on its own.
+
+    Jim2 does this routinely — its comment trails are full of "Bulk status
+    update". Ours moved one job per request, which for a sixty-eight site
+    rollout is sixty-eight round trips and no single answer at the end.
+
+    A job that will not move does not stop the batch. The alternative is an
+    operator picking through sixty-eight jobs to find the one that refused,
+    which is worse than the problem this replaces.
+
+    Registered above the parameterised routes so "bulk-status" is not read as a
+    job id.
+    """
+    if body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+
+    moved, failed = 0, []
+    for job_id in body.job_ids:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            failed.append({"job_id": job_id, "reason": "Job not found"})
+            continue
+        # A SAVEPOINT per job. Plain db.rollback() would discard the whole
+        # session — every job already moved in this batch would be undone by
+        # the next one that refused, which is the opposite of judging each on
+        # its own.
+        savepoint = db.begin_nested()
+        try:
+            _validate_transition(job, body.status, current_user)
+            _validate_required_fields(job, body.status)
+            if body.status == "ORDER":
+                _check_credit_limit(job, db)
+            now = datetime.now()
+            _apply_status_transition(
+                job,
+                body.status,
+                db,
+                allow_negative_stock=body.allow_negative_stock,
+            )
+            db.add(
+                JobComment(
+                    job_id=job_id,
+                    date=now.strftime("%d/%m/%Y"),
+                    time=now.strftime("%H:%M"),
+                    initials=_get_initials(current_user),
+                    author_name=current_user.full_name or current_user.username,
+                    status=body.status,
+                    is_internal=True,
+                    comment="Bulk status update",
+                )
+            )
+            savepoint.commit()
+            moved += 1
+        except HTTPException as exc:
+            savepoint.rollback()
+            failed.append({"job_id": job_id, "reason": str(exc.detail)})
+
+    db.commit()
+    return {"moved": moved, "failed": failed}
 
 
 @router.get("/sales-register")
@@ -824,10 +1121,32 @@ def create_job(
             missing_messages.append(message)
     if missing_messages:
         raise HTTPException(status_code=400, detail="; ".join(missing_messages))
-    job = Job(**{**body.model_dump(exclude={"items"}), "id": job_id})
+    job = Job(
+        **{**body.model_dump(exclude={"items", *_SERVER_OWNED_MONEY}), "id": job_id}
+    )
+    job.deposit = 0
+    job.invoice_status = "not_invoiced"
+    _settle_money(job)
     for item_data in body.items:
-        job.items.append(JobItem(**item_data.model_dump()))
+        job.items.append(JobItem(**_derive_line_split(item_data.model_dump(), db)))
     db.add(job)
+
+    # A job created straight into a committed status has never transitioned, so
+    # the commit that _apply_status_transition would have run never ran. Stock
+    # sat uncommitted until some later status change happened to pick it up --
+    # the same "one rule, two call sites" mistake the transition function was
+    # written to stop.
+    if job.status in COMMITTED_STATUSES:
+        db.flush()
+        _commit_job_stock(job, db)
+
+    # Likewise for the ledger: created already invoiced, it must still post —
+    # and carry an invoice date, or no dated report can find it.
+    if job.status in _DEPLETED_STATUSES:
+        _stamp_invoiced(job, datetime.now().strftime("%Y-%m-%d"))
+    db.flush()
+    _sync_invoice_or_refuse(job, db)
+
     db.commit()
     return _job_with_relations(db, job_id)
 
@@ -854,7 +1173,9 @@ def update_job(
     # Status is applied last, through the shared transition, so it is never just
     # another field in this setattr loop — that is how this endpoint used to move
     # a job into ORDER while reserving no stock at all.
-    update_data = body.model_dump(exclude_none=True, exclude={"items", "status"})
+    update_data = body.model_dump(
+        exclude_none=True, exclude={"items", "status", *_SERVER_OWNED_MONEY}
+    )
     for field, value in update_data.items():
         setattr(job, field, value)
 
@@ -867,11 +1188,19 @@ def update_job(
         db.expire(job, ["items"])
         _recalculate_weight(job, db)
 
+    # The total may have moved; what is owed follows it, never the browser.
+    _settle_money(job)
+
     if body.status and body.status != job.status:
         if body.status == "ORDER":
             _check_credit_limit(job, db)
         # After the lines are in place: what gets reserved is what the job now
         # holds, not what it held when the request arrived.
+        #
+        # No negative-stock override here on purpose. Accepting a short count is
+        # a deliberate act and belongs on the status endpoint, where it is asked
+        # for explicitly; a PATCH that happens to carry a status must not do it
+        # silently.
         _apply_status_transition(job, body.status, db)
 
     # Assigned explicitly so the job row is always part of the UPDATE: a save
@@ -901,7 +1230,9 @@ def update_status(
         _check_credit_limit(job, db)
 
     now = datetime.now()
-    _apply_status_transition(job, body.status, db)
+    _apply_status_transition(
+        job, body.status, db, allow_negative_stock=body.allow_negative_stock
+    )
 
     comment = JobComment(
         job_id=job_id,
@@ -917,6 +1248,126 @@ def update_status(
     db.commit()
     db.refresh(job)
     return job
+
+
+@router.post("/{job_id}/duplicate")
+def duplicate_job(
+    job_id: str,
+    body: DuplicateRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    """Create a new job carrying this one's order, optionally to another site.
+
+    Jim2's "Create Similar", which is how a thirteen-venue rollout stays
+    workable: same garments, same decoration, same pricing, next address. A job
+    holds one ship-to and that is not going to change, so the answer to a
+    sixty-eight site order is sixty-eight jobs — this is what stops that meaning
+    sixty-eight jobs typed out by hand.
+
+    What carries over is the order. What does not is anything belonging to the
+    source's own fulfilment: its invoice, its dates, its money taken, its picked
+    and delivered quantities, and the purchase orders raised against its lines.
+    Those belong to that job and copying them would attach this job's goods to
+    somebody else's purchase order.
+    """
+    src = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
+    if not src:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    carried = (
+        "customer_id",
+        "customer_name",
+        "priority",
+        "type",
+        "assigned_to",
+        "payment_method",
+        "notes",
+        "our_ref",
+        "description",
+        "project_no",
+        "name_contact",
+        "branch",
+        "price_level",
+        "acc_mgr",
+        "invoice_desc",
+        "requested_by",
+        "lock_rate",
+        "total_ex",
+        "tax",
+        "total_inc",
+        "shipping_address",
+        "ship_to",
+        "ship_to_id",
+        "cust_ref",
+        "due",
+    )
+    new = Job(
+        id=_next_job_id(db),
+        status=body.status,
+        date_in=datetime.now().strftime("%Y-%m-%d"),
+        deposit=0,
+        balance_due=0,
+        payment_status="unpaid",
+        invoice_status="not_invoiced",
+        locked=False,
+        **{name: getattr(src, name) for name in carried},
+    )
+    for field, value in body.model_dump(exclude={"status"}, exclude_none=True).items():
+        setattr(new, field, value)
+
+    for item in sorted(src.items, key=lambda i: i.sort or 0):
+        new.items.append(
+            JobItem(
+                sort=item.sort,
+                display_type=item.display_type,
+                description=item.description,
+                sizes=item.sizes,
+                stock_code=item.stock_code,
+                decoration_type=item.decoration_type,
+                emb_code=item.emb_code,
+                trs_code=item.trs_code,
+                dec_code=item.dec_code,
+                stitch_count=item.stitch_count,
+                color_count=item.color_count,
+                dec_position=item.dec_position,
+                order_qty=item.order_qty,
+                qty=item.qty,
+                weight_kg=item.weight_kg,
+                purchase_price=item.purchase_price,
+                margin=item.margin,
+                margin_percent=item.margin_percent,
+                discount=item.discount,
+                price_ex=item.price_ex,
+                price_inc=item.price_inc,
+                total=item.total,
+                hide=item.hide,
+                tax_type=item.tax_type,
+                # supply and back-order are worked out against stock as it is
+                # now, not as it was when the source was raised.
+                supply_qty=None,
+                b_ord=None,
+            )
+        )
+    for line in new.items:
+        data = _derive_line_split(
+            {
+                "supply_qty": line.supply_qty,
+                "b_ord": line.b_ord,
+                "order_qty": line.order_qty,
+                "stock_code": line.stock_code,
+            },
+            db,
+        )
+        line.supply_qty = data["supply_qty"]
+        line.b_ord = data["b_ord"]
+
+    db.add(new)
+    if new.status in COMMITTED_STATUSES:
+        db.flush()
+        _commit_job_stock(new, db)
+    db.commit()
+    return _job_with_relations(db, new.id)
 
 
 @router.post("/{job_id}/comments")
@@ -1015,6 +1466,16 @@ def record_payment(
         notes=body.notes,
     )
     db.add(ledger)
+    db.flush()
+    try:
+        sync_payment(
+            db,
+            ledger,
+            job,
+            created_by=current_user.full_name or current_user.username,
+        )
+    except LedgerError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     # Audit comment
     comment_parts = [f"Payment of ${body.amount:.2f} received via {body.method}"]
@@ -1065,6 +1526,23 @@ def delete_job(
                     f"Job {job_id} has moved stock and cannot be deleted. "
                     "Set it to CANCEL instead — that releases what it reserved "
                     "and keeps the history."
+                ),
+            },
+        )
+    # The same rule for money. A job that has been invoiced or paid against has
+    # entries in the ledger that name it; deleting the job would leave revenue
+    # and cash that no document explains. CANCEL reverses the invoice properly.
+    if has_posted_invoice(db, job_id) or (
+        db.query(JobPayment).filter(JobPayment.job_id == job_id).first() is not None
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "has_ledger_history",
+                "message": (
+                    f"Job {job_id} has been invoiced or paid and cannot be deleted. "
+                    "Set it to CANCEL instead — that reverses the invoice in the "
+                    "ledger and keeps the record."
                 ),
             },
         )
