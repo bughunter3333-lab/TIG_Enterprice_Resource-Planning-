@@ -7,15 +7,22 @@ class SupplierBill(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     supplier_id = Column(
-        String(20), ForeignKey("suppliers.id"), nullable=True, index=True
+        String(20),
+        ForeignKey("suppliers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     supplier_name = Column(String(100))
     po_id = Column(
-        String(20), ForeignKey("purchase_orders.id"), nullable=True, index=True
+        String(20),
+        ForeignKey("purchase_orders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     bill_number = Column(String(50))
     bill_date = Column(String(20))
-    due_date = Column(String(20))
+    # Indexed: accounts payable ages bills by it.
+    due_date = Column(String(20), index=True)
     description = Column(String(500))
     amount_ex = Column(Numeric(10, 2), default=0)
     tax = Column(Numeric(10, 2), default=0)
@@ -24,4 +31,8 @@ class SupplierBill(Base):
     paid_date = Column(String(20))
     paid_amount = Column(Numeric(10, 2), default=0)
     notes = Column(String(500))
+    # The ledger account the bill's cost posts to. Empty means "decide by kind":
+    # a bill against a purchase order is cost of sales, anything else general
+    # expenses. Without it rent, fuel and power all landed in one line of the P&L.
+    account_id = Column(Integer, ForeignKey("ledger_accounts.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

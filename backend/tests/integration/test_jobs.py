@@ -7,6 +7,7 @@ Covers: CRUD, status transitions, payment recording, credit checks, PDF.
 import pytest
 from app.models.job import Job
 from app.models.customer import Customer
+from app.models.inventory import InventoryItem
 
 
 def _make_job(
@@ -293,6 +294,742 @@ class TestStockDepletionOnInvoice:
         assert inv.stock == 50  # restored
         sale = db.query(StockMovement).filter_by(job_id="J-D004", type="Sale").first()
         assert sale is None  # reversal removed the depletion movement
+
+
+@pytest.mark.integration
+class TestBulkStatusUpdate:
+    """Move many jobs at once, and say clearly which ones did not go.
+
+    JIM20. Jim2's comment trails are full of "Bulk status update" -- it is
+    routine there, not exceptional. Ours moved one job per request, which for a
+    sixty-eight site rollout is sixty-eight round trips and no single answer at
+    the end about what happened.
+
+    Each job is judged on its own. One job refusing -- a missing invoice
+    number, insufficient stock, a move its status does not allow -- must not
+    take the rest of the batch down with it, because the alternative is an
+    operator picking through sixty-eight jobs to find the one that stopped.
+    """
+
+    def test_it_moves_every_job_it_can(self, client, db, make_customer):
+        make_customer(id="JBK01", credit_limit=99999.0)
+        for n in range(3):
+            _make_job(db, f"J-BK0{n}", "JBK01", status="QUOTE")
+
+        r = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK00", "J-BK01", "J-BK02"], "status": "ORDER"},
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["moved"] == 3
+        assert body["failed"] == []
+        db.expire_all()
+        assert all(
+            db.query(Job).filter_by(id=f"J-BK0{n}").first().status == "ORDER"
+            for n in range(3)
+        )
+
+    def test_one_refusal_does_not_stop_the_others(self, client, db, make_customer):
+        make_customer(id="JBK02", credit_limit=99999.0)
+        _make_job(db, "J-BK10", "JBK02", status="FINISH")
+        _make_job(db, "J-BK11", "JBK02", status="FINISH")
+        # J-BK11 gets an invoice number, J-BK10 does not.
+        j = db.query(Job).filter_by(id="J-BK11").first()
+        j.invoice = "INV-BK11"
+        db.commit()
+
+        r = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK10", "J-BK11"], "status": "INVOICE"},
+        )
+        body = r.json()
+        assert body["moved"] == 1
+        assert len(body["failed"]) == 1
+        assert body["failed"][0]["job_id"] == "J-BK10"
+        assert "Invoice number" in body["failed"][0]["reason"]
+
+        db.expire_all()
+        assert db.query(Job).filter_by(id="J-BK11").first().status == "INVOICE"
+        assert db.query(Job).filter_by(id="J-BK10").first().status == "FINISH"
+
+    def test_a_job_that_does_not_exist_is_reported_not_fatal(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JBK03", credit_limit=99999.0)
+        _make_job(db, "J-BK20", "JBK03", status="QUOTE")
+
+        body = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK20", "NOPE"], "status": "ORDER"},
+        ).json()
+        assert body["moved"] == 1
+        assert body["failed"][0]["job_id"] == "NOPE"
+
+    def test_it_writes_the_same_comment_trail_jim2_does(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JBK04", credit_limit=99999.0)
+        _make_job(db, "J-BK30", "JBK04", status="QUOTE")
+        client.post(
+            "/jobs/bulk-status", json={"job_ids": ["J-BK30"], "status": "ORDER"}
+        )
+
+        comments = client.get("/jobs/J-BK30").json()["comments"]
+        assert any("Bulk status update" in (c.get("comment") or "") for c in comments)
+
+    def test_a_later_failure_does_not_undo_an_earlier_success(
+        self, client, db, make_customer
+    ):
+        # The first version called db.rollback() on a refusal, which discards
+        # the whole session -- so the jobs already moved in the batch were
+        # silently undone by the next one that refused. Every test passed,
+        # because none of them had a success followed by a failure. Each job
+        # gets a SAVEPOINT now.
+        make_customer(id="JBK05", credit_limit=99999.0)
+        good = _make_job(db, "J-BK40", "JBK05", status="FINISH")
+        good.invoice = "INV-BK40"
+        _make_job(db, "J-BK41", "JBK05", status="FINISH")  # no invoice number
+        db.commit()
+
+        body = client.post(
+            "/jobs/bulk-status",
+            json={"job_ids": ["J-BK40", "J-BK41"], "status": "INVOICE"},
+        ).json()
+        assert body["moved"] == 1
+        assert body["failed"][0]["job_id"] == "J-BK41"
+
+        db.expire_all()
+        assert (
+            db.query(Job).filter_by(id="J-BK40").first().status == "INVOICE"
+        ), "the job that succeeded before the failure must stay moved"
+
+    def test_an_empty_batch_is_rejected(self, client):
+        assert (
+            client.post(
+                "/jobs/bulk-status", json={"job_ids": [], "status": "ORDER"}
+            ).status_code
+            == 422
+        )
+
+
+@pytest.mark.integration
+class TestCreateSimilar:
+    """Duplicate a job, optionally to a different site.
+
+    JIM1. The photographs settled that Jim2 does not solve multi-site with a
+    clever data model -- a job carries one address and that is that. It solves
+    it with `Create Similar` and a saved list. TEEG runs thirteen venues as
+    thirteen jobs; Arcare's rollout would be sixty-eight. Without this, that is
+    sixty-eight jobs built by hand, which is what made ORD1 look like a data
+    modelling problem when it was a missing button.
+
+    What carries over is the order: who it is for, what is on it, how it is
+    priced and decorated. What does not is anything belonging to the original's
+    own fulfilment -- its invoice number, its dates, its picked and delivered
+    quantities, the purchase orders raised against its lines.
+    """
+
+    def _source_job(self, db, make_inventory, job_id="J-CS-SRC", cust="JCS01"):
+        from app.models.job import JobItem
+
+        make_inventory(sku="CS-A", stock=500)
+        job = _make_job(db, job_id, cust, status="FINISH", total_inc=330.0)
+        job.invoice = f"INV-{job_id}"
+        job.invoice_date = "2026-01-05"
+        job.cust_ref = "PO-ORIGINAL"
+        job.ship_to = "SITE.001"
+        job.branch = "HQ"
+        job.price_level = "24"
+        job.acc_mgr = "DANIELL.GO"
+        job.deposit = 100.0
+        job.payment_status = "partial"
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code="CS-A",
+                description="Polo",
+                decoration_type="EMB",
+                dec_position="L.Chest",
+                order_qty=10,
+                qty=10,
+                supply_qty=10,
+                qty_pick=10,
+                qty_delivered=10,
+                price_ex=30.0,
+                total=300.0,
+                po_no="PO-2049911",
+                item_status="Received",
+            )
+        )
+        db.commit()
+        return job
+
+    def test_it_makes_a_new_job_carrying_the_order(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JCS01", credit_limit=99999.0)
+        self._source_job(db, make_inventory)
+
+        r = client.post("/jobs/J-CS-SRC/duplicate", json={})
+        assert r.status_code == 200
+        new = r.json()
+        assert new["id"] != "J-CS-SRC"
+        assert new["customer_id"] == "JCS01"
+        assert new["price_level"] == "24"
+        assert new["acc_mgr"] == "DANIELL.GO"
+        assert len(new["items"]) == 1
+        assert new["items"][0]["stock_code"] == "CS-A"
+        assert new["items"][0]["decoration_type"] == "EMB"
+        assert new["items"][0]["order_qty"] == 10
+
+    def test_it_starts_clean_of_the_original_fulfilment(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JCS02", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC2", "JCS02")
+
+        new = client.post("/jobs/J-CS-SRC2/duplicate", json={}).json()
+        assert new["status"] == "QUOTE"
+        assert not new["invoice"]
+        assert not new["invoice_date"]
+        assert float(new["deposit"] or 0) == 0
+        assert float(new["balance_due"] or 0) == 0
+        assert new["payment_status"] == "unpaid"
+
+        line = new["items"][0]
+        assert line["qty_pick"] == 0
+        assert line["qty_delivered"] == 0
+        assert not line["po_no"], "the original's purchase order is not this job's"
+        assert not line["item_status"]
+
+    def test_it_can_be_pointed_at_another_site(
+        self, client, db, make_customer, make_inventory
+    ):
+        # The whole point for a multi-site rollout: same order, next venue.
+        make_customer(id="JCS03", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC3", "JCS03")
+
+        new = client.post(
+            "/jobs/J-CS-SRC3/duplicate",
+            json={"ship_to": "SITE.002", "cust_ref": "PO-NEXT-SITE"},
+        ).json()
+        assert new["ship_to"] == "SITE.002"
+        assert new["cust_ref"] == "PO-NEXT-SITE"
+        assert new["items"][0]["stock_code"] == "CS-A"
+
+    def test_the_original_is_untouched(self, client, db, make_customer, make_inventory):
+        make_customer(id="JCS04", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC4", "JCS04")
+        client.post("/jobs/J-CS-SRC4/duplicate", json={"ship_to": "SITE.009"})
+
+        db.expire_all()
+        src = db.query(Job).filter_by(id="J-CS-SRC4").first()
+        assert src.status == "FINISH"
+        assert src.ship_to == "SITE.001"
+        assert src.invoice == "INV-J-CS-SRC4"
+
+    def test_the_copy_reserves_its_own_stock(
+        self, client, db, make_customer, make_inventory
+    ):
+        # A duplicate is a real order. If it did not commit, availability would
+        # be overstated by exactly the amount of every copy ever made.
+        make_customer(id="JCS05", credit_limit=99999.0)
+        self._source_job(db, make_inventory, "J-CS-SRC5", "JCS05")
+
+        new = client.post("/jobs/J-CS-SRC5/duplicate", json={"status": "ORDER"}).json()
+        assert new["status"] == "ORDER"
+
+        from app.core.reservations import committed_total
+
+        assert committed_total(db, "CS-A") >= 10
+
+    def test_duplicating_something_that_does_not_exist_is_a_404(self, client):
+        assert client.post("/jobs/NOPE/duplicate", json={}).status_code == 404
+
+
+@pytest.mark.integration
+class TestOnHandCannotSilentlyGoNegative:
+    """Invoicing more than exists is stopped, and can be overridden on purpose.
+
+    ORD3. The Arcare run invoiced 68 jobs against a SKU holding 65 units and
+    finished at -35 on hand, with no block, no warning and no confirmation. The
+    ledger recorded it faithfully, which is the point: a negative on-hand
+    figure means either the goods never shipped or the count is wrong, and
+    nobody was told which.
+
+    Depletion happens on entering INVOICE, which is after despatch, so refusing
+    here does not stop the warehouse -- the goods have already gone. It stops
+    the books recording an impossible state, and asks somebody to check the
+    count before billing. The override exists because a wrong count is a normal
+    Tuesday and billing must not be held hostage to it.
+    """
+
+    def _job_ready_to_invoice(
+        self, db, make_inventory, job_id, cust_id, sku, on_hand, qty
+    ):
+        from app.models.job import JobItem
+
+        make_inventory(sku=sku, stock=on_hand)
+        job = _make_job(db, job_id, cust_id, status="FINISH")
+        job.invoice = f"INV-{job_id}"
+        db.add(
+            JobItem(
+                job_id=job_id,
+                display_type="product",
+                stock_code=sku,
+                description="Tee",
+                order_qty=qty,
+                qty=qty,
+                supply_qty=qty,
+            )
+        )
+        db.commit()
+        return job
+
+    def test_invoicing_more_than_exists_is_refused(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG01", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG01", "JNEG01", "NEG-A", 5, 8
+        )
+
+        r = client.post("/jobs/J-NEG01/status", json={"status": "INVOICE"})
+        assert r.status_code == 409
+        assert "NEG-A" in r.json()["detail"]
+
+    def test_the_refusal_leaves_stock_and_status_alone(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG02", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG02", "JNEG02", "NEG-B", 5, 8
+        )
+        client.post("/jobs/J-NEG02/status", json={"status": "INVOICE"})
+
+        db.expire_all()
+        assert db.query(Job).filter_by(id="J-NEG02").first().status == "FINISH"
+        assert db.query(InventoryItem).filter_by(sku="NEG-B").first().stock == 5
+
+    def test_exactly_enough_is_allowed(self, client, db, make_customer, make_inventory):
+        # The boundary is what matters: 5 out of 5 leaves zero, which is fine.
+        make_customer(id="JNEG03", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG03", "JNEG03", "NEG-C", 5, 5
+        )
+
+        r = client.post("/jobs/J-NEG03/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        db.expire_all()
+        assert db.query(InventoryItem).filter_by(sku="NEG-C").first().stock == 0
+
+    def test_it_can_be_overridden_deliberately(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JNEG04", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG04", "JNEG04", "NEG-D", 5, 8
+        )
+
+        r = client.post(
+            "/jobs/J-NEG04/status",
+            json={"status": "INVOICE", "allow_negative_stock": True},
+        )
+        assert r.status_code == 200
+        db.expire_all()
+        assert db.query(InventoryItem).filter_by(sku="NEG-D").first().stock == -3
+
+    def test_the_override_is_recorded_on_the_job(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Someone decided to bill goods the system says do not exist. That
+        # decision belongs in the job's history, not only in the stock figure.
+        make_customer(id="JNEG05", credit_limit=5000.0)
+        self._job_ready_to_invoice(
+            db, make_inventory, "J-NEG05", "JNEG05", "NEG-E", 5, 8
+        )
+        client.post(
+            "/jobs/J-NEG05/status",
+            json={"status": "INVOICE", "allow_negative_stock": True},
+        )
+
+        comments = client.get("/jobs/J-NEG05").json()["comments"]
+        assert any("NEG-E" in (c.get("comment") or "") for c in comments)
+
+    def test_two_lines_of_the_same_sku_are_counted_together(
+        self, client, db, make_customer, make_inventory
+    ):
+        # 3 + 3 against 5 on hand is short by one, even though neither line is.
+        from app.models.job import JobItem
+
+        make_customer(id="JNEG06", credit_limit=5000.0)
+        make_inventory(sku="NEG-F", stock=5)
+        job = _make_job(db, "J-NEG06", "JNEG06", status="FINISH")
+        job.invoice = "INV-J-NEG06"
+        for _ in range(2):
+            db.add(
+                JobItem(
+                    job_id="J-NEG06",
+                    display_type="product",
+                    stock_code="NEG-F",
+                    description="Tee",
+                    order_qty=3,
+                    qty=3,
+                    supply_qty=3,
+                )
+            )
+        db.commit()
+
+        r = client.post("/jobs/J-NEG06/status", json={"status": "INVOICE"})
+        assert r.status_code == 409
+
+
+@pytest.mark.integration
+class TestSupplyAndBackOrderAreDerived:
+    """An order reserves stock without anyone typing a number.
+
+    ORD4 and ORD5, which turned out to be one defect. The job form derives both
+    quantities thoroughly -- on picking a stock code, on changing the ordered
+    quantity, capped at what is available, with a free split when the line has
+    no SKU -- but the server derived neither, so a job created through the API
+    reserved nothing and reported no shortfall.
+
+    Committing keys off `supply_qty > 0` and the buying screen keys off
+    `b_ord > 0`, so both were silently zero: available stock stayed overstated
+    while it was fully spoken for, and Order Requirements showed an empty list
+    against a real shortage.
+
+    The split mirrors the form exactly. Supply what is available, back-order the
+    rest; a line with no stock code has nothing to reserve and nothing to
+    procure, which is how the freight and decoration lines behave in Jim2.
+    """
+
+    def _line(self, sku=None, order=10, **over):
+        line = {
+            "sort": 1,
+            "display_type": "product",
+            "description": "Test line",
+            "order_qty": order,
+            "qty": order,
+            "price_ex": 10.0,
+            "total": 10.0 * order,
+        }
+        if sku:
+            line["stock_code"] = sku
+        line.update(over)
+        return line
+
+    def _post(self, client, job_id, customer_id, lines):
+        return client.post(
+            "/jobs",
+            json={
+                "id": job_id,
+                "customer_id": customer_id,
+                "customer_name": f"Cust {customer_id}",
+                "status": "ORDER",
+                "date_in": "2025-09-01",
+                "items": lines,
+            },
+        )
+
+    def test_a_line_supplies_what_is_on_hand(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP01")
+        make_inventory(sku="SUP-A", stock=100)
+        r = self._post(client, "J-SUP01", "JSUP01", [self._line("SUP-A", order=10)])
+        assert r.status_code == 200
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 10
+        assert item["b_ord"] == 0
+
+    def test_a_shortfall_goes_to_back_order(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP02")
+        make_inventory(sku="SUP-B", stock=6)
+        r = self._post(client, "J-SUP02", "JSUP02", [self._line("SUP-B", order=10)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 6
+        assert item["b_ord"] == 4
+
+    def test_available_accounts_for_what_is_already_committed(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Commitment has to come from a real open job, not from setting
+        # InventoryItem.committed_qty. That column is not maintained --
+        # inventory.py derives commitment from the open jobs and overrides it
+        # on read. An earlier version of this test set the column, which made
+        # it agree with an implementation that read the same stale column, and
+        # both were wrong: every line looked fully suppliable.
+        make_customer(id="JSUP03")
+        make_inventory(sku="SUP-C", stock=10)
+        self._post(client, "J-SUP03A", "JSUP03", [self._line("SUP-C", order=8)])
+
+        r = self._post(client, "J-SUP03B", "JSUP03", [self._line("SUP-C", order=10)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 2, "only 2 of the 10 are still free"
+        assert item["b_ord"] == 8
+
+    def test_an_explicit_zero_is_respected(
+        self, client, db, make_customer, make_inventory
+    ):
+        # Deliberately supplying nothing from stock is a real choice -- the
+        # whole line is being bought in. Deriving over the top of it would take
+        # that away.
+        make_customer(id="JSUP04")
+        make_inventory(sku="SUP-D", stock=100)
+        r = self._post(
+            client,
+            "J-SUP04",
+            "JSUP04",
+            [self._line("SUP-D", order=10, supply_qty=0, b_ord=10)],
+        )
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 0
+        assert item["b_ord"] == 10
+
+    def test_a_line_with_no_stock_code_reserves_and_procures_nothing(
+        self, client, db, make_customer
+    ):
+        # FREIGHT and the decoration lines read Order 1, Supply 1, B.Ord 0 in
+        # Jim2. There is no stock behind them to reserve or to buy.
+        make_customer(id="JSUP05")
+        r = self._post(client, "J-SUP05", "JSUP05", [self._line(None, order=1)])
+        item = r.json()["items"][0]
+        assert item["supply_qty"] == 1
+        assert item["b_ord"] == 0
+
+    def test_the_order_then_actually_commits_stock(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP06")
+        make_inventory(sku="SUP-E", stock=50)
+        self._post(client, "J-SUP06", "JSUP06", [self._line("SUP-E", order=12)])
+
+        inv = db.query(InventoryItem).filter_by(sku="SUP-E").first()
+        db.refresh(inv)
+        assert (inv.committed_qty or 0) == 12
+
+    def test_the_shortfall_reaches_the_buying_screen(
+        self, client, db, make_customer, make_inventory
+    ):
+        make_customer(id="JSUP07")
+        make_inventory(sku="SUP-F", stock=3, supplier="Acme Wholesale")
+        self._post(client, "J-SUP07", "JSUP07", [self._line("SUP-F", order=10)])
+
+        rows = client.get("/jobs/order-requirements").json()
+        row = next((x for x in rows if x["sku"] == "SUP-F"), None)
+        assert row is not None, "a real shortage must appear on the buying screen"
+        assert row["total_b_ord"] == 7
+
+
+@pytest.mark.integration
+class TestBalanceDueIsDerived:
+    """What a customer owes must be worked out by the server.
+
+    `balance_due` was only ever computed in the browser, at
+    TotalImageERP.jsx:861, as total minus what has been paid. Nothing on this
+    side established it, so a job invoiced by anything other than a person
+    clicking through the job form carried a balance of zero -- and every
+    consumer of that field believed it: the credit-limit check, the customer
+    statement, the sales register, the customer detail panel, and every
+    receivables answer the assistant gives.
+
+    It went unnoticed because `_make_job` above hand-sets
+    `balance_due=total_inc`. The payment tests have always passed against a
+    value the application never wrote.
+
+    The invariant is simply `balance_due == total_inc - deposit`. The payment
+    endpoint already maintains it incrementally; these tests are about
+    establishing it in the first place.
+    """
+
+    def _finished_job(self, db, job_id, customer_id, total_inc=330.0):
+        j = Job(
+            id=job_id,
+            customer_id=customer_id,
+            customer_name=f"Cust {customer_id}",
+            status="FINISH",
+            date_in="2025-09-01",
+            total_ex=round(total_inc / 1.1, 2),
+            tax=round(total_inc - total_inc / 1.1, 2),
+            total_inc=total_inc,
+            deposit=0,
+            balance_due=0,  # exactly as the API leaves it
+            invoice=f"INV-{job_id}",
+        )
+        db.add(j)
+        db.commit()
+        return j
+
+    def test_invoicing_makes_the_whole_total_owing(self, client, db, make_customer):
+        make_customer(id="JBAL01", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL01", "JBAL01", total_inc=330.0)
+
+        r = client.post("/jobs/J-BAL01/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(330.0)
+
+    def test_a_deposit_already_taken_is_deducted(self, client, db, make_customer):
+        make_customer(id="JBAL02", credit_limit=5000.0)
+        job = self._finished_job(db, "J-BAL02", "JBAL02", total_inc=330.0)
+        job.deposit = 100.0
+        db.commit()
+
+        r = client.post("/jobs/J-BAL02/status", json={"status": "INVOICE"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(230.0)
+
+    def test_the_customer_balance_reflects_it(self, client, db, make_customer):
+        make_customer(id="JBAL03", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL03", "JBAL03", total_inc=330.0)
+        self._finished_job(db, "J-BAL04", "JBAL03", total_inc=220.0)
+
+        client.post("/jobs/J-BAL03/status", json={"status": "INVOICE"})
+        client.post("/jobs/J-BAL04/status", json={"status": "INVOICE"})
+
+        cust = db.query(Customer).filter_by(id="JBAL03").first()
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(550.0)
+
+    def test_a_payment_can_then_actually_be_recorded(self, client, db, make_customer):
+        # The knock-on: record_payment rejects any amount above balance_due, so
+        # a zero balance made an invoiced job impossible to pay against at all.
+        make_customer(id="JBAL05", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL05", "JBAL05", total_inc=330.0)
+        client.post("/jobs/J-BAL05/status", json={"status": "INVOICE"})
+
+        r = client.post(
+            "/jobs/J-BAL05/payment", json={"amount": 130.0, "method": "EFT"}
+        )
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(200.0)
+
+    def test_taking_a_payment_lowers_the_customer_balance(
+        self, client, db, make_customer
+    ):
+        # A separate defect with the same root cause. record_payment reduces
+        # balance_due and then recalculates the customer's balance, but the
+        # session does not autoflush, so the SUM read the amount owed *before*
+        # the payment. Customers stayed at their full balance no matter what
+        # they paid, until some later write happened to flush the change.
+        make_customer(id="JBAL07", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL07", "JBAL07", total_inc=330.0)
+        client.post("/jobs/J-BAL07/status", json={"status": "INVOICE"})
+
+        cust = db.query(Customer).filter_by(id="JBAL07").first()
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(330.0)
+
+        client.post("/jobs/J-BAL07/payment", json={"amount": 130.0, "method": "EFT"})
+        db.refresh(cust)
+        assert float(cust.balance) == pytest.approx(200.0)
+
+    def test_it_is_not_recomputed_on_the_way_back_out(self, client, db, make_customer):
+        # INVOICE -> FINISH is a correction, not a payment. The debt stands.
+        make_customer(id="JBAL06", credit_limit=5000.0)
+        self._finished_job(db, "J-BAL06", "JBAL06", total_inc=330.0)
+        client.post("/jobs/J-BAL06/status", json={"status": "INVOICE"})
+        client.post("/jobs/J-BAL06/payment", json={"amount": 30.0, "method": "EFT"})
+
+        r = client.post("/jobs/J-BAL06/status", json={"status": "FINISH"})
+        assert r.status_code == 200
+        assert float(r.json()["balance_due"]) == pytest.approx(300.0)
+
+
+@pytest.mark.integration
+class TestMoneyFieldsAreServerOwned:
+    """Paid, invoiced, deposit and balance owing change only by recording a
+    payment or by invoicing.
+
+    The job form had Paid and Invoice dropdowns and sent all four fields on
+    every save, and both the create and the update endpoint wrote them straight
+    onto the job. A job could read Paid with no payment taken and nothing in
+    the ledger, and whatever balance the browser sent fed the credit-limit
+    check and the customer's balance. The invariant the rest of this file holds
+    -- `balance_due == total_inc - deposit` -- is now the server's on every
+    write, not the browser's.
+    """
+
+    def test_a_save_cannot_mark_a_job_paid_or_invoiced(self, client, db, make_customer):
+        make_customer(id="JOWN01", credit_limit=5000.0)
+        _make_job(
+            db, "J-OWN01", "JOWN01", status="ORDER", total_inc=330.0, total_ex=300.0
+        )
+
+        r = client.patch(
+            "/jobs/J-OWN01",
+            json={
+                "payment_status": "paid",
+                "invoice_status": "invoiced",
+                "deposit": 330.0,
+                "balance_due": 0,
+                "notes": "Rush — customer collecting",
+            },
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert (
+            body["notes"] == "Rush — customer collecting"
+        )  # ordinary fields still save
+        assert body["payment_status"] == "unpaid"
+        assert body["invoice_status"] == "not_invoiced"
+        assert float(body["deposit"]) == 0
+        assert float(body["balance_due"]) == pytest.approx(330.0)
+
+    def test_a_new_job_cannot_arrive_paid(self, client, make_customer):
+        make_customer(id="JOWN02")
+        r = client.post(
+            "/jobs/",
+            json={
+                "customer_id": "JOWN02",
+                "status": "QUOTE",
+                "total_ex": 100.0,
+                "tax": 10.0,
+                "total_inc": 110.0,
+                "deposit": 110.0,
+                "balance_due": 0,
+                "payment_status": "paid",
+                "invoice_status": "invoiced",
+            },
+        )
+        assert r.status_code in (200, 201)
+        body = r.json()
+        assert body["payment_status"] == "unpaid"
+        assert body["invoice_status"] == "not_invoiced"
+        assert float(body["deposit"]) == 0
+        assert float(body["balance_due"]) == pytest.approx(110.0)
+
+    def test_a_deposit_taken_survives_a_save_that_changes_the_total(
+        self, client, db, make_customer
+    ):
+        make_customer(id="JOWN03", credit_limit=5000.0)
+        _make_job(
+            db, "J-OWN03", "JOWN03", status="ORDER", total_inc=110.0, total_ex=100.0
+        )
+        r = client.post("/jobs/J-OWN03/payment", json={"amount": 50.0, "method": "EFT"})
+        assert r.status_code == 200
+
+        # The form sends back what it loaded plus the new total; it has no
+        # business restating the deposit, and its balance is now stale.
+        r = client.patch(
+            "/jobs/J-OWN03",
+            json={
+                "total_ex": 200.0,
+                "tax": 20.0,
+                "total_inc": 220.0,
+                "deposit": 0,
+                "balance_due": 110.0,
+            },
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert float(body["deposit"]) == pytest.approx(50.0)
+        assert float(body["balance_due"]) == pytest.approx(170.0)
+        assert body["payment_status"] == "partial"
 
 
 @pytest.mark.integration

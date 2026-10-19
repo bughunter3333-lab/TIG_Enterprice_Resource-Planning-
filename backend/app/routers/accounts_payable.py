@@ -7,6 +7,8 @@ from datetime import date
 from app.database import get_db
 from app.models.supplier_bill import SupplierBill
 from app.core.dependencies import require_any, require_staff
+from app.core.ledger import LedgerError
+from app.core.ledger_postings import sync_bill, sync_bill_payment, withdraw_bill
 from app.models.user import User
 
 router = APIRouter(prefix="/ap", tags=["accounts_payable"])
@@ -27,6 +29,7 @@ class BillCreate(BaseModel):
     amount_inc: float = 0
     status: str = "pending"
     notes: Optional[str] = None
+    account_id: Optional[int] = None
 
 
 class BillUpdate(BaseModel):
@@ -42,11 +45,26 @@ class BillUpdate(BaseModel):
     amount_inc: Optional[float] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    account_id: Optional[int] = None
 
 
 class BillPay(BaseModel):
     paid_amount: float
     paid_date: Optional[str] = None
+
+
+def _post_to_ledger(db: Session, bill: SupplierBill, username: str) -> None:
+    """Bring the ledger in line with the bill: the bill itself, then its payment.
+
+    Called after every change rather than only on the ones that obviously move
+    money — the sync writes nothing when nothing changed, and deciding in each
+    endpoint which fields "matter" is how a change gets missed.
+    """
+    try:
+        sync_bill(db, bill, created_by=username)
+        sync_bill_payment(db, bill, created_by=username)
+    except LedgerError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 def _serialize(b: SupplierBill) -> dict:
@@ -66,6 +84,7 @@ def _serialize(b: SupplierBill) -> dict:
         "paid_date": b.paid_date,
         "paid_amount": float(b.paid_amount or 0),
         "notes": b.notes,
+        "account_id": b.account_id,
         "created_at": b.created_at.isoformat() if b.created_at else None,
     }
 
@@ -104,7 +123,7 @@ def list_bills(
 def create_bill(
     data: BillCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
 ):
     if data.status not in VALID_STATUSES:
         raise HTTPException(400, f"Invalid status. Use: {sorted(VALID_STATUSES)}")
@@ -121,9 +140,12 @@ def create_bill(
         amount_inc=data.amount_inc,
         status=data.status,
         notes=data.notes,
+        account_id=data.account_id,
         paid_amount=0,
     )
     db.add(bill)
+    db.flush()
+    _post_to_ledger(db, bill, current_user.username)
     db.commit()
     db.refresh(bill)
     return _serialize(bill)
@@ -146,7 +168,7 @@ def update_bill(
     bill_id: int,
     data: BillUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
 ):
     bill = db.query(SupplierBill).filter(SupplierBill.id == bill_id).first()
     if not bill:
@@ -155,6 +177,12 @@ def update_bill(
         raise HTTPException(400, f"Invalid status. Use: {sorted(VALID_STATUSES)}")
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(bill, field, value)
+    # Set when sent, even as null: null is how a bill goes back to "decide by
+    # kind", and exclude_none above would drop it and keep the old account.
+    if "account_id" in data.model_fields_set:
+        bill.account_id = data.account_id
+    db.flush()
+    _post_to_ledger(db, bill, current_user.username)
     db.commit()
     db.refresh(bill)
     return _serialize(bill)
@@ -165,7 +193,7 @@ def pay_bill(
     bill_id: int,
     data: BillPay,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
 ):
     bill = db.query(SupplierBill).filter(SupplierBill.id == bill_id).first()
     if not bill:
@@ -173,6 +201,8 @@ def pay_bill(
     bill.paid_amount = data.paid_amount
     bill.paid_date = data.paid_date or date.today().isoformat()
     bill.status = "paid"
+    db.flush()
+    _post_to_ledger(db, bill, current_user.username)
     db.commit()
     db.refresh(bill)
     return _serialize(bill)
@@ -182,11 +212,17 @@ def pay_bill(
 def delete_bill(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
 ):
     bill = db.query(SupplierBill).filter(SupplierBill.id == bill_id).first()
     if not bill:
         raise HTTPException(404, "Bill not found")
+    # The bill goes; what it posted is reversed, not erased. The ledger keeps
+    # the record that the bill existed and was withdrawn.
+    try:
+        withdraw_bill(db, bill, created_by=current_user.username)
+    except LedgerError as exc:
+        raise HTTPException(409, str(exc)) from exc
     db.delete(bill)
     db.commit()
 

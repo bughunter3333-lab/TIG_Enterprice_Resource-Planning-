@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Download, Edit, Printer, Trash2, Users, X } from 'lucide-react';
 import CustomersModule from '../../modules/customers/CustomersModule';
+import { custOutstanding as outstandingOf, custRevenue as revenueOf, invoicedJobs } from './customerAggregates';
 
 export default function CustomersDetail({ customers, deleteCustomer, exportToCSV, jobs, openModal, pinJob, searchTerm, setActiveModule, setFilterCustomer, setSearchTerm }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [custDetailTab, setCustDetailTab] = useState('overview');
 
   const custJobs = (c) => jobs.filter(j => j.customerId === c.id);
-  const custOutstanding = (c) => custJobs(c).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-  const custRevenue = (c) => custJobs(c).reduce((s, j) => s + parseFloat(j.total || 0), 0);
+  // Invoiced basis, shared with the list and the server's statement: see customerAggregates.js.
+  const custOutstanding = (c) => outstandingOf(c, jobs);
+  const custRevenue = (c) => revenueOf(c, jobs);
   const creditUtil = (c) => c.creditLimit > 0 ? Math.min(100, (custOutstanding(c) / c.creditLimit) * 100) : 0;
 
   return (
@@ -45,7 +47,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
 
             // Aged debtors for this customer
             const aging = { current: 0, d30: 0, d60: 0, d90: 0, d90p: 0 };
-            cJobs.filter(j => parseFloat(j.balanceDue || 0) > 0).forEach(j => {
+            invoicedJobs(c, jobs).filter(j => parseFloat(j.balanceDue || 0) > 0).forEach(j => {
               const bal = parseFloat(j.balanceDue || 0);
               try {
                 const parts = (j.due || '').split('/');
@@ -94,7 +96,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                 <div className="grid grid-cols-4 gap-0 border-b">
                   {[
                     { label: 'Total Jobs', value: cJobs.length, color: 'text-accent-strong' },
-                    { label: 'Lifetime Revenue', value: `$${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-ok' },
+                    { label: 'Invoiced (ex GST)', value: `$${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: 'text-ok' },
                     { label: 'Outstanding', value: `$${outstanding.toLocaleString('en-AU',{maximumFractionDigits:0})}`, color: outstanding > 0 ? 'text-danger' : 'text-faint' },
                     { label: 'Credit Used', value: c.creditLimit > 0 ? `${util.toFixed(0)}%` : 'Unlimited', color: util > 80 ? 'text-accent-strong' : 'text-muted' },
                   ].map((k, i) => (
@@ -150,7 +152,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                   {custDetailTab === 'jobs' && (
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-muted">{cJobs.length} jobs · ${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})} total</p>
+                        <p className="text-sm text-muted">{cJobs.length} jobs · ${revenue.toLocaleString('en-AU',{maximumFractionDigits:0})} invoiced ex GST</p>
                         <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(c.id); }} className="text-xs text-accent-strong hover:underline">View in Jobs →</button>
                       </div>
                       <div className="max-h-72 overflow-y-auto">
@@ -217,8 +219,9 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                         </tr></thead>
                         <tbody>
                           {(() => {
+                            // Invoiced jobs only — a quote or an open order is not a charge.
                             let running = 0;
-                            return cJobs.sort((a,b)=>a.dateIn?.localeCompare(b.dateIn||'')||0).map(j => {
+                            return [...invoicedJobs(c, jobs)].sort((a,b)=>a.dateIn?.localeCompare(b.dateIn||'')||0).map(j => {
                               running += parseFloat(j.total||0);
                               const paid = parseFloat(j.deposit||j.invoicePaid||0);
                               running -= paid;
@@ -236,7 +239,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                           })()}
                         </tbody>
                         <tfoot>
-                          <tr className="bg-hairline-soft font-bold border-t-2"><td colSpan={3} className="px-3 py-2">Total Outstanding</td><td className="px-3 py-2 text-right">${revenue.toFixed(2)}</td><td className="px-3 py-2 text-right text-ok">-${(revenue-outstanding).toFixed(2)}</td><td className={`px-3 py-2 text-right ${outstanding>0?'text-danger':'text-ok'}`}>${outstanding.toFixed(2)}</td></tr>
+                          <tr className="bg-hairline-soft font-bold border-t-2"><td colSpan={3} className="px-3 py-2">Total Outstanding</td><td className="px-3 py-2 text-right">${invoicedJobs(c, jobs).reduce((s, j) => s + parseFloat(j.total || 0), 0).toFixed(2)}</td><td className="px-3 py-2 text-right text-ok">-${invoicedJobs(c, jobs).reduce((s, j) => s + parseFloat(j.deposit || j.invoicePaid || 0), 0).toFixed(2)}</td><td className={`px-3 py-2 text-right ${outstanding>0?'text-danger':'text-ok'}`}>${outstanding.toFixed(2)}</td></tr>
                         </tfoot>
                       </table>
                     </div>
