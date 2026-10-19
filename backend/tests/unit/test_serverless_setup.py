@@ -108,12 +108,15 @@ class TestVercelInstall:
         # Vercel's Python build installs from pyproject.toml whenever the
         # deployment has one and reads requirements.txt only when it does not.
         # A pyproject.toml with no [project] table fails the build at `uv lock`,
-        # so it has to stay out of the deployment.
+        # which is why ruff's settings live in ruff.toml.
         backend = Path(__file__).resolve().parents[2]
-        pyproject = tomllib.loads((backend / "pyproject.toml").read_text())
+        pyproject = backend / "pyproject.toml"
+        assert not pyproject.exists() or "project" in tomllib.loads(
+            pyproject.read_text()
+        )
         ignored = [
             line.strip()
             for line in (backend / ".vercelignore").read_text().splitlines()
             if line.strip() and not line.startswith("#")
         ]
-        assert "project" in pyproject or "pyproject.toml" in ignored
+        assert "pyproject.toml" in ignored

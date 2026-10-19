@@ -264,7 +264,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // One-time migration: lists created before server sync lived in localStorage.
   useEffect(() => {
     if (!serverLists || serverLists.length > 0) return;
-    let local = [];
+    let local;
     try { local = JSON.parse(localStorage.getItem('tig.jobLists') || '[]'); } catch { return; }
     if (!local.length) return;
     Promise.allSettled(local.map(l => api.savedLists.create({ id: l.id, name: l.name, node: l.node || 'jobs', filter: l.filter ?? null })))
