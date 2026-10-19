@@ -3,7 +3,7 @@ tests/
 .env
 *.bat
 Dockerfile
-# Holds only the formatters' settings (black, ruff), with no [project] table.
-# Vercel's Python build reads any pyproject.toml as the package list and stops
-# ("No `project` table found"); without it, it installs requirements.txt.
+# Vercel's Python build reads a pyproject.toml here as the API's package list and
+# stops on one without a [project] table. There is none (ruff's settings are in
+# ruff.toml); this keeps one added later from breaking the build.
 pyproject.toml
