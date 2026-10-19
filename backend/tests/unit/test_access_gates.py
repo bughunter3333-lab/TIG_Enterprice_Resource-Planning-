@@ -13,9 +13,15 @@ day it is added.
 """
 
 import pytest
-from fastapi.routing import APIRoute, iter_route_contexts
+from fastapi.routing import APIRoute
 
-from app.core.access import access_table, api_routes, route_roles
+from app.core.access import (
+    access_table,
+    api_routes,
+    declared,
+    route_roles,
+    served_routes,
+)
 from app.core.dependencies import (
     ROLES,
     get_current_user,
@@ -164,7 +170,7 @@ class TestWhatTheWalkCanSee:
         def other_way(_b=Depends(require_staff), _a=Depends(require_admin)):
             return {}
 
-        seen = {r.path: route_roles(r) for r in toy.routes if isinstance(r, APIRoute)}
+        seen = {r.path: route_roles(r) for r in api_routes(toy)}
         assert seen == {"/one-way": ("admin",), "/other-way": ("admin",)}
 
     def test_the_app_has_no_kind_of_route_these_checks_cannot_read(self):
@@ -172,8 +178,17 @@ class TestWhatTheWalkCanSee:
         can see. If one is added, a person has to look at how it is closed."""
         docs = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
         unread = [
-            f"{type(route.original_route).__name__} {route.path}"
-            for route in iter_route_contexts(app.routes)
-            if not isinstance(route.original_route, APIRoute) and route.path not in docs
+            f"{type(declared(route)).__name__} {getattr(route, 'path', route)}"
+            for route in served_routes(app)
+            if not isinstance(declared(route), APIRoute)
+            and getattr(route, "path", None) not in docs
         ]
         assert not unread, unread
+
+    def test_the_walk_finds_the_endpoints_whichever_way_fastapi_lists_them(self):
+        # FastAPI 0.13x and later list an included router as one entry; a walk
+        # of app.routes alone then found nothing, and every check above was
+        # judged on an empty list.
+        paths = {route.path for route in api_routes(app)}
+        assert {"/users/me", "/rack-sections", "/auth/login", "/health"} <= paths
+        assert len(paths) > 100

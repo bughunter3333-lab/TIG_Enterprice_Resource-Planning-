@@ -8,10 +8,11 @@ managers at all — so the table is built from the gates the routes carry, and
 what it says is what the server enforces.
 """
 
-from typing import Iterator, Optional
+from typing import Optional
 
 from fastapi import FastAPI
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
+from fastapi import routing as fastapi_routing
+from fastapi.routing import APIRoute
 
 from app.core.dependencies import ROLES, get_current_user, get_signed_in_user
 
@@ -50,21 +51,33 @@ AREAS = {
 READS = {"GET", "HEAD", "OPTIONS"}
 
 
-def api_routes(app: FastAPI) -> Iterator[RouteContext]:
-    """Every endpoint the app serves, as it is served.
+def served_routes(app: FastAPI) -> list:
+    """Every route the app serves, as it is served.
 
-    Since FastAPI 0.141 `app.routes` holds each included router as one wrapper
-    rather than its routes, so walking it for `APIRoute`s finds none and every
-    route reads as ungated. `iter_route_contexts` opens the wrappers; each
-    context answers `path`, `methods`, `tags` and `dependant` with whatever the
-    include added (a prefix, router-level dependencies) already applied.
+    Up to FastAPI 0.11x, `app.routes` lists each route with its router's prefix
+    and dependencies already applied. Later versions keep an included router as
+    one entry and serve its routes through it, so walking `app.routes` found no
+    endpoints at all — every gate check passed or failed on nothing, and the
+    access table came back empty. `fastapi.routing.iter_route_contexts`, the
+    walk FastAPI's own OpenAPI generation uses, gives each route with its
+    effective path, methods, tags and dependencies. Either way the items read
+    alike: `.path`, `.methods`, `.tags`, `.dependant`.
     """
-    for context in iter_route_contexts(app.routes):
-        if isinstance(context.original_route, APIRoute):
-            yield context
+    walk = getattr(fastapi_routing, "iter_route_contexts", None)
+    return list(walk(app.routes)) if walk else list(app.routes)
 
 
-def route_roles(route: APIRoute | RouteContext) -> Optional[tuple[str, ...]]:
+def declared(route):
+    """The route as it was declared; its class says what kind of route it is."""
+    return getattr(route, "original_route", route)
+
+
+def api_routes(app: FastAPI) -> list:
+    """The app's endpoints — the served routes declared as `APIRoute`s."""
+    return [r for r in served_routes(app) if isinstance(declared(r), APIRoute)]
+
+
+def route_roles(route) -> Optional[tuple[str, ...]]:
     """The roles a route lets through.
 
     Every role when it only asks for a sign-in; None when no gate is declared
