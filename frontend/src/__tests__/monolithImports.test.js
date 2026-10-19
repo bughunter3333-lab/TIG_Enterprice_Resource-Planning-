@@ -15,14 +15,16 @@
  */
 import { expect, test, vi } from 'vitest';
 
-test('TotalImageERP resolves every module it imports', async () => {
-  vi.mock('../api', () => ({
-    jobs: {}, inventory: {}, customers: {}, suppliers: {}, purchaseOrders: {},
-    reports: {}, auth: {}, settings: {}, stock: {}, cardFiles: {}, shipTos: {},
-    savedLists: {}, dispatchSessions: {}, goodsReceipts: {}, styles: {},
-    supplierBills: {}, openFreight: {}, ai: {}, admin: {}, emails: {},
-  }));
+// Top level: vitest hoists vi.mock to the top of the file wherever it is
+// written, and vitest 4 warns when it is written anywhere else.
+vi.mock('../api', () => ({
+  jobs: {}, inventory: {}, customers: {}, suppliers: {}, purchaseOrders: {},
+  reports: {}, auth: {}, settings: {}, stock: {}, cardFiles: {}, shipTos: {},
+  savedLists: {}, dispatchSessions: {}, goodsReceipts: {}, styles: {},
+  supplierBills: {}, openFreight: {}, ai: {}, admin: {}, emails: {},
+}));
 
+test('TotalImageERP resolves every module it imports', async () => {
   const module = await import('../TotalImageERP');
   expect(typeof module.default).toBe('function');
   // Generous: ~9,800 lines, pulling in every module the app has.
