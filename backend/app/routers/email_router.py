@@ -2,11 +2,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
 from typing import Optional
-from app.database import get_db, SessionLocal
+from app.database import get_db
 from app.models.job import Job
 from app.models.settings import CompanySettings, EmailLog
 from app.core.dependencies import require_any, require_staff
@@ -130,14 +130,19 @@ def _build_email_body(
 </body></html>"""
 
 
-def _send_email_background(
+def _send_and_log(
+    db: Session,
     smtp_config: dict,
     recipients: list,
     msg_string: str,
     log_data: dict,
-):
-    """Runs off the request thread — opens its own DB session."""
-    db = SessionLocal()
+) -> Optional[str]:
+    """Send the message and record the attempt in the email log.
+
+    Runs inside the request: the API is a Vercel Function, which can be frozen
+    the moment it has answered, so a send left until after the answer could be
+    lost with no log row to show for it. Returns the error, or None when sent.
+    """
     status = "sent"
     error_text = None
     try:
@@ -167,13 +172,12 @@ def _send_email_background(
         )
         db.add(log)
         db.commit()
-        db.close()
+    return error_text
 
 
-@router.post("/send", status_code=202)
+@router.post("/send")
 def send_email(
     body: SendEmailRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff),
 ):
@@ -222,8 +226,8 @@ def send_email(
         except ValueError:
             smtp_password = settings.smtp_password
 
-    background_tasks.add_task(
-        _send_email_background,
+    error = _send_and_log(
+        db,
         smtp_config={
             "host": settings.smtp_host,
             "port": settings.smtp_port or 587,
@@ -242,7 +246,11 @@ def send_email(
         },
     )
 
-    return {"ok": True, "message": f"Email queued for {body.to_email}"}
+    if error:
+        raise HTTPException(
+            status_code=502, detail=f"The email could not be sent: {error}"
+        )
+    return {"ok": True, "message": f"Email sent to {body.to_email}"}
 
 
 @router.get("/log")

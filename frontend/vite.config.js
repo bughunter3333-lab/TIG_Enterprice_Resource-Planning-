@@ -14,9 +14,11 @@ export default defineConfig({
   },
   server: {
     // Loopback only. Binding every interface put the dev server on the office
-    // network, and vite 5 has a Windows-only `server.fs.deny` bypass that reads
-    // files outside the project — `backend/.env` included. To reach it from a
-    // phone or tablet on purpose: `npm run dev -- --host`.
+    // network, where vite 5's Windows-only `server.fs.deny` bypass
+    // (GHSA-fx2h-pf6j-xcff) read files outside the project — `backend/.env`
+    // included. vite 5 never got a fix; the vite 8 here is past it (8.0.16+).
+    // Loopback stays so the next dev-server hole is not on the network either.
+    // To reach it from a phone or tablet on purpose: `npm run dev -- --host`.
     host: 'localhost',
     port: 3000,
     proxy: {
