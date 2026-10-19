@@ -46,6 +46,11 @@ const company = { company_name: 'Total Image', address: '9 Mill Rd', phone: '02 
 const renderDoc = (docType) =>
   render(<TemplateRenderer template={defaultTemplate(docType)} job={job} company={company} />);
 
+// The page's computed width, in millimetres. jsdom 30 resolves a computed
+// length to px as a browser does (210mm reads back as 793.701px), so it is
+// converted back through the CSS reference pixel: 96px = 1in = 25.4mm.
+const widthMm = (el) => (parseFloat(getComputedStyle(el).width) * 25.4) / 96;
+
 describe('deriveTotals', () => {
   test('counts only real lines', () => {
     // Sections, notes and hidden rows are not stock and must not be counted, or
@@ -83,9 +88,9 @@ describe('the renderer is document-agnostic', () => {
 
   test('paper size follows the template, not the document type', () => {
     const { container } = renderDoc('shipLabel');
-    expect(container.querySelector('.doc-page')).toHaveStyle({ width: '100mm' });
+    expect(widthMm(container.querySelector('.doc-page'))).toBeCloseTo(100, 2);
     const { container: a4 } = renderDoc('jobSheet');
-    expect(a4.querySelector('.doc-page')).toHaveStyle({ width: '210mm' });
+    expect(widthMm(a4.querySelector('.doc-page'))).toBeCloseTo(210, 2);
   });
 });
 
