@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "buildCommand": "python migrate_on_deploy.py",
+  "regions": ["syd1"],
   "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
+    "app/main.py": {
+      "maxDuration": 300,
       "excludeFiles": "{tests/**,alembic/**,**/__pycache__/**}"
     }
   }
