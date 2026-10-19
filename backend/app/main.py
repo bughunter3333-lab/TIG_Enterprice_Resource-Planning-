@@ -134,8 +134,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Every open screen re-fetches its lists each minute, through two hosts that
-# meter the bytes they carry (Render, then the frontend's rewrite on Vercel).
+# Every open screen re-fetches its lists each minute, through two hops that
+# meter the bytes they carry (the API function, then the frontend's rewrite,
+# both on Vercel).
 # JSON shrinks several times over; answers under 1 KB are not worth it. Added
 # first so it sits next to the routes: the middleware added after it re-sends
 # a body in pieces, and a body that arrives in pieces is compressed whatever

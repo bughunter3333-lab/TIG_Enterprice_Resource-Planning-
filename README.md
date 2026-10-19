@@ -64,7 +64,7 @@ venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # Copy and fill in .env
 cp ../.env.example .env
