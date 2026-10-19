@@ -7,6 +7,7 @@ from app.models.job import Job, JobItem
 from app.models.inventory import InventoryItem
 from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
+from app.models.supplier_bill import SupplierBill
 from app.core.dependencies import require_any
 from app.core.fiscal import current_fiscal_year
 from app.models.user import User
@@ -718,19 +719,38 @@ def bas_summary(
     G1 = round(sum(float(j.total_inc or 0) for j in jobs), 2)
     one_A = round(sum(float(j.tax or 0) for j in jobs), 2)
 
-    pos = (
-        db.query(PurchaseOrder)
+    # Invoiced jobs with no invoice date cannot be placed in any period, so the
+    # figures above leave them out. That used to happen in silence; it is
+    # reported now, so a short BAS says it is short.
+    undated = (
+        db.query(Job)
+        .filter(Job.status.in_(["INVOICE", "PAID"]), Job.invoice_date.is_(None))
+        .all()
+    )
+
+    # GST credits come from tax invoices received — supplier bills, by the date
+    # on the bill. This used to sum purchase orders by order date, which claims
+    # a credit for an order that was later cancelled, never billed, or billed
+    # in another quarter: an over-claim on the BAS. The ledger's BAS reads the
+    # GST Paid account, which the same bills post to, and the two now agree.
+    bills = (
+        db.query(SupplierBill)
         .filter(
-            PurchaseOrder.order_date >= date_from,
-            PurchaseOrder.order_date <= date_to,
+            SupplierBill.bill_date >= date_from,
+            SupplierBill.bill_date <= date_to,
         )
         .all()
     )
-    one_B = round(sum(float(po.tax_total or 0) for po in pos), 2)
+    one_B = round(sum(float(b.tax or 0) for b in bills), 2)
 
     return {
         "G1": G1,
         "1A": one_A,
         "1B": one_B,
         "period": {"date_from": date_from, "date_to": date_to},
+        "undated_invoices": {
+            "count": len(undated),
+            "sales_inc_gst": round(sum(float(j.total_inc or 0) for j in undated), 2),
+            "gst": round(sum(float(j.tax or 0) for j in undated), 2),
+        },
     }

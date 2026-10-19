@@ -57,9 +57,13 @@ export default function Dashboard({ jobs, onNewJob, onNavigateJobs }) {
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigateJobs(); } }}
-                style={{ flex: 1, background: T.hairlineSoft, borderRadius: T.radius, border: `1px solid ${T.hairline}`, padding: '8px 10px', cursor: 'pointer' }}
+                style={{ flex: 1, background: T.panel, borderRadius: T.radius, border: `1px solid ${T.hairline}`, padding: '8px 10px', cursor: 'pointer' }}
               >
-                <div style={{ fontSize: 7, fontWeight: 700, color: statusColor(status), marginBottom: 4 }}>{status}</div>
+                {/* Was 7px, which is not a readable size for a label carrying the
+                    status name. At 10px with tracking it reads as the small caps it
+                    was trying to be, and the tile sits on panel rather than
+                    hairlineSoft so the status colour clears 4.5:1 against it. */}
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.06em', color: statusColor(status), marginBottom: 4 }}>{status}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums' }}>{count}</div>
               </div>
             );

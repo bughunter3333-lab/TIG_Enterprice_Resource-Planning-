@@ -134,7 +134,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
                         key={j.id}
                         type="button"
                         onClick={() => selectJob(j)}
-                        className="w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 hover:bg-zinc-50"
+                        className="w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 hover:bg-panel-alt"
                       >
                         <span className="font-mono text-xs shrink-0" style={{ color: T.accentStrong }}>{j.id}</span>
                         <span className="truncate flex-1" style={{ color: T.text }}>{j.customer}</span>
@@ -159,7 +159,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
 
             {/* Already sent warning */}
             {alreadySentToday.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 flex items-start gap-2">
+              <div className="bg-accent-tint border border-accent rounded-lg px-3 py-2 text-xs text-accent-strong flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>
                   This job was already emailed today ({alreadySentToday.length}×) to {alreadySentToday.map(e => e.to_email).join(', ')}.
@@ -276,7 +276,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
                 </thead>
                 <tbody>
                   {filteredLog.map(entry => (
-                    <tr key={entry.id} className="hover:bg-zinc-50" style={entry.status === 'failed' ? { background: T.dangerTint } : {}}>
+                    <tr key={entry.id} className="hover:bg-panel-alt" style={entry.status === 'failed' ? { background: T.dangerTint } : {}}>
                       <td className="py-2 pr-3 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>
                         {entry.sent_at
                           ? new Date(entry.sent_at).toLocaleString('en-AU', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })

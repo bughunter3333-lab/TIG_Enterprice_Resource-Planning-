@@ -85,7 +85,7 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
         @media print { @page { size: A4 portrait; margin: 14mm; } body { padding: 0; } }
       </style></head><body>
       <div class="head">
-        <div class="co">Total Image Group<small>Despatch Manifest &middot; info@totalimagegroup.com.au</small></div>
+        <div class="co">Total Image<small>Despatch Manifest &middot; info@totalimagegroup.com.au</small></div>
         <div class="doc"><div class="title">DISPATCH #${s.id}</div><div class="meta">${esc(when)}<br>${s.lines.length} job${s.lines.length === 1 ? '' : 's'} &middot; ${totalCartons} carton${totalCartons === 1 ? '' : 's'}</div></div>
       </div>
       <table>
