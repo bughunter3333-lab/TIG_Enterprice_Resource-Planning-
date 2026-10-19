@@ -134,7 +134,7 @@ Tests live in `backend/tests/`. All tests use SQLite in-memory — no PostgreSQL
 
 Vercel runs both halves, as two projects; the database is Supabase. `DEPLOY.md` is the runbook.
 
-- Website: Root Directory `frontend`; `frontend/vercel.json` rewrites `/api/*` to the API. It points at the API project only once that project's production domain is confirmed (the repo is public: never rewrite to an address the owner does not already hold).
+- Website: Root Directory `frontend`; `frontend/vercel.json` rewrites `/api/*` to the API's production domain, `https://tig-erp-api.vercel.app` (confirmed by the owner). The repo is public: never rewrite to an address the owner does not already hold.
 - API: Root Directory `backend`, a FastAPI Vercel Function in Sydney (`backend/vercel.json`, `.python-version`). It installs `requirements.txt` only — test and lint tools are in `requirements-dev.txt`. There is deliberately no `backend/pyproject.toml`: Vercel reads one as the package list and fails on it without a `[project]` table. Ruff's settings are in `backend/ruff.toml`; black runs on its defaults. A production build runs `migrate_on_deploy.py` (`alembic upgrade head`) before the deployment takes traffic, so a push to `main` is when a migration reaches the live database. Connections are per request (`NullPool`, `app/database.py`); request bodies are capped at 4.5 MB by Vercel. `.github/workflows/migrate.yml` (*Migrate database*) is manual only: migrations by hand, and the first admin without a terminal — never give it a push trigger, or it races the deploy.
 
 ## CI

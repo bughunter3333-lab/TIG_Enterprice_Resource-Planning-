@@ -10,7 +10,7 @@ Browser ──► Vercel: website (frontend/) ──/api/* rewrite──► Verc
 
 The website calls `/api/*` on its own domain. `frontend/vercel.json` rewrites those requests to the API project on Vercel's side, so the browser only ever talks to the website's domain. That keeps the API's `SameSite=Lax` sign-in cookies working **without** any CORS or cookie changes.
 
-**The rewrite is switched last** (Step 4). Until the API project exists and its address is confirmed, the rewrite keeps pointing at the old, suspended Render service. That address is still yours, so sign-ins go nowhere rather than to anyone else. The repository is public: an address the website rewrites to has to be one you already hold.
+The rewrite points at `https://tig-erp-api.vercel.app`, the API project's production domain (Step 4). The repository is public: an address the website rewrites to has to be one you already hold, so change it only to another domain the API project's Settings → Domains lists.
 
 The API is the FastAPI app in `backend/`. It runs as a Vercel Function in Sydney (`backend/vercel.json`), beside the database. Supabase cannot run it — its own functions are TypeScript only — so Supabase is the database and nothing else. The app talks to it as plain Postgres, through the connection strings below; it does not use Supabase's client libraries, Auth or Data API.
 
@@ -109,9 +109,9 @@ Run `python seed_data.py` (no args) to populate a realistic dataset: 6 customers
 
 The website is the Vercel project `tig-enterprice-resource-planning` (Root Directory `frontend`). It needs no environment variables.
 
-**Switching it to the API**, once Step 2 is done and its address confirmed (Step 2.5): change the host in the rewrite in `frontend/vercel.json` to that address, keeping the `/:path*` ending (the API's routes live at its root: `/auth/login`, `/health`, …), then commit and push. The website redeploys and from then on reaches the API. Until then it still points at the suspended Render service.
+**Its rewrite** in `frontend/vercel.json` sends `/api/*` to `https://tig-erp-api.vercel.app/:path*`, the API's production domain (Step 2.5). The `/:path*` ending stays: the API's routes live at its root (`/auth/login`, `/health`, …). Should the API's domain ever change, change the host there, then commit and push; the website redeploys and reaches the API at its new address.
 
-**Keep the Render service; don't delete it.** It is suspended and costs nothing, and every earlier version of the website still rewrites to its address. Deleted, that name could be taken by anyone, and rolling the website back to an earlier version would send sign-ins to them.
+**Keep the Render service; don't delete it.** Nothing uses it any more, but it is suspended and costs nothing, and every version of the website from before the switch still rewrites to its address. Deleted, that name could be taken by anyone, and rolling the website back to an earlier version would send sign-ins to them.
 
 **The plan.** Vercel's free Hobby plan is for non-commercial, personal use only, and Vercel counts a site used for a business as commercial. Move the team that holds both projects to **Pro** — Vercel → Settings → Billing → *Upgrade* — at $20/month for your own seat; staff who only use the website need no seat. Pro includes $20 of usage a month, which by the published rates covers the API several times over, along with 1 TB of transfer and 10 million requests; you can set a spending limit. Both projects should be in that same team.
 
@@ -168,7 +168,7 @@ To bring the site up on a new, empty database:
 - [ ] Vercel on the Pro plan, with the website and the API projects in the same team (Hobby is for non-commercial use only)
 - [ ] The API project's variables set for Production only, Type Secret (Step 2), and its system environment variables exposed
 - [ ] `regions` in `backend/vercel.json` matching the Supabase project's region (Step 1)
-- [ ] The website's rewrite switched to the API's production domain (Step 4), and the old Render service kept
+- [x] The website's rewrite switched to the API's production domain (Step 4), and the old Render service kept
 - [ ] A Supabase plan with backups, or a `pg_dump` copy taken on a schedule (Step 1)
 - [ ] Supabase's Data API switched off, and its Vercel integration not installed
 - [ ] `ENVIRONMENT=production` on the API project
