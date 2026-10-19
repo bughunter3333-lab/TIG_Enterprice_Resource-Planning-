@@ -47,7 +47,7 @@ class TestHealth:
 
     def test_lists_are_sent_compressed(self, client, make_customer):
         # Lists are re-fetched every minute by every open screen, through two
-        # hosts that meter what they carry (Render, Vercel).
+        # hosts that meter what they carry (the API's and the frontend's).
         for n in range(20):
             make_customer(id=f"GZ{n:03d}", name=f"Compressed Customer {n}")
         r = client.get("/customers", headers={"Accept-Encoding": "gzip"})
@@ -57,3 +57,16 @@ class TestHealth:
         # An answer too small to gain from it is left alone.
         small = client.get("/health", headers={"Accept-Encoding": "gzip"})
         assert "content-encoding" not in small.headers
+
+
+@pytest.mark.integration
+class TestImportSize:
+    def test_a_csv_too_big_for_the_host_is_refused_by_the_api_itself(self, client):
+        # Vercel refuses a request body over 4.5 MB with its own error page, so
+        # the API's limit sits below it and says so in words.
+        big = b"id,name\n" + b"x" * (4 * 1024 * 1024)
+        r = client.post(
+            "/import/customers", files={"file": ("customers.csv", big, "text/csv")}
+        )
+        assert r.status_code == 413
+        assert r.json()["detail"] == "File too large (max 4 MB)"

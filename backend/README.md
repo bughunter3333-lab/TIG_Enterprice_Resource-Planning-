@@ -9,7 +9,7 @@ FastAPI + SQLAlchemy + PostgreSQL backend for Total Image's internal ERP system.
 cp ../.env.example .env
 
 # 2. Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 3. Apply migrations
 python -m alembic upgrade head

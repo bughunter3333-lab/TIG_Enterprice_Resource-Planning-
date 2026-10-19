@@ -1,9 +1,11 @@
 name: Migrate database
 
-# The API runs on Vercel as a serverless function, which has no start-up step
-# to run `alembic upgrade head` in. This job is that step: it runs on every
-# push to main that adds or changes a migration, and on demand from the
-# Actions tab (where it can also create the first admin user).
+# Migrations normally run in the API's own production build on Vercel
+# (backend/migrate_on_deploy.py), before the new deployment takes traffic, so
+# a failed migration stops the deploy. This job is the way to run them by hand
+# from the Actions tab — and to create the first admin user without a terminal.
+# It has no push trigger: run alongside a deploy, it could apply a migration
+# after the new code had gone live, or fail while the deploy went ahead.
 #
 # Repository secrets (Settings -> Secrets and variables -> Actions):
 #   DATABASE_URL    Supabase "Session pooler" connection string (port 5432).
@@ -12,9 +14,6 @@ name: Migrate database
 #   ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD   only for "Create admin user".
 
 on:
-  push:
-    branches: [main]
-    paths: ["backend/alembic/**"]
   workflow_dispatch:
     inputs:
       seed_admin:
