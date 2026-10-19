@@ -1,14 +1,17 @@
 import uuid
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
-from slowapi import _rate_limit_exceeded_handler
 
 from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging_config import configure_logging, request_id_var
 from app.routers import (
+    accounting,
     auth,
     users,
     jobs,
@@ -24,6 +27,7 @@ from app.routers import (
     email_router,
     settings_router,
     styles,
+    document_templates,
 )
 from app.routers import (
     health,
@@ -35,15 +39,66 @@ from app.routers import (
     analytics,
     saved_lists,
     dispatch_sessions,
+    rack_sections,
 )
 from app.routers.admin_settings import router as admin_settings_router
 
 configure_logging(json_logs=settings.is_production)
 
-app = FastAPI(title="Total Image ERP API", version="1.0.0")
+# The interactive docs and the schema behind them are a complete, clickable map
+# of every endpoint and payload. Useful in development; in production, on a
+# public URL, they hand that map to anyone who asks. `openapi_url=None` turns
+# off all three routes, since /docs and /redoc both read from it.
+_docs = (
+    {}
+    if not settings.is_production
+    else {
+        "docs_url": None,
+        "redoc_url": None,
+        "openapi_url": None,
+    }
+)
+app = FastAPI(title="Total Image ERP API", version="1.0.0", **_docs)
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def _rate_limited(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    # slowapi's own handler answers `{"error": ...}`. Every other error in this
+    # API is `{"detail": ...}`, which is the one field the frontend reads — so a
+    # rate-limited sign-in showed "Request failed: 429" instead of a reason.
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Wait a minute and try again."},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limited)
+
+
+async def _invalid_request(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # FastAPI's own answer repeats what was sent — `input` — beside each
+    # error: a refused password, or the whole body (current password and all)
+    # when another field was missing. Which field, and why, is all the screen
+    # reads and all that goes back.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {
+                    "type": e.get("type"),
+                    "loc": list(e.get("loc", ())),
+                    "msg": e.get("msg"),
+                }
+                for e in exc.errors()
+            ]
+        },
+    )
+
+
+app.add_exception_handler(RequestValidationError, _invalid_request)
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -72,9 +127,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
         )
+        # Browsers reach the API through the frontend host's proxy, whose CDN
+        # may keep an answer for the next caller. Answers carry one person's
+        # data, so none is stored — by the CDN or by the browser.
+        response.headers.setdefault("Cache-Control", "no-store")
         return response
 
 
+# Every open screen re-fetches its lists each minute, through two hops that
+# meter the bytes they carry (the API function, then the frontend's rewrite,
+# both on Vercel).
+# JSON shrinks several times over; answers under 1 KB are not worth it. Added
+# first so it sits next to the routes: the middleware added after it re-sends
+# a body in pieces, and a body that arrives in pieces is compressed whatever
+# its size.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -106,8 +173,11 @@ app.include_router(pdf.router)
 app.include_router(ship_to.router)
 app.include_router(supplier_price_list.router)
 app.include_router(goods_receipt.router)
+app.include_router(document_templates.router)
 app.include_router(accounts_payable.router)
 app.include_router(analytics.router)
 app.include_router(admin_settings_router)
 app.include_router(saved_lists.router)
 app.include_router(dispatch_sessions.router)
+app.include_router(rack_sections.router)
+app.include_router(accounting.router)

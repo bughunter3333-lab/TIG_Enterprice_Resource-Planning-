@@ -5,7 +5,7 @@ from app.database import Base
 class CompanySettings(Base):
     __tablename__ = "company_settings"
     id = Column(Integer, primary_key=True, default=1)
-    company_name = Column(String(150), default="Total Image Group")
+    company_name = Column(String(150), default="Total Image")
     abn = Column(String(20))
     address = Column(Text)
     phone = Column(String(30))
@@ -23,7 +23,7 @@ class CompanySettings(Base):
     smtp_port = Column(Integer, default=587)
     smtp_user = Column(String(100))
     smtp_password = Column(String(200))
-    smtp_from_name = Column(String(100), default="Total Image Group")
+    smtp_from_name = Column(String(100), default="Total Image")
     smtp_use_tls = Column(Boolean, default=True)
     tyro_merchant_id = Column(String(100))
     tyro_terminal_id = Column(String(100))

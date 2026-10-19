@@ -1,4 +1,4 @@
-# Total Image Group ERP — Claude Code Guide
+# Total Image ERP — Claude Code Guide
 
 ## Always
 
@@ -86,9 +86,13 @@ black --check app tests
 - `app/routers/` — FastAPI routers (thin; business logic stays in core/)
 - `app/models/` — SQLAlchemy ORM models (incl. `stock_location.py`, `stock_pricing.py` for the Stock module)
 - `app/routers/inventory.py` — Stock API: locations CRUD, pricing (cost + qty-break levels), `/transactions`, `/committed` (`/inventory/{sku}/...`)
-- `alembic/versions/` — DB migration history; latest head: `w7x8y9z0a1b2` (goods_receipts.branch)
+- `alembic/versions/` — DB migration history; latest head: `a7b8c9d0e1f2` (users.must_change_password)
 - `app/routers/saved_lists.py` — server-synced per-user nav-tree lists (`/saved-lists`, max 25 per node)
 - `app/routers/dispatch_sessions.py` — recorded despatch batches (Jim2 "Dispatch #"); creating one dispatches its jobs + records reviewable lines (`/dispatch-sessions`)
+- `app/routers/rack_sections.py` — racking marked for a customer on the 3D warehouse map: two corner boxes on one rack face, no overlaps (`GET/POST/DELETE /rack-sections`); bin codes are parsed in `app/core/bin_codes.py`
+- `app/core/racking.py` — the racking a branch has, read on the server as the map reads it; a bin on a stock position must be a box in it (`checked_bin`)
+- `app/routers/users.py` — accounts and roles, admin only; `app/core/access.py` builds "what each role can do" from the routes' own gates, and `tests/unit/test_access_gates.py` fails on a route with no gate or one that admits a junior role over a senior one
+- `frontend/src/modules/users/` — Users and roles screen, mounted in the Admin section (`components/admin/AdminPanel.jsx`); spec: `docs/superpowers/specs/2026-10-12-users-and-roles.md`
 - `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)
 - `frontend/src/ui/shell/` — app chrome: ModuleBar (top), LiveTree (left), StatusBar (bottom), AppShell (composition)
 - `frontend/src/modules/jobs/` — Jobs module (JobsModule, JobsList, jobsFilters) — first migrated module; Quotes module reuses JobsModule via `lockedStatus="QUOTE"`
@@ -97,6 +101,7 @@ black --check app tests
 - `frontend/src/modules/customers/` — Customers module (CustomersModule list + KPI/search, customerAggregates); detail panel (tabs) stays in the monolith
 - `frontend/src/modules/card-files/` — Card Files module (CardFilesModule list + search/group, cardFileFilters); detail panel + create/edit modal stay in the monolith
 - Frontend tests: `cd frontend && npm test` (vitest + testing-library)
+- Frontend scene probes: `cd frontend && npm run test:scene` — the real 3D warehouse scene with only the renderer faked, real pointer/wheel/key events, every frame's eye position checked (`frontend/scene-probes/`). A few minutes, not part of `npm test`; run after touching `Warehouse3D.jsx`, `Walk3D.jsx` or anything that moves the camera. Unit tests do not see these faults.
 - Frontend E2E smoke: `cd frontend && npm run test:e2e` (Playwright; builds + serves the app and runs the boot smoke. Set `E2E_BASE_URL` + `E2E_USERNAME` + `E2E_PASSWORD` to also run the authenticated flow against a live deployment)
 
 ## Test infrastructure

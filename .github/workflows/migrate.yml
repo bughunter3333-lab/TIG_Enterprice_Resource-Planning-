@@ -1,0 +1,70 @@
+name: Migrate database
+
+# The API runs on Vercel as a serverless function, which has no start-up step
+# to run `alembic upgrade head` in. This job is that step: it runs on every
+# push to main that adds or changes a migration, and on demand from the
+# Actions tab (where it can also create the first admin user).
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions):
+#   DATABASE_URL    Supabase "Session pooler" connection string (port 5432).
+#                   Schema changes need session mode, not the 6543 transaction
+#                   pooler the API itself uses.
+#   ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD   only for "Create admin user".
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/alembic/**"]
+  workflow_dispatch:
+    inputs:
+      seed_admin:
+        description: "Also create the first admin user (from the ADMIN_* secrets)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: migrate-database
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: alembic upgrade head
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Settings() requires a SECRET_KEY to import; nothing here signs a token.
+      SECRET_KEY: migrations-do-not-sign-tokens
+      ENVIRONMENT: production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check the secret is set
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::The DATABASE_URL repository secret is not set."
+            exit 1
+          fi
+
+      - name: Apply migrations
+        run: python -m alembic upgrade head
+
+      - name: Create admin user
+        if: ${{ inputs.seed_admin }}
+        env:
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: python seed_admin.py
