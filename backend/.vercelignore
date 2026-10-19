@@ -1,0 +1,5 @@
+tests/
+.pytest_cache/
+.env
+*.bat
+Dockerfile

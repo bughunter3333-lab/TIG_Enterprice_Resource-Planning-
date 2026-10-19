@@ -46,3 +46,8 @@ total_image_erp_full_1.jsx
 
 # Personal Obsidian vault (not part of the app)
 ERP/
+
+# Scratch output from the monolith free-variable analysis (docs/backlog.md F2).
+# Regenerated on demand; never committed — it contains a full copy of the file
+# being analysed, which would defeat the point of shrinking it.
+.fvprobe/

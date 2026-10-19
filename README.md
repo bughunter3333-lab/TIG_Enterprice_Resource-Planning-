@@ -1,6 +1,6 @@
-# Total Image Group — ERP System
+# Total Image — ERP System
 
-Internal enterprise resource planning system for Total Image Group. Built with FastAPI and React.
+Internal enterprise resource planning system for Total Image. Built with FastAPI and React.
 
 ---
 
@@ -64,7 +64,7 @@ venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # Copy and fill in .env
 cp ../.env.example .env

@@ -19,7 +19,7 @@ export default function CustomersModule({
     <div style={{ fontFamily: T.font }}>
       <div style={{ display: 'flex', gap: 0, marginBottom: 10, border: `1px solid ${T.hairline}`, borderRadius: T.radius, overflow: 'hidden', width: 'fit-content' }}>
         <KpiTile label="CUSTOMERS" value={kpis.total} sub={`${kpis.active} active`} />
-        <KpiTile label="REVENUE" value={money0(kpis.revenue)} tone="ok" />
+        <KpiTile label="INVOICED (EX GST)" value={money0(kpis.revenue)} tone="ok" />
         <KpiTile label="OUTSTANDING AR" value={money0(kpis.outstanding)} tone="danger" />
         <KpiTile label="OVER CREDIT" value={kpis.overCredit} tone="accent" />
       </div>

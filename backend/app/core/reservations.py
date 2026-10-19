@@ -87,6 +87,31 @@ def committed_by_branch(db: Session, sku: str) -> Dict[str, int]:
     return {branch: int(qty or 0) for branch, qty in rows}
 
 
+def committed_in_branch(
+    db: Session, branch: str, skus: Iterable[str]
+) -> Dict[str, int]:
+    """Reserved quantity per SKU for the open jobs one branch will ship.
+
+    The bulk form of `committed_by_branch`, for screens that show a whole
+    branch at once (the warehouse bin map) rather than one SKU.
+    """
+    skus = list(skus)
+    if not skus:
+        return {}
+    rows = (
+        db.query(JobItem.stock_code, func.coalesce(func.sum(JobItem.supply_qty), 0))
+        .join(Job, JobItem.job_id == Job.id)
+        .filter(
+            JobItem.stock_code.in_(skus),
+            Job.status.notin_(UNCOMMITTED_STATUSES),
+            func.coalesce(Job.branch, DEFAULT_BRANCH) == branch,
+        )
+        .group_by(JobItem.stock_code)
+        .all()
+    )
+    return {sku: int(qty or 0) for sku, qty in rows}
+
+
 def committed_total(db: Session, sku: str) -> int:
     """Reserved quantity for one SKU across all branches."""
     return committed_by_sku(db, [sku]).get(sku, 0)
