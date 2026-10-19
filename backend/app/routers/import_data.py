@@ -336,6 +336,15 @@ JOB_MAP = {
         "inv#",
         "inv_no",
     ],
+    # Jim2: "Inv Date". Without it an imported invoice had no invoice date, and
+    # every report that selects by date — the BAS among them — left it out.
+    "invoice_date": [
+        "invoice_date",
+        "invoicedate",
+        "inv_date",
+        "invdate",
+        "date_invoiced",
+    ],
     # Jim2: "Date In"
     "date_in": [
         "date_in",
@@ -581,6 +590,19 @@ def map_row(row: dict, field_map: dict[str, list[str]]) -> dict:
                 result[canonical] = val if val != "" else None
                 break
     return result
+
+
+def iso_date(val) -> str | None:
+    """A date as YYYY-MM-DD, whichever way the export wrote it.
+
+    Jim2 exports Australian day-first dates, and the reports compare dates as
+    text — so "05/06/2026" stored as-is sorts before "2025-07-01" and falls out
+    of every date range. Anything unreadable is left empty rather than guessed.
+    """
+    from app.core.ledger import parse_date
+
+    parsed = parse_date(val)
+    return parsed.isoformat() if parsed else None
 
 
 def safe_float(val, default: float = 0.0) -> float:
@@ -893,6 +915,7 @@ async def import_jobs(
                 "customer_name": mapped.get("customer_name") or cust_id,
                 "status": status,
                 "invoice": mapped.get("invoice"),
+                "invoice_date": iso_date(mapped.get("invoice_date")),
                 "date_in": mapped.get("date_in"),
                 "due": mapped.get("due"),
                 "out": mapped.get("out"),

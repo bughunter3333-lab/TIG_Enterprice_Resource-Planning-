@@ -1,4 +1,4 @@
-import { React } from 'react';
+import { useState } from 'react';
 import { Plus, RefreshCw, Save, X } from 'lucide-react';
 import { BRANCHES, DEFAULT_BRANCH } from '../../branches';
 import { notify } from '../../lib/notify';
@@ -7,26 +7,25 @@ import * as api from '../../api';
 
 export default function POGoodsReceiptsPanel({ po }) {
   const queryClient = useQueryClient();
-  const { data: receipts = [], isFetching, refetch } = useQuery({
+  const { data: receipts = [], isFetching, refetch, error: loadError } = useQuery({
     queryKey: ['goods-receipts', po.id],
     queryFn: () => api.goodsReceipts.list({ po_id: po.id }),
     staleTime: 30000,
-    onError: (e) => { const m = e?.message || String(e); setErr(m); notify(m, { type: 'error' }); },
   });
 
-  const [showForm, setShowForm] = React.useState(false);
-  const [formLines, setFormLines] = React.useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formLines, setFormLines] = useState([]);
   // Landed costs entered with the shipment (Jim2 does these as a separate
   // after-the-fact stock adjustment; capturing them here is fewer steps and
   // lets us show the COG impact before saving).
-  const [charges, setCharges] = React.useState([]);
-  const [grRef, setGrRef] = React.useState('');
+  const [charges, setCharges] = useState([]);
+  const [grRef, setGrRef] = useState('');
   // Which branch the delivery landed at. Without it every receipt took the
   // server default, so a Melbourne delivery shelved itself at HQ.
-  const [grBranch, setGrBranch] = React.useState(DEFAULT_BRANCH);
-  const [grNotes, setGrNotes] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
-  const [err, setErr] = React.useState('');
+  const [grBranch, setGrBranch] = useState(DEFAULT_BRANCH);
+  const [grNotes, setGrNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
   const today = new Date().toISOString().slice(0, 10);
 
   function openForm() {
@@ -62,25 +61,35 @@ export default function POGoodsReceiptsPanel({ po }) {
         lines: formLines.map(l => ({ ...l })),
         charges,
       });
-      queryClient.invalidateQueries(['goods-receipts', po.id]);
-      queryClient.invalidateQueries(['purchaseOrders']);
-      queryClient.invalidateQueries(['inventory']);
+      queryClient.invalidateQueries({ queryKey: ['goods-receipts', po.id] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setShowForm(false);
     } catch (e) { setErr(e.message); }
     finally { setSaving(false); }
   }
 
   async function accept(id) {
-    await api.goodsReceipts.accept(id);
-    queryClient.invalidateQueries(['goods-receipts', po.id]);
-    queryClient.invalidateQueries(['purchaseOrders']);
-    queryClient.invalidateQueries(['inventory']);
+    try {
+      await api.goodsReceipts.accept(id);
+    } catch (e) {
+      notify(e?.message || String(e), { type: 'error' });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['goods-receipts', po.id] });
+    queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
   }
 
   async function reject(id) {
     if (!window.confirm('Reject this goods receipt?')) return;
-    await api.goodsReceipts.reject(id);
-    queryClient.invalidateQueries(['goods-receipts', po.id]);
+    try {
+      await api.goodsReceipts.reject(id);
+    } catch (e) {
+      notify(e?.message || String(e), { type: 'error' });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['goods-receipts', po.id] });
   }
 
   const statusCls = { Pending: 'bg-warn-tint text-warn', Accepted: 'bg-ok-tint text-ok', Rejected: 'bg-danger-tint text-danger', Inspecting: 'bg-warn-tint text-warn' };
@@ -220,7 +229,11 @@ export default function POGoodsReceiptsPanel({ po }) {
         </div>
       )}
 
-      {receipts.length === 0 && !showForm ? (
+      {loadError ? (
+        <p role="alert" className="text-xs text-danger bg-danger-tint border border-danger rounded px-2 py-1">
+          Couldn't load goods receipts: {loadError.message || String(loadError)}
+        </p>
+      ) : receipts.length === 0 && !showForm ? (
         <p className="text-xs text-faint text-center py-4">No goods receipts yet.</p>
       ) : (
         receipts.map(gr => (

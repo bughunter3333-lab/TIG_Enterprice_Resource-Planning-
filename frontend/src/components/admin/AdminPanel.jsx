@@ -8,8 +8,10 @@ import PriceLevels from './PriceLevels';
 import DecorationTypes from './DecorationTypes';
 import MigrationWizard from './MigrationWizard';
 import DocumentDesigner from '../../modules/documents/DocumentDesigner';
+import UsersModule from '../../modules/users/UsersModule';
 
 const TABS = [
+  { id: 'users',       label: 'Users and roles' },
   { id: 'fields',      label: 'Job Fields' },
   { id: 'statuses',    label: 'Status Workflow' },
   { id: 'prices',      label: 'Price Levels' },
@@ -30,8 +32,9 @@ function parseJson(raw, fallback = null) {
   try { return raw?.value ? JSON.parse(raw.value) : null; } catch { return fallback; }
 }
 
-export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('fields');
+export default function AdminPanel({ currentUser }) {
+  // Who can sign in, and as what, is the first thing an admin comes here for.
+  const [activeTab, setActiveTab] = useState('users');
   const queryClient = useQueryClient();
 
   const fieldQuery = useAdminSetting('field_config');
@@ -75,6 +78,7 @@ export default function AdminPanel() {
       </div>
 
       <div>
+        {activeTab === 'users' && <UsersModule currentUser={currentUser} />}
         {activeTab === 'fields' && !fieldQuery.isLoading && (
           <FieldConfig config={parseJson(fieldQuery.data)} onChange={saveKey('field_config')} />
         )}

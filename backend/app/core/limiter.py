@@ -25,7 +25,8 @@ def get_real_client_ip(request: Request) -> str:
     IP is a weak key regardless — staff reach the API through one Vercel
     rewrite and share an egress address, so tightening the limit throttles the
     whole team together. The control that actually holds is the per-account
-    lockout, which does not depend on this at all.
+    lockout in routers/auth.py, which does not depend on this at all. (This
+    sentence was written before that lockout existed; it now does.)
     """
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
