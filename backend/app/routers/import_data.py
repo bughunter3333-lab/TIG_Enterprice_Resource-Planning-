@@ -4,13 +4,15 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from typing import Any
 
-MAX_CSV_BYTES = 10 * 1024 * 1024  # 10 MB
+# Vercel refuses a request body over 4.5 MB with an error page of its own, so
+# the limit sits below it and is said in words.
+MAX_CSV_BYTES = 4 * 1024 * 1024  # 4 MB
 
 
 async def _read_csv_file(file: UploadFile) -> bytes:
     data = await file.read()
     if len(data) > MAX_CSV_BYTES:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+        raise HTTPException(status_code=413, detail="File too large (max 4 MB)")
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
     return data

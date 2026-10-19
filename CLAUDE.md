@@ -124,10 +124,18 @@ Tests live in `backend/tests/`. All tests use SQLite in-memory — no PostgreSQL
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL `postgresql://user:pass@host/db` |
+| `DATABASE_URL` | yes | PostgreSQL `postgresql://user:pass@host/db`; in production the Supabase transaction pooler (port 6543) |
+| `MIGRATION_DATABASE_URL` | yes on Vercel | What Alembic migrates through when set (production: the Supabase session pooler, port 5432); `DATABASE_URL` otherwise |
 | `SECRET_KEY` | yes | 64-char hex — `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ENVIRONMENT` | no | `production` enables JSON logs + secure cookies (default: `production`) |
 | `ANTHROPIC_API_KEY` | no | Required for AI assistant features |
+
+## Deploy
+
+Vercel runs both halves, as two projects; the database is Supabase. `DEPLOY.md` is the runbook.
+
+- Website: Root Directory `frontend`; `frontend/vercel.json` rewrites `/api/*` to the API. It points at the API project only once that project's production domain is confirmed (the repo is public: never rewrite to an address the owner does not already hold).
+- API: Root Directory `backend`, a FastAPI Vercel Function in Sydney (`backend/vercel.json`, `.python-version`). It installs `requirements.txt` only — test and lint tools are in `requirements-dev.txt`. A production build runs `migrate_on_deploy.py` (`alembic upgrade head`) before the deployment takes traffic, so a push to `main` is when a migration reaches the live database. Connections are per request (`NullPool`, `app/database.py`); request bodies are capped at 4.5 MB by Vercel. `.github/workflows/migrate.yml` (*Migrate database*) is manual only: migrations by hand, and the first admin without a terminal — never give it a push trigger, or it races the deploy.
 
 ## CI
 

@@ -13,7 +13,7 @@ import sys
 import getpass
 from app.database import SessionLocal
 from app.models.user import User
-from app.core.security import hash_password
+from app.core.security import MAX_PASSWORD_BYTES, hash_password
 
 def main():
     env_user = os.environ.get("ADMIN_USERNAME")
@@ -29,6 +29,13 @@ def main():
         email = input("Admin email: ").strip()
         full_name = input("Full name: ").strip()
         password = getpass.getpass("Password: ").strip()
+
+    # bcrypt reads at most 72 bytes, and from bcrypt 5 refuses a longer
+    # password with a traceback instead of quietly ignoring the rest. The
+    # sign-in and user forms stop at the same length.
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        print(f"Password must be at most {MAX_PASSWORD_BYTES} bytes.")
+        sys.exit(1)
 
     db = SessionLocal()
     if db.query(User).filter(User.username == username).first():
