@@ -72,7 +72,7 @@ What to know about the API on Vercel:
 
 - **Every push to `main` deploys the API as well, migrating first.** A push to `main` is therefore the moment a new migration reaches the live database.
 - **Uploads:** Vercel takes request bodies up to 4.5 MB, so CSV imports are limited to 4 MB. Split a bigger file.
-- **Long jobs:** the website's rewrite waits up to two minutes for the API, and the API itself may run for up to 800 seconds (`backend/vercel.json`, on Pro). A job between the two — a big import, or *Bring history into the ledger* — still finishes, but the screen says the server could not be reached: look at the result (the imported rows, Ledger Health) before running it again. A job past 800 seconds is stopped and its work undone (the API project's Logs show `FUNCTION_INVOCATION_TIMEOUT`); split a big import into smaller files.
+- **Long jobs:** the website's rewrite waits up to two minutes for the API, and the API itself may run for up to 300 seconds (`backend/vercel.json`; Hobby's maximum, and Pro's default — on Pro it can be raised to 800). A job between the two — a big import, or *Bring history into the ledger* — still finishes, but the screen says the server could not be reached: look at the result (the imported rows, Ledger Health) before running it again. A job past the limit is stopped and its work undone (the API project's Logs show `FUNCTION_INVOCATION_TIMEOUT`); split a big import into smaller files.
 - **Sign-in limits:** the per-minute limits on sign-in attempts are kept by each running copy of the API, so they are looser than on one server. The per-account lockout — five wrong passwords lock the account for fifteen minutes — is kept in the database and holds regardless.
 - **Email:** an email is sent while the screen waits, and a send that fails says so at once (and is listed as failed in the email log). Vercel blocks outgoing port 25, so the SMTP settings must use port 587 or 465. Send yourself one invoice email after the first deploy and check it arrives.
 
@@ -114,6 +114,8 @@ The website is the Vercel project `tig-enterprice-resource-planning` (Root Direc
 **Keep the Render service; don't delete it.** It is suspended and costs nothing, and every earlier version of the website still rewrites to its address. Deleted, that name could be taken by anyone, and rolling the website back to an earlier version would send sign-ins to them.
 
 **The plan.** Vercel's free Hobby plan is for non-commercial, personal use only, and Vercel counts a site used for a business as commercial. Move the team that holds both projects to **Pro** — Vercel → Settings → Billing → *Upgrade* — at $20/month for your own seat; staff who only use the website need no seat. Pro includes $20 of usage a month, which by the published rates covers the API several times over, along with 1 TB of transfer and 10 million requests; you can set a spending limit. Both projects should be in that same team.
+
+**Testing on Hobby first** is fine while nobody depends on the system. Hobby gives the API 4 hours of CPU time, 1 million requests and 360 GB-hours of memory a month, and anything over a limit is switched off until 30 days have passed — so watch the team's **Usage** page once staff start using it, and move to Pro before the system is relied on.
 
 Previews of pull requests are full copies of the website, wired to the same API. Keep them behind your Vercel sign-in (Settings → *Deployment Protection* → Vercel Authentication on previews, the default), since the repository is public.
 
