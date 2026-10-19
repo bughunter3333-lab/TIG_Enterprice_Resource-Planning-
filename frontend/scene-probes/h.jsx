@@ -20,7 +20,8 @@ import { DEFAULT_LAYOUT, allCells, aisleX, binPlacement, frontView, walkwayX, SI
 // Production scheduling: no act().
 globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 
-// jsdom 25 has neither PointerEvent nor pointer capture.
+// jsdom has no pointer capture, and before 27 had no PointerEvent either (from
+// 27 its own is used and this fallback is skipped).
 if (!window.PointerEvent) {
   class PointerEvent extends window.MouseEvent {
     constructor(type, init = {}) {
