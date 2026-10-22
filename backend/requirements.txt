@@ -10,7 +10,7 @@ bcrypt==5.0.0
 python-multipart==0.0.32
 pyotp==2.9.0
 qrcode[pil]==8.2
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 pydantic[email]==2.13.5
 pydantic-settings==2.15.0
 slowapi==0.1.9
