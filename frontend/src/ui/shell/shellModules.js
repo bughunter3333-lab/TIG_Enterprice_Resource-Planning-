@@ -1,0 +1,64 @@
+import {
+  BarChart3, Boxes, ClipboardList, Contact, FileText, Home, Landmark, ShoppingCart, Users,
+} from 'lucide-react';
+import { areaView } from '../../lib/access';
+
+// The modules, in the sidebar's groups. Same ids as ever — navigation is
+// unchanged. `area` is the module's business area in the server's access table
+// (AREAS in backend/app/core/access.py). Home has none: everyone has a Home.
+export const MODULE_GROUPS = [
+  {
+    label: 'Work',
+    modules: [
+      { id: 'home', label: 'Home', icon: Home },
+      { id: 'jobs', label: 'Jobs', icon: ClipboardList, badgeKey: 'jobCount', area: 'Jobs and quotes' },
+      { id: 'quotes', label: 'Quotes', icon: FileText, badgeKey: 'quoteCount', area: 'Jobs and quotes' },
+    ],
+  },
+  {
+    label: 'Operations',
+    modules: [
+      { id: 'purchase-orders', label: 'Purchases', icon: ShoppingCart, area: 'Purchasing' },
+      { id: 'inventory', label: 'Stock', icon: Boxes, area: 'Stock' },
+    ],
+  },
+  {
+    label: 'Relationships',
+    modules: [
+      { id: 'customers', label: 'Customers', icon: Users, area: 'Customers' },
+      { id: 'card-files', label: 'Card Files', icon: Contact, area: 'Card files' },
+    ],
+  },
+  {
+    label: 'Finance',
+    modules: [
+      { id: 'accounts', label: 'Accounts', icon: Landmark, area: 'Accounts' },
+      { id: 'reports', label: 'Reports', icon: BarChart3, area: 'Reports' },
+    ],
+  },
+];
+
+export const MODULES = MODULE_GROUPS.flatMap((g) => g.modules);
+
+// A module is hidden only when the role can read nothing in its area — counted
+// from the gates on the server's routes, not decided from the role's name. An
+// area the table does not list is not a "nothing", so its module stays.
+const readable = (access) => (m) => !m.area || (areaView(access, m.area)?.[0] ?? 1) > 0;
+
+/**
+ * The groups to draw, each with the modules this person may open: none while
+ * their access is loading (rather than items that then vanish), every one if
+ * it cannot be loaded — the server still enforces every route — and otherwise
+ * the ones the role can read in. Empty groups are dropped.
+ */
+export function shownGroups(access, failed) {
+  const keep = access ? readable(access) : () => failed;
+  return MODULE_GROUPS
+    .map((g) => ({ ...g, modules: g.modules.filter(keep) }))
+    .filter((g) => g.modules.length > 0);
+}
+
+/** Whether a module is the one open: the 3D warehouse is part of Stock. */
+export function isActive(moduleId, activeModule) {
+  return activeModule === moduleId || (moduleId === 'inventory' && activeModule === 'warehouse');
+}

@@ -10,6 +10,12 @@ const inventory = [
   { sku: 'CAP.BLK', name: 'Black Cap', category: 'Headwear', stock: 0, committed_qty: 0, reorderLevel: 15 },
 ];
 
+test('opens the list on the chip it is given', () => {
+  wrap(<StockModule inventory={inventory} onNavigateJob={() => {}} onNavigatePO={() => {}} initialChip="reorder" />);
+  expect(screen.getByText('Black Cap')).toBeInTheDocument();
+  expect(screen.queryByText('Navy Polo')).not.toBeInTheDocument();
+});
+
 test('shows the empty detail prompt until a row is selected, then the item', () => {
   wrap(<StockModule inventory={inventory} onNavigateJob={() => {}} onNavigatePO={() => {}} />);
   expect(screen.getByText(/Select a stock item/i)).toBeInTheDocument();

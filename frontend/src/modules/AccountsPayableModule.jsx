@@ -14,6 +14,25 @@ const STATUS_STYLES = {
   paid:     'bg-ok-tint text-ok border-ok',
 };
 
+/**
+ * A bill against a PO, held up against what actually arrived on that PO —
+ * received quantities at the PO price, plus landed charges, with GST.
+ */
+function PoMatch({ bill }) {
+  const m = bill.poMatch;
+  if (!m) return null;
+  if (m.matches) {
+    return <div className="font-sans text-[10px]" style={{ color: T.ok }}>{bill.poId} ✓ matches received</div>;
+  }
+  const more = m.difference > 0;
+  return (
+    <div className="font-sans text-[10px]" style={{ color: T.danger }}
+      title={`Billed ${fmt$(m.billedInc)} against ${fmt$(m.receivedInc)} received on ${bill.poId}`}>
+      {bill.poId}: billed {fmt$(Math.abs(m.difference))} {more ? 'more' : 'less'} than received
+    </div>
+  );
+}
+
 function isOverdue(bill) {
   return bill.dueDate && bill.dueDate < today() && bill.status !== 'paid';
 }
@@ -95,6 +114,11 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
         tax: parseFloat(form.tax) || 0,
         amountInc: parseFloat(form.amountInc) || 0,
         accountId: form.accountId ? Number(form.accountId) : null,
+        // An edit sends the status only when someone changed it. Whether a bill
+        // is paid follows from its payments; echoing back the status it opened
+        // with stopped a paid bill's total being corrected, or a part-paid one
+        // being reduced to what was paid.
+        status: bill && form.status === bill.status ? undefined : form.status,
       });
     } catch (e) { setErr(e.message); } finally { setSaving(false); }
   };
@@ -171,10 +195,11 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
             </div>
             <div>
               <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Status</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)} className={inputCls} style={inputStyle}>
+              {/* Paid is never chosen: a bill is paid when its recorded payments cover it. */}
+              <select value={form.status} onChange={e => set('status', e.target.value)} disabled={form.status === 'paid'} className={inputCls} style={inputStyle}>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
-                <option value="paid">Paid</option>
+                {form.status === 'paid' && <option value="paid">Paid</option>}
               </select>
             </div>
           </div>
@@ -208,17 +233,32 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
   );
 }
 
-function PayModal({ bill, onPay, onClose }) {
-  const [amount, setAmount] = useState(String(bill.amountInc - bill.paidAmount));
+function PayModal({ bill, onPay, onTakeBack, onClose }) {
+  const [amount, setAmount] = useState(String(bill.outstanding));
   const [paidDate, setPaidDate] = useState(today());
+  const [reference, setReference] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  // Earlier payments on this bill — a bill is often paid in more than one run.
+  const { data: detail } = useQuery({
+    queryKey: ['ap-bill', bill.id],
+    queryFn: () => api.supplierBills.get(bill.id),
+  });
+  const payments = detail?.payments ?? [];
+  const open = bill.outstanding > 0;
 
   const handlePay = async () => {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { setErr('Enter a valid amount'); return; }
+    if (amt > bill.outstanding + 0.005) { setErr(`Only ${fmt$(bill.outstanding)} is outstanding`); return; }
     setSaving(true); setErr('');
-    try { await onPay(amt, paidDate); }
+    try { await onPay(amt, paidDate, reference); }
+    catch (e) { setErr(e.message); setSaving(false); }
+  };
+
+  const handleTakeBack = async (paymentId) => {
+    setSaving(true); setErr('');
+    try { await onTakeBack(paymentId); }
     catch (e) { setErr(e.message); setSaving(false); }
   };
 
@@ -226,35 +266,61 @@ function PayModal({ bill, onPay, onClose }) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="rounded-lg shadow-xl w-80 p-5" style={{ background: T.panel }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold" style={{ color: T.text }}>Record Payment</h3>
+          <h3 className="font-semibold" style={{ color: T.text }}>{open ? 'Record Payment' : 'Payments'}</h3>
           <button onClick={onClose}><X className="w-4 h-4" style={{ color: T.textFaint }} /></button>
         </div>
         <p className="text-sm mb-3" style={{ color: T.textMuted }}>
           Bill: <span className="font-medium" style={{ color: T.text }}>{bill.billNumber || `#${bill.id}`}</span><br />
-          Outstanding: <span className="font-semibold" style={{ color: T.danger }}>{fmt$(bill.amountInc - bill.paidAmount)}</span>
+          Outstanding: <span className="font-semibold" style={{ color: T.danger }}>{fmt$(bill.outstanding)}</span>
         </p>
-        <div className="space-y-3">
+        {payments.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs mb-1" style={{ color: T.textMuted }}>Paid so far</p>
+            <ul className="space-y-1">
+              {payments.map(p => (
+                <li key={p.id} className="flex items-center justify-between text-xs" style={{ color: T.text }}>
+                  <span>{p.paidDate} · {fmt$(p.amount)}{p.reference ? ` · ${p.reference}` : ''}</span>
+                  <button onClick={() => handleTakeBack(p.id)} disabled={saving}
+                    className="underline disabled:opacity-50" style={{ color: T.textMuted }}
+                    aria-label={`Take back the payment of ${fmt$(p.amount)} on ${p.paidDate}`}>
+                    Take back
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {open && <div className="space-y-3">
           <div>
-            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Amount Paid</label>
-            <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+            <label htmlFor="pay-amount" className="text-xs mb-1 block" style={{ color: T.textMuted }}>This payment</label>
+            <input id="pay-amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
               className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
           <div>
-            <label className="text-xs mb-1 block" style={{ color: T.textMuted }}>Payment Date</label>
-            <input type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)}
+            <label htmlFor="pay-date" className="text-xs mb-1 block" style={{ color: T.textMuted }}>Payment Date</label>
+            <input id="pay-date" type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)}
               className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
-        </div>
+          <div>
+            <label htmlFor="pay-reference" className="text-xs mb-1 block" style={{ color: T.textMuted }}>Reference</label>
+            <input id="pay-reference" value={reference} onChange={e => setReference(e.target.value)} maxLength={100}
+              placeholder="EFT reference (optional)"
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
+          </div>
+        </div>}
         {err && <p className="mt-2 text-xs" style={{ color: T.danger }}>{err}</p>}
         <div className="flex gap-2 mt-4">
-          <button onClick={onClose} className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
-          <button onClick={handlePay} disabled={saving}
-            className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-            style={{ background: T.accentStrong, color: '#fff' }}>
-            {saving ? '…' : 'Mark Paid'}
-          </button>
+          <button onClick={onClose} className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>{open ? 'Cancel' : 'Close'}</button>
+          {open && (
+            <button onClick={handlePay} disabled={saving}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+              style={{ background: T.accentStrong, color: '#fff' }}>
+              {saving ? '…' : 'Record Payment'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -270,7 +336,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
   const [payModal, setPayModal] = useState(null);
   const [delConfirm, setDelConfirm] = useState(null);
 
-  const { data: bills = [], isFetching, refetch } = useQuery({
+  const { data: bills = [], isFetching } = useQuery({
     queryKey: ['ap-bills', statusFilter],
     queryFn: () => api.supplierBills.list(statusFilter ? { status: statusFilter } : {}),
     staleTime: 30000,
@@ -299,9 +365,14 @@ export default function AccountsPayableModule({ suppliers = [] }) {
     invalidate(); setBillForm(null);
   };
 
-  const handlePay = async (amt, paidDate) => {
-    await api.supplierBills.pay(payModal.id, amt, paidDate);
+  const handlePay = async (amt, paidDate, reference) => {
+    await api.supplierBills.pay(payModal.id, amt, paidDate, reference);
     invalidate(); setPayModal(null);
+  };
+
+  const handleTakeBack = async (paymentId) => {
+    await api.supplierBills.deletePayment(payModal.id, paymentId);
+    invalidate(); qc.invalidateQueries({ queryKey: ['ap-bill', payModal.id] }); setPayModal(null);
   };
 
   const handleDelete = async () => {
@@ -316,8 +387,6 @@ export default function AccountsPayableModule({ suppliers = [] }) {
       || (b.billNumber||'').toLowerCase().includes(q)
       || (b.description||'').toLowerCase().includes(q);
   });
-
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-4">
@@ -419,11 +488,14 @@ export default function AccountsPayableModule({ suppliers = [] }) {
             )}
             {filtered.map(bill => {
               const over = isOverdue(bill);
-              const outstanding = bill.amountInc - bill.paidAmount;
+              const outstanding = bill.outstanding;
               return (
                 <tr key={bill.id} style={over ? { background: T.dangerTint } : {}}>
                   <td className="px-3 py-2.5 font-medium" style={{ color: T.text }}>{bill.supplierName || '—'}</td>
-                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: T.accentStrong }}>{bill.billNumber || `#${bill.id}`}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: T.accentStrong }}>
+                    {bill.billNumber || `#${bill.id}`}
+                    <PoMatch bill={bill} />
+                  </td>
                   <td className="px-3 py-2.5 text-xs" style={{ color: T.textMuted }}>{bill.billDate || '—'}</td>
                   <td className="px-3 py-2.5 text-xs font-medium" style={{ color: over ? T.danger : T.textMuted }}>
                     {bill.dueDate || '—'}{over ? ' ⚠' : ''}
@@ -441,18 +513,26 @@ export default function AccountsPayableModule({ suppliers = [] }) {
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
-                      {bill.status !== 'paid' && (
+                      {bill.status !== 'paid' ? (
                         <button onClick={() => setPayModal(bill)}
                           className="flex items-center gap-0.5 text-[11px] px-2 py-1 rounded-lg font-medium"
                           style={{ background: T.accentStrong, color: '#fff' }}>
                           <CheckCircle className="w-3 h-3" />Pay
                         </button>
+                      ) : (
+                        <button onClick={() => setPayModal(bill)}
+                          className="text-[11px] px-2 py-1 rounded-lg font-medium"
+                          style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>
+                          Payments
+                        </button>
                       )}
                       <button onClick={() => setBillForm(bill)}
+                        aria-label={`Edit bill ${bill.billNumber || bill.id}`} title="Edit bill"
                         className="p-1 rounded" style={{ color: T.textFaint }}>
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setDelConfirm(bill.id)}
+                        aria-label={`Delete bill ${bill.billNumber || bill.id}`} title="Delete bill"
                         className="p-1 rounded" style={{ color: T.textFaint }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -470,7 +550,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
                 <td className="px-3 py-2 text-right text-sm" style={{ color: T.text }}>{fmt$(filtered.reduce((s, b) => s + b.amountInc, 0))}</td>
                 <td />
                 <td className="px-3 py-2 text-right text-sm" style={{ color: T.danger }}>
-                  {fmt$(filtered.filter(b => b.status !== 'paid').reduce((s, b) => s + (b.amountInc - b.paidAmount), 0))}
+                  {fmt$(filtered.filter(b => b.status !== 'paid').reduce((s, b) => s + b.outstanding, 0))}
                 </td>
                 <td />
               </tr>
@@ -491,7 +571,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
 
       {/* Pay modal */}
       {payModal && (
-        <PayModal bill={payModal} onPay={handlePay} onClose={() => setPayModal(null)} />
+        <PayModal bill={payModal} onPay={handlePay} onTakeBack={handleTakeBack} onClose={() => setPayModal(null)} />
       )}
 
       {/* Delete confirm */}

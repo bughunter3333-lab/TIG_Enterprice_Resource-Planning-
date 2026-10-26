@@ -1,5 +1,5 @@
 import {
-  accessWords, allowed, editChanges, editProblems, filterUsers, newUserProblems, passwordGaps, passwordProblem, userCounts,
+  accessWords, allowed, editChanges, editProblems, filterUsers, needsAttention, newUserProblems, passwordGaps, passwordProblem, userCounts,
 } from '../userRules';
 
 const USERS = [
@@ -99,8 +99,28 @@ describe('finding accounts', () => {
     expect(filterUsers(USERS, { query: 'o', role: 'staff' }).map((u) => u.id)).toEqual([2]);
   });
 
+  test('needing attention: active, and on an admin’s password or without two-factor', () => {
+    expect(needsAttention({ is_active: true, totp_enabled: true, must_change_password: false })).toBe(false);
+    expect(needsAttention({ is_active: true, totp_enabled: false })).toBe(true);
+    expect(needsAttention({ is_active: true, totp_enabled: true, must_change_password: true })).toBe(true);
+    // A deactivated account cannot sign in, so it needs nothing.
+    expect(needsAttention({ is_active: false, totp_enabled: false, must_change_password: true })).toBe(false);
+    expect(needsAttention(undefined)).toBe(false);
+  });
+
+  test('only those needing attention, together with the other filters', () => {
+    const users = [
+      { ...USERS[0], totp_enabled: true },
+      { ...USERS[1], totp_enabled: false },
+      { ...USERS[2], totp_enabled: false },
+    ];
+    expect(filterUsers(users, { attention: true }).map((u) => u.id)).toEqual([2]);
+    expect(filterUsers(users, { attention: true, role: 'admin' })).toEqual([]);
+    expect(filterUsers(users, { attention: false })).toHaveLength(3);
+  });
+
   test('counts by role and by status', () => {
-    expect(userCounts(USERS)).toEqual({ all: 3, active: 2, inactive: 1, admin: 1, manager: 1, staff: 1, overseas_staff: 0 });
+    expect(userCounts(USERS)).toEqual({ all: 3, active: 2, inactive: 1, admin: 1, manager: 1, staff: 1, overseas_staff: 0, portal: 0 });
     expect(userCounts(undefined).all).toBe(0);
   });
 });

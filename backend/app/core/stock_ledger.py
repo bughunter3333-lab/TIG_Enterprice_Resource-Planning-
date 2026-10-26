@@ -67,6 +67,7 @@ def post_movement(
     notes: Optional[str] = None,
     job_id: Optional[str] = None,
     po_id: Optional[str] = None,
+    po_line: Optional[int] = None,
     date: Optional[str] = None,
 ) -> Optional[StockMovement]:
     """Record a stock movement and apply it everywhere it has to land.
@@ -102,6 +103,7 @@ def post_movement(
         notes=notes,
         job_id=job_id,
         po_id=po_id,
+        po_line=po_line,
         location_branch=branch,
     )
     db.add(movement)

@@ -12,12 +12,16 @@
 import { palette, density, type, elevation, motion } from './palette';
 
 export const T = {
-  // Chrome — the shell bar. SAP Horizon: white, with dark text.
+  // Chrome — the top bar: white, with dark text.
   chrome: palette.ink,
   chromeRaised: palette.inkRaised,
   chromeHover: palette.inkHover,
   chromeText: palette.inkText,
   chromeTextMuted: palette.inkTextMuted,
+
+  // The sidebar, a second neutral a step off the page.
+  rail: palette.rail,
+  railHover: palette.railHover,
 
   // Surfaces
   page: palette.paper,
@@ -25,6 +29,8 @@ export const T = {
   panelAlt: palette.panelAlt,
   hairline: palette.hairline,
   hairlineSoft: palette.hairlineSoft,
+  fieldBorder: palette.fieldBorder,
+  fieldBorderHover: palette.fieldBorderHover,
 
   // Text
   text: palette.text,
@@ -32,7 +38,7 @@ export const T = {
   textFaint: palette.faint,
   headerText: palette.headerText,
 
-  // Accent — Horizon brand blue. Small words use accentStrong (5.2:1).
+  // Accent — the one blue. It means "act" or "you are here", nothing else.
   accent: palette.accent,
   accentStrong: palette.accentStrong,
   accentTint: palette.accentTint,
@@ -62,13 +68,18 @@ export const T = {
   fsGrid: type.fsGrid,
   fsHeader: type.fsHeader,
   fsSmall: type.fsSmall,
+  fsSection: type.fsSection,
+  fsTitle: type.fsTitle,
+  fsKpi: type.fsKpi,
 
   // Density
   rowHeight: density.rowHeight,
+  rowHeightComfortable: density.rowHeightComfortable,
   inputHeight: density.inputHeight,
   radius: density.radius,
   radiusLg: density.radiusLg,
   radiusField: density.radiusField,
+  radiusSm: density.radiusSm,
 
   // Elevation
   shadowSm: elevation.shadowSm,
@@ -84,36 +95,58 @@ export const T = {
 
 // Workflow statuses, in the order a job moves through them.
 //
-// Coloured by phase, from SAP Fiori's indication palette (sap_horizon
-// sapIndicationColor_N), so a colour says where a job is in its life rather
-// than giving eleven statuses eleven hues. The word and the stage stepper
-// carry the exact status. Semantic colours are kept for meaning:
+// Coloured by phase, so a colour says where a job is in its life rather than
+// giving twelve statuses twelve hues. The word carries the exact status. Each
+// phase has a text colour and the pale tint its chip sits on (both pairs pass
+// 4.5:1, and the text colour also carries white words as a fill):
 //
-//   Sales       QUOTE                        indication 7  violet
-//   Production  New, ORDER, In Progress, PRINT  indication 5  blue
-//               PROOF                        indication 3  orange — the one
-//               production status where someone outside is holding things up
-//   Fulfil      Pick/Pack, FINISH            indication 6  teal
-//   Billing     INVOICE, PAID                positive green
-//   Closed      CANCEL                       indication 10 grey
-//
-// 'In Progress' used to be the warning colour, so every job on the floor
-// looked like a problem. All values pass 4.5:1 as text on white and as a fill
-// behind white text.
-export const STATUS_COLORS = {
-  QUOTE: '#5d36ff',
-  New: '#0064d9',
-  ORDER: '#0064d9',
-  'In Progress': '#0064d9',
-  PROOF: '#b95100',
-  PRINT: '#0064d9',
-  'Pick/Pack': '#046c7a',
-  FINISH: '#046c7a',
-  INVOICE: '#256f3a',
-  PAID: '#256f3a',
-  CANCEL: '#45484a',
+//   Intake      QUOTE, New                   violet — nobody has committed yet;
+//               New is a portal order waiting to be confirmed (F11), so it
+//               sits with the quote rather than the work
+//   Production  ORDER, In Progress, PRINT    blue
+//               PROOF                        amber — the one production status
+//               where someone outside is holding things up
+//   Fulfil      Pick/Pack, Desp/Ready, FINISH teal
+//   Billing     INVOICE, PAID                green
+//   Closed      CANCEL                       grey
+// `onDark` is the same phase lifted for the one dark surface (Home's work in
+// hand): the text colours above sink into a near-black ground.
+const PHASES = {
+  intake:     { color: '#6d28d9', tint: '#f3effe', onDark: '#b69cf7' },
+  production: { color: '#0b63f6', tint: '#eef4ff', onDark: '#6ea2ff' },
+  waiting:    { color: '#b45309', tint: '#fff5e8', onDark: '#f2b056' },
+  fulfil:     { color: '#0f766e', tint: '#e8f6f4', onDark: '#4fd1c1' },
+  billing:    { color: '#15803d', tint: '#ecf8f0', onDark: '#5fd38a' },
+  closed:     { color: '#52525b', tint: '#f1f1f3', onDark: '#a1a1aa' },
 };
+
+const STATUS_PHASE = {
+  QUOTE: 'intake',
+  New: 'intake',
+  ORDER: 'production',
+  'In Progress': 'production',
+  PROOF: 'waiting',
+  PRINT: 'production',
+  'Pick/Pack': 'fulfil',
+  'Desp/Ready': 'fulfil',
+  FINISH: 'fulfil',
+  INVOICE: 'billing',
+  PAID: 'billing',
+  CANCEL: 'closed',
+};
+
+export const STATUS_COLORS = Object.fromEntries(
+  Object.entries(STATUS_PHASE).map(([status, phase]) => [status, PHASES[phase].color]),
+);
 
 export function statusColor(status) {
   return STATUS_COLORS[status] ?? T.textMuted;
+}
+
+export function statusTint(status) {
+  return PHASES[STATUS_PHASE[status]]?.tint ?? T.hairlineSoft;
+}
+
+export function statusOnDark(status) {
+  return PHASES[STATUS_PHASE[status]]?.onDark ?? '#a1a1aa';
 }

@@ -1,39 +1,37 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, Users, User, FileText, BarChart3, Plus, Edit, Trash2, DollarSign, AlertCircle, X, Printer, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, Clock } from 'lucide-react';
+import { Search, Package, Users, User, FileText, Plus, Edit, Trash2, AlertCircle, X, Printer, Save, Mail, Phone, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, Clock } from 'lucide-react';
 import * as api from './api';
-import { PieChart as ResponsiveContainer } from 'recharts';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
-import SettingsModule from './modules/SettingsModule';
 import StylesModule from './modules/StylesModule';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
-import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
 import { T } from './ui/tokens';
-import Button from './ui/Button';
 import { DEFAULT_BRANCH } from './branches';
 import StatusBadge from './ui/StatusBadge';
-import Dashboard from './components/dashboard/Dashboard';
-import JobsBoard from './components/jobs/JobsBoard';
+import HomeModule from './modules/home/HomeModule';
 import JobsModule from './modules/jobs/JobsModule';
-import JobListBuilder from './modules/jobs/JobListBuilder';
 import DispatchList from './modules/jobs/DispatchList';
-import { matchJobList } from './modules/jobs/jobsFilters';
+import { matchJobList, quickListModule } from './modules/jobs/jobsFilters';
 import { jobsInView } from './modules/jobs/jobMetrics';
 import StockModule from './modules/stock/StockModule';
-import StockListBuilder from './modules/stock/StockListBuilder';
 import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
-import POListBuilder from './modules/purchase-orders/POListBuilder';
 import { matchPOList, EMPTY_PO_LIST } from './modules/purchase-orders/poListFilters';
-import POModule from './modules/purchase-orders/POModule';
-import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
-import { countNeedingReorder, needsReorder } from './modules/stock/lowStock';
+import { pickableLines } from './modules/jobs/jobPicking';
+import JobRecordHeader from './modules/jobs/record/JobRecordHeader';
+import JobDetailsCard from './modules/jobs/record/JobDetailsCard';
+import JobLinesCard from './modules/jobs/record/JobLinesCard';
+import JobCommentsCard from './modules/jobs/record/JobCommentsCard';
+import { JobCustomerCard, JobMoneyCard } from './modules/jobs/record/JobSideCards';
+import { nextStepFor } from './modules/jobs/record/lifecycle';
+import Tabs from './ui/Tabs';
+import { countNeedingReorder } from './modules/stock/lowStock';
 import DraggableModal from './ui/DraggableModal';
 import ActionBar from './ui/shell/ActionBar';
 import { pageActions } from './ui/shell/pageActions';
@@ -57,17 +55,17 @@ import CardFileFormModal from './modules/card-files/CardFileFormModal';
 import DuplicateToSites from './modules/jobs/DuplicateToSites';
 import WarehouseModule from './modules/warehouse/WarehouseModule';
 import { WAREHOUSE_ZONES } from './modules/warehouse/zones';
-import SupplierPriceListPanel from './modules/suppliers/SupplierPriceListPanel';
 import SizeColourMatrixPopup from './components/jobs/SizeColourMatrixPopup';
 import ProofPanel from './components/jobs/ProofPanel';
-import POGoodsReceiptsPanel from './modules/purchase-orders/POGoodsReceiptsPanel';
 import EmailJobModal from './components/modals/EmailJobModal';
 import SuppliersModule from './modules/suppliers/SuppliersModule';
 import CustomersDetail from './modules/customers/CustomersDetail';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
-import { parseD, todayKey } from './lib/dates';
+import { todayKey } from './lib/dates';
+import { useOffer } from './lib/useMyAccess';
+import { JOB_STATUSES, PRODUCTION_STATUSES } from './modules/jobs/jobStatuses';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
 import POListPage from './modules/saved-lists/POListPage';
 import StockListPage from './modules/saved-lists/StockListPage';
@@ -84,8 +82,15 @@ const EMPTY_JOB_LIST = {
 };
 
 const TotalImageERP = ({ currentUser, onLogout }) => {
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState('home');
   const [adminMode, setAdminMode] = useState(false);
+  // Where a Home tile opened, beyond its module: a tab, a filter, a range
+  // (modules/home/homeSections.js). It holds while that screen is up, so
+  // reaching the module any other way opens it as it always has.
+  const [homeLink, setHomeLink] = useState(null);
+  useEffect(() => {
+    if (homeLink && (homeLink.module !== activeModule || !!homeLink.admin !== adminMode)) setHomeLink(null);
+  }, [homeLink, activeModule, adminMode]);
   const [pinnedJobs, setPinnedJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,7 +110,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [filterCustomerGroup, setFilterCustomerGroup] = useState('all');
   const [filterOpenFreight, setFilterOpenFreight] = useState(false);
   const [filterQuick, setFilterQuick] = useState(null);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const [dupSitesJob, setDupSitesJob] = useState(null);
   const [paymentModal, setPaymentModal] = useState({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
@@ -121,7 +125,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [categoryDropdown, setCategoryDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [locationDropdown, setLocationDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [supplierDropdown, setSupplierDropdown] = useState({ open: false, query: '', highlighted: 0 });
-  const [searchSuggestOpen, setSearchSuggestOpen] = useState(false);
   // Column set and order follow Jim2's job line grid exactly:
   // Status · PO# · PO Due · Stock Code · Description · Order · Supply · B. Ord ·
   // Qty Pick · Price Ex. · Price Inc. · Tax · Hide · Total.
@@ -133,9 +136,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [apiError, setApiError] = useState('');
 
   const queryClient = useQueryClient();
-  const { data: jobs = [], isLoading: jobsLoading } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  // What the signed-in role may call — page actions offer only those.
+  const offer = useOffer();
+  const { data: jobs = [], isLoading: jobsLoading, isPending: jobsPending, isError: jobsFailed } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany, staleTime: 300_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
-  const { data: inventory = [], isLoading: invLoading } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: inventory = [], isLoading: invLoading, isPending: invPending, isError: invFailed } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   // Admin-managed custom decoration methods (added via the line-item picker's "+ Add method").
@@ -153,10 +158,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     }
     return name;
   };
-  const { data: purchaseOrders = [] } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: purchaseOrders = [], isPending: posPending, isError: posFailed } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: garmentReqs = [], refetch: refetchGarmentReqs } = useQuery({ queryKey: ['orderRequirements', 'garment'], queryFn: () => api.jobs.orderRequirements('garment'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
-  const { data: stockMovements = [] } = useQuery({ queryKey: ['stockMovements'], queryFn: () => api.inventory.movements({ limit: 50 }), refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: cardFiles = [] } = useQuery({ queryKey: ['cardFiles'], queryFn: api.cardFiles.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const loading = (jobsLoading && !jobs.length) || (invLoading && !inventory.length);
   const [cardFileModal, setCardFileModal] = useState({ open: false, editing: null });
@@ -207,11 +211,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Warehouse bin map
 
-  // Inventory module view state
-  const [invTab, setInvTab] = useState('stock');
-  const [invCatFilter, setInvCatFilter] = useState('all');
-  const [invStatusFilter, setInvStatusFilter] = useState('all');
-
   // Suppliers module
 
   // Purchase Orders module
@@ -234,8 +233,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Jim2-style UI state
   const [tigMenuOpen, setTigMenuOpen] = useState(false);
-  const [navExpanded, setNavExpanded] = useState({ jobs: true });
-  const [navTreeTab, setNavTreeTab] = useState('navigation');
 
   // New ribbon action modals
   const [dispatchModal, setDispatchModal] = useState({ open: false, job: null, shipVia: '', shipRef: '', cartons: 1, notes: '', advanceStatus: false, loading: false, error: '' });
@@ -244,7 +241,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [transferModal, setTransferModal] = useState({ open: false, fromSku: '', toSku: '', toLocation: '', quantity: 1, fromBranch: DEFAULT_BRANCH, toBranch: DEFAULT_BRANCH, reference: '', notes: '', loading: false, error: '' });
   const [stocktakeModal, setStocktakeModal] = useState({ open: false, method: 'Informed', branch: DEFAULT_BRANCH, reference: '', items: [], loading: false, error: '', results: null });
   const [stockFlowModal, setStockFlowModal] = useState({ open: false, loading: false, data: null, search: '' });
-  const [pickPackModal, setPickPackModal] = useState({ open: false, job: null });
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const globalSearchRef = useRef(null);
@@ -287,14 +283,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       await api.savedLists.update(id, { filter });
       setSavedJobLists(prev => prev.map(l => l.id === id ? { ...l, filter } : l));
     } catch (e) { notify(e.message || 'Could not update list', { type: 'error' }); }
-  };
-  // Returns true if saved, false if the node is already at the 25-list cap.
-  const saveJobList = (name, filter, node = 'jobs') => {
-    const sameNode = listsForNode(node);
-    if (sameNode.length >= JOB_LIST_MAX) return false;
-    const clean = (name || '').trim() || `Job List ${sameNode.length + 1}`;
-    createListOnServer({ id: `JL-${Date.now()}`, name: clean, filter, node });
-    return true;
   };
   const deleteJobList = async (id) => {
     try {
@@ -344,8 +332,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       // One transactional session (Jim2 Dispatch #) instead of N separate calls.
       const session = await api.dispatchSessions.create(batch);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      notify(`Dispatch #${session.id} recorded — ${session.line_count} job${session.line_count === 1 ? '' : 's'}`, { type: 'success' });
-      setDispatchListOpen(false);
+      // The list stays open and ends on what was recorded (DispatchList's
+      // Despatched view), so no toast says it a second time.
+      return session;
     } catch (e) {
       notify(e.message || 'Dispatch failed', { type: 'error' });
     } finally {
@@ -369,8 +358,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Job detail tabs
   const [jobDetailTab, setJobDetailTab] = useState('job');
   const [pickState, setPickState] = useState({});
-  const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
-  const [jobsSort, setJobsSort] = useState({ col: 'dateIn', dir: 'desc' });
 
   // Customer detail
 
@@ -385,9 +372,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [emailModalJob, setEmailModalJob] = useState(null);
   const [matrixPopup, setMatrixPopup] = useState(null); // { idx } when open
 
-  // Notifications panel
-  const [notifOpen, setNotifOpen] = useState(false);
-
   // User settings
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [changePasswordForm, setChangePasswordForm] = useState({ current: '', newPass: '', confirm: '' });
@@ -396,17 +380,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Bulk selection
   const [selectedJobIds, setSelectedJobIds] = useState(new Set());
-  const [bulkActionOpen, setBulkActionOpen] = useState(false);
-
-  // Calendar view state
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-
-  // Dashboard quick notes
-  const [dashNotes, setDashNotes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tig_dash_notes') || '[]'); } catch { return []; }
-  });
-  const [dashNoteInput, setDashNoteInput] = useState('');
+  const [, setBulkActionOpen] = useState(false);
 
   // Job templates (persisted in localStorage)
   const [jobTemplates, setJobTemplates] = useState(() => {
@@ -457,7 +431,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       if (e.altKey) {
         if (e.key === 'j' || e.key === 'J') { e.preventDefault(); setActiveModule('jobs'); setTimeout(() => jobSearchRef.current?.focus(), 50); }
         if (e.key === 'i' || e.key === 'I') { e.preventDefault(); setActiveModule('inventory'); }
-        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('dashboard'); }
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('home'); }
         if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setActiveModule('customers'); }
         if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setActiveModule('reports'); }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs' || activeModule === 'quotes') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
@@ -482,56 +456,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     if (!ofModalOpen) return;
     api.openFreight.getAccount().then(acc => setOfAccount(acc)).catch(() => {});
   }, [ofModalOpen]);
-
-  // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
-  const notifications = useMemo(() => {
-    const now = new Date();
-    const lowStockItems = inventory.filter(needsReorder);
-    const overdueJobs = jobsInView(jobs, 'overdue');
-
-    const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
-    const expiringQuotes = jobs.filter(j => {
-      if (j.status !== 'QUOTE' || !j.validityDate) return false;
-      const d = parseD(j.validityDate);
-      return d && d >= now && d <= in7Days;
-    });
-
-    const dueTodayJobs = jobsInView(jobs, 'dueToday');
-
-    const creditBreaches = customers.filter(c => {
-      if (!c.creditLimit || c.creditLimit <= 0) return false;
-      const outstanding = jobs.filter(j => j.customerId === c.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-      return outstanding > c.creditLimit;
-    });
-
-    return [
-      ...dueTodayJobs.map(job => ({
-        id: `today-${job.id}`, type: 'warning', title: 'Due Today',
-        message: `Job #${job.id} for ${job.customer} is due today — ${job.status}`,
-        time: 'Today'
-      })),
-      ...overdueJobs.map(job => ({
-        id: `overdue-${job.id}`, type: 'error', title: 'Overdue Job',
-        message: `Job #${job.id} for ${job.customer} is overdue. Due: ${job.due}`,
-        time: 'Now'
-      })),
-      ...expiringQuotes.map(job => ({
-        id: `quote-exp-${job.id}`, type: 'warning', title: 'Quote Expiring',
-        message: `Quote #${job.id} for ${job.customer} expires ${job.validityDate} — follow up needed`,
-        time: 'Soon'
-      })),
-      ...creditBreaches.map(c => ({
-        id: `credit-${c.id}`, type: 'error', title: 'Credit Limit Exceeded',
-        message: `${c.name} has exceeded their credit limit of $${Number(c.creditLimit).toLocaleString('en-AU')}`,
-        time: 'Now'
-      })),
-      ...lowStockItems.map(item => ({
-        id: `low-${item.sku}`, type: 'warning', title: 'Low Stock Alert',
-        message: `${item.name} (${item.sku}) is below reorder level. Current: ${item.stock}, Min: ${item.reorderLevel}`,
-        time: 'Now'
-      })),
-    ];
-  }, [inventory, jobs, customers]);
 
   useEffect(() => {
     if (!tigMenuOpen) return;
@@ -585,6 +509,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     category: '',
     stock: 0,
     reorderLevel: 0,
+    weight_kg: 0,
     location: '',
     supplier: '',
     supplierCode: '',
@@ -680,6 +605,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           category: '',
           stock: 0,
           reorderLevel: 0,
+          weight_kg: 0,
           location: '',
           supplier: '',
           supplierCode: '',
@@ -1282,7 +1208,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     const inProduction = jobsInView(jobs, 'inProduction').length;
     const toInvoice = jobsInView(jobs, 'toInvoice').length;
     const statusBreakdown = {};
-    ['QUOTE','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
+    ['QUOTE', ...PRODUCTION_STATUSES, 'INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
 
     // On-time delivery rate (finished/invoiced/paid jobs in last 90 days that met their due date)
     const ninetyDaysAgo = new Date(now); ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -1449,83 +1375,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     a.click();
   };
 
-  const printInvoice = (job) => {
-    openInvoiceDoc(job);
-  };
-
-  const _legacyPrintInvoice_unused = (job) => {
-    const printWindow = window.open('', '', 'height=800,width=600');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice ${job.invoice}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .totals { text-align: right; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <h1>Total Image</h1>
-          <h2>Tax Invoice</h2>
-          <p><strong>Invoice #:</strong> ${job.invoice}</p>
-          <p><strong>Job #:</strong> ${job.id}</p>
-          <p><strong>Date:</strong> ${job.dateIn}</p>
-          <p><strong>Customer:</strong> ${job.customer}</p>
-          <p><strong>Due Date:</strong> ${job.due}</p>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Stock Code</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit Price (Inc)</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${job.items.map(item => `
-                <tr>
-                  <td>${item.stockCode}</td>
-                  <td>${item.description}</td>
-                  <td>${item.order}</td>
-                  <td>$${item.priceInc.toFixed(2)}</td>
-                  <td>$${item.total.toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="totals">
-            <p><strong>Subtotal:</strong> $${job.subtotal.toFixed(2)}</p>
-            <p><strong>GST:</strong> $${job.tax.toFixed(2)}</p>
-            <p><strong>Total:</strong> $${job.total.toFixed(2)}</p>
-            <p><strong>Amount Paid:</strong> $${job.invoicePaid.toFixed(2)}</p>
-            <p style="font-size: 1.2em;"><strong>Balance Due:</strong> $${job.balanceDue.toFixed(2)}</p>
-          </div>
-          
-          <p style="margin-top: 40px;">Thank you for your business!</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  };
-
-  // Render Dashboard
-  const renderDashboard = () => {
-    return (
-      <Dashboard
-        jobs={jobs}
-        onNewJob={() => openModal('job')}
-        onNavigateJobs={() => setActiveModule('jobs')}
-      />
-    );
-  };
   const clearFilters = () => {
     setSearchTerm('');
     setFilterStatus('all');
@@ -1548,8 +1397,25 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     clearFilters();
     setFilterQuick(quick);
     setShowJobDetail(false);
-    setActiveModule('jobs');
+    setActiveModule(quickListModule(quick));
   };
+
+  // Opens what a Home tile counted (HomeModule onOpenLink). Purchases is
+  // cleared to exactly that set: no search left over, no saved list on top.
+  const openHomeLink = (target) => {
+    const next = { module: activeModule, ...target };
+    if (next.module === 'purchase-orders') {
+      setSearchTerm('');
+      setPoStatusFilter(next.poStatus ?? 'all');
+      setSelectedPO(null);
+      setPoListModal(m => ({ ...m, open: false }));
+    }
+    if (next.module === 'inventory') setStockListModal(m => ({ ...m, open: false }));
+    setHomeLink(next);
+    setAdminMode(!!next.admin);
+    setActiveModule(next.module);
+  };
+  const link = (homeLink?.module === activeModule && homeLink) || {};
 
   const setJobsFilter = (key, value) => {
     const setters = {
@@ -1572,13 +1438,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
   // Render Jobs Module
   const renderJobs = () => {
-    const jStatusColors = {
-      QUOTE:'bg-hairline-soft text-header', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong',
-      'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong',
-      'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong',
-      PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger',
-    };
-
     return (
       <div className="space-y-4">
         {!showJobDetail && (
@@ -1612,454 +1471,74 @@ Invoice anyway? The shortfall will be recorded on the job.`,
         {/* Job Detail — full-page child module */}
         {activeJob && showJobDetail && (
           <div className="space-y-3">
-            {/* ── Breadcrumb ─────────────────────────────────────────────── */}
-            <div className="flex items-center gap-1.5 text-sm select-none rounded-xl shadow-sm px-4 py-2.5" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-              <button onClick={() => setShowJobDetail(false)} className="flex items-center gap-1 font-medium transition-colors shrink-0" style={{ color: T.accentStrong }}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
-                Jobs
-              </button>
-              <span style={{ color: T.hairline }}>/</span>
-              <span className="font-mono text-xs shrink-0" style={{ color: T.accentStrong }}>#{activeJob.id}</span>
-              <span style={{ color: T.hairline }}>/</span>
-              <span className="font-medium truncate" style={{ color: T.text }}>{activeJob.customer}</span>
-              <span className="shrink-0"><StatusBadge status={activeJob.status} size="sm" /></span>
-              {activeJob.locked && <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</span>}
-              {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-danger-tint text-danger px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
-              <div className="flex-1" />
-              {activeJob.status === 'QUOTE' && (
-                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
-                  Convert to Order →
-                </button>
-              )}
-              <button onClick={() => openModal('job', activeJob)} disabled={!isJobEditable(activeJob)} title={jobLockReason(activeJob)} className="disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
-                <Edit className="w-3.5 h-3.5" />Edit
-              </button>
-              <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                <Copy className="w-3.5 h-3.5" />Clone
-              </button>
-              <div className="relative shrink-0">
-                <button onClick={() => setPrintDropdownOpen(o => !o)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                  <Printer className="w-3.5 h-3.5" />Print<ChevronDown className="w-3 h-3" />
-                </button>
-                {printDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-44 py-1.5 overflow-hidden" onMouseLeave={() => setPrintDropdownOpen(false)}>
-                    {[
-                      { type:'invoice',      label:'TAX Invoice',    action:()=>{ openInvoiceDoc(activeJob); setPrintDropdownOpen(false); } },
-                      { type:'proforma',     label:'Proforma Invoice', action:()=>{ openInvoiceDoc(activeJob, 'proforma'); setPrintDropdownOpen(false); } },
-                      { type:'proformaBal',  label:'Proforma — Balance ONLY', action:()=>{ openInvoiceDoc(activeJob, 'proformaBalance'); setPrintDropdownOpen(false); } },
-                      { type:'pickingSlip',  label:'Picking Slip',   action:()=>{ setDocumentPrint({ type:'pickingSlip',  job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'deliveryNote', label:'Delivery Note',  action:()=>{ setDocumentPrint({ type:'deliveryNote', job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'jobSheet',     label:'Job Sheet',      action:()=>{ setDocumentPrint({ type:'jobSheet',     job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'shipLabel',    label:'Ship Label',     action:()=>{ setDocumentPrint({ type:'shipLabel',    job:activeJob }); setPrintDropdownOpen(false); } },
-                    ].map(d => (
-                      <button key={d.type} onClick={d.action} className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
-                        <Printer className="w-3.5 h-3.5 text-faint" />{d.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => setEmailModalJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                <Mail className="w-3.5 h-3.5" />Email
-              </button>
-            </div>
-            <div className="flex gap-4 items-start">
-              <div className="flex-1 min-w-0">
-
-            {/* ── Detail card ────────────────────────────────────────────── */}
-            <div className="rounded-xl shadow-sm p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-            {/* Jim2-style compact header grid */}
+            {/* ── Record header: which job, whose, where it stands, the next step ── */}
             {(() => {
-              const F = ({ label, value, badge, mono, red, green }) => (
-                <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>{label}</span>
-                  {badge
-                    ? <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${badge}`}>{value || '—'}</span>
-                    : <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: mono ? T.accentStrong : red ? T.danger : green ? T.ok : T.text }}>{value || <span style={{ color: T.textFaint }}>—</span>}</span>}
-                </div>
-              );
-              const isOverdue = (d) => d && new Date(d.split('/').reverse().join('-')) < new Date() && !['FINISH','PAID','CANCEL'].includes(activeJob.status);
+              const step = nextStepFor(activeJob);
+              // The next step is offered only where the role may take it; the
+              // server still decides (an invoice needs staff, PAID needs payment).
+              const mayStep = step && (step.kind === 'despatch'
+                ? offer('POST', '/dispatch-sessions')
+                : offer('POST', '/jobs/{job_id}/status'));
+              const runStep = () => {
+                if (step.kind === 'despatch') { setShowJobDetail(false); setDispatchListOpen(true); return; }
+                updateJobStatus(activeJob.id, step.to);
+              };
               return (
-                <div className="grid grid-cols-4 gap-x-6 mb-5 pb-4 text-xs" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  {/* Col 1 – job identity */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Job</div>
-                    <F label="Job #" value={activeJob.id} mono />
-                    <F label="Cust Ref#" value={activeJob.custRef} />
-                    <F label="Invoice#" value={activeJob.invoice} mono />
-                    <F label="Date In" value={activeJob.dateIn} />
-                    <F label="Desc." value={activeJob.description} />
-                    <F label="Project#" value={activeJob.projectNo} />
-                    <F label="Serial#" value={activeJob.serialNo} />
-                    <F label="Quote Ref" value={activeJob.quote} />
-                  </div>
-                  {/* Col 2 – customer & shipping */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer</div>
-                    <F label="Cust#" value={activeJob.customerId} mono />
-                    <F label="Name" value={activeJob.customer} />
-                    <F label="Contact" value={activeJob.nameContact} />
-                    <F label="Ship#" value={activeJob.shipTo} mono />
-                    <F label="Our Ref#" value={activeJob.ourRef} />
-                    <F label="Assigned" value={activeJob.assignedTo} />
-                    {activeJob.shippingAddress && (
-                      <div className="mt-1 text-xs rounded px-1.5 py-1 leading-relaxed" style={{ color: T.textMuted, background: T.hairlineSoft }}>{activeJob.shippingAddress}</div>
-                    )}
-                  </div>
-                  {/* Col 3 – status & dates */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Status & Dates</div>
-                    <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                      <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>Status</span>
-                      <StatusBadge status={activeJob.status} size="sm" />
-                    </div>
-                    <F label="Priority" value={activeJob.priority}
-                      red={['High','Urgent'].includes(activeJob.priority)} />
-                    <F label="Type" value={activeJob.type} />
-                    <F label="Due" value={activeJob.due} red={isOverdue(activeJob.due)} />
-                    <F label="Out" value={activeJob.out} />
-                    <F label="Commitment" value={activeJob.commitmentDate} />
-                    {activeJob.validityDate && (
-                      <F label="Valid Until" value={activeJob.validityDate}
-                        red={new Date(activeJob.validityDate) < new Date()} />
-                    )}
-                  </div>
-                  {/* Col 4 – financial */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Financial</div>
-                    <F label="Payment" value={activeJob.paymentMethod} />
-                    <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
-                      badge={activeJob.paymentStatus === 'paid' ? 'bg-ok-tint text-ok' : activeJob.paymentStatus === 'partial' ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'} />
-                    <F label="Inv. Status" value={(activeJob.invoiceStatus || 'not_invoiced').replace(/_/g, ' ')}
-                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong' : 'bg-hairline-soft text-muted'} />
-                    {activeJob.proofStatus && activeJob.proofStatus !== 'none' && (
-                      <F label="Proof" value={activeJob.proofStatus}
-                        badge={activeJob.proofStatus === 'approved' ? 'bg-ok-tint text-ok' : activeJob.proofStatus === 'rejected' ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'} />
-                    )}
-                    <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-sm font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span>Total</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Balance</span>
-                        <span className="font-semibold" style={{ color: activeJob.balanceDue > 0 ? T.danger : T.ok }}>${(activeJob.balanceDue || 0).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    {activeJob.balanceDue > 0 && (
-                      <button
-                        onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                        className="mt-2 w-full text-white px-2 py-1.5 rounded text-xs flex items-center justify-center gap-1"
-                        style={{ background: T.ok }}
-                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
-                        onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-                      >
-                        <CreditCard className="w-3 h-3" />Record Payment
-                      </button>
-                    )}
-                    {activeJob.locked && (
-                      <div className="mt-1 text-center text-xs font-semibold px-2 py-1 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Jim2-style Invoice Details (Customer / Ship) ── */}
-            {(() => {
-              const cust = customers.find(c => String(c.id) === String(activeJob.customerId));
-              const Row = ({ label, value, mono, accent }) => (
-                <div className="flex items-baseline gap-2 py-0.5" style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
-                  <span className="text-xs shrink-0 w-16" style={{ color: T.textFaint }}>{label}</span>
-                  <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: accent ? T.accentStrong : value ? T.text : T.textFaint }}>{value || '—'}</span>
-                </div>
-              );
-              return (
-                <div className="mb-4 rounded overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                  <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: T.chrome, borderLeft: `3px solid ${T.accent}` }}>
-                    <FileText className="w-3.5 h-3.5" style={{ color: T.accent }} />
-                    <span className="text-xs font-semibold" style={{ color: T.chromeText }}>Invoice Details</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-5 px-3 py-2">
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer (Bill To)</div>
-                      <Row label="Cust#" value={activeJob.customerId} mono accent />
-                      <Row label="Name" value={cust?.name || activeJob.customer} />
-                      <Row label="Attn" value={cust?.contact} />
-                      <Row label="Address" value={cust?.address} />
-                      <Row label="Phone" value={cust?.phone || cust?.mobile} />
-                      <Row label="Email" value={cust?.email} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Ship To</div>
-                      <Row label="Ship#" value={activeJob.shipTo} mono accent />
-                      <Row label="Attn" value={activeJob.nameContact} />
-                      <Row label="Address" value={activeJob.shippingAddress} />
-                      <Row label="Our Ref#" value={activeJob.ourRef} />
-                      <Row label="Branch" value={activeJob.branch} />
-                      <Row label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : ''} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Jim2-style Comments panel (middle, always visible) ── */}
-            <div className="mb-4 rounded" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
-              <div className="flex items-center justify-between px-3 py-1.5 rounded-t" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Comments & Activity</span>
-                <span className="text-[10px]" style={{ color: T.textFaint }}>{(activeJob.comments || []).length} entries</span>
-              </div>
-              {(activeJob.comments || []).length > 0 && (
-                <div className="overflow-x-auto max-h-44 overflow-y-auto">
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                      <tr>
-                        <th className="px-2 py-1 text-center font-semibold w-7" style={{ color: T.textMuted }}>#</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Date</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Time</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>User</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1 text-center font-semibold whitespace-nowrap w-7" title="Include in customer documents" style={{ color: T.textMuted }}>Inc</th>
-                        <th className="px-2 py-1 text-left font-semibold" style={{ color: T.textMuted }}>Comment</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
-                      {[...activeJob.comments].reverse().map((comment, idx) => (
-                        <tr key={idx} style={{ background: comment.isInternal ? '#fffbeb' : idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
-                          <td className="px-2 py-1 text-center" style={{ color: T.textFaint }}>{activeJob.comments.length - idx}</td>
-                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.date}</td>
-                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.time}</td>
-                          <td className="px-2 py-1 font-mono font-semibold whitespace-nowrap" title={comment.authorName} style={{ color: T.text }}>{comment.initials}</td>
-                          <td className="px-2 py-1 whitespace-nowrap">
-                            {comment.status && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: T.accentTint, color: T.accentStrong }}>{comment.status}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-1 text-center">
-                            {comment.inc ? <span className="font-bold" style={{ color: T.ok }}>✓</span> : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-accent-strong' : ''}`} style={comment.isInternal ? {} : { color: T.text }}>
-                            {comment.isInternal && <span className="mr-1 text-accent-strong font-semibold">[int]</span>}
-                            {comment.comment}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {(activeJob.comments || []).length === 0 && (
-                <p className="text-xs text-center py-3" style={{ color: T.textFaint }}>No comments yet</p>
-              )}
-              <div className="flex gap-2 px-3 py-2" style={{ borderTop: `1px solid ${T.hairline}` }}>
-                <input
-                  type="text"
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && commentInput.trim()) {
-                      addJobComment(activeJob.id, commentInput.trim());
-                      setCommentInput('');
-                    }
-                  }}
-                  placeholder="Add a comment or note… (Enter to submit)"
-                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus"
-                  style={{ border: `1px solid ${T.hairline}` }}
+                <JobRecordHeader
+                  job={activeJob}
+                  onBack={() => setShowJobDetail(false)}
+                  onEdit={() => openModal('job', activeJob)}
+                  editDisabled={!isJobEditable(activeJob)}
+                  editTitle={jobLockReason(activeJob)}
+                  onClone={() => cloneJob(activeJob)}
+                  onEmail={() => setEmailModalJob(activeJob)}
+                  printItems={[
+                    { key: 'invoice', label: 'Tax invoice', onClick: () => openInvoiceDoc(activeJob) },
+                    { key: 'proforma', label: 'Proforma invoice', onClick: () => openInvoiceDoc(activeJob, 'proforma') },
+                    { key: 'proformaBal', label: 'Proforma — balance only', onClick: () => openInvoiceDoc(activeJob, 'proformaBalance') },
+                    { key: 'pickingSlip', label: 'Picking slip', onClick: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
+                    { key: 'deliveryNote', label: 'Delivery note', onClick: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
+                    { key: 'jobSheet', label: 'Job sheet', onClick: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
+                    { key: 'shipLabel', label: 'Ship label', onClick: () => setDocumentPrint({ type: 'shipLabel', job: activeJob }) },
+                  ]}
+                  // Duplicate to sites, Unprint: decided in ui/shell/pageActions.js.
+                  moreActions={pageHeader?.actions ?? []}
+                  nextStep={mayStep ? step : null}
+                  onNextStep={runStep}
                 />
-                <button
-                  onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                  className="text-xs px-2 py-1 rounded hover:bg-hairline whitespace-nowrap"
-                  style={{ background: T.hairlineSoft, color: T.textMuted, border: `1px solid ${T.hairline}` }}
-                  title="Add as internal note (not visible to customer)"
-                >Internal</button>
-                <button
-                  onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
-                  className="text-xs text-white px-3 py-1 rounded whitespace-nowrap"
-                  style={{ background: T.accentStrong }}
-                >Add</button>
-              </div>
-            </div>
+              );
+            })()}
+            <div className="flex gap-4 items-start">
+              <div className="flex-1 min-w-0 space-y-3">
 
-            {/* ── Jim2-style Line Items panel (bottom) ── */}
-            {activeJob.items && activeJob.items.length > 0 && (
-              <div className="rounded overflow-hidden" style={{ border: `1px solid ${T.hairline}` }}>
-                <div className="px-3 py-1.5 flex items-center justify-between" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Order Items</span>
-                  <span className="text-[10px]" style={{ color: T.textFaint }}>{activeJob.items.filter(i => !i.displayType).length} lines</span>
-                </div>
-                {(() => {
-                  const linkedPOs = [...new Set(activeJob.items.filter(i => i.poNo).map(i => i.poNo))];
-                  if (linkedPOs.length === 0) return null;
-                  return (
-                    <div className="px-3 py-1.5 flex items-center gap-2 flex-wrap" style={{ background: T.panel, borderBottom: `1px solid ${T.hairline}` }}>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: T.textFaint }}>Purchase Orders</span>
-                      {linkedPOs.map(po => (
-                        <button key={po} onClick={() => openPOById(po)} title={`Open PO ${po}`}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold hover:underline"
-                          style={{ background: T.accentTint, color: T.accentStrong, border: `1px solid ${T.accentStrong}` }}>
-                          {po}<ExternalLink className="w-3 h-3" />
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs" style={{ minWidth: 860 }}>
-                    <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO#</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO Due</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Stock Code</th>
-                        <th className="px-2 py-1.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Order</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Supply</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>B. Ord</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Qty Pick</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex.</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc.</th>
-                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Tax</th>
-                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Hide</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
-                      {activeJob.items.map((item, idx) => {
-                        const isSec = item.displayType === 'section';
-                        const isNote = item.displayType === 'note';
-                        if (isSec) return (
-                          <tr key={idx} style={{ background: T.accentTint, borderLeft: `4px solid ${T.accentStrong}` }}>
-                            <td colSpan={14} className="px-3 py-1.5 font-bold text-xs" style={{ color: T.accentStrong }}>{item.description}</td>
-                          </tr>
-                        );
-                        if (isNote) return (
-                          <tr key={idx} className="bg-warn-tint">
-                            <td colSpan={14} className="px-3 py-1.5 italic text-warn text-xs">{item.description}</td>
-                          </tr>
-                        );
-                        return (
-                        <tr key={idx} className={`hover:bg-accent-tint ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
-                          <td className="px-2 py-1.5">
-                            {item.itemStatus
-                              ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
-                              : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className="px-2 py-1.5 font-mono">
-                            {item.poNo
-                              ? <button onClick={() => openPOById(item.poNo)} title={`Open PO ${item.poNo}`}
-                                  className="inline-flex items-center gap-1 hover:underline" style={{ color: T.accentStrong, fontWeight: 600 }}>
-                                  {item.poNo}<ExternalLink className="w-3 h-3" />
-                                </button>
-                              : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className="px-2 py-1.5 whitespace-nowrap" style={{ color: T.text }}>{item.poDue || <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 font-mono" style={{ color: T.accentStrong }}>{item.stockCode || <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5">
-                            <div className="font-medium" style={{ color: T.text }}>{item.description}</div>
-                            {item.sizes && <div className="whitespace-pre-line mt-0.5" style={{ color: T.textMuted }}>{item.sizes}</div>}
-                            {(item.decCode || item.embCode || item.trsCode) && <div className="text-xs font-mono mt-0.5" style={{ color: T.accentStrong }}>{item.decorationType && item.decorationType !== 'None' ? `${item.decorationType}: ` : ''}{item.decCode || item.embCode || item.trsCode}{item.stitchCount ? ` · ${item.stitchCount} sts` : ''}</div>}
-                          </td>
-                          <td className="px-2 py-1.5 text-right" style={{ color: T.text }}>{item.order}</td>
-                          <td className="px-2 py-1.5 text-right">
-                            <span style={{ color: item.supply >= item.order ? T.ok : T.danger, fontWeight: item.supply >= item.order ? 500 : undefined }}>
-                              {item.supply}
-                            </span>
-                          </td>
-                          <td className="px-2 py-1.5 text-right text-accent-strong font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 text-right text-emphasis font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 text-right">${(item.priceEx || 0).toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-right">${(item.priceInc || 0).toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-center" style={{ color: T.textMuted }}>{item.taxType || 'G'}</td>
-                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-accent font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
-                          <td className="px-2 py-1.5 text-right font-semibold">${(item.total || 0).toFixed(2)}</td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
-                      <tr>
-                        <td colSpan={13} className="px-3 py-1.5 text-right text-xs" style={{ color: T.textMuted }}>
-                          {activeJob.weightTotal > 0 && (
-                            <span className="mr-4 text-accent-strong"><strong>Weight: {Number(activeJob.weightTotal).toFixed(2)} kg</strong></span>
-                          )}
-                          <span className="mr-4">Subtotal: <strong>${(activeJob.subtotal || 0).toFixed(2)}</strong></span>
-                          <span className="mr-4">GST: <strong>${(activeJob.tax || 0).toFixed(2)}</strong></span>
-                          <span className="mr-4">Total (Inc): <strong style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</strong></span>
-                          {activeJob.balanceDue > 0 && <span style={{ color: T.danger }}>Balance: <strong>${(activeJob.balanceDue || 0).toFixed(2)}</strong></span>}
-                        </td>
-                        <td className="px-2 py-1.5 text-right font-bold text-sm">
-                          ${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
+            {/* ── Sections, one at a time: the record in chunks, not one wall ── */}
+            <div className="rounded-xl px-3" style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm }}>
+              <Tabs
+                bare
+                active={jobDetailTab}
+                onChange={setJobDetailTab}
+                tabs={[
+                  { id: 'job', label: 'Overview' },
+                  { id: 'pickpack', label: 'Pick / Pack' },
+                  { id: 'documents', label: 'Documents' },
+                  { id: 'cost', label: 'Cost' },
+                  { id: 'stats', label: 'Stats' },
+                  { id: 'linked', label: 'Linked' },
+                  { id: 'activity', label: 'Activity', count: (activeJob.comments || []).length || undefined },
+                ]}
+              />
+            </div>
+            {jobDetailTab === 'job' && (
+              <>
+                {/* What the job is, what is being said about it, then its facts. */}
+                <JobLinesCard job={activeJob} onOpenPO={openPOById} />
+                <JobCommentsCard job={activeJob} onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)} />
+                <JobDetailsCard job={activeJob} />
+              </>
             )}
 
-            {/* ── Jim2-style Freight + Totals footer ───────────────────── */}
-            {(() => {
-              const freightItem = (activeJob.items || []).find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
-              const freightAmt = freightItem ? parseFloat(freightItem.priceEx || freightItem.total || 0) : 0;
-              const freightTax = Math.round(freightAmt * 0.10 * 100) / 100;
-              const cartons = freightItem ? (parseInt(freightItem.order) || parseInt(freightItem.qty) || 1) : 1;
-              const TR = ({ label, value, strong, color }) => (
-                <div className="flex justify-between items-baseline" style={{ fontSize: strong ? 14 : 12, padding: strong ? '5px 0' : '3px 0', marginTop: strong ? 2 : 0, borderTop: strong ? `1px solid ${T.hairline}` : 'none', fontWeight: strong ? 500 : 400 }}>
-                  <span style={{ color: strong ? T.text : T.textMuted }}>{label}</span>
-                  <span className="font-mono" style={{ color: color || T.text, fontWeight: 500 }}>{value}</span>
-                </div>
-              );
-              return (
-                <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: '1fr 260px', alignItems: 'start' }}>
-                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                    <div className="flex items-center gap-1.5 mb-1" style={{ color: T.textMuted }}>
-                      <Package className="w-3.5 h-3.5" /><span className="text-xs font-bold uppercase tracking-wide">Freight</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4">
-                      <TR label="Freight $" value={freightAmt ? freightAmt.toFixed(2) : '—'} color={freightAmt ? T.text : T.textFaint} />
-                      <TR label="Tax" value={freightAmt ? freightTax.toFixed(2) : '0.00'} />
-                      <TR label="Amount" value={freightAmt ? (freightAmt + freightTax).toFixed(2) : '0.00'} />
-                      <TR label="Cartons" value={String(cartons)} />
-                      <TR label="Fuel Levy" value={activeJob.fuelLevy ? activeJob.fuelLevy.toFixed(2) : '0.00'} />
-                      <TR label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : '—'} color={activeJob.weightTotal ? T.text : T.textFaint} />
-                    </div>
-                  </div>
-                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                    <TR label="SubTotal $" value={(activeJob.subtotal || 0).toFixed(2)} />
-                    <TR label="Tax $" value={(activeJob.tax || 0).toFixed(2)} />
-                    <TR label="Total $ (AUD)" value={(activeJob.totalInc || activeJob.total || 0).toFixed(2)} strong />
-                    <TR label="Prepaid $" value={(activeJob.invoicePaid || 0).toFixed(2)} color={T.ok} />
-                    <TR label="Balance Due $" value={(activeJob.balanceDue || 0).toFixed(2)} strong color={activeJob.balanceDue > 0 ? T.danger : T.ok} />
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Secondary tab strip ──────────────────────────────────── */}
-            <div className="mt-3 pt-1 flex gap-0 text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
-              {[
-                { id: 'job',       label: 'Job',                icon: FileText },
-                { id: 'cost',      label: 'Cost',               icon: DollarSign },
-                { id: 'stats',     label: 'Stats',              icon: BarChart3 },
-                { id: 'linked',    label: 'Linked Jobs/Quotes', icon: Layers },
-                { id: 'pickpack',  label: 'Pick / Pack',        icon: CheckSquare },
-                { id: 'documents', label: 'Documents',          icon: ClipboardList },
-                { id: 'activity',  label: 'Activity',           icon: Bell },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = jobDetailTab === tab.id;
-                return (
-                  <button key={tab.id}
-                    onClick={() => setJobDetailTab(isActive ? 'job' : tab.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 border-b-2 transition-colors"
-                    style={isActive
-                      ? { borderColor: T.accent, color: T.accentStrong, fontWeight: 500, background: T.accentTint }
-                      : { borderColor: 'transparent', color: T.textMuted }}>
-                    <Icon className="w-3 h-3" />{tab.label}
-                  </button>
-                );
-              })}
-            </div>
+            {jobDetailTab !== 'job' && (
+            <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm }}>
 
             {/* ── STATS TAB ────────────────────────────────────────────── */}
             {jobDetailTab === 'stats' && (() => {
@@ -2141,7 +1620,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             {jobDetailTab === 'pickpack' && (() => {
               // Persisted Pick/Pack (Jim2 Qty Pick): drafts overlay the saved
               // qty_pick per line; Save Picks writes them via /jobs/{id}/pick.
-              const productLines = (activeJob.items || []).filter(i => (i.displayType || 'product') === 'product');
+              const productLines = pickableLines(activeJob);
               const target = (i) => i.supply || i.qty || i.order || 0;
               const draft = pickState[activeJob.id] || {};
               const pickedOf = (i) => (draft[i.id] !== undefined ? draft[i.id] : (i.qtyPick || 0));
@@ -2446,86 +1925,28 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             )}
 
             </div>
+            )}
               </div>{/* /flex-1 */}
 
-              {/* ── FactBox Sidebar ────────────────────────────────────── */}
+              {/* ── Side: the customer and the money, once each ── */}
               {(() => {
                 const fbCust = customers.find(c => c.id === activeJob.customerId) || {};
-                const custJobs = jobs.filter(j => j.customerId === activeJob.customerId && j.id !== activeJob.id);
-                const openCustJobs = custJobs.filter(j => !['PAID','CANCEL'].includes(j.status));
-                const paid = (activeJob.total || 0) - (activeJob.balanceDue || 0);
-                const balPct = activeJob.total > 0 ? Math.max(0, Math.min(100, (paid / activeJob.total) * 100)) : 0;
+                const openCustJobs = jobs.filter(j => j.customerId === activeJob.customerId && j.id !== activeJob.id && !['PAID', 'CANCEL'].includes(j.status));
                 return (
-                  <div className="w-72 shrink-0 space-y-3">
-
-                    {/* Customer Card */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <div className="flex items-center justify-between mb-2.5">
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: T.textMuted }}>Customer</h4>
-                        {fbCust.id && <button onClick={() => setActiveModule('customers')} className="text-[11px]" style={{ color: T.accentStrong }}>View →</button>}
-                      </div>
-                      <p className="font-semibold text-sm leading-tight" style={{ color: T.text }}>{activeJob.customer}</p>
-                      {fbCust.contact && <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>{fbCust.contact}</p>}
-                      <div className="mt-2 space-y-1">
-                        {fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.phone}</div>}
-                        {fbCust.mobile && fbCust.mobile !== fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.mobile}</div>}
-                        {fbCust.email && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Mail className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} /><span className="truncate">{fbCust.email}</span></div>}
-                        {(activeJob.shipTo || fbCust.address) && <div className="flex items-start gap-1.5 text-xs mt-1" style={{ color: T.text }}><MapPin className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.textFaint }} /><span className="leading-tight">{activeJob.shipTo || fbCust.address}</span></div>}
-                      </div>
-                      {fbCust.paymentTerms && <div className="mt-2 pt-2 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textMuted }}>Terms: <span className="font-medium" style={{ color: T.text }}>{fbCust.paymentTerms}</span></div>}
-                    </div>
-
-                    {/* Financial Summary */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Financials</h4>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.tax || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span className="font-semibold" style={{ color: T.text }}>Total (inc. GST)</span><span className="font-bold" style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${paid.toFixed(2)}</span></div>
-                        {activeJob.balanceDue > 0 && <div className="flex justify-between"><span className="font-semibold" style={{ color: T.danger }}>Balance Due</span><span className="font-bold" style={{ color: T.danger }}>${Number(activeJob.balanceDue).toFixed(2)}</span></div>}
-                      </div>
-                      {activeJob.total > 0 && (
-                        <div className="mt-2.5">
-                          <div className="w-full rounded-full h-1.5" style={{ background: T.hairlineSoft }}>
-                            <div className="bg-ok h-1.5 rounded-full transition-all" style={{ width: `${balPct}%` }} />
-                          </div>
-                          <p className="text-[10px] mt-0.5 text-right" style={{ color: T.textFaint }}>{balPct.toFixed(0)}% paid</p>
-                        </div>
-                      )}
-                      {activeJob.balanceDue > 0 && (
-                        <button onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                          className="w-full mt-2 text-xs bg-ok text-white py-1.5 rounded-lg hover:bg-ok font-semibold">
-                          Record Payment
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {[
-                          // Colour says what kind of action this is, not which
-                          // button it happens to be. Editing the job is the one
-                          // that changes it, so it is the only accented tile;
-                          // the four documents below print what is already
-                          // there and read as one quiet group.
-                          { label: 'Edit Job',  icon: Edit,          variant: 'primary',   action: () => openModal('job', activeJob),                               disabled: !isJobEditable(activeJob), title: jobLockReason(activeJob) },
-                          { label: 'Clone',     icon: Copy,          variant: 'secondary', action: () => cloneJob(activeJob) },
-                          { label: 'Job Sheet', icon: Printer,       variant: 'secondary', action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
-                          { label: 'Invoice',   icon: FileText,      variant: 'secondary', action: () => openInvoiceDoc(activeJob) },
-                          { label: 'Delivery',  icon: Package,       variant: 'secondary', action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                          { label: 'Picking',   icon: ClipboardList, variant: 'secondary', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
-                        ].map(a => (
-                          <Button key={a.label} variant={a.variant} size="tile" onClick={a.action} disabled={a.disabled} title={a.title || undefined}>
-                            <a.icon className="w-4 h-4" />{a.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Proof Approval */}
+                  <div className="w-80 shrink-0 space-y-3">
+                    <JobCustomerCard
+                      job={activeJob}
+                      customer={fbCust}
+                      openJobCount={openCustJobs.length}
+                      onViewCustomer={() => setActiveModule('customers')}
+                      onShowCustomerJobs={() => { setShowJobDetail(false); setActiveModule('jobs'); setFilterCustomer(activeJob.customerId || ''); }}
+                    />
+                    <JobMoneyCard
+                      job={activeJob}
+                      onRecordPayment={offer('POST', '/jobs/{job_id}/payment')
+                        ? () => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })
+                        : undefined}
+                    />
                     <ProofPanel
                       key={activeJob.id}
                       job={activeJob}
@@ -2535,37 +1956,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         setActiveJob(j => ({ ...j, proofStatus: status, proofNotes: notes }));
                       }}
                     />
-
-                    {/* Related */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Related</h4>
-                      <div className="space-y-1.5">
-                        <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(activeJob.customerId || ''); }}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium" style={{ background: T.hairlineSoft, color: T.text }}>
-                          <span className="flex items-center gap-2"><FileText className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Other Jobs</span>
-                          <span className="px-2 py-0.5 rounded-full font-bold text-[11px]" style={openCustJobs.length > 0 ? { background: T.accentTint, color: T.accentStrong } : { background: T.hairlineSoft, color: T.textMuted }}>{openCustJobs.length}</span>
-                        </button>
-                        {activeJob.poNumber && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
-                            <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Customer PO</span>
-                            <span className="font-mono font-medium" style={{ color: T.text }}>{activeJob.poNumber}</span>
-                          </div>
-                        )}
-                        {activeJob.assignedTo && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
-                            <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Assigned To</span>
-                            <span className="font-medium" style={{ color: T.text }}>{activeJob.assignedTo}</span>
-                          </div>
-                        )}
-                        {activeJob.status === 'QUOTE' && (
-                          <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white mt-1" style={{ background: T.accentStrong }}>
-                            Convert to Order →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
                   </div>
                 );
               })()}
@@ -2596,6 +1986,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
         setActiveModule('purchase-orders');
         setSelectedPO(po);
       }}
+      initialTab={link.tab}
     />
   );
 
@@ -2823,7 +2214,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
                         className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
-                        {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s}>{s}</option>)}
+                        {JOB_STATUSES.map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
@@ -4498,8 +3889,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
   // Document Print Modal (Picking Slip, Delivery Note, Job Sheet)
 
+  const onJobRecord = ['jobs', 'quotes'].includes(activeModule) && showJobDetail && !!activeJob;
   const pageHeader = pageActions({
-    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify,
+    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify, offer,
     selectedPO, selectedCardFile,
     newJob: () => openModal('job'),
     openDispatch: () => { setShowJobDetail(false); setDispatchListOpen(true); },
@@ -4534,7 +3926,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
   return (
     <AppShell
       activeModule={activeModule}
-      onNavigate={setActiveModule}
+      // A space chosen from the sidebar opens at its list: on a job's record,
+      // clicking Jobs used to change nothing, so there was no way back but the
+      // breadcrumb.
+      onNavigate={(m) => { setShowJobDetail(false); setActiveModule(m); }}
       adminMode={adminMode}
       onAdminToggle={() => setAdminMode(v => !v)}
       currentUser={currentUser}
@@ -4589,35 +3984,38 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
       {/* ── Page header: the Fiori title and header toolbar (ui/shell/ActionBar).
           It replaced the Jim2 ribbon, 97 of whose 135 buttons did nothing. */}
-      {pageHeader && <ActionBar {...pageHeader} />}
+      {/* On a job's record its own header carries the title and actions, so
+          the page header and the job-count strip would only repeat them. */}
+      {pageHeader && !onJobRecord && <ActionBar {...pageHeader} />}
 
-      {/* ── Live KPI Bar — job counts, so on the job pages only ── */}
-      {['dashboard', 'jobs', 'quotes'].includes(activeModule) && (
-      <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
+      {/* ── Live KPI Bar — job counts, so on the job pages only. Home has its
+          own, chosen for the role. ── */}
+      {['jobs', 'quotes'].includes(activeModule) && !onJobRecord && (
+      // Quick views as pills: the count first, coloured only when it needs
+      // someone; each opens the list it counts.
+      <div className="shrink-0 flex items-center gap-2 mb-4 select-none overflow-x-auto">
         {[
-          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => openQuickList('overdue') },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => openQuickList('dueToday') },
-          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => openQuickList('needsInvoice') },
-          { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-warn',  bg: 'hover:bg-warn-tint',  text: 'text-warn',  border: 'border-warn',  action: () => setActiveModule('inventory') },
-          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => openQuickList('inProduction') },
+          { label: 'Overdue',       count: dashboardStats.overdueJobs.length, tone: T.danger, icon: AlertCircle, action: () => openQuickList('overdue') },
+          { label: 'Due today',     count: dashboardStats.dueToday.length,    tone: T.accent, icon: Clock,       action: () => openQuickList('dueToday') },
+          { label: 'To invoice',    count: dashboardStats.toInvoice,          tone: T.accent, icon: FileText,    action: () => openQuickList('needsInvoice') },
+          { label: 'Low stock',     count: dashboardStats.lowStock,           tone: T.warn,   icon: Package,     action: () => setActiveModule('inventory') },
+          { label: 'In production', count: dashboardStats.inProduction,       tone: null,     icon: Layers,      action: () => openQuickList('inProduction') },
         ].map((item) => {
           const Icon = item.icon;
+          const lit = item.tone && item.count > 0;
           return (
-            <button key={item.label} onClick={item.action}
-              className={`flex items-center gap-1.5 px-3 h-full border-r border-hairline text-[11px] font-medium transition-colors whitespace-nowrap ${item.bg} ${item.urgent ? item.text : 'text-muted'}`}>
-              <Icon className={`w-3 h-3 shrink-0 ${item.urgent ? item.iconColor : 'text-faint'}`} />
-              <span className={`font-bold tabular-nums ${item.urgent ? '' : 'text-faint'}`}>{item.count}</span>
-              <span className={item.urgent ? 'opacity-90' : 'opacity-60'}>{item.label}</span>
+            <button key={item.label} type="button" onClick={item.action}
+              className="flex items-center gap-2 h-8 pl-2.5 pr-3 rounded-lg whitespace-nowrap transition-colors hover:bg-panel-alt"
+              style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm, fontSize: T.fsSmall, color: T.textMuted }}>
+              <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: lit ? item.tone : T.textFaint }} aria-hidden />
+              <span className="tabular-nums" style={{ fontSize: T.fsGrid, fontWeight: 600, color: lit ? item.tone : T.text }}>{item.count}</span>
+              <span>{item.label}</span>
             </button>
           );
         })}
-        <div className="flex-1" />
         {dashboardStats.overdueJobs.length === 0 && dashboardStats.dueToday.length === 0 && dashboardStats.toInvoice === 0 && (
-          <span className="text-[10px] text-ok font-medium px-3 flex items-center gap-1"><CheckSquare className="w-3 h-3" />All caught up</span>
+          <span className="flex items-center gap-1 px-2" style={{ fontSize: T.fsSmall, color: T.ok, fontWeight: 500 }}><CheckSquare className="w-3.5 h-3.5" aria-hidden />All caught up</span>
         )}
-        <span className="text-[10px] text-faint px-3 border-l border-hairline whitespace-nowrap hidden lg:block">
-          {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-        </span>
       </div>
       )}
 
@@ -4626,8 +4024,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <main className="flex-1 p-5 overflow-auto bg-paper">
-            {loading && (
+          {/* The shell's <main> already pads the page and is the landmark; a
+              second padded <main> here set every module 20px in from its own
+              page title. */}
+          <div className="flex-1 overflow-auto">
+            {/* Home shows its own busy tiles while data loads. */}
+            {loading && activeModule !== 'home' && (
               <div className="flex items-center justify-center py-20 text-faint text-sm">Loading data...</div>
             )}
             {apiError && (
@@ -4637,10 +4039,23 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               </div>
             )}
             {adminMode ? (
-              <AdminPanel currentUser={currentUser} />
+              <AdminPanel currentUser={currentUser} usersFilter={homeLink?.admin ? homeLink.usersFilter : undefined} />
             ) : (
               <>
-                {!loading && activeModule === 'dashboard'          && renderDashboard()}
+                {activeModule === 'home' && (
+                  <HomeModule
+                    currentUser={currentUser}
+                    // isPending, not isLoading: a query that has not fetched yet
+                    // (paused offline) has no data, and must not count as 0.
+                    sources={{
+                      jobs: { data: jobs, isPending: jobsPending, isError: jobsFailed },
+                      inventory: { data: inventory, isPending: invPending, isError: invFailed },
+                      purchaseOrders: { data: purchaseOrders, isPending: posPending, isError: posFailed },
+                    }}
+                    onOpenQuickList={openQuickList}
+                    onOpenLink={openHomeLink}
+                  />
+                )}
                 {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (
                   jobListModal.open ? <JobListPage customers={customers} deleteJobList={deleteJobList} inventory={inventory} jobListModal={jobListModal} jobs={jobs} openModal={openModal} savedJobLists={savedJobLists} setActiveJob={setActiveJob} setActiveJobList={setActiveJobList} setActiveModule={setActiveModule} setJobListModal={setJobListModal} setShowJobDetail={setShowJobDetail} updateListFilter={updateListFilter} />
                   : (dispatchListOpen && activeModule === 'jobs') ? (
@@ -4656,6 +4071,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     focusSku={stockFocusSku}
                     onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}
+                    initialChip={link.chip}
                   />
                 ))}
                 {!loading && activeModule === 'customers'          && <CustomersDetail customers={customers} deleteCustomer={deleteCustomer} exportToCSV={exportToCSV} jobs={jobs} openModal={openModal} pinJob={pinJob} searchTerm={searchTerm} setActiveModule={setActiveModule} setFilterCustomer={setFilterCustomer} setSearchTerm={setSearchTerm} />}
@@ -4667,10 +4083,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
-                {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
                 {!loading && activeModule === 'accounts' && (
-                  <AccountingModule suppliers={suppliers} currentUser={currentUser} />
+                  <AccountingModule suppliers={suppliers} currentUser={currentUser} initialTab={link.tab} initialReport={link.report} />
                 )}
                 {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
                   <div className="flex flex-col items-center justify-center h-64 text-faint">
@@ -4683,18 +4098,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 )}
               </>
             )}
-          </main>
+          </div>
         </div>
       </div>
 
-      {/* ── Status Bar ── */}
-      <div className="shrink-0 bg-white border-t border-hairline-soft flex items-center px-4 gap-4 text-[11px] text-faint" style={{ height: 24 }}>
-        <span className="text-muted font-medium">{currentUser?.full_name || currentUser?.username}</span>
-        <span>·</span>
-        <span>TIG ERP v1.0</span>
-        <div className="flex-1" />
-        <span>{new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-      </div>
 
       {/* ── Nav context menu ── */}
       {navCtxMenu.open && (

@@ -34,7 +34,7 @@ function Issue({ title, why, rows, render }) {
       <div style={{ fontWeight: 700, color: T.text }}>{title} <span style={{ color: T.textMuted, fontWeight: 400 }}>({rows.length})</span></div>
       <div style={{ fontSize: T.fsSmall, color: T.textMuted, margin: '2px 0 6px' }}>{why}</div>
       {rows.slice(0, 20).map((r) => (
-        <div key={r.job_id} style={{ fontSize: T.fsGrid, padding: '1px 0' }}>{render(r)}</div>
+        <div key={r.job_id ?? r.customer_id} style={{ fontSize: T.fsGrid, padding: '1px 0' }}>{render(r)}</div>
       ))}
       {rows.length > 20 && <div style={{ fontSize: T.fsSmall, color: T.textFaint }}>…and {rows.length - 20} more</div>}
     </div>
@@ -89,6 +89,16 @@ function Health() {
         title="Invoiced with no invoice date" rows={data.invoiced_without_date}
         why="Posted on the day it was brought into the ledger, which may be the wrong BAS quarter. Check the invoice date."
         render={(r) => <>{job(r)} · {money(r.total)}</>}
+      />
+      <Issue
+        title="Invoice total is not the sum of its lines" rows={data.totals_disagree_with_lines}
+        why="The invoice charges a different amount from what its lines add up to. Unprint the job and save it, and the total is worked out from the lines again."
+        render={(r) => <>{job(r)} · invoice {money(r.header)}, lines {money(r.lines)} (ex GST)</>}
+      />
+      <Issue
+        title="Customer balance is not what they were invoiced" rows={data.balances_disagree_with_invoices}
+        why="The balance shown on the customer, and used for the credit check, differs from what their invoices still owe."
+        render={(r) => <><span style={{ fontFamily: T.fontMono }}>{r.customer_id}</span> · {r.customer} · balance {money(r.balance)}, invoices {money(r.invoices)}</>}
       />
     </div>
   );

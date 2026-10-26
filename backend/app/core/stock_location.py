@@ -89,11 +89,25 @@ def location_summary(db: Session, sku: str) -> dict:
     Legacy stock predates location tracking, so `unlocated` is expected to be
     non-zero until it is put away. Surfacing it beats silently showing a
     Locations tab that does not add up to the item.
+
+    Committed, back-ordered and on-order are derived from the open jobs and
+    purchase orders, as the Locations tab and the stock list derive them. This
+    read the counters stored on the position instead, and they disagreed: the
+    stock list said 2 committed, this said 3 (F14).
     """
+    from app.core.reservations import (
+        backordered_by_branch,
+        committed_by_branch,
+        on_order_total,
+    )
+
     item = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
     total = (item.stock or 0) if item else 0
     rows = db.query(StockLocation).filter(StockLocation.sku == sku).all()
     located = sum(r.qty_on_hand or 0 for r in rows)
+    committed = committed_by_branch(db, sku)
+    backordered = backordered_by_branch(db, sku)
+    on_po = on_order_total(db, sku)
     return {
         "sku": sku,
         "total_on_hand": total,
@@ -104,10 +118,12 @@ def location_summary(db: Session, sku: str) -> dict:
             {
                 "branch": r.branch,
                 "qty_on_hand": r.qty_on_hand or 0,
-                "committed_qty": r.committed_qty or 0,
-                "available_qty": r.available_qty,
-                "on_po_qty": r.on_po_qty or 0,
-                "backorder_qty": r.backorder_qty or 0,
+                "committed_qty": committed.get(r.branch, 0),
+                "available_qty": max(
+                    0, (r.qty_on_hand or 0) - committed.get(r.branch, 0)
+                ),
+                "on_po_qty": on_po if r.branch == DEFAULT_BRANCH else 0,
+                "backorder_qty": backordered.get(r.branch, 0),
             }
             for r in rows
         ],

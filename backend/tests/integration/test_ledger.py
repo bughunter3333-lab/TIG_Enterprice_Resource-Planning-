@@ -236,6 +236,10 @@ class TestInvoices:
     def test_invoicing_twice_through_paid_posts_once(self, client, db):
         _job(db, "L-INV3")
         _invoice(client, "L-INV3")
+        # PAID needs the payment recorded first (a job is PAID once paid).
+        assert (
+            client.post("/jobs/L-INV3/payment", json={"amount": 110}).status_code == 200
+        )
         assert (
             client.post("/jobs/L-INV3/status", json={"status": "PAID"}).status_code
             == 200
@@ -538,9 +542,10 @@ class TestHealthAndBackfill:
         assert health["payables"]["ledger"] == 99.0
 
     def test_a_job_marked_paid_without_a_payment_is_reported(self, client, db):
-        _job(db, "L-H1")
-        _invoice(client, "L-H1")
-        client.post("/jobs/L-H1/status", json={"status": "PAID"})
+        # The app can no longer make this state (PAID needs its payment), but
+        # history can carry it: a job written as PAID with its balance owed.
+        _job(db, "L-H1", status="PAID")
+        client.post("/accounting/backfill")
         health = client.get("/accounting/health").json()
         assert [row["job_id"] for row in health["paid_with_balance_owing"]] == ["L-H1"]
 

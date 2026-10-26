@@ -305,8 +305,8 @@ class TestBulkStatusUpdate:
     sixty-eight site rollout is sixty-eight round trips and no single answer at
     the end about what happened.
 
-    Each job is judged on its own. One job refusing -- a missing invoice
-    number, insufficient stock, a move its status does not allow -- must not
+    Each job is judged on its own. One job refusing -- nothing to charge,
+    insufficient stock, a move its status does not allow -- must not
     take the rest of the batch down with it, because the alternative is an
     operator picking through sixty-eight jobs to find the one that stopped.
     """
@@ -332,12 +332,9 @@ class TestBulkStatusUpdate:
 
     def test_one_refusal_does_not_stop_the_others(self, client, db, make_customer):
         make_customer(id="JBK02", credit_limit=99999.0)
-        _make_job(db, "J-BK10", "JBK02", status="FINISH")
+        # J-BK10 has nothing on it to charge, so it cannot be invoiced.
+        _make_job(db, "J-BK10", "JBK02", status="FINISH", total_inc=0, total_ex=0)
         _make_job(db, "J-BK11", "JBK02", status="FINISH")
-        # J-BK11 gets an invoice number, J-BK10 does not.
-        j = db.query(Job).filter_by(id="J-BK11").first()
-        j.invoice = "INV-BK11"
-        db.commit()
 
         r = client.post(
             "/jobs/bulk-status",
@@ -347,7 +344,7 @@ class TestBulkStatusUpdate:
         assert body["moved"] == 1
         assert len(body["failed"]) == 1
         assert body["failed"][0]["job_id"] == "J-BK10"
-        assert "Invoice number" in body["failed"][0]["reason"]
+        assert "greater than zero" in body["failed"][0]["reason"]
 
         db.expire_all()
         assert db.query(Job).filter_by(id="J-BK11").first().status == "INVOICE"
@@ -387,10 +384,8 @@ class TestBulkStatusUpdate:
         # because none of them had a success followed by a failure. Each job
         # gets a SAVEPOINT now.
         make_customer(id="JBK05", credit_limit=99999.0)
-        good = _make_job(db, "J-BK40", "JBK05", status="FINISH")
-        good.invoice = "INV-BK40"
-        _make_job(db, "J-BK41", "JBK05", status="FINISH")  # no invoice number
-        db.commit()
+        _make_job(db, "J-BK40", "JBK05", status="FINISH")
+        _make_job(db, "J-BK41", "JBK05", status="FINISH", total_inc=0, total_ex=0)
 
         body = client.post(
             "/jobs/bulk-status",
@@ -495,7 +490,8 @@ class TestCreateSimilar:
         assert not new["invoice"]
         assert not new["invoice_date"]
         assert float(new["deposit"] or 0) == 0
-        assert float(new["balance_due"] or 0) == 0
+        # Nothing taken against it: all of it is still to pay.
+        assert float(new["balance_due"]) == float(new["total_inc"])
         assert new["payment_status"] == "unpaid"
 
         line = new["items"][0]

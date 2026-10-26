@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, Filter, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import { T } from '../ui/tokens';
+import { PRODUCTION_STATUSES } from './jobs/jobStatuses';
 
 const STATUS_COLORS = {
   QUOTE: 'bg-hairline-soft text-header border-hairline',
@@ -28,7 +29,7 @@ const DEC_COLORS = {
   None:   { dot: 'bg-hairline',    pill: 'bg-panel-alt text-muted',      label: 'None' },
 };
 
-const PROD_STATUSES = ['ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'FINISH'];
+const PROD_STATUSES = PRODUCTION_STATUSES;
 
 function parseDate(str) {
   if (!str) return null;
@@ -66,8 +67,6 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
   const isOverdue = due && due < now && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
   const daysLeft = due ? Math.ceil((due - now) / 86400000) : null;
   const decs = [...new Set((job.items || []).map(i => i.decorationType).filter(d => d && d !== 'None'))];
-  const primaryDec = decs[0] || null;
-  const decStyle = primaryDec ? DEC_COLORS[primaryDec] : DEC_COLORS.None;
 
   return (
     <div
@@ -187,7 +186,6 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
   const [filterStaff, setFilterStaff] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showWeekend, setShowWeekend] = useState(false);
-  const [droppingJob, setDroppingJob] = useState(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

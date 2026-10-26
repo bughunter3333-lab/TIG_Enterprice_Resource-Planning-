@@ -1,11 +1,61 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Download, Edit, Printer, Trash2, Users, X } from 'lucide-react';
 import CustomersModule from '../../modules/customers/CustomersModule';
 import { custOutstanding as outstandingOf, custRevenue as revenueOf, invoicedJobs } from './customerAggregates';
+import { useOffer } from '../../lib/useMyAccess';
+import { reports } from '../../api';
+import LogosTab from './LogosTab';
+import RemittanceForm from './RemittanceForm';
+
+const AGING_BUCKETS = [
+  ['current', 'Current', 'green'],
+  ['days_1_30', '1–30 days', 'yellow'],
+  ['days_31_60', '31–60 days', 'orange'],
+  ['days_61_90', '61–90 days', 'red'],
+  ['over_90', 'Over 90 days', 'red'],
+];
+
+/**
+ * This customer's row of the server's aged receivables: aged by payment terms
+ * counted from the invoice date (backend/app/core/payment_terms.py). Same query
+ * key as Reports → Aged Receivables, so the two never disagree.
+ */
+function AgedReceivablesTab({ customerId }) {
+  const offer = useOffer();
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['reports/aged-receivables'],
+    queryFn: () => reports.agedReceivables(),
+  });
+  if (isError) return <p className="text-sm text-danger">Couldn't load aged receivables.</p>;
+  if (isPending) return <p className="text-sm text-muted">Loading aged receivables…</p>;
+  // No row means nothing owed: a real zero, not missing data.
+  const row = (data?.rows || []).find((r) => r.customer_id === customerId) || {};
+  return (
+    <div>
+      <p className="text-sm text-muted mb-4">Overdue by payment terms, counted from the invoice date</p>
+      <div className="grid grid-cols-5 gap-3 mb-5">
+        {AGING_BUCKETS.map(([key, label, col]) => (
+          <div key={key} className={`rounded-lg p-3 text-center border ${col==='green'?'bg-ok-tint border-ok':col==='yellow'?'bg-warn-tint border-warn':col==='orange'?'bg-accent-tint border-accent':'bg-danger-tint border-danger'}`}>
+            <p className="text-xs font-semibold text-muted mb-1">{label}</p>
+            <p className={`text-lg font-bold ${col==='green'?'text-ok':col==='yellow'?'text-warn':col==='orange'?'text-accent-strong':'text-danger'}`}>${Number(row[key] || 0).toFixed(0)}</p>
+          </div>
+        ))}
+      </div>
+      <div className="text-sm">
+        <div className="flex justify-between font-bold py-2 border-t-2"><span>Total outstanding:</span><span className="text-danger">${Number(row.total || 0).toFixed(2)}</span></div>
+      </div>
+      {offer('POST', `/customers/${customerId}/remittances`) && Number(row.total || 0) > 0 && (
+        <RemittanceForm customerId={customerId} owed={Number(row.total || 0)} />
+      )}
+    </div>
+  );
+}
 
 export default function CustomersDetail({ customers, deleteCustomer, exportToCSV, jobs, openModal, pinJob, searchTerm, setActiveModule, setFilterCustomer, setSearchTerm }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [custDetailTab, setCustDetailTab] = useState('overview');
+  const offer = useOffer();
 
   const custJobs = (c) => jobs.filter(j => j.customerId === c.id);
   // Invoiced basis, shared with the list and the server's statement: see customerAggregates.js.
@@ -43,23 +93,13 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
             const revenue = custRevenue(c);
             const util = creditUtil(c);
             const overLimit = c.creditLimit > 0 && outstanding > c.creditLimit;
-            const now = new Date();
-
-            // Aged debtors for this customer
-            const aging = { current: 0, d30: 0, d60: 0, d90: 0, d90p: 0 };
-            invoicedJobs(c, jobs).filter(j => parseFloat(j.balanceDue || 0) > 0).forEach(j => {
-              const bal = parseFloat(j.balanceDue || 0);
-              try {
-                const parts = (j.due || '').split('/');
-                const due = parts.length === 3 ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : null;
-                if (!due || due >= now) { aging.current += bal; return; }
-                const days = Math.floor((now - due) / 86400000);
-                if (days <= 30) aging.d30 += bal;
-                else if (days <= 60) aging.d60 += bal;
-                else if (days <= 90) aging.d90 += bal;
-                else aging.d90p += bal;
-              } catch { aging.current += bal; }
-            });
+            // Aged AR reads a money report: staff and above (overseas staff get 403).
+            const tabs = [
+              'overview', 'jobs',
+              ...(offer('GET', '/reports/aged-receivables') ? ['aging'] : []),
+              'statement',
+              ...(offer('GET', '/logos') ? ['logos'] : []),
+            ];
 
             return (
               <div className="bg-white rounded-lg shadow">
@@ -120,7 +160,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
 
                 {/* Tabs */}
                 <div className="flex border-b px-4 gap-1 bg-panel-alt">
-                  {['overview','jobs','aging','statement'].map(tab => (
+                  {tabs.map(tab => (
                     <button key={tab} onClick={() => setCustDetailTab(tab)}
                       className={`px-4 py-2.5 text-sm font-medium border-b-2 capitalize transition-colors ${custDetailTab===tab?'border-accent text-accent-strong':'border-transparent text-muted hover:text-header'}`}>
                       {tab === 'aging' ? 'Aged AR' : tab}
@@ -177,22 +217,10 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                   )}
 
                   {/* Aged AR Tab */}
-                  {custDetailTab === 'aging' && (
-                    <div>
-                      <p className="text-sm text-muted mb-4">Accounts receivable aging — overdue by due date</p>
-                      <div className="grid grid-cols-5 gap-3 mb-5">
-                        {[['Current',aging.current,'green'],['1–30d',aging.d30,'yellow'],['31–60d',aging.d60,'orange'],['61–90d',aging.d90,'red'],['90d+',aging.d90p,'red']].map(([label,amt,col])=>(
-                          <div key={label} className={`rounded-lg p-3 text-center border ${col==='green'?'bg-ok-tint border-ok':col==='yellow'?'bg-warn-tint border-warn':col==='orange'?'bg-accent-tint border-accent':'bg-danger-tint border-danger'}`}>
-                            <p className="text-xs font-semibold text-muted mb-1">{label}</p>
-                            <p className={`text-lg font-bold ${col==='green'?'text-ok':col==='yellow'?'text-warn':col==='orange'?'text-accent-strong':'text-danger'}`}>${amt.toFixed(0)}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-sm">
-                        <div className="flex justify-between font-bold py-2 border-t-2"><span>Total Outstanding:</span><span className="text-danger">${outstanding.toFixed(2)}</span></div>
-                      </div>
-                    </div>
-                  )}
+                  {custDetailTab === 'aging' && tabs.includes('aging') && <AgedReceivablesTab customerId={c.id} />}
+
+                  {/* Logos Tab */}
+                  {custDetailTab === 'logos' && tabs.includes('logos') && <LogosTab customerId={c.id} />}
 
                   {/* Statement Tab */}
                   {custDetailTab === 'statement' && (
@@ -200,11 +228,12 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-sm text-muted">Account statement — all transactions</p>
                         <div className="flex items-center gap-2">
-                          <a
+                          {/* The statement PDF is money: staff and above (overseas staff get 403). */}
+                          {offer('GET', `/customers/${c.id}/statement.pdf`) && <a
                             href={`/api/customers/${c.id}/statement.pdf`}
                             target="_blank" rel="noopener noreferrer"
                             className="text-xs bg-danger text-white px-3 py-1.5 rounded hover:bg-danger flex items-center gap-1"
-                          ><Download className="w-3 h-3"/>Download PDF</a>
+                          ><Download className="w-3 h-3"/>Download PDF</a>}
                           <button onClick={() => window.print()} className="text-xs bg-accent-strong text-white px-3 py-1.5 rounded hover:bg-accent-strong flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
                         </div>
                       </div>

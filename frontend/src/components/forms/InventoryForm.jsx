@@ -102,6 +102,21 @@ export default function InventoryForm({ categoryDropdown, closeModal, editingIte
                   />
                 </div>
 
+                {/* Each unit's weight: an order's weight, and the freight
+                    quoted on it, is the sum of its goods lines (F08). */}
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-weight-kg">Weight per unit (kg)</label>
+                  <input id="inventory-weight-kg"
+                    type="number"
+                    step="0.001"
+                    value={inventoryForm.weight_kg ?? 0}
+                    onChange={(e) => setInventoryForm({...inventoryForm, weight_kg: Math.max(0, parseFloat(e.target.value) || 0)})}
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                    style={{border: `1px solid ${T.hairline}`}}
+                    min="0"
+                  />
+                </div>
+
                 <div className="relative">
                   <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="inventory-location">Location</label>
                   <input id="inventory-location"

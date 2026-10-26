@@ -2,30 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System — SAP Fiori "Horizon" ─────────────────────────────────
-   SAP S/4HANA's theme. The palette lives in src/ui/palette.js (every value
-   sourced from SAP's sap_horizon theme variables) and is read by both
+/* ── ERP Design System — the calm product look (2026-10-25) ──────────────────
+   The palette lives in src/ui/palette.js and is read by both
    tailwind.config.js and src/ui/tokens.js. CSS cannot import that module, so
-   the few values needed here are mirrored as custom properties. */
+   the few values needed here are mirrored as custom properties.
+   Spec: docs/superpowers/specs/2026-10-25-calm-product-look.md */
 
 :root {
-  --paper: #f5f6f7;
+  --paper: #f5f5f6;
   --panel: #ffffff;
-  --hairline: #d9d9d9;
-  --hairline-soft: #eaecee;
-  --accent: #0070f2;
-  --accent-strong: #0064d9;
-  --accent-tint: #ebf8ff;
-  --accent-focus: #0032a5;
-  --faint: #5b738b;
-  --text: #131e29;
+  --hairline: #e4e4e7;
+  --hairline-soft: #efeff1;
+  --field-border: #cfd0d5;
+  --field-border-hover: #a1a3ab;
+  --accent: #0b63f6;
+  --accent-strong: #0a52cc;
+  --accent-tint: #eef4ff;
+  --accent-focus: #0a52cc;
+  --faint: #6e7079;
+  --text: #111114;
+  --selection: #d6e4ff;
 }
 
-/* SAP 72 for the UI (declared in src/ui/fonts.css), with tabular figures
-   everywhere so a column of numbers lines up. Codes, IDs and money use 72 Mono
-   via .font-mono. */
+/* Geist for the UI (src/ui/fonts.css), with tabular figures everywhere so a
+   column of numbers lines up. Codes and IDs use Geist Mono via .font-mono. */
 html, body {
-  font-family: '72', '72full', Arial, Helvetica, sans-serif;
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 }
 body {
   font-feature-settings: 'tnum' 1;
@@ -33,7 +35,11 @@ body {
   text-rendering: optimizeLegibility;
   background: var(--paper);
   color: var(--text);
+  caret-color: var(--accent);
 }
+
+/* The parts of the page the browser draws still belong to the design. */
+::selection { background: var(--selection); color: var(--text); }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
 .line-items-table input[type=number]::-webkit-outer-spin-button,
@@ -46,11 +52,22 @@ body {
   appearance: textfield;
 }
 
-/* ── Scrollbar — Horizon's slate ── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* ── Scrollbar — a quiet neutral thumb, inset from the edge ── */
+* { scrollbar-color: var(--field-border) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #7b91a8; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+::-webkit-scrollbar-thumb {
+  background: var(--field-border);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--field-border-hover); background-clip: padding-box; }
+
+/* ── Arrival — a finished thing (a despatch recorded) settles in once ── */
+@keyframes tig-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tig-arrive { animation: tig-arrive 240ms cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .tig-arrive { animation: none; } }
 
 /* ── One focus language, app-wide ──────────────────────────────────────────
    Every focusable control gets the same accent ring, so keyboard focus never
@@ -64,7 +81,9 @@ button:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-focus);
+  /* A white gap, then the ring: it stays visible on the blue of a primary
+     button and on a tinted chip alike. */
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent-focus);
   border-color: var(--accent);
 }
 

@@ -6,6 +6,8 @@
  * easy to miss in a column of figures.
  */
 
+import { addDays, todayKey } from '../../lib/dates';
+
 const AUD = new Intl.NumberFormat('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function money(value) {
@@ -48,6 +50,25 @@ export function financialYear(iso = todayIso()) {
   const [y, m] = iso.split('-').map(Number);
   const start = m >= 7 ? y : y - 1;
   return { from: `${start}-07-01`, to: `${start + 1}-06-30` };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad = (n) => String(n).padStart(2, '0');
+
+/**
+ * The BAS quarter containing the day `key` — Jul–Sep, Oct–Dec, Jan–Mar or
+ * Apr–Jun — as day keys (lib/dates.js), so it is the viewer's own day and never
+ * the UTC one, which in Sydney is yesterday until mid-morning.
+ */
+export function basQuarter(key = todayKey()) {
+  const [y, m] = key.split('-').map(Number);
+  const start = m - ((m - 1) % 3);
+  const next = start === 10 ? `${y + 1}-01-01` : `${y}-${pad(start + 3)}-01`;
+  return {
+    from: `${y}-${pad(start)}-01`,
+    to: addDays(next, -1),
+    label: `${MONTHS[start - 1]}–${MONTHS[start + 1]} ${y}`,
+  };
 }
 
 export const CAN_READ_LEDGER = ['admin', 'manager'];

@@ -364,11 +364,13 @@ def health(db: Session) -> dict:
             )
 
     ar_expected = sum(expected_by_job.values(), ZERO)
+    totals_off, balances_off = _documents_disagreeing_with_themselves(db)
     ap_expected = ZERO
     for bill in db.query(SupplierBill):
         owed = money(bill.amount_inc) or money(bill.amount_ex) + money(bill.tax)
-        settled = money(bill.paid_amount) if bill.status == "paid" else ZERO
-        ap_expected += owed - settled
+        # Every payment counts, a part-payment included: each one posted its
+        # own entry, so the ledger has already taken it off what is owed.
+        ap_expected += owed - money(bill.paid_amount)
 
     return {
         "receivables": {
@@ -385,6 +387,8 @@ def health(db: Session) -> dict:
         "mismatched_jobs": mismatched,
         "paid_with_balance_owing": paid_with_balance,
         "invoiced_without_date": undated,
+        "totals_disagree_with_lines": totals_off,
+        "balances_disagree_with_invoices": balances_off,
         "in_agreement": (
             balances[receivable.id] == ar_expected
             and balances[payable.id] == ap_expected
@@ -392,3 +396,61 @@ def health(db: Session) -> dict:
             and not mismatched
         ),
     }
+
+
+def _documents_disagreeing_with_themselves(db: Session) -> tuple[list, list]:
+    """Invoices whose header is not their lines; customers whose balance is not
+    their invoices.
+
+    Both are kept true by construction now — the server totals a job from its
+    lines (`app/core/job_totals.py`), and the balance is recalculated on every
+    move across the invoiced boundary — but neither was ever checked, and both
+    were found broken (F04, F06). Older records may still disagree; listing
+    them is how they get looked at, rather than being trusted.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.core import job_totals
+    from app.core.ledger_postings import INVOICED_STATUSES
+    from app.models.customer import Customer
+
+    totals_off = []
+    owed_by_customer: dict[str, Decimal] = {}
+    invoiced = (
+        db.query(Job)
+        .options(selectinload(Job.items))
+        .filter(Job.status.in_(list(INVOICED_STATUSES)))
+        .order_by(Job.id)
+    )
+    for job in invoiced:
+        if job.customer_id:
+            owed_by_customer[job.customer_id] = owed_by_customer.get(
+                job.customer_id, ZERO
+            ) + money(job.balance_due)
+        if not job.items:
+            continue  # a header-only import: there are no lines to disagree with
+        lines = job_totals.from_lines(job.items).ex
+        if lines != money(job.total_ex):
+            totals_off.append(
+                {
+                    "job_id": job.id,
+                    "customer": job.customer_name,
+                    "header": f(job.total_ex),
+                    "lines": f(lines),
+                }
+            )
+
+    balances_off = []
+    for customer in db.query(Customer).order_by(Customer.id):
+        balance = money(customer.balance)
+        invoices = owed_by_customer.get(customer.id, ZERO)
+        if balance != invoices:
+            balances_off.append(
+                {
+                    "customer_id": customer.id,
+                    "customer": customer.name,
+                    "balance": f(balance),
+                    "invoices": f(invoices),
+                }
+            )
+    return totals_off, balances_off

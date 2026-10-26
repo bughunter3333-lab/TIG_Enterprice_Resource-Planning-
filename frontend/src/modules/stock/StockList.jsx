@@ -4,11 +4,13 @@ import DataGrid from '../../ui/DataGrid';
 import Button from '../../ui/Button';
 import { T } from '../../ui/tokens';
 import { qtyTone, availableQty } from './stockFormat';
+import { needsReorder } from './lowStock';
 
 const CHIPS = [
   { id: 'all', label: 'All' },
   { id: 'low', label: 'Low' },
   { id: 'out', label: 'Out' },
+  { id: 'reorder', label: 'Needs reorder' },
 ];
 
 const matchesChip = (item, chip) => {
@@ -16,12 +18,16 @@ const matchesChip = (item, chip) => {
   const reorder = Number(item.reorderLevel) || 0;
   if (chip === 'out') return stock <= 0;
   if (chip === 'low') return stock > 0 && stock < reorder;
+  // The shared rule (lowStock.js): at or below its minimum, counting what is
+  // on order and what is committed — what Home's Needs reorder tile counts.
+  if (chip === 'reorder') return needsReorder(item);
   return true;
 };
 
-export default function StockList({ items = [], selectedSku, onSelect }) {
+// `initialChip` opens the list on one chip (Home's Needs reorder tile opens 'reorder').
+export default function StockList({ items = [], selectedSku, onSelect, initialChip = 'all' }) {
   const [search, setSearch] = useState('');
-  const [chip, setChip] = useState('all');
+  const [chip, setChip] = useState(initialChip);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

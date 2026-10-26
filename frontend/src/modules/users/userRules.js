@@ -100,13 +100,24 @@ export function allowed(me, user) {
   return { changeRole: !self, deactivate: !self, remove: !self, self };
 }
 
-/** Accounts matching a search (username, name, email) and the role and status filters. */
-export function filterUsers(users, { query = '', role = 'all', status = 'all' } = {}) {
+/**
+ * An account that can sign in but is not yet safe: still on a password an admin
+ * chose (`must_change_password`), or without two-factor sign-in (`totp_enabled`).
+ * A deactivated account cannot sign in, so it needs nothing.
+ */
+export const needsAttention = (u) => !!u?.is_active && (!!u.must_change_password || !u.totp_enabled);
+
+/**
+ * Accounts matching a search (username, name, email), the role and status
+ * filters, and — with `attention` — only those that need attention.
+ */
+export function filterUsers(users, { query = '', role = 'all', status = 'all', attention = false } = {}) {
   const q = lower(query);
   return (users ?? []).filter((u) => {
     if (role !== 'all' && u.role !== role) return false;
     if (status === 'active' && !u.is_active) return false;
     if (status === 'inactive' && u.is_active) return false;
+    if (attention && !needsAttention(u)) return false;
     return !q || [u.username, u.full_name, u.email].some((v) => lower(v).includes(q));
   });
 }

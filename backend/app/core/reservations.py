@@ -14,7 +14,7 @@ the jobs it describes; an accumulated one only stays right while every path that
 moves a job remembers to move the counter with it.
 """
 
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -34,38 +34,52 @@ COMMITTED_STATUSES = frozenset(
         "PROOF",
         "PRINT",
         "Pick/Pack",
+        "Desp/Ready",
         "FINISH",
     }
 )
 
-# Expressed as an exclusion for queries, which is how the read paths were
-# already written and reads better against a status column.
-UNCOMMITTED_STATUSES = ("QUOTE", "INVOICE", "PAID", "CANCEL")
+# The queries select the committed statuses, rather than leaving out a list of
+# uncommitted ones. They used to leave out QUOTE, INVOICE, PAID and CANCEL —
+# so 'New', a portal order not yet confirmed, was counted as reserved while the
+# transition, which reads this set, had posted nothing for it (F11). A status
+# missing from a list must fall on the side that reserves nothing.
+_COMMITTED = list(COMMITTED_STATUSES)
+
+# Goods lines only. A decoration or alteration line (one applying a logo, or
+# done to another line) is a service: nothing of it is held or bought, even if
+# its code happens to match a stock item (JobItem.is_service). Every read of
+# what jobs hold filters with this — the Committed tab too.
+GOODS_LINES = (JobItem.logo_id.is_(None), JobItem.applies_to_item_id.is_(None))
 
 
 def _base_query(db: Session):
     return (
         db.query(JobItem, Job)
         .join(Job, JobItem.job_id == Job.id)
-        .filter(Job.status.notin_(UNCOMMITTED_STATUSES))
+        .filter(Job.status.in_(_COMMITTED), *GOODS_LINES)
     )
 
 
-def committed_by_sku(db: Session, skus: Iterable[str]) -> Dict[str, int]:
-    """Reserved quantity per SKU across every open job."""
+def committed_by_sku(
+    db: Session, skus: Iterable[str], excluding_job: Optional[str] = None
+) -> Dict[str, int]:
+    """Reserved quantity per SKU across every open job (but `excluding_job`)."""
     skus = list(skus)
     if not skus:
         return {}
-    rows = (
+    query = (
         db.query(JobItem.stock_code, func.coalesce(func.sum(JobItem.supply_qty), 0))
         .join(Job, JobItem.job_id == Job.id)
         .filter(
             JobItem.stock_code.in_(skus),
-            Job.status.notin_(UNCOMMITTED_STATUSES),
+            Job.status.in_(_COMMITTED),
+            *GOODS_LINES,
         )
-        .group_by(JobItem.stock_code)
-        .all()
     )
+    if excluding_job is not None:
+        query = query.filter(Job.id != excluding_job)
+    rows = query.group_by(JobItem.stock_code).all()
     return {sku: int(qty or 0) for sku, qty in rows}
 
 
@@ -79,7 +93,8 @@ def committed_by_branch(db: Session, sku: str) -> Dict[str, int]:
         .join(JobItem, JobItem.job_id == Job.id)
         .filter(
             JobItem.stock_code == sku,
-            Job.status.notin_(UNCOMMITTED_STATUSES),
+            Job.status.in_(_COMMITTED),
+            *GOODS_LINES,
         )
         .group_by(func.coalesce(Job.branch, DEFAULT_BRANCH))
         .all()
@@ -103,7 +118,8 @@ def committed_in_branch(
         .join(Job, JobItem.job_id == Job.id)
         .filter(
             JobItem.stock_code.in_(skus),
-            Job.status.notin_(UNCOMMITTED_STATUSES),
+            Job.status.in_(_COMMITTED),
+            *GOODS_LINES,
             func.coalesce(Job.branch, DEFAULT_BRANCH) == branch,
         )
         .group_by(JobItem.stock_code)
@@ -112,9 +128,12 @@ def committed_in_branch(
     return {sku: int(qty or 0) for sku, qty in rows}
 
 
-def committed_total(db: Session, sku: str) -> int:
-    """Reserved quantity for one SKU across all branches."""
-    return committed_by_sku(db, [sku]).get(sku, 0)
+def committed_total(db: Session, sku: str, excluding_job: Optional[str] = None) -> int:
+    """Reserved quantity for one SKU across all branches.
+
+    `excluding_job` leaves one job out, for working out what is free to it.
+    """
+    return committed_by_sku(db, [sku], excluding_job).get(sku, 0)
 
 
 # A purchase order is expected stock from the moment it is raised until it is
@@ -187,7 +206,8 @@ def backordered_by_branch(db: Session, sku: str) -> Dict[str, int]:
         .filter(
             JobItem.stock_code == sku,
             JobItem.b_ord > 0,
-            Job.status.notin_(UNCOMMITTED_STATUSES),
+            Job.status.in_(_COMMITTED),
+            *GOODS_LINES,
         )
         .group_by(func.coalesce(Job.branch, DEFAULT_BRANCH))
         .all()

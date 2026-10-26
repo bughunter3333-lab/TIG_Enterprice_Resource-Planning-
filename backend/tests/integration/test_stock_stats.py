@@ -32,7 +32,9 @@ class TestStockStats:
         _mv(db, "STAT1", 60, "Sale", -20)  # sold 20 — in 90/365
         _mv(db, "STAT1", 200, "Sale", -15)  # sold 15 — in 365
         _mv(db, "STAT1", 400, "Sale", -99)  # sold 99 — older than 365
-        _mv(db, "STAT1", 10, "Purchase", 50)  # received 50
+        # Received 50 on a goods receipt — the type receiving actually posts.
+        # This was "Purchase", which nothing posts, so stats never saw one (F38).
+        _mv(db, "STAT1", 10, "GR", 50)
         db.commit()
 
         d = client.get("/inventory/STAT1/stats").json()

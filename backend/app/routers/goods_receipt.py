@@ -5,14 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core import receiving
 from app.core.dependencies import get_db, get_current_user, require_admin, require_staff
 from app.core.landed_cost import LandedCharge, ReceiptLine, apportion_landed_costs
-from app.core.reservations import committed_total
 from app.core.stock_ledger import post_movement
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem
-from app.models.job import Job, JobItem
 
 router = APIRouter(prefix="/goods-receipts", tags=["goods-receipts"])
 
@@ -21,6 +20,9 @@ VALID_STATUSES = {"Pending", "Inspecting", "Accepted", "Rejected"}
 
 class GRLineIn(BaseModel):
     sku: str
+    # The PO line this is received against. Omit to spread it across the PO's
+    # lines for the SKU, each up to what it still needs.
+    po_item_id: Optional[int] = None
     description: Optional[str] = None
     qty_expected: int = 0
     qty_received: int = 0
@@ -58,6 +60,7 @@ def _line_row(ln: GoodsReceiptLine) -> dict:
     return {
         "id": ln.id,
         "sku": ln.sku,
+        "po_item_id": ln.po_item_id,
         "description": ln.description,
         "qty_expected": ln.qty_expected or 0,
         "qty_received": ln.qty_received or 0,
@@ -133,6 +136,7 @@ def create_receipt(
     # Derive supplier info from PO if provided
     supplier_name = body.supplier_name
     supplier_id = body.supplier_id
+    po = None
     if body.po_id:
         po = db.get(PurchaseOrder, body.po_id)
         if not po:
@@ -141,6 +145,20 @@ def create_receipt(
             )
         supplier_name = supplier_name or po.supplier_name
         supplier_id = supplier_id or po.supplier_id
+    for ln in body.lines:
+        if ln.po_item_id is None:
+            continue
+        po_item = db.get(PurchaseOrderItem, ln.po_item_id)
+        if po is None or po_item is None or po_item.order_id != po.id:
+            raise HTTPException(
+                status_code=422,
+                detail=f"PO line {ln.po_item_id} is not a line of {body.po_id or 'this receipt'}",
+            )
+        if po_item.sku != ln.sku:
+            raise HTTPException(
+                status_code=422,
+                detail=f"PO line {ln.po_item_id} is for {po_item.sku}, not {ln.sku}",
+            )
 
     gr = GoodsReceipt(
         po_id=body.po_id,
@@ -161,6 +179,7 @@ def create_receipt(
             GoodsReceiptLine(
                 receipt_id=gr.id,
                 sku=ln.sku,
+                po_item_id=ln.po_item_id,
                 description=ln.description,
                 qty_expected=ln.qty_expected,
                 qty_received=ln.qty_received,
@@ -257,14 +276,33 @@ def accept_receipt(
         )
     )
 
+    po = db.get(PurchaseOrder, gr.po_id) if gr.po_id else None
+    reference = f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else "")
+    notes = f"Goods receipt from {gr.supplier_name or 'supplier'}"
+    prefer_jobs: dict[str, list] = {}
     for ln in gr.lines:
         qty = ln.qty_received or 0
         if qty <= 0:
             continue
 
+        # Against a PO, the receipt credits its lines — the one it names, or
+        # each line of the SKU in turn — and shelves one movement per line, so
+        # what arrived can be traced to the PO line and the job it was for.
+        credits = (
+            receiving.credit_po_lines(po, ln.sku, qty, po_item=ln.po_item)
+            if po is not None
+            else []
+        )
+        # Work bought for a job's garments (subcontracted decoration) is not
+        # shelved, so it must not move the item's cost either: averaging its
+        # price against units that never arrived would shift cost of goods.
+        work_only = bool(credits) and all(
+            receiving.service_lines(db, line, ln.sku) for line, _ in credits
+        )
+
         # Update inventory stock
         inv = db.query(InventoryItem).filter_by(sku=ln.sku).first()
-        if inv:
+        if inv and not work_only:
             # Captured before the movement lands, because the moving average
             # below weights the new cost against the stock held until now.
             prev_qty = inv.stock or 0
@@ -286,6 +324,19 @@ def accept_receipt(
                     else landed.cog_unit
                 )
                 inv.max_cog = max(Decimal(str(inv.max_cog or 0)), landed.cog_unit)
+
+        if credits:
+            receiving.receive(
+                db,
+                sku=ln.sku,
+                credits=credits,
+                movement_type="GR",
+                branch=gr.branch,
+                reference=reference,
+                notes=notes,
+                date=today,
+            )
+        else:
             post_movement(
                 db,
                 sku=ln.sku,
@@ -293,88 +344,24 @@ def accept_receipt(
                 branch=gr.branch,
                 quantity=qty,
                 date=today,
-                reference=f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else ""),
-                notes=f"Goods receipt from {gr.supplier_name or 'supplier'}",
+                reference=reference,
+                po_id=gr.po_id,
+                notes=notes,
             )
-
-        # Update PO line qty_received if linked
-        if gr.po_id:
-            po_line = (
-                db.query(PurchaseOrderItem)
-                .filter_by(order_id=gr.po_id, sku=ln.sku)
-                .first()
-            )
-            if po_line:
-                # Credit the line with what actually arrived.
-                #
-                # This used to clamp at the quantity ordered while the movement
-                # above shelved the full amount, so a supplier who over-delivered
-                # left the shelf and the order disagreeing and nothing flagged
-                # it. Recording the over-delivery keeps the two in step and
-                # makes it visible; a line that has received more than it
-                # ordered simply drops out of the outstanding calculation,
-                # which is what "nothing left to come" means.
-                po_line.qty_received = (po_line.qty_received or 0) + qty
+        prefer_jobs.setdefault(ln.sku, []).extend(line.job_id for line, _ in credits)
 
     gr.status = "Accepted"
 
-    # Auto-allocate newly received stock to back-ordered job items
-    _auto_allocate_backorders(gr, db)
+    # Newly received stock goes to the job lines waiting for it.
+    for sku, job_ids in prefer_jobs.items():
+        receiving.fill_back_orders(db, sku, job_ids)
 
-    # Auto-advance PO to Received if all lines fulfilled
-    if gr.po_id:
-        po = db.get(PurchaseOrder, gr.po_id)
-        if po and po.status not in ("Received", "Cancelled"):
-            all_received = all(
-                (item.qty_received or 0) >= (item.qty_ordered or 0) for item in po.items
-            )
-            if all_received:
-                po.status = "Received"
-                po.received_date = today
+    if po is not None:
+        receiving.settle_po_status(po, today)
 
     db.commit()
     db.refresh(gr)
     return _row(gr)
-
-
-def _auto_allocate_backorders(gr: GoodsReceipt, db: Session) -> None:
-    """After accepting a GR, reduce b_ord on active jobs using newly received stock."""
-    _ACTIVE = {"ORDER", "In Progress", "PROOF", "PRINT", "Pick/Pack", "FINISH"}
-    for ln in gr.lines:
-        if not ln.sku or (ln.qty_received or 0) <= 0:
-            continue
-        inv = db.query(InventoryItem).filter_by(sku=ln.sku).first()
-        if not inv:
-            continue
-        # Available = on-hand minus committed, where committed is derived from
-        # the open jobs rather than read off the stored counter. Reading the
-        # counter understated availability for anything sitting between INVOICE
-        # and PAID, so a backorder could be refused stock that was free.
-        available = max(0, (inv.stock or 0) - committed_total(db, ln.sku))
-        if available <= 0:
-            continue
-        # Find active job items with back-orders for this SKU, oldest due first
-        b_ord_items = (
-            db.query(JobItem, Job)
-            .join(Job, Job.id == JobItem.job_id)
-            .filter(
-                JobItem.stock_code == ln.sku,
-                JobItem.b_ord > 0,
-                Job.status.in_(_ACTIVE),
-            )
-            .order_by(Job.due.asc().nullslast(), Job.id.asc())
-            .all()
-        )
-        remaining = available
-        for item, _job in b_ord_items:
-            if remaining <= 0:
-                break
-            fill = min(item.b_ord, remaining)
-            item.b_ord = item.b_ord - fill
-            # Move the filled qty from back-order into supply (now on hand),
-            # keeping the invariant order_qty = supply_qty + b_ord.
-            item.supply_qty = (item.supply_qty or 0) + fill
-            remaining -= fill
 
 
 @router.post("/{receipt_id}/reject")

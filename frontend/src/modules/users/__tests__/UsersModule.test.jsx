@@ -106,6 +106,23 @@ describe('the list', () => {
     expect(screen.getByText('No account matches.')).toBeInTheDocument();
   });
 
+  test('can show only the accounts that need attention, and opens on them when asked', async () => {
+    users.list.mockResolvedValue([ME, JO, { ...OLD, totp_enabled: false }, { ...ME, id: 4, username: 'new.one', full_name: 'New One', email: 'n@tig.com.au', must_change_password: true }]);
+    const listed = () => within(screen.getByRole('table', { name: 'Accounts' })).getAllByRole('rowheader').map((r) => r.textContent);
+    const { unmount } = await open();
+    const chip = screen.getByRole('button', { name: 'Needs attention 2' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(chip);
+    // Jo has no second factor; New One is on an admin's password; Old Hand is switched off.
+    expect(listed()).toEqual([expect.stringContaining('Jo Smith'), expect.stringContaining('New One')]);
+    unmount();
+
+    renderWithQuery(<UsersModule currentUser={ME} initialFilter="attention" />);
+    await screen.findByText('Jo Smith');
+    expect(screen.getByRole('button', { name: 'Needs attention 2' })).toHaveAttribute('aria-pressed', 'true');
+    expect(listed()).toHaveLength(2);
+  });
+
   test('says so when the accounts cannot be loaded, and offers to try again', async () => {
     users.list.mockRejectedValueOnce(new Error('Request failed: 500'));
     renderWithQuery(<UsersModule currentUser={ME} />, { allowQueryErrors: true });

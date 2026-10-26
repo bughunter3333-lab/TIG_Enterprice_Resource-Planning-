@@ -1,4 +1,6 @@
-import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, quickListModule, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { jobsInView } from '../jobMetrics';
+import { todayKey } from '../../../lib/dates';
 
 const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const today = new Date();
@@ -156,8 +158,38 @@ test('computeAutoPickAvailability mixes tracked + untracked lines proportionally
   expect(computeAutoPickAvailability(js, inv)).toEqual({ M: 75 });
 });
 
-test('QUICK_FILTERS exposes the seven quick filter ids', () => {
-  expect(QUICK_FILTERS.map(q => q.id)).toEqual(['overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs', 'urgent']);
+test('QUICK_FILTERS exposes the quick filter ids, the saved ones first and unchanged', () => {
+  expect(QUICK_FILTERS.map(q => q.id)).toEqual([
+    'overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs',
+    'pickPack', 'proof', 'orderNotStarted', 'inProgress', 'notDespatched', 'quoteExpiring',
+    'urgent',
+  ]);
+});
+
+test('each Home quick filter opens exactly the jobs its view counts', () => {
+  const FIXED = new Date('2026-06-12T03:00:00Z');
+  const today = todayKey(FIXED);
+  const tjobs = [
+    { id: 'A', status: 'PROOF', due: '' },
+    { id: 'B', status: 'ORDER', due: '' },
+    { id: 'C', status: 'In Progress', due: '' },
+    { id: 'D', status: 'FINISH', due: '', dispatchedAt: '' },
+    { id: 'E', status: 'INVOICE', due: '', dispatchedAt: '2026-06-10' },
+    { id: 'F', status: 'QUOTE', due: '', validityDate: today },
+    { id: 'G', status: 'QUOTE', due: '', validityDate: '2020-01-01' },
+    { id: 'H', status: 'Pick/Pack', due: '' },
+  ];
+  const pairs = { pickPack: 'pickPack', proof: 'proof', orderNotStarted: 'orderNotStarted', inProgress: 'inProgress', notDespatched: 'notDespatched', quoteExpiring: 'quoteExpiring' };
+  for (const [quick, view] of Object.entries(pairs)) {
+    const opened = filterJobs(tjobs, { ...EMPTY_JOBS_FILTERS, quick }, null, FIXED).map(j => j.id);
+    expect(opened).toEqual(jobsInView(tjobs, view, { today }).map(j => j.id));
+    expect(opened).toHaveLength(1);
+  }
+});
+
+test('quotes expiring open in the Quotes list; every other quick list in Jobs', () => {
+  expect(quickListModule('quoteExpiring')).toBe('quotes');
+  for (const q of QUICK_FILTERS.filter(f => f.id !== 'quoteExpiring')) expect(quickListModule(q.id)).toBe('jobs');
 });
 
 test('time-sensitive quick filters are deterministic with injected now', () => {

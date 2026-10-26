@@ -163,9 +163,11 @@ def customer_statement(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    # Money: staff and above, like its copies in reports.py and pdf.py.
+    _: User = Depends(require_staff),
 ):
     """AR statement for a customer — outstanding invoices and payment history."""
+    from app.core.ledger_postings import INVOICED_STATUSES
     from app.models.job import Job
     from app.models.job_payment import JobPayment
 
@@ -174,9 +176,11 @@ def customer_statement(
         raise HTTPException(status_code=404, detail="Customer not found")
 
     as_at = date_to or date.today().isoformat()
+    # Invoices only, as the customer's balance and aged receivables count:
+    # a FINISH job has no invoice yet, and nothing is owed on it (F06).
     q = db.query(Job).filter(
         Job.customer_id == customer_id,
-        Job.status.in_(["INVOICE", "PAID", "FINISH"]),
+        Job.status.in_(list(INVOICED_STATUSES)),
     )
     if date_from:
         q = q.filter(Job.invoice_date >= date_from)

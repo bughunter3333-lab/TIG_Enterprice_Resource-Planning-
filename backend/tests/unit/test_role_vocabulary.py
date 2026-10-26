@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from app.core.dependencies import ROLES
+from app.core.dependencies import ALL_ROLES as ROLES
 
 FRONTEND_ROLES = (
     pathlib.Path(__file__).resolve().parents[3] / "frontend" / "src" / "roles.js"

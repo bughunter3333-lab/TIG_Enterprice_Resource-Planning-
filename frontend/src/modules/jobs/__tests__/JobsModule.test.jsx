@@ -103,7 +103,7 @@ test('lockedStatus hides Status chip, Status column, and Status from the add men
   // (b) Status column header hidden (redundant when every row is QUOTE)
   expect(screen.queryByText('Status')).not.toBeInTheDocument();
   // (c) opening the add menu offers other fields but not Status
-  fireEvent.click(screen.getByText('+ Filter'));
+  fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
   // After menu opens, verify Priority is offered (shows the menu is working)
   const priorityOptions = screen.getAllByText('Priority');
   expect(priorityOptions.length).toBeGreaterThan(1); // column header + menu item

@@ -182,45 +182,71 @@ def sync_bill(db: Session, bill, created_by: str = SYSTEM) -> Optional[JournalEn
     )
 
 
-def bill_payment_lines(db: Session, bill) -> Optional[list[Line]]:
-    if bill.status != "paid":
-        return None
-    amount = money(bill.paid_amount)
+def bill_owed(bill):
+    """What a bill is for, including GST — ex + GST when the total was never set."""
+    owed, _ = _customer_total(bill.amount_inc, bill.amount_ex, bill.tax)
+    return owed
+
+
+def supplier_payment_lines(db: Session, payment, bill) -> Optional[list[Line]]:
+    amount = money(payment.amount)
     if amount == ZERO:
         return None
-    label = f"Payment of bill {bill.bill_number or bill.id}"
+    how = f" {payment.reference}" if payment.reference else ""
+    label = f"Payment of bill {bill.bill_number or bill.id}{how}"
     return [
         Line(account_for(db, "payable"), amount, label, "supplier", _supplier(bill)),
         Line(account_for(db, "bank"), -amount, label, "supplier", _supplier(bill)),
     ]
 
 
-def sync_bill_payment(
-    db: Session, bill, created_by: str = SYSTEM
+def sync_supplier_payment(
+    db: Session, payment, bill, created_by: str = SYSTEM
 ) -> Optional[JournalEntry]:
+    """One entry per payment, on the date it was made.
+
+    A bill paid in two runs is two movements of money out of the bank; one
+    entry for the bill re-dated to the last run would put the first payment in
+    the wrong week — or the wrong BAS quarter.
+    """
     return sync(
         db,
-        source_type="bill_payment",
-        source_id=str(bill.id),
-        lines=bill_payment_lines(db, bill),
-        entry_date=parse_date(bill.paid_date),
+        source_type="supplier_payment",
+        source_id=str(payment.id),
+        lines=supplier_payment_lines(db, payment, bill),
+        entry_date=parse_date(payment.paid_date),
         memo=f"Paid bill {bill.bill_number or bill.id}",
+        created_by=created_by,
+    )
+
+
+def withdraw_supplier_payment(
+    db: Session, payment, bill, created_by: str = SYSTEM
+) -> None:
+    sync(
+        db,
+        source_type="supplier_payment",
+        source_id=str(payment.id),
+        lines=None,
+        entry_date=None,
+        memo=f"Payment of bill {bill.bill_number or bill.id}",
         created_by=created_by,
     )
 
 
 def withdraw_bill(db: Session, bill, created_by: str = SYSTEM) -> None:
     """Reverse everything a bill posted, before the bill itself is deleted."""
-    for source_type in ("bill_payment", "bill"):
-        sync(
-            db,
-            source_type=source_type,
-            source_id=str(bill.id),
-            lines=None,
-            entry_date=None,
-            memo=f"Bill {bill.bill_number or bill.id}",
-            created_by=created_by,
-        )
+    for payment in bill.payments:
+        withdraw_supplier_payment(db, payment, bill, created_by=created_by)
+    sync(
+        db,
+        source_type="bill",
+        source_id=str(bill.id),
+        lines=None,
+        entry_date=None,
+        memo=f"Bill {bill.bill_number or bill.id}",
+        created_by=created_by,
+    )
 
 
 def has_posted_invoice(db: Session, job_id: str) -> bool:

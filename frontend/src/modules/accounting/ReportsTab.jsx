@@ -203,11 +203,13 @@ function DateInput({ label, value, onChange }) {
   );
 }
 
-export default function ReportsTab() {
+// `initialReport`, `initialFrom` and `initialTo` open it on one report and
+// range (Home's GST tile opens the BAS for the quarter it counted).
+export default function ReportsTab({ initialReport = 'pl', initialFrom, initialTo }) {
   const fy = financialYear();
-  const [report, setReport] = useState('pl');
-  const [from, setFrom] = useState(fy.from);
-  const [to, setTo] = useState(todayIso() < fy.to ? todayIso() : fy.to);
+  const [report, setReport] = useState(initialReport);
+  const [from, setFrom] = useState(initialFrom ?? fy.from);
+  const [to, setTo] = useState(initialTo ?? (todayIso() < fy.to ? todayIso() : fy.to));
   const [asAt, setAsAt] = useState(todayIso());
   const isRange = report === 'pl' || report === 'bas';
 

@@ -75,6 +75,13 @@ class GoodsReceiptLine(Base):
         index=True,
     )
     sku = Column(String(50), nullable=False, index=True)
+    # The PO line this is received against, when the receipt says so. Empty
+    # means "spread across the PO's lines for this SKU" (app/core/receiving.py).
+    po_item_id = Column(
+        Integer,
+        ForeignKey("purchase_order_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     description = Column(String(255))
     qty_expected = Column(Integer, default=0)
     qty_received = Column(Integer, default=0)
@@ -84,3 +91,4 @@ class GoodsReceiptLine(Base):
     notes = Column(String(255))
 
     receipt = relationship("GoodsReceipt", back_populates="lines")
+    po_item = relationship("PurchaseOrderItem")

@@ -40,6 +40,8 @@ from app.routers import (
     saved_lists,
     dispatch_sessions,
     rack_sections,
+    logos,
+    remittances,
 )
 from app.routers.admin_settings import router as admin_settings_router
 
@@ -181,3 +183,5 @@ app.include_router(saved_lists.router)
 app.include_router(dispatch_sessions.router)
 app.include_router(rack_sections.router)
 app.include_router(accounting.router)
+app.include_router(logos.router)
+app.include_router(remittances.router)

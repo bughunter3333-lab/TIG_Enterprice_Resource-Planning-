@@ -13,7 +13,6 @@ export function notify(message, options = {}) {
       s(payload);
     } catch (err) {
       // swallow: subscribers should handle their own errors
-      // eslint-disable-next-line no-console
       console.error('notify subscriber error', err);
     }
   }

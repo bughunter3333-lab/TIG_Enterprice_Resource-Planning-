@@ -16,9 +16,24 @@ export const SAVED_LISTS = ['mine', 'dueToday', 'overdue', 'pickPack'].map((id) 
 
 function SectionLabel({ children }) {
   return (
-    <div style={{ padding: '8px 10px 3px', fontSize: 9.5, fontWeight: 700, color: T.textFaint, letterSpacing: '0.06em' }}>
+    <div style={{ padding: '16px 10px 4px', fontSize: 11, fontWeight: 500, color: T.textFaint }}>
       {children}
     </div>
+  );
+}
+
+const rowHover = {
+  onMouseEnter: (e) => { e.currentTarget.style.background = T.railHover; },
+  onMouseLeave: (e) => { e.currentTarget.style.background = 'transparent'; },
+};
+
+// A job's status in the tree: its phase dot and the word, quietly.
+function StatusMark({ status, maxWidth = 80 }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth, flexShrink: 1 }}>
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor(status), flexShrink: 0 }} />
+      <span style={{ fontSize: 11, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>
+    </span>
   );
 }
 
@@ -33,27 +48,26 @@ function TreeRow({ depth = 0, caret = null, onCaretClick, icon = null, label, co
       onKeyDown={e => { if (e.key === 'Enter') onClick?.(); }}
       title={title}
       style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        padding: `3px 10px 3px ${10 + depth * 12}px`,
-        fontSize: T.fsSmall, cursor: 'pointer', color: T.text,
+        display: 'flex', alignItems: 'center', gap: 6, minHeight: 28,
+        padding: `0 10px 0 ${8 + depth * 14}px`, borderRadius: T.radiusSm,
+        fontSize: T.fsGrid, cursor: 'pointer', color: T.text,
         transition: `background ${T.transition}`,
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = T.hairlineSoft)}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      {...rowHover}
     >
       <span
         onClick={onCaretClick ? (e) => { e.stopPropagation(); onCaretClick(); } : undefined}
-        style={{ width: 12, display: 'flex', flexShrink: 0, color: T.textFaint }}
+        style={{ width: 14, display: 'flex', flexShrink: 0, color: T.textFaint }}
       >
         {caret}
       </span>
-      {icon && <span style={{ display: 'flex', flexShrink: 0, color: T.accentStrong }}>{icon}</span>}
-      <span style={{ flex: 1, fontWeight: bold ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {icon && <span style={{ display: 'flex', flexShrink: 0, color: T.textMuted }}>{icon}</span>}
+      <span style={{ flex: 1, fontWeight: bold ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </span>
       {trailing}
       {count != null && (
-        <span style={{ fontSize: 9.5, fontWeight: 700, color: countColor ?? T.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: countColor ?? T.textMuted, fontVariantNumeric: 'tabular-nums' }}>
           {count}
         </span>
       )}
@@ -69,14 +83,11 @@ function OpenJobRow({ job, onOpen, onUnpin }) {
       tabIndex={0}
       onClick={() => onOpen(job)}
       onKeyDown={e => { if (e.key === 'Enter') onOpen(job); }}
-      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 22px', fontSize: T.fsSmall, cursor: 'pointer', color: T.text, transition: `background ${T.transition}` }}
-      onMouseEnter={e => (e.currentTarget.style.background = T.hairlineSoft)}
-      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 28, padding: '0 10px 0 28px', borderRadius: T.radiusSm, fontSize: T.fsGrid, cursor: 'pointer', color: T.text, transition: `background ${T.transition}` }}
+      {...rowHover}
     >
-      <span style={{ fontWeight: 700 }}>{job.id}</span>
-      <span style={{ color: statusColor(job.status), fontSize: 9.5, fontWeight: 600, textTransform: 'uppercase', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {job.status}
-      </span>
+      <span style={{ fontFamily: T.fontMono, fontSize: T.fsSmall }}>{job.id}</span>
+      <span style={{ flex: 1, minWidth: 0, display: 'flex' }}><StatusMark status={job.status} /></span>
       {onUnpin && (
         <span
           role="button"
@@ -117,11 +128,8 @@ export default function LiveTree({
   const jobsCount = pinnedJobs.length + savedLists.length;
 
   return (
-    <div style={{
-      width: 190, background: T.panel, borderRight: `1px solid ${T.hairline}`,
-      overflowY: 'auto', flexShrink: 0, fontFamily: T.font, paddingBottom: 8,
-    }}>
-      <SectionLabel>NAV TREE</SectionLabel>
+    <div style={{ fontFamily: T.font, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <SectionLabel>Open work</SectionLabel>
 
       {/* Jobs parent → individual open jobs (blue) + saved Lists (yellow) */}
       <TreeRow
@@ -135,7 +143,7 @@ export default function LiveTree({
       {jobsOpen && (
         <>
           {pinnedJobs.length === 0 && savedLists.length === 0 && (
-            <div style={{ padding: '2px 10px 2px 22px', fontSize: T.fsSmall, color: T.textFaint }}>No open jobs or lists</div>
+            <div style={{ padding: '4px 10px 4px 28px', fontSize: T.fsSmall, color: T.textFaint }}>Jobs you open stay here</div>
           )}
 
           {/* Individual open jobs — singular, not a batch */}
@@ -183,9 +191,7 @@ export default function LiveTree({
                     label={job.id}
                     onClick={() => onOpenJob(job)}
                   >
-                    <span style={{ color: statusColor(job.status), fontSize: 9, fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>
-                      {job.status}
-                    </span>
+                    <StatusMark status={job.status} maxWidth={84} />
                   </TreeRow>
                 ))}
               </div>
@@ -240,7 +246,7 @@ export default function LiveTree({
                 )}
                 {isOpen && list.items.map(item => (
                   <TreeRow key={item.sku} depth={2} label={item.sku} onClick={() => onOpenStock && onOpenStock(item.sku)}>
-                    <span style={{ color: T.textMuted, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 72 }}>{item.name}</span>
+                    <span style={{ color: T.textMuted, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 84 }}>{item.name}</span>
                   </TreeRow>
                 ))}
               </div>
@@ -295,7 +301,7 @@ export default function LiveTree({
                 )}
                 {isOpen && list.jobs.map(job => (
                   <TreeRow key={job.id} depth={2} label={job.id} onClick={() => onOpenJob(job)}>
-                    <span style={{ color: statusColor(job.status), fontSize: 9, fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>{job.status}</span>
+                    <StatusMark status={job.status} maxWidth={84} />
                   </TreeRow>
                 ))}
               </div>
@@ -350,7 +356,7 @@ export default function LiveTree({
                 )}
                 {isOpen && list.pos.map(po => (
                   <TreeRow key={po.id} depth={2} label={po.id} onClick={() => onOpenPO && onOpenPO(po.id)}>
-                    <span style={{ color: T.textMuted, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 72 }}>{po.supplier}</span>
+                    <span style={{ color: T.textMuted, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 84 }}>{po.supplier}</span>
                   </TreeRow>
                 ))}
               </div>
@@ -360,7 +366,7 @@ export default function LiveTree({
       )}
 
       {/* Built-in quick lists */}
-      <SectionLabel>QUICK LISTS</SectionLabel>
+      <SectionLabel>Quick lists</SectionLabel>
       {SAVED_LISTS.map(list => {
         const count = jobs.filter(j => list.test(j, currentUser)).length;
         return (
@@ -371,16 +377,15 @@ export default function LiveTree({
             onClick={() => onSelectList(list.id)}
             onKeyDown={e => { if (e.key === 'Enter') onSelectList(list.id); }}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '3px 10px', fontSize: T.fsSmall, cursor: 'pointer', color: T.headerText,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 28,
+              padding: '0 10px', borderRadius: T.radiusSm, fontSize: T.fsGrid, cursor: 'pointer', color: T.text,
               transition: `background ${T.transition}`,
             }}
-            onMouseEnter={e => e.currentTarget.style.background = T.hairlineSoft}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            {...rowHover}
           >
             <span>{list.label}</span>
             <span style={{
-              fontSize: 9.5, fontWeight: 700, color: list.id === 'overdue' && count > 0 ? T.danger : T.textMuted,
+              fontSize: 11, fontWeight: 600, color: list.id === 'overdue' && count > 0 ? T.danger : T.textMuted,
               fontVariantNumeric: 'tabular-nums',
             }}>
               {count}

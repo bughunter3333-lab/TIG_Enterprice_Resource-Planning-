@@ -1,10 +1,19 @@
-import { useState } from 'react';
-import { Bot, Copy, RefreshCw, Send, User, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bot, Copy, RefreshCw, Send, Sparkles, User, X } from 'lucide-react';
 import * as api from '../../api';
+import { OPEN_ASSISTANT } from '../../ui/shell/TopBar';
 
 export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndRef, aiInput, aiLoading, aiMessages, aiPanelRef, customers, inventory, jobs, sendAiMessage, setAiInput, setAiLoading, setAiMessages, suppliers }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPos, setAiPos] = useState(null);
+
+  // Opened from the top bar's Ask button, which replaced the floating bubble
+  // (the bubble sat over the corner of every page's content).
+  useEffect(() => {
+    const open = () => setAiOpen(true);
+    window.addEventListener(OPEN_ASSISTANT, open);
+    return () => window.removeEventListener(OPEN_ASSISTANT, open);
+  }, []);
 
   const parseMarkdown = (text) => {
     const lines = (text || '').split('\n');
@@ -36,17 +45,17 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
   };
 
   const quickChips = [
-    { label: '📋 Daily briefing', msg: 'daily briefing' },
-    { label: '📈 Revenue forecast', msg: 'forecast next month revenue' },
-    { label: '⚠ Overdue jobs', msg: 'show overdue jobs' },
-    { label: '📦 Low stock', msg: 'low stock alert' },
-    { label: '🔍 Anomalies', msg: 'show anomalies unusual activity' },
-    { label: '👥 Churn risk', msg: 'customer churn risk analysis' },
-    { label: '📊 ABC analysis', msg: 'abc pareto analysis' },
-    { label: '💰 Margin analysis', msg: 'margin profit analysis' },
-    { label: '📅 DSO', msg: 'days sales outstanding receivables' },
-    { label: '⏱ Turnaround', msg: 'job turnaround time' },
-    { label: '📆 Seasonality', msg: 'seasonality trends' },
+    { label: 'Daily briefing', msg: 'daily briefing' },
+    { label: 'Revenue forecast', msg: 'forecast next month revenue' },
+    { label: 'Overdue jobs', msg: 'show overdue jobs' },
+    { label: 'Low stock', msg: 'low stock alert' },
+    { label: 'Anomalies', msg: 'show anomalies unusual activity' },
+    { label: 'Churn risk', msg: 'customer churn risk analysis' },
+    { label: 'ABC analysis', msg: 'abc pareto analysis' },
+    { label: 'Margin analysis', msg: 'margin profit analysis' },
+    { label: 'DSO', msg: 'days sales outstanding receivables' },
+    { label: 'Turnaround', msg: 'job turnaround time' },
+    { label: 'Seasonality', msg: 'seasonality trends' },
   ];
 
   const sendChip = async (msg) => {
@@ -91,52 +100,43 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
 
   const panelStyle = aiPos
     ? { position: 'fixed', left: aiPos.x, top: aiPos.y, bottom: 'auto', right: 'auto', zIndex: 50, width: 440, height: 560 }
-    : { position: 'fixed', bottom: 96, right: 24, zIndex: 50, width: 440, height: 560 };
+    : { position: 'fixed', top: 68, right: 24, zIndex: 50, width: 440, height: 'min(560px, calc(100vh - 100px))' };
 
   return (
     <>
-      <button
-        onClick={() => setAiOpen(o => !o)}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-accent-strong hover:bg-accent-strong text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
-        title="AI Assistant"
-      >
-        <Bot className="w-6 h-6" />
-        {!aiOpen && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-ok rounded-full text-[9px] flex items-center justify-center font-bold">ML</span>
-        )}
-      </button>
       {aiOpen && (
-        <div ref={aiPanelRef} style={panelStyle} className="bg-white rounded-2xl shadow-2xl border border-hairline flex flex-col overflow-hidden">
+        <div ref={aiPanelRef} role="dialog" aria-label="Ask" style={panelStyle} className="bg-white rounded-2xl shadow-2xl border border-hairline flex flex-col overflow-hidden">
           {/* Header */}
           <div
             onMouseDown={onHeaderMouseDown}
-            className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-accent-strong to-accent-strong text-white rounded-t-2xl select-none cursor-grab active:cursor-grabbing"
+            className="flex items-center justify-between px-4 py-3 border-b border-hairline-soft select-none cursor-grab active:cursor-grabbing"
           >
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
-                <Bot className="w-4 h-4" />
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-accent-tint text-accent flex items-center justify-center">
+                <Sparkles className="w-4 h-4" aria-hidden />
               </div>
               <div>
-                <div className="font-semibold text-sm leading-none flex items-center gap-1.5">
-                  TIG AI Assistant
+                <div className="font-semibold text-sm leading-none text-fg flex items-center gap-1.5">
+                  Ask
                   {aiClaudeEnabled && (
-                    <span className="text-[9px] bg-accent-strong text-accent-strong px-1.5 py-0.5 rounded-full font-bold leading-none">Claude</span>
+                    <span className="text-[10px] bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded-md font-semibold leading-none">Claude</span>
                   )}
                 </div>
-                <div className="text-[10px] text-accent mt-0.5">
-                  {aiClaudeEnabled ? 'Powered by Claude · ML analytics' : 'Live data · ML analytics'}
+                <div className="text-[11px] text-muted mt-1">
+                  {aiClaudeEnabled ? 'Answers from your jobs, stock and customers' : 'Live data · analytics'}
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => setAiMessages([{ role: 'assistant', text: 'Conversation cleared. How can I help?', ts: new Date() }])}
-                className="w-6 h-6 rounded hover:bg-white/20 flex items-center justify-center text-accent hover:text-white"
+                className="w-7 h-7 rounded-md hover:bg-hairline-soft flex items-center justify-center text-muted hover:text-fg"
                 title="Clear chat"
+                aria-label="Clear chat"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setAiOpen(false)} className="w-6 h-6 rounded hover:bg-white/20 flex items-center justify-center">
+              <button onClick={() => setAiOpen(false)} aria-label="Close" className="w-7 h-7 rounded-md hover:bg-hairline-soft flex items-center justify-center text-muted hover:text-fg">
                 <X className="w-4 h-4" />
               </button>
             </div>

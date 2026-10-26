@@ -98,7 +98,6 @@ export default function ImportModule() {
     setImportLoading(l => ({ ...l, [key]: true }));
     setImportResults(r => ({ ...r, [key]: null }));
     try {
-      const apiKey = key.replace('-', '');  // 'card-files' → 'cardfiles' won't work; handle explicitly
       let result;
       if (key === 'card-files') {
         result = await api.importData.cardFiles(file);

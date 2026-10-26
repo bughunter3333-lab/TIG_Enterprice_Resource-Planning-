@@ -1,5 +1,6 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
+from html import escape
 from email.mime.text import MIMEText
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -31,49 +32,57 @@ def _get_settings(db: Session) -> CompanySettings:
     return s or CompanySettings()
 
 
+def _text(value) -> str:
+    """A value as text in the HTML body, never as markup. Jobs booked by the
+    online store carry what the store sent — the customer's name among it."""
+    return escape(str(value)) if value else ""
+
+
 def _build_email_body(
     job: Job, settings: CompanySettings, email_type: str, custom_message: str = ""
 ) -> str:
     items_html = ""
     for it in job.items or []:
-        if it.display_type != "product":
+        # Not hidden lines: 'Hide' keeps a line off what the customer sees, and
+        # the email listed them anyway (F34), as the invoice PDF did.
+        if it.display_type != "product" or it.hide:
             continue
         items_html += (
             f"<tr>"
-            f"<td style='padding:4px 8px;border-bottom:1px solid #eee'>{it.description or ''}</td>"
+            f"<td style='padding:4px 8px;border-bottom:1px solid #eee'>{_text(it.description)}</td>"
             f"<td style='padding:4px 8px;border-bottom:1px solid #eee;text-align:center'>{it.order_qty or 0}</td>"
             f"<td style='padding:4px 8px;border-bottom:1px solid #eee;text-align:right'>${float(it.price_ex or 0):.2f}</td>"
             f"<td style='padding:4px 8px;border-bottom:1px solid #eee;text-align:right'>${float(it.total or 0):.2f}</td>"
             f"</tr>"
         )
 
-    company = settings.company_name or "Total Image"
-    abn = settings.abn or ""
+    company = _text(settings.company_name or "Total Image")
+    abn = _text(settings.abn)
     bank_details = ""
     if settings.bank_name:
         bank_details = f"""
         <div style='background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-top:16px'>
           <strong>Payment Details</strong><br>
-          Bank: {settings.bank_name or ""}<br>
-          BSB: {settings.bank_bsb or ""} &nbsp; Account: {settings.bank_account or ""}<br>
-          Account Name: {settings.bank_account_name or ""}
+          Bank: {_text(settings.bank_name)}<br>
+          BSB: {_text(settings.bank_bsb)} &nbsp; Account: {_text(settings.bank_account)}<br>
+          Account Name: {_text(settings.bank_account_name)}
         </div>"""
 
     abn_header = (
         f'<div style="font-size:12px;opacity:0.8">ABN: {abn}</div>' if abn else ""
     )
     invoice_row = (
-        f'<tr><td style="color:#666">Invoice #:</td><td>{job.invoice or ""}</td></tr>'
+        f'<tr><td style="color:#666">Invoice #:</td><td>{_text(job.invoice)}</td></tr>'
         if job.invoice
         else ""
     )
     due_row = (
-        f'<tr><td style="color:#666">Due:</td><td>{job.due or ""}</td></tr>'
+        f'<tr><td style="color:#666">Due:</td><td>{_text(job.due)}</td></tr>'
         if job.due
         else ""
     )
     custom_msg_html = (
-        f'<p style="background:#f0f7ff;border-left:4px solid #1e3a5f;padding:12px;margin:16px 0">{custom_message}</p>'
+        f'<p style="background:#f0f7ff;border-left:4px solid #1e3a5f;padding:12px;margin:16px 0">{_text(custom_message)}</p>'
         if custom_message
         else ""
     )
@@ -86,8 +95,8 @@ def _build_email_body(
             f"</tr>"
         )
     heading = "Tax Invoice" if email_type == "invoice" else "Quote"
-    phone_part = f" &nbsp;|&nbsp; {settings.phone}" if settings.phone else ""
-    email_part = f" &nbsp;|&nbsp; {settings.email}" if settings.email else ""
+    phone_part = f" &nbsp;|&nbsp; {_text(settings.phone)}" if settings.phone else ""
+    email_part = f" &nbsp;|&nbsp; {_text(settings.email)}" if settings.email else ""
     abn_footer = f" &nbsp;|&nbsp; ABN: {abn}" if abn else ""
 
     return f"""
@@ -97,11 +106,11 @@ def _build_email_body(
     {abn_header}
   </div>
   <div style='border:1px solid #e0e0e0;border-top:0;padding:24px;border-radius:0 0 8px 8px'>
-    <h3 style='color:#1e3a5f;margin-top:0'>{heading} &mdash; Job #{job.id}</h3>
+    <h3 style='color:#1e3a5f;margin-top:0'>{heading} &mdash; Job #{_text(job.id)}</h3>
     <table style='width:100%;border-collapse:collapse;margin-bottom:8px'>
-      <tr><td style='color:#666;width:120px'>Customer:</td><td><strong>{job.customer_name or ""}</strong></td></tr>
+      <tr><td style='color:#666;width:120px'>Customer:</td><td><strong>{_text(job.customer_name)}</strong></td></tr>
       {invoice_row}
-      <tr><td style='color:#666'>Date:</td><td>{job.date_in or ""}</td></tr>
+      <tr><td style='color:#666'>Date:</td><td>{_text(job.date_in)}</td></tr>
       {due_row}
     </table>
     {custom_msg_html}
@@ -128,6 +137,26 @@ def _build_email_body(
     </div>
   </div>
 </body></html>"""
+
+
+def smtp_config(settings: CompanySettings) -> dict:
+    """The mail server to send through, its password decrypted in memory only."""
+    # A legacy plaintext row decrypts to nothing; its raw value is the password.
+    smtp_password = None
+    if settings.smtp_password:
+        try:
+            smtp_password = decrypt_value(
+                settings.smtp_password, app_settings.SECRET_KEY
+            )
+        except ValueError:
+            smtp_password = settings.smtp_password
+    return {
+        "host": settings.smtp_host,
+        "port": settings.smtp_port or 587,
+        "user": settings.smtp_user,
+        "password": smtp_password,
+        "use_tls": settings.smtp_use_tls,
+    }
 
 
 def _send_and_log(
@@ -164,7 +193,8 @@ def _send_and_log(
             sent_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             to_email=log_data["to_email"],
             subject=log_data["subject"],
-            job_id=log_data["job_id"],
+            job_id=log_data.get("job_id"),
+            po_id=log_data.get("po_id"),
             email_type=log_data["email_type"],
             status=status,
             error=error_text,
@@ -216,25 +246,9 @@ def send_email(
 
     recipients = [body.to_email] + ([body.cc] if body.cc else [])
 
-    # Decrypt SMTP password in memory; fall back to raw value for legacy plaintext rows
-    smtp_password = None
-    if settings.smtp_password:
-        try:
-            smtp_password = decrypt_value(
-                settings.smtp_password, app_settings.SECRET_KEY
-            )
-        except ValueError:
-            smtp_password = settings.smtp_password
-
     error = _send_and_log(
         db,
-        smtp_config={
-            "host": settings.smtp_host,
-            "port": settings.smtp_port or 587,
-            "user": settings.smtp_user,
-            "password": smtp_password,
-            "use_tls": settings.smtp_use_tls,
-        },
+        smtp_config=smtp_config(settings),
         recipients=recipients,
         msg_string=msg.as_string(),
         log_data={

@@ -26,6 +26,8 @@ export default function POModule({
         {PO_STATUSES.map(s => (
           <Button key={s} size="sm" variant={filters.status === s ? 'primary' : 'secondary'} onClick={() => onFilterChange('status', s)}>{s}</Button>
         ))}
+        {/* Sent or Partial and past the expected date (poFilters isLatePO). */}
+        <Button size="sm" variant={filters.status === 'late' ? 'primary' : 'secondary'} onClick={() => onFilterChange('status', 'late')}>Late</Button>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, padding: '4px 8px', width: 180 }}>
           <Search size={12} color={T.textFaint} />

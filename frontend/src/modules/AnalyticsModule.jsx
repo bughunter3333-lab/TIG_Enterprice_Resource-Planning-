@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  TrendingUp, BarChart3, Clock, AlertTriangle, Users,
+  TrendingUp, Clock, AlertTriangle, Users,
   Package, DollarSign, RefreshCw, LayoutGrid, HelpCircle,
-  Calendar, Percent, ArrowUpRight, ArrowDownRight, ShieldAlert,
+  Percent, ArrowUpRight, ShieldAlert,
   ChevronRight, Activity
 } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
 import {
-  ResponsiveContainer, AreaChart, Area, LineChart, Line, 
+  ResponsiveContainer, AreaChart, Area, Line,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart as RechartsPie, Pie, Cell
 } from 'recharts';
@@ -345,7 +345,6 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
   if (forecastQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error loading forecast: {forecastQuery.error.message}</div>;
 
   const data = forecastQuery.data;
-  const seasonality = seasonalityQuery.data;
   const months = data.recent_months || [];
 
   return (
@@ -905,7 +904,6 @@ function renderAnomaliesTab({ anomaliesQuery }) {
   const data = anomaliesQuery.data;
   const stock = data.stock_consumption_anomalies || [];
   const revenue = data.revenue_anomalies || [];
-  const stagnant = data.stagnant_jobs || [];
 
   return (
     <div className="space-y-6">

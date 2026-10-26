@@ -10,6 +10,8 @@ import {
   PieChart as RechartsPie, Pie,
 } from 'recharts';
 import { countNeedingReorder } from './stock/lowStock';
+import { offers } from '../lib/access';
+import { useMyAccess } from '../lib/useMyAccess';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -229,6 +231,16 @@ function GSTTab() {
 }
 
 // ── Aged Receivables ──────────────────────────────────────────────────────────
+// By days overdue: an invoice falls due on the customer's payment terms from
+// its invoice date (backend reports.py AGING_BUCKETS), so Current is not yet due.
+const AGING_BUCKETS = [
+  { key: 'current', label: 'Current', color: 'text-ok' },
+  { key: 'days_1_30', label: '1–30 days', color: 'text-accent-strong' },
+  { key: 'days_31_60', label: '31–60 days', color: 'text-accent-strong' },
+  { key: 'days_61_90', label: '61–90 days', color: 'text-accent-strong' },
+  { key: 'over_90', label: 'Over 90 days', color: 'text-danger' },
+];
+
 function AgedReceivablesTab() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['reports/aged-receivables'],
@@ -243,10 +255,12 @@ function AgedReceivablesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm" style={{ color: T.textMuted }}>Outstanding balances as at today</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Outstanding balances as at today, by days past the customer’s payment terms</p>
         <div className="flex items-center gap-2">
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
-            Customer: r.customer_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total, 'Oldest Invoice': r.oldest_invoice,
+            Customer: r.customer_name,
+            ...Object.fromEntries(AGING_BUCKETS.map(b => [b.label, r[b.key]])),
+            Total: r.total, 'Oldest Due': r.oldest_due,
           })), 'aged-receivables.csv')} />
           <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
@@ -254,10 +268,7 @@ function AgedReceivablesTab() {
         </div>
       </div>
       <TotalsBar totals={totals} fields={[
-        { key: 'current', label: 'Current (0-30d)', color: 'text-ok' },
-        { key: 'days_31_60', label: '31–60 days', color: 'text-accent-strong' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-accent-strong' },
-        { key: 'over_90', label: 'Over 90 days', color: 'text-danger' },
+        ...AGING_BUCKETS,
         { key: 'total', label: 'Total Outstanding', color: 'text-fg' },
       ]} />
       {rows.length > 0 && (
@@ -266,7 +277,7 @@ function AgedReceivablesTab() {
             <table className="w-full text-sm">
               <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
-                  {['Customer','Current','31–60d','61–90d','90d+','Total','Oldest Invoice'].map(h => (
+                  {['Customer', ...AGING_BUCKETS.map(b => b.label), 'Total', 'Oldest Due'].map(h => (
                     <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
@@ -275,22 +286,16 @@ function AgedReceivablesTab() {
                 {rows.map((r, i) => (
                   <tr key={r.customer_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.customer_name}</td>
-                    <td className="px-3 py-2 text-right text-ok">{fmt$(r.current)}</td>
-                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_61_90)}</td>
-                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.over_90)}</td>
+                    {AGING_BUCKETS.map(b => <td key={b.key} className={`px-3 py-2 text-right ${b.color}`}>{fmt$(r[b.key])}</td>)}
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
-                    <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.oldest_invoice}</td>
+                    <td className="px-3 py-2 text-xs" style={{ color: T.textMuted }}>{r.oldest_due}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
-                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.current)}</td>
-                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_61_90)}</td>
-                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.over_90)}</td>
+                  {AGING_BUCKETS.map(b => <td key={b.key} className={`px-3 py-2 text-right ${b.color}`}>{fmt$(totals[b.key])}</td>)}
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                   <td />
                 </tr>
@@ -307,6 +312,42 @@ function AgedReceivablesTab() {
 }
 
 // ── Aged Payables ─────────────────────────────────────────────────────────────
+// What is owed on supplier bills, in the same buckets as receivables: a bill
+// falls due on its own due date or on the supplier's terms from its bill date.
+// Open purchase orders are listed under it as committed spend — on order, not
+// yet billed, and not a debt yet (finding F25).
+function CommittedSpend({ committed, total }) {
+  if (!committed?.length) return null;
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+      <div className="px-3 py-2 text-sm font-semibold flex justify-between" style={{ background: T.hairlineSoft, color: T.text }}>
+        <span>Committed — on order, not yet billed</span>
+        <span>{fmt$(total)}</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            {['Purchase order', 'Supplier', 'Ordered', 'Status', 'Not yet billed'].map(h => (
+              <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {committed.map(c => (
+            <tr key={c.po_id}>
+              <td className="px-3 py-1.5 font-mono text-xs">{c.po_id}</td>
+              <td className="px-3 py-1.5">{c.supplier_name}</td>
+              <td className="px-3 py-1.5 text-xs" style={{ color: T.textMuted }}>{c.order_date}</td>
+              <td className="px-3 py-1.5 text-xs" style={{ color: T.textMuted }}>{c.status}</td>
+              <td className="px-3 py-1.5 text-right">{fmt$(c.unbilled)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AgedPayablesTab() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['reports/aged-payables'],
@@ -321,10 +362,12 @@ function AgedPayablesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm" style={{ color: T.textMuted }}>Outstanding supplier balances as at today</p>
+        <p className="text-sm" style={{ color: T.textMuted }}>Unpaid supplier bills as at today, by days past the supplier’s payment terms</p>
         <div className="flex items-center gap-2">
           <ExportButton disabled={rows.length === 0} onClick={() => exportCSV(rows.map(r => ({
-            Supplier: r.supplier_name, 'Current (0-30d)': r.current, '31-60d': r.days_31_60, '61-90d': r.days_61_90, '90d+': r.over_90, Total: r.total,
+            Supplier: r.supplier_name,
+            ...Object.fromEntries(AGING_BUCKETS.map(b => [b.label, r[b.key]])),
+            Total: r.total,
           })), 'aged-payables.csv')} />
           <button onClick={() => refetch()} className="flex items-center gap-1 text-sm hover:text-accent-strong" style={{ color: T.accentStrong }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh
@@ -332,10 +375,7 @@ function AgedPayablesTab() {
         </div>
       </div>
       <TotalsBar totals={totals} fields={[
-        { key: 'current', label: 'Current (0-30d)', color: 'text-ok' },
-        { key: 'days_31_60', label: '31–60 days', color: 'text-accent-strong' },
-        { key: 'days_61_90', label: '61–90 days', color: 'text-accent-strong' },
-        { key: 'over_90', label: 'Over 90 days', color: 'text-danger' },
+        ...AGING_BUCKETS,
         { key: 'total', label: 'Total Owing', color: 'text-fg' },
       ]} />
       {rows.length > 0 && (
@@ -344,7 +384,7 @@ function AgedPayablesTab() {
             <table className="w-full text-sm">
               <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>
-                  {['Supplier','Current','31–60d','61–90d','90d+','Total'].map(h => (
+                  {['Supplier', ...AGING_BUCKETS.map(b => b.label), 'Total'].map(h => (
                     <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
                   ))}
                 </tr>
@@ -353,10 +393,7 @@ function AgedPayablesTab() {
                 {rows.map((r, i) => (
                   <tr key={r.supplier_id} style={{ background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                     <td className="px-3 py-2 font-medium">{r.supplier_name}</td>
-                    <td className="px-3 py-2 text-right text-ok">{fmt$(r.current)}</td>
-                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_31_60)}</td>
-                    <td className="px-3 py-2 text-right text-accent-strong">{fmt$(r.days_61_90)}</td>
-                    <td className="px-3 py-2 text-right text-danger">{fmt$(r.over_90)}</td>
+                    {AGING_BUCKETS.map(b => <td key={b.key} className={`px-3 py-2 text-right ${b.color}`}>{fmt$(r[b.key])}</td>)}
                     <td className="px-3 py-2 text-right font-bold">{fmt$(r.total)}</td>
                   </tr>
                 ))}
@@ -364,10 +401,7 @@ function AgedPayablesTab() {
               <tfoot className="font-semibold" style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
                 <tr>
                   <td className="px-3 py-2">TOTAL</td>
-                  <td className="px-3 py-2 text-right text-ok">{fmt$(totals.current)}</td>
-                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_31_60)}</td>
-                  <td className="px-3 py-2 text-right text-accent-strong">{fmt$(totals.days_61_90)}</td>
-                  <td className="px-3 py-2 text-right text-danger">{fmt$(totals.over_90)}</td>
+                  {AGING_BUCKETS.map(b => <td key={b.key} className={`px-3 py-2 text-right ${b.color}`}>{fmt$(totals[b.key])}</td>)}
                   <td className="px-3 py-2 text-right">{fmt$(totals.total)}</td>
                 </tr>
               </tfoot>
@@ -376,8 +410,9 @@ function AgedPayablesTab() {
         </div>
       )}
       {!isFetching && rows.length === 0 && (
-        <div className="text-center py-16" style={{ color: T.textFaint }}>No outstanding supplier balances.</div>
+        <div className="text-center py-16" style={{ color: T.textFaint }}>No unpaid supplier bills.</div>
       )}
+      <CommittedSpend committed={data?.committed} total={totals.committed} />
     </div>
   );
 }
@@ -992,7 +1027,6 @@ function DecorationPerformanceTab() {
   });
 
   const rows = data?.rows || [];
-  const maxRevenue = rows.length ? Math.max(...rows.map(r => r.revenue)) : 1;
 
   return (
     <div className="space-y-4">
@@ -1170,26 +1204,35 @@ function OverviewTab({ jobs = [], inventory = [] }) {
 }
 
 // ── Main ReportsModule ─────────────────────────────────────────────────────────
+// `route` is the one each tab reads. A tab shows only to a role that may call
+// it: the money reports are staff and above, so overseas staff do not see them
+// (owner decision 2026-10-19). Overview reads the lists already loaded.
 const TABS = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'sales', label: 'Sales Summary', icon: TrendingUp },
-  { id: 'gst', label: 'GST Report', icon: DollarSign },
-  { id: 'aged', label: 'Aged Receivables', icon: Users },
-  { id: 'agedpay', label: 'Aged Payables', icon: DollarSign },
-  { id: 'inventory', label: 'Inventory Valuation', icon: Package },
-  { id: 'profitability', label: 'Job Profitability', icon: BarChart3 },
-  { id: 'ontime', label: 'On-Time Delivery', icon: Clock },
-  { id: 'backorders', label: 'Back Orders', icon: AlertTriangle },
-  { id: 'decoration', label: 'Decoration Mix', icon: Layers },
+  { id: 'sales', label: 'Sales Summary', icon: TrendingUp, route: '/reports/sales-summary' },
+  { id: 'gst', label: 'GST Report', icon: DollarSign, route: '/reports/gst' },
+  { id: 'aged', label: 'Aged Receivables', icon: Users, route: '/reports/aged-receivables' },
+  { id: 'agedpay', label: 'Aged Payables', icon: DollarSign, route: '/reports/aged-payables' },
+  { id: 'inventory', label: 'Inventory Valuation', icon: Package, route: '/reports/inventory-valuation' },
+  { id: 'profitability', label: 'Job Profitability', icon: BarChart3, route: '/reports/job-profitability' },
+  { id: 'ontime', label: 'On-Time Delivery', icon: Clock, route: '/reports/on-time-delivery' },
+  { id: 'backorders', label: 'Back Orders', icon: AlertTriangle, route: '/reports/back-orders' },
+  { id: 'decoration', label: 'Decoration Mix', icon: Layers, route: '/reports/decoration-performance' },
 ];
 
-export default function ReportsModule({ jobs = [], inventory = [], suppliers = [], purchaseOrders = [], onOpenJob, onNavigateToPO }) {
-  const [tab, setTab] = useState('overview');
+// `initialTab` opens it on one report (Home's receivables tiles open Aged Receivables).
+export default function ReportsModule({ jobs = [], inventory = [], suppliers = [], purchaseOrders = [], onOpenJob, onNavigateToPO, initialTab = 'overview' }) {
+  const [chosen, setTab] = useState(initialTab);
+  const { data: access, isError: accessFailed } = useMyAccess();
+  const shown = TABS.filter(t => !t.route || offers(access, accessFailed, 'GET', t.route));
+  // A tab the role may not read is never drawn. Until access is known the
+  // chosen one waits; once it is, Overview stands in for one that is not shown.
+  const tab = shown.some(t => t.id === chosen) ? chosen : ((access || accessFailed) ? 'overview' : null);
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1 pb-0" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-        {TABS.map(t => {
+        {shown.map(t => {
           const Icon = t.icon;
           return (
             <button

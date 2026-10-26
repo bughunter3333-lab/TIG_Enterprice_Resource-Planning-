@@ -4,9 +4,11 @@ Access control in this system is one thing: **the role on the account**. Every
 endpoint names the roles it lets through as a dependency (`require_admin`,
 `require_manager`, `require_staff`, `require_any` in
 `backend/app/core/dependencies.py`), the role is read from the database on every
-request, and nothing else is consulted. There are four roles, most senior first:
-`admin`, `manager`, `staff`, `overseas_staff` (`ROLES`, mirrored in
-`frontend/src/roles.js`; a test holds the two together).
+request, and nothing else is consulted. There are four roles for people, most
+senior first: `admin`, `manager`, `staff`, `overseas_staff` (`ROLES`), and one
+for a system, `portal` (`SERVICE_ROLES`, 2026-10-25 — see *The online store's
+account* below). `ALL_ROLES` is both, mirrored in `frontend/src/roles.js`; a test
+holds the two together.
 
 ## The screen
 
@@ -34,9 +36,11 @@ removed.
 
 ## Rules the server holds (`backend/app/routers/users.py`)
 
-- Only an admin lists, adds, changes, resets or deletes accounts, or reads the
-  access table. Anyone signed in may read their own details (`GET /users/me`).
-- A role is one of the four. Anything else is a 400 naming them.
+- Only an admin lists, adds, changes, resets or deletes accounts, or reads every
+  role's column of the access table (`GET /users/access`). Anyone signed in may
+  read their own details (`GET /users/me`) and their own role's column
+  (`GET /users/me/access`; owner decision 2026-10-19).
+- A role is one of the five (`ALL_ROLES`). Anything else is a 400 naming them.
 - **An admin cannot change their own role or deactivate or delete their own
   account.** Whoever is acting is an active admin, so there is always one left;
   another admin has to do it.
@@ -93,6 +97,15 @@ change actions each role may use — **counted from the gates on the routes
 themselves** (`backend/app/core/access.py`), not written by hand. The screen shows
 it as "View all · Change 15 of 21".
 
+`GET /users/me/access` (2026-10-19) gives each person the same thing for their
+own role only: their column of the table, and `allowed` — every route their
+role's gate lets through, as `"METHOD /path"` with the path the server matches
+(`app.core.access.role_access`). The website decides from it which modules to
+offer and what Home shows, so it cannot offer what the server would refuse; the
+server still checks every request. It is behind `get_current_user` (every
+role, the portal's included), not `get_signed_in_user`: someone still on a
+password an admin chose is shown nothing yet.
+
 It is derived because a description goes stale. Building it found one that had:
 goods receipts and the supplier price list spelled their gate out as
 `("admin", "staff")`, written before `manager` existed, so **managers were refused
@@ -104,11 +117,45 @@ route in the app:
 - every route has a gate, except the sign-in routes and health checks, which are
   listed by name;
 - **seniority**: the roles a route admits are an unbroken run from the top — no
-  route lets a role in while refusing a more senior one.
+  route lets a role in while refusing a more senior one. A service role is outside
+  the run: it is let in only by a gate that names it, never without `staff`, and
+  `portal` only to the four routes listed below.
+
+### Money writes overseas staff do not make (2026-10-25, finding F23)
+
+Overseas staff read counts and days, not money (2026-10-19), and now do not make
+money happen either: moving a job to INVOICE or PAID, or cancelling an invoiced
+job, needs staff or above (`_require_role_for` in `app/routers/jobs.py`); so do
+the sales register and printing an invoice or proforma. They may still move work
+through production and print the documents that go with it.
+
+## The online store's account (2026-10-25, finding F26)
+
+Most work arrives from the online store (backlog JIM14). Its integration used to
+need a full staff account — which reads supplier bills and money reports — with
+its password on an internet-facing system. It now gets a `portal` account, which
+can do four things: `GET /users/me`, `GET /users/me/access`, `POST /jobs`
+(`require_intake`) and `POST /jobs/{id}/comments` (`require_commenter`).
+`test_access_gates.py` fails if any other route admits it.
+
+What the server holds it to (`_portal_rules`, `_require_not_a_repeat`):
+
+- An order is booked as `New` (or `QUOTE`, a request for a price) for TIG to
+  confirm. The portal does not take orders on account or invoice.
+- It carries the store's order number (`serial_no`), and does not choose a job or
+  invoice number.
+- **The same order number for the same customer is booked once.** A retry gets a
+  409 with `{"error": "duplicate", "job_id": …}` naming the job already made.
+- It comments only on jobs it booked; any other job is a 404, as if absent.
+- The job records who created it (`jobs.created_by_user_id`) and says, in a system
+  comment, that it was booked from the online store and with which order number.
+
+The account is added on the Users screen like any other (*Online Store
+(service)*). It has no Home and no modules: it is not for a person to sign in to.
 
 ## Not done
 
-- No per-person permissions: access is the role, and the four roles are fixed in
+- No per-person permissions: access is the role, and the five roles are fixed in
   code. A new role or a finer rule is a code change with tests, by design.
 - No audit screen for account changes (they are in the server log).
 - New accounts are not forced to set up two-factor sign-in.

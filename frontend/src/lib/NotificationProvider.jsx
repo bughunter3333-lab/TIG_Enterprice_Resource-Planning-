@@ -1,12 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 import { subscribe } from './notify';
+import { T } from '../ui/tokens';
+
+// The same toast as ui/Toast: a white surface with the meaning in the icon's
+// colour, so a message reads over any screen without shouting over it.
+const KINDS = {
+  error: { Icon: CircleAlert, color: T.danger },
+  success: { Icon: CircleCheck, color: T.ok },
+  info: { Icon: Info, color: T.accent },
+};
 
 function Toast({ toast, onClose }) {
   const { id, message, type = 'info' } = toast;
+  const { Icon, color } = KINDS[type] ?? KINDS.info;
   return (
     <div className={`ti-toast ti-toast-${type}`} role="alert">
+      <Icon size={16} color={color} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
       <div className="ti-toast-message">{message}</div>
-      <button className="ti-toast-close" onClick={() => onClose(id)}>✕</button>
+      <button type="button" className="ti-toast-close" aria-label="Dismiss" onClick={() => onClose(id)}>
+        <X size={14} aria-hidden />
+      </button>
     </div>
   );
 }
@@ -42,8 +56,8 @@ export function NotificationProvider({ children }) {
 
 const containerStyle = {
   position: 'fixed',
-  right: 12,
-  top: 12,
+  right: 16,
+  top: 16,
   zIndex: 9999,
   display: 'flex',
   flexDirection: 'column',
@@ -52,11 +66,19 @@ const containerStyle = {
 
 const toastStyles = `
 .ti-toaster { pointer-events: none; }
-.ti-toast { pointer-events: auto; background: #111827; color: white; padding: 10px 14px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.2); min-width: 220px; display:flex; align-items:center; justify-content:space-between; }
-.ti-toast .ti-toast-message { margin-right: 8px; }
-.ti-toast.ti-toast-error { background: #b91c1c; }
-.ti-toast.ti-toast-success { background: #065f46; }
-.ti-toast-close { background: transparent; border: none; color: rgba(255,255,255,0.9); cursor: pointer; font-size: 12px; }
+.ti-toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 8px;
+  min-width: 260px; max-width: 400px; padding: 10px 10px 10px 14px;
+  background: ${T.panel}; color: ${T.text}; border: 1px solid ${T.hairline};
+  border-radius: ${T.radiusLg}px; box-shadow: ${T.shadowPress};
+  font-family: ${T.font}; font-size: ${T.fsGrid}px; font-weight: 500; line-height: 1.4;
+}
+.ti-toast .ti-toast-message { flex: 1; }
+.ti-toast-close {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  background: transparent; border: none; border-radius: 6px; color: ${T.textMuted}; cursor: pointer;
+}
+.ti-toast-close:hover { background: ${T.hairlineSoft}; color: ${T.text}; }
 `;
 
 export default NotificationProvider;

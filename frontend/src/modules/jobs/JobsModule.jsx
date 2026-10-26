@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
+import { Kanban, List } from 'lucide-react';
 import FilterBar from '../../ui/FilterBar';
 import Button from '../../ui/Button';
+import SegmentedControl from '../../ui/SegmentedControl';
+import DensityToggle from '../../ui/DensityToggle';
+import { fieldChrome } from '../../ui/fieldStyle';
 import JobsList from './JobsList';
 import JobsBoard from '../../components/jobs/JobsBoard';
 import { filterJobs, buildFilterOptions, QUICK_FILTERS } from './jobsFilters';
@@ -66,28 +70,24 @@ export default function JobsModule({
 
   return (
     <div style={{ fontFamily: T.font }}>
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 12 }}>
         <FilterBar
           filters={chips}
           available={availableFiltered}
           onAdd={onFilterChange}
           onRemove={removeFilter}
           right={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {chips.length > 0 && (
                 <Button size="sm" variant="ghost" onClick={onClearFilters}>Clear all</Button>
               )}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: T.fsSmall, color: T.textMuted }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: T.fsSmall, color: T.textMuted }}>
                 Group
                 <select
                   aria-label="Group by"
                   value={groupBy}
                   onChange={e => setGroupBy(e.target.value)}
-                  style={{
-                    height: T.inputHeight, fontSize: T.fsSmall, color: T.text,
-                    background: T.panel, border: `1px solid ${T.hairline}`,
-                    borderRadius: T.radius, padding: '0 6px',
-                  }}
+                  style={{ ...fieldChrome({}), height: 28, fontSize: T.fsSmall, padding: '0 6px', cursor: 'pointer' }}
                 >
                   <option value="">None</option>
                   <option value="shipTo">Ship#</option>
@@ -98,22 +98,17 @@ export default function JobsModule({
                   <option value="accMgr">Acc Mgr</option>
                 </select>
               </label>
-              <Button
+              <SegmentedControl
+                label="View"
                 size="sm"
-                variant={viewMode === 'table' ? 'primary' : 'secondary'}
-                aria-label="Table view"
-                onClick={() => onViewModeChange('table')}
-              >
-                ☰ List
-              </Button>
-              <Button
-                size="sm"
-                variant={viewMode === 'board' ? 'primary' : 'secondary'}
-                aria-label="Board view"
-                onClick={() => onViewModeChange('board')}
-              >
-                ⊞ Board
-              </Button>
+                value={viewMode === 'board' ? 'board' : 'table'}
+                onChange={onViewModeChange}
+                options={[
+                  { value: 'table', label: 'List', ariaLabel: 'Table view', icon: List },
+                  { value: 'board', label: 'Board', ariaLabel: 'Board view', icon: Kanban },
+                ]}
+              />
+              {viewMode !== 'board' && <DensityToggle />}
             </div>
           }
         />

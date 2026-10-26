@@ -42,12 +42,24 @@ const QUICK_VIEW = {
   inProduction: 'inProduction',
   needsInvoice: 'toInvoice',
   myJobs: 'mine',
+  pickPack: 'pickPack',
+  proof: 'proof',
+  orderNotStarted: 'orderNotStarted',
+  inProgress: 'inProgress',
+  notDespatched: 'notDespatched',
+  quoteExpiring: 'quoteExpiring',
 };
 
 export const QUICK_FILTERS = [
   ...Object.entries(QUICK_VIEW).map(([id, view]) => ({ id, label: viewLabel(view) })),
   { id: 'urgent', label: 'Urgent' },
 ];
+
+// The module a quick list opens in. Only quotes differ: a quote is opened from
+// the Quotes list, which is the same jobs list locked to QUOTE.
+const QUICK_MODULE = { quoteExpiring: 'quotes' };
+
+export const quickListModule = (quick) => QUICK_MODULE[quick] ?? 'jobs';
 
 export const EMPTY_JOBS_FILTERS = {
   searchTerm: '',
@@ -71,7 +83,8 @@ export const EMPTY_JOBS_FILTERS = {
 export const JOB_LIST_CLASSES = {
   quote: (s) => s === 'QUOTE',
   active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'].includes(s),
-  ready: (s) => s === 'Pick/Pack',
+  // Packed: Pick/Pack, and Desp/Ready — waiting for the carrier.
+  ready: (s) => ['Pick/Pack', 'Desp/Ready'].includes(s),
   finish: (s) => s === 'FINISH',
   invoiced: (s) => ['INVOICE', 'PAID'].includes(s),
 };

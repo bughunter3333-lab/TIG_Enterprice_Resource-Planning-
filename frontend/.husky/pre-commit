@@ -11,4 +11,8 @@
 # removes the hook entirely — or skip silently and imply a check that never
 # ran. CI runs ruff and black unconditionally, which is the honest place for a
 # check that cannot rely on a local environment.
-cd frontend && npx lint-staged
+#
+# --relative: ESLint gets src/... paths, not D:\...\frontend\src\... ones.
+# Absolute paths overflow Windows' 8191-character command line at about a
+# hundred staged files, and the commit fails before ESLint has run at all.
+cd frontend && npx lint-staged --relative

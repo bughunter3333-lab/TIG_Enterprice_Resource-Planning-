@@ -8,14 +8,16 @@
  *
  * The phases follow the server's lifecycle (ALLOWED_TRANSITIONS in
  * backend/app/routers/jobs.py): QUOTE → ORDER → In Progress → (PROOF) → PRINT
- * → Pick/Pack → FINISH → INVOICE → PAID, with CANCEL reachable from any step.
+ * → Pick/Pack → Desp/Ready → FINISH → INVOICE → PAID, with CANCEL reachable
+ * from any step. Desp/Ready is packed and waiting for the carrier; FINISH is
+ * the goods having gone.
  */
 import { addDays, dayKey, todayKey } from '../../lib/dates';
 
 export const PHASES = [
   { id: 'sales', label: 'Sales', statuses: ['QUOTE'] },
   { id: 'production', label: 'Production', statuses: ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT'] },
-  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'FINISH'] },
+  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'Desp/Ready', 'FINISH'] },
   { id: 'billing', label: 'Billing', statuses: ['INVOICE', 'PAID'] },
   { id: 'closed', label: 'Cancelled', statuses: ['CANCEL'] },
 ];
@@ -30,7 +32,7 @@ export const phaseOf = (status) => PHASE_OF[status] ?? 'production';
  * promise to the customer, so this is what "overdue" and "due today" count.
  * A quote has a validity date instead; from FINISH on, the goods have gone.
  */
-export const OPEN_WORK = ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'];
+export const OPEN_WORK = ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'Desp/Ready'];
 
 const isOpenWork = (job) => OPEN_WORK.includes(job.status);
 const due = (job) => dayKey(job.due);
@@ -46,6 +48,16 @@ export const isDueWithin = (job, days, today = todayKey()) => {
 
 /** Finished and delivered, waiting for its invoice. */
 export const isToInvoice = (job) => job.status === 'FINISH';
+
+/** Finished or invoiced, with no despatch recorded against it yet. */
+export const isNotDespatched = (job) =>
+  ['FINISH', 'INVOICE'].includes(job.status) && !String(job.dispatchedAt ?? '').trim();
+
+/** A quote whose validity runs out from today through the next 7 days. */
+export const isQuoteExpiring = (job, today = todayKey()) => {
+  const valid = dayKey(job.validityDate);
+  return job.status === 'QUOTE' && !!valid && valid >= today && valid <= addDays(today, 7);
+};
 
 /** Being made: ordered through printed. */
 export const isInProduction = (job) => phaseOf(job.status) === 'production';
@@ -71,6 +83,11 @@ export const JOB_VIEWS = [
   { id: 'inProduction', label: 'In production', test: (j) => isInProduction(j) },
   { id: 'pickPack', label: 'Pick/Pack', test: (j) => j.status === 'Pick/Pack' },
   { id: 'toInvoice', label: 'To invoice', test: (j) => isToInvoice(j) },
+  { id: 'proof', label: 'With the customer', test: (j) => j.status === 'PROOF' },
+  { id: 'orderNotStarted', label: 'Orders not started', test: (j) => j.status === 'ORDER' },
+  { id: 'inProgress', label: 'In progress', test: (j) => j.status === 'In Progress' },
+  { id: 'notDespatched', label: 'Finished not despatched', test: (j) => isNotDespatched(j) },
+  { id: 'quoteExpiring', label: 'Quotes expiring this week', test: (j, { today }) => isQuoteExpiring(j, today) },
 ];
 
 const VIEW_BY_ID = Object.fromEntries(JOB_VIEWS.map((v) => [v.id, v]));

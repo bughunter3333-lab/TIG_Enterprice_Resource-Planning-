@@ -3,13 +3,14 @@ import { Play, X, Eye, Plus, Pencil, ClipboardList } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import DataGrid from '../../ui/DataGrid';
 import { computeAutoPickAvailability } from './jobsFilters';
+import { JOB_STATUSES } from './jobStatuses';
 
 // Jim2-style advanced "Job List" builder. Presentational: the parent owns the
 // `draft` filter object and the live `results`. Filters are organised into
 // labelled groups (research: grouping + dividers is what keeps a dense ERP
 // filter panel readable rather than "messy").
 
-const STATUSES = ['QUOTE', 'New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'FINISH', 'INVOICE', 'PAID', 'CANCEL'];
+const STATUSES = JOB_STATUSES;
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 
 const lbl = { fontSize: 9, fontWeight: 700, color: T.textFaint, letterSpacing: '0.03em', textTransform: 'uppercase', marginBottom: 2, display: 'block' };

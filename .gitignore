@@ -14,7 +14,9 @@ build/
 # Test / coverage artefacts
 .coverage
 coverage.xml
+htmlcov/
 .pytest_cache/
+.ruff_cache/
 
 # Node
 node_modules/
@@ -44,8 +46,12 @@ total_image_erp_full_1.jsx
 # Claude Code local tooling config
 .claude/
 
-# Personal Obsidian vault (not part of the app)
+# Personal Obsidian vaults (not part of the app)
 ERP/
+ERP_Obsidian/
+
+# Session state a Claude Code plugin writes beside the repo
+.anchor/
 
 # Scratch output from the monolith free-variable analysis (docs/backlog.md F2).
 # Regenerated on demand; never committed — it contains a full copy of the file

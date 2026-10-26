@@ -119,6 +119,65 @@ class TestSingleMigrationHead:
         )
 
 
+RLS_REVISION = "b8c9d0e1f2a3"
+
+
+def _migrations():
+    """{revision: (down_revisions, source)} for every migration file."""
+    found = {}
+    for path in (BACKEND / "alembic" / "versions").glob("*.py"):
+        source = path.read_text(encoding="utf-8", errors="replace")
+        rev = re.search(r"^revision(?::\s*\w+)?\s*=\s*['\"]([^'\"]+)", source, re.M)
+        if not rev:
+            continue
+        down = re.search(r"^down_revision[^=]*=\s*(.+)$", source, re.M)
+        parents = re.findall(r"['\"]([^'\"]+)['\"]", down.group(1)) if down else []
+        found[rev.group(1)] = (parents, source)
+    return found
+
+
+@pytest.mark.unit
+class TestNewTablesKeepRowLevelSecurity:
+    """b8c9d0e1f2a3 turned row level security on for every table, so Supabase's
+    Data API reads nothing with the public anon key. A table created later
+    starts with it off again, unless its migration turns it on."""
+
+    def test_the_rls_migration_is_in_the_chain(self):
+        assert RLS_REVISION in _migrations()
+
+    def test_every_later_migration_that_creates_a_table_enables_it(self):
+        migrations = _migrations()
+        later = {
+            rev
+            for rev in migrations
+            if rev != RLS_REVISION and self._descends_from(rev, migrations)
+        }
+        missing = sorted(
+            rev
+            for rev in later
+            if "op.create_table" in migrations[rev][1]
+            and "ENABLE ROW LEVEL SECURITY" not in migrations[rev][1]
+        )
+        assert not missing, (
+            f"{missing} create a table without ENABLE ROW LEVEL SECURITY. Add "
+            "`op.execute('ALTER TABLE public.<name> ENABLE ROW LEVEL SECURITY')` "
+            "after op.create_table (PostgreSQL only), or Supabase's Data API "
+            "serves the new table to anyone holding the anon key."
+        )
+
+    @staticmethod
+    def _descends_from(rev, migrations, seen=None):
+        seen = seen or set()
+        if rev in seen or rev not in migrations:
+            return False
+        seen.add(rev)
+        parents = migrations[rev][0]
+        return RLS_REVISION in parents or any(
+            TestNewTablesKeepRowLevelSecurity._descends_from(p, migrations, seen)
+            for p in parents
+        )
+
+
 def _call_arguments(source: str, callee: str):
     """Yield the argument text of each `callee(...)` call, parens balanced."""
     for match in re.finditer(rf"\b{re.escape(callee)}\(", source):

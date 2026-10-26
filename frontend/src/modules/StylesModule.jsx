@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Plus, Search, Edit2, Trash2, Package, Tag, Grid, List,
-  ChevronRight, X, Check, RefreshCw, Layers, Palette, Ruler,
-  AlertCircle, TrendingUp, Box, Info,
+  Plus, Search, Edit2, Trash2, Package, Grid,
+  X, Check, RefreshCw, Layers, Palette, Ruler,
+  AlertCircle, TrendingUp, Box,
 } from 'lucide-react';
-import { styles as stylesApi, inventory as inventoryApi } from '../api';
+import { styles as stylesApi } from '../api';
 import { T } from '../ui/tokens';
 import { notify } from '../lib/notify';
 
@@ -459,13 +459,6 @@ function StyleDetail({ style, onEdit, onDelete, onRefresh }) {
   const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: inventory } = useQuery({
-    queryKey: ['inventory'],
-    queryFn: () => inventoryApi.list(),
-    staleTime: 30000,
-    onError: (e) => { const m = e?.message || String(e); notify(m, { type: 'error' }); },
-  });
-
   async function handleGenerateSkus() {
     if (!style.colours.length || !style.sizes.length) {
       alert('Add at least one colour and one size before generating SKUs.');
@@ -485,8 +478,6 @@ function StyleDetail({ style, onEdit, onDelete, onRefresh }) {
       setGenerating(false);
     }
   }
-
-  const linkedSkus = (inventory || []).filter(i => i.style_id === style.id || (style.matrix && Object.values(style.matrix).some(bySize => bySize[i.size_code]?.sku === i.sku)));
 
   const margin = style.base_sell_price > 0
     ? ((style.base_sell_price - style.base_purchase_price) / style.base_sell_price * 100).toFixed(1)

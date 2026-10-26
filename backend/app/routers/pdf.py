@@ -7,6 +7,7 @@ GET /jobs/{job_id}/pdf?type=quote     →  Quote document
 
 import io
 from datetime import date
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
@@ -26,8 +27,13 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 from app.database import get_db
-from app.core.dependencies import require_any
+from app.core import despatch_documents
+from app.core.dependencies import require_any, require_staff
+from app.core.job_weight import unweighed_lines
+from app.core.ledger_postings import INVOICED_STATUSES
+from app.models.dispatch_session import DispatchSessionLine
 from app.models.job import Job
+from app.routers.jobs import _despatch_address
 from app.models.customer import Customer
 from app.models.settings import CompanySettings
 from app.models.user import User
@@ -40,6 +46,20 @@ ACCENT = colors.HexColor("#2563eb")
 LIGHT_BG = colors.HexColor("#f8fafc")
 BORDER = colors.HexColor("#e2e8f0")
 WHITE = colors.white
+
+
+def printable_lines(job: Job) -> list:
+    """The lines a customer's priced document shows.
+
+    Not hidden lines — 'Hide' is how a line is kept off what the customer sees
+    — and not section or note markers. The invoice printed hidden lines (F34);
+    their amounts are still in the totals, as they always were.
+    """
+    return [
+        it
+        for it in (job.items or [])
+        if it.display_type not in ("section", "note") and not it.hide
+    ]
 
 
 def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
@@ -67,9 +87,19 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     )
 
     is_invoice = doc_type == "invoice"
-    title = "TAX INVOICE" if is_invoice else "QUOTE"
-    doc_no = job.invoice if is_invoice else job.quote
-    doc_date = job.invoice_date or job.date_in or date.today().isoformat()
+    # A proforma asks for payment before the goods are supplied: priced like an
+    # invoice, numbered by the job, and plainly not a tax invoice.
+    is_proforma = doc_type == "proforma"
+    title = {"invoice": "TAX INVOICE", "proforma": "PROFORMA INVOICE"}.get(
+        doc_type, "QUOTE"
+    )
+    doc_no = job.invoice if is_invoice else (job.id if is_proforma else job.quote)
+    doc_label = {"invoice": "Invoice", "proforma": "Proforma"}.get(doc_type, "Quote")
+    doc_date = (
+        (job.invoice_date if is_invoice else None)
+        or job.date_in
+        or date.today().isoformat()
+    )
 
     story = []
 
@@ -113,7 +143,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
         co_lines.append(f"ABN: {company.abn}")
 
     doc_lines = [
-        f"{'Invoice' if is_invoice else 'Quote'} No: <b>{doc_no or 'N/A'}</b>",
+        f"{doc_label} No: <b>{doc_no or 'N/A'}</b>",
         f"Date: <b>{doc_date}</b>",
         f"Job No: <b>{job.id}</b>",
     ]
@@ -188,9 +218,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     td_r = ParagraphStyle("tdr", fontSize=8, textColor=DARK, alignment=TA_RIGHT)
 
     rows = [[Paragraph(h, th) for h in item_header]]
-    product_items = [
-        it for it in (job.items or []) if it.display_type not in ("section", "note")
-    ]
+    product_items = printable_lines(job)
 
     for it in product_items:
         qty = int(it.order_qty or 0)
@@ -280,8 +308,18 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     story.append(Spacer(1, 6 * mm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=4))
 
-    # ── Bank details (invoice only) ───────────────────────────────────────────
-    if is_invoice and company.bank_account:
+    if is_proforma:
+        story.append(
+            Paragraph(
+                "<b>This is not a tax invoice.</b> A tax invoice is issued when "
+                "the goods are supplied.",
+                small,
+            )
+        )
+        story.append(Spacer(1, 3 * mm))
+
+    # ── Bank details (invoice and proforma) ───────────────────────────────────
+    if (is_invoice or is_proforma) and company.bank_account:
         bank_lines = ["<b>Payment Details</b>"]
         if company.bank_name:
             bank_lines.append(f"Bank: {company.bank_name}")
@@ -325,7 +363,10 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     return buf.getvalue()
 
 
-def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
+def _build_picking_slip(
+    job: Job, company: CompanySettings, unweighed: Optional[list] = None
+) -> bytes:
+    unweighed = unweighed or []
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -487,18 +528,16 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
         )
     )
 
-    # Weight and notes footer
+    # Weight and notes footer. The garments with no weight are named, as Jim2
+    # names them: freight is charged on this figure (app/core/job_weight.py).
     weight = float(getattr(job, "weight_total", 0) or 0)
-    zero_weight = sum(
-        1
-        for it in product_items
-        if it.stock_code and not float(getattr(it, "weight_kg", 0) or 0)
-    )
     footer_rows = []
-    if weight > 0 or zero_weight:
+    if weight > 0 or unweighed:
         weight_text = f"Order Weight: {weight:.2f} kg"
-        if zero_weight:
-            weight_text += f"  ({zero_weight} item(s) have 0 weight)"
+        if unweighed:
+            weight_text += (
+                f"  ({len(unweighed)} item(s) have 0 weight: {', '.join(unweighed)})"
+            )
         footer_rows.append([Paragraph(weight_text, bold), ""])
     if job.notes:
         footer_rows.append(
@@ -1024,16 +1063,20 @@ def customer_statement_pdf(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    # Money: staff and above, like the statement in reports.py.
+    _: User = Depends(require_staff),
 ):
     """Statement of Account PDF for a customer."""
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # Invoices only, as the customer's balance and aged receivables count: the
+    # statement sent to the customer charged them for FINISH jobs with no
+    # invoice yet (F06).
     q = db.query(Job).filter(
         Job.customer_id == customer_id,
-        Job.status.in_(["INVOICE", "PAID", "FINISH"]),
+        Job.status.in_(list(INVOICED_STATUSES)),
     )
     if date_from:
         q = q.filter((Job.invoice_date >= date_from) | (Job.date_in >= date_from))
@@ -1076,34 +1119,133 @@ def customer_statement_pdf(
     )
 
 
-@router.get("/jobs/{job_id}/pdf")
-def job_pdf(
-    job_id: str,
-    type: str = Query("invoice", pattern="^(invoice|quote|picking-slip|job-sheet)$"),
-    db: Session = Depends(get_db),
-    _: User = Depends(require_any),
-):
-    """Stream a PDF for the given job: invoice, quote, picking-slip, or job-sheet."""
-    job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+_DOCUMENT_TYPES = (
+    "invoice|quote|proforma|picking-slip|job-sheet|delivery-note|ship-label|job-label"
+)
+# Documents with prices on them. Tax invoices and proformas are money
+# documents, so — like the sales register and the money reports — they are not
+# for overseas staff; every role prints the production and despatch paperwork.
+_MONEY_DOCUMENTS = {"invoice", "proforma"}
+# What prints across a list of jobs in one go, as Jim2 prints delivery notes
+# for a whole filtered list.
+_LIST_DOCUMENTS = {
+    "delivery-note": (despatch_documents.DELIVERY_NOTE, 15 * mm),
+    "ship-label": (despatch_documents.SHIP_LABEL, 6 * mm),
+    "job-label": (despatch_documents.JOB_LABEL, 4 * mm),
+}
 
-    company = db.query(CompanySettings).first() or CompanySettings(
+
+def _company(db: Session) -> CompanySettings:
+    return db.query(CompanySettings).first() or CompanySettings(
         company_name="Total Image"
     )
 
-    if type == "picking-slip":
-        pdf_bytes = _build_picking_slip(job, company)
-        filename = f"picking_slip_{job_id}.pdf"
-    elif type == "job-sheet":
-        pdf_bytes = _build_job_sheet(job, company)
-        filename = f"job_sheet_{job_id}.pdf"
-    else:
-        pdf_bytes = _build_pdf(job, company, type)
-        filename = f"{type}_{job.invoice or job_id}.pdf"
 
+def _last_despatch(db: Session, job: Job) -> dict:
+    line = (
+        db.query(DispatchSessionLine)
+        .filter(DispatchSessionLine.job_id == job.id)
+        .order_by(DispatchSessionLine.id.desc())
+        .first()
+    )
+    if line is None:
+        return {"address": _despatch_address(job)}
+    return {
+        "ship_via": line.ship_via,
+        "ship_ref": line.ship_ref,
+        "cartons": line.cartons,
+        "address": line.address or _despatch_address(job),
+    }
+
+
+def _list_story(db: Session, job: Job, company: CompanySettings, type: str) -> list:
+    if type == "delivery-note":
+        return despatch_documents.delivery_note(job, company, _last_despatch(db, job))
+    if type == "ship-label":
+        return despatch_documents.ship_labels(job, company, _last_despatch(db, job))
+    return despatch_documents.job_label(job, company)
+
+
+def _pdf_response(pdf_bytes: bytes, filename: str) -> StreamingResponse:
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
+
+
+@router.get("/job-documents")
+def jobs_documents(
+    type: str = Query(..., pattern="^(delivery-note|ship-label|job-label)$"),
+    job_id: list[str] = Query(..., min_length=1, max_length=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """One document type for many jobs, in one PDF — a page (or label) each.
+
+    Not under /jobs/: the jobs router's GET /jobs/{job_id} would read the path
+    as a job id.
+    """
+    jobs = {
+        j.id: j
+        for j in db.query(Job)
+        .options(joinedload(Job.items))
+        .filter(Job.id.in_(job_id))
+        .all()
+    }
+    missing = [j for j in job_id if j not in jobs]
+    if missing:
+        raise HTTPException(
+            status_code=404, detail=f"Job(s) not found: {', '.join(missing)}"
+        )
+    company = _company(db)
+    pagesize, margin = _LIST_DOCUMENTS[type]
+    stories = [_list_story(db, jobs[j], company, type) for j in dict.fromkeys(job_id)]
+    return _pdf_response(
+        despatch_documents.render(stories, pagesize, margin), f"{type}s.pdf"
+    )
+
+
+@router.get("/jobs/{job_id}/pdf")
+def job_pdf(
+    job_id: str,
+    type: str = Query("invoice", pattern=f"^({_DOCUMENT_TYPES})$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Stream one document for the given job.
+
+    invoice, quote and proforma are priced; picking-slip and job-sheet are
+    production paperwork; delivery-note, ship-label and job-label go with the
+    goods (app/core/despatch_documents.py — they used to exist only as
+    templates in the browser, F21).
+    """
+    if type in _MONEY_DOCUMENTS and current_user.role not in require_staff.roles:
+        raise HTTPException(
+            status_code=403, detail="Invoices and proformas are printed by staff"
+        )
+    job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    company = _company(db)
+
+    if type == "picking-slip":
+        pdf_bytes = _build_picking_slip(job, company, unweighed_lines(job, db))
+        filename = f"picking_slip_{job_id}.pdf"
+    elif type == "job-sheet":
+        pdf_bytes = _build_job_sheet(job, company)
+        filename = f"job_sheet_{job_id}.pdf"
+    elif type in _LIST_DOCUMENTS:
+        pagesize, margin = _LIST_DOCUMENTS[type]
+        pdf_bytes = despatch_documents.render(
+            [_list_story(db, job, company, type)], pagesize, margin
+        )
+        filename = f"{type}_{job_id}.pdf"
+    else:
+        pdf_bytes = _build_pdf(job, company, type)
+        filename = (
+            f"{type}_{(job.invoice if type == 'invoice' else None) or job_id}.pdf"
+        )
+
+    return _pdf_response(pdf_bytes, filename)

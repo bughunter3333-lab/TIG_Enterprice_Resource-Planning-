@@ -30,6 +30,15 @@ test('status filter narrows the list and a status button fires onFilterChange', 
   expect(base.onFilterChange).toHaveBeenCalledWith('status', 'Sent');
 });
 
+test('the Late filter shows the late POs, and its button sets it', () => {
+  const late = [...pos, { id: 'PO-3', supplier: 'Ramo', supplierCode: 'RAM', status: 'Partial', expectedDate: '01/01/2020', total: 90 }];
+  render(<POModule {...base} purchaseOrders={late} filters={{ ...EMPTY_PO_FILTERS, status: 'late' }} />);
+  expect(screen.getByText('PO-3')).toBeInTheDocument();
+  expect(screen.queryByText('PO-1')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Late' }));
+  expect(base.onFilterChange).toHaveBeenCalledWith('status', 'late');
+});
+
 test('row click fires onSelectPO; New PO + Export fire their callbacks', () => {
   render(<POModule {...base} />);
   fireEvent.click(screen.getByText('AS Colour'));

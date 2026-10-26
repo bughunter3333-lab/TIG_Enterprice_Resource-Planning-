@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi import routing as fastapi_routing
 from fastapi.routing import APIRoute
 
-from app.core.dependencies import ROLES, get_current_user, get_signed_in_user
+from app.core.dependencies import ALL_ROLES, get_current_user, get_signed_in_user
 
 # The business area each router's tag belongs to, in the order the table
 # shows them. A tag that is not listed is shown under its own name, so a new
@@ -25,6 +25,7 @@ AREAS = {
     "pdf": "Jobs and quotes",
     "customers": "Customers",
     "ship-to": "Customers",
+    "logos": "Customers",
     "card-files": "Card files",
     "inventory": "Stock",
     "rack-sections": "Stock",
@@ -89,10 +90,11 @@ def route_roles(route) -> Optional[tuple[str, ...]]:
         dependency = pending.pop()
         gate = getattr(dependency.call, "roles", None)
         if gate is None and dependency.call in (get_current_user, get_signed_in_user):
-            gate = ROLES
+            # A sign-in alone admits every account, a service account too.
+            gate = ALL_ROLES
         if gate is not None:
             # A route with two gates lets through only who passes both.
-            within = ROLES if allowed is None else allowed
+            within = ALL_ROLES if allowed is None else allowed
             allowed = tuple(role for role in within if role in gate)
         pending.extend(dependency.dependencies)
     return allowed
@@ -116,13 +118,13 @@ def access_table(app: FastAPI) -> dict:
             name,
             {
                 "area": name,
-                "view": {role: [0, 0] for role in ROLES},
-                "change": {role: [0, 0] for role in ROLES},
+                "view": {role: [0, 0] for role in ALL_ROLES},
+                "change": {role: [0, 0] for role in ALL_ROLES},
             },
         )
         for method in route.methods:
             kind = "view" if method in READS else "change"
-            for role in ROLES:
+            for role in ALL_ROLES:
                 area[kind][role][1] += 1
                 if role in allowed:
                     area[kind][role][0] += 1
@@ -134,4 +136,27 @@ def access_table(app: FastAPI) -> dict:
             a["area"],
         ),
     )
-    return {"roles": list(ROLES), "areas": ordered}
+    return {"roles": list(ALL_ROLES), "areas": ordered}
+
+
+def role_access(app: FastAPI, role: str) -> dict:
+    """What one role can do: its column of the access table, and its routes.
+
+    `areas` is the role's own `[allowed, of]` counts, area by area, in the
+    table's order. `allowed` names every route the role's gate lets through as
+    "METHOD /path", the path as the server matches it, so the website can
+    decide what to offer someone from the same gates that will answer them —
+    rather than from a list of its own that drifts from them.
+    """
+    areas = [
+        {"area": a["area"], "view": a["view"][role], "change": a["change"][role]}
+        for a in access_table(app)["areas"]
+    ]
+    allowed = {
+        f"{method} {route.path}"
+        for route in api_routes(app)
+        if role in (route_roles(route) or ())
+        for method in route.methods
+        if method not in ("HEAD", "OPTIONS")
+    }
+    return {"role": role, "areas": areas, "allowed": sorted(allowed)}

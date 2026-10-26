@@ -36,7 +36,7 @@ describe('the tile shape', () => {
 
   test('it is a shape, not a palette — the variants still apply', () => {
     const { rerender } = render(<Button size="tile" variant="primary">Edit</Button>);
-    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(rgb(T.accentStrong));
+    expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(rgb(T.accent));
 
     rerender(<Button size="tile" variant="secondary">Clone</Button>);
     expect(getComputedStyle(screen.getByRole('button')).backgroundColor).toBe(rgb(T.panel));

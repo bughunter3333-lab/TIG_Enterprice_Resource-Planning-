@@ -18,10 +18,12 @@ from app.core.stock_location import (
     position_qty,
     unlocated_qty,
 )
+from app.core.receiving import RECEIPT_TYPES
 from app.core.stock_ledger import place_unlocated, post_movement, post_relocation
 from app.core.replenishment import needs_replenishment, replenishment_rows
 from app.core.reservations import (
-    UNCOMMITTED_STATUSES,
+    COMMITTED_STATUSES,
+    GOODS_LINES,
     backordered_by_branch,
     committed_by_branch,
     committed_by_sku,
@@ -59,6 +61,9 @@ class InventoryCreate(BaseModel):
     sell_price: float = 0
     location: Optional[str] = None
     status: str = "Active"
+    # Per unit. Freight is charged on the order weight, and the picking slip
+    # names the garments that have none (F08: this could not be written at all).
+    weight_kg: float = Field(0, ge=0)
 
 
 class InventoryUpdate(BaseModel):
@@ -71,6 +76,7 @@ class InventoryUpdate(BaseModel):
     sell_price: Optional[float] = None
     location: Optional[str] = None
     status: Optional[str] = None
+    weight_kg: Optional[float] = Field(None, ge=0)
     # Jim2 detail fields
     item_type: Optional[str] = None
     gl_group: Optional[str] = None
@@ -1120,7 +1126,9 @@ def get_stock_stats(
     avg_daily = units_sold_365 / 365.0 if units_sold_365 else 0.0
     on_hand = item.stock or 0
     sale_moves = [m for a, m in scored if m.type == "Sale"]
-    purchase_moves = [m for a, m in scored if m.type == "Purchase"]
+    # Goods receipts and the quick receive on a PO. This looked for a type
+    # called "Purchase", which nothing posts, so no SKU ever had a receipt (F38).
+    purchase_moves = [m for a, m in scored if m.type in RECEIPT_TYPES]
     last = lambda ms: (  # noqa: E731
         max(ms, key=lambda m: m.created_at or datetime.min).date if ms else None
     )
@@ -1134,7 +1142,7 @@ def get_stock_stats(
         "units_received_365": sum(
             (m.quantity or 0)
             for a, m in scored
-            if m.type == "Purchase" and a is not None and a <= 365
+            if m.type in RECEIPT_TYPES and a is not None and a <= 365
         ),
         "total_sold_all_time": sum(-(m.quantity or 0) for m in sale_moves),
         "total_received_all_time": sum((m.quantity or 0) for m in purchase_moves),
@@ -1268,10 +1276,15 @@ def get_committed(
         .filter(
             JobItem.stock_code == sku,
             JobItem.supply_qty > 0,
-            Job.status.notin_(UNCOMMITTED_STATUSES),
+            Job.status.in_(list(COMMITTED_STATUSES)),
+            *GOODS_LINES,
         )
         .all()
     )
+    # What each job has reserved is what it is supplied from stock — the same
+    # figure the stock list and the locations show. Listing the order quantity
+    # here, back-order included, made this tab disagree with both (F14), and so
+    # did listing a decoration line whose logo code is also a stock item.
     return [
         {
             "card_code": job.customer_id,
@@ -1280,7 +1293,7 @@ def get_committed(
             "job_ref": job.id,
             "date": job.date_in,
             "location_branch": job.branch,
-            "qty": item_.order_qty,
+            "qty": item_.supply_qty,
             "unit": "UNIT",
             "price_ex": float(item_.price_ex) if item_.price_ex is not None else None,
             "price_inc": (

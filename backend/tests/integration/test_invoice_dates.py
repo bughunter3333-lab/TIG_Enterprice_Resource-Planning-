@@ -43,7 +43,13 @@ def _finish_job(db, job_id):
 @pytest.mark.integration
 class TestEveryWayInIsDated:
     def test_straight_to_paid(self, client, db):
+        # A cash sale: paid at the counter, then marked PAID in one move. A job
+        # is PAID only once its payments cover it, so the payment comes first.
         _finish_job(db, "ID-PAID")
+        assert (
+            client.post("/jobs/ID-PAID/payment", json={"amount": 110}).status_code
+            == 200
+        )
         assert (
             client.post("/jobs/ID-PAID/status", json={"status": "PAID"}).status_code
             == 200

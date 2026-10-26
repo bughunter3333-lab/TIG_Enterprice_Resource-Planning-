@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import JobCard from '../JobCard';
+import JobsBoard from '../JobsBoard';
 
 const job = { id: '42', status: 'PRINT', customer: 'Acme Inc', due: '12/06/2026', total: 500, items: [] };
 
@@ -17,6 +18,24 @@ test('invokes onClick on Enter and Space keydown', () => {
   fireEvent.keyDown(card, { key: 'Enter' });
   fireEvent.keyDown(card, { key: ' ' });
   expect(onClick).toHaveBeenCalledTimes(2);
+});
+
+test('a job past its due day says so, in either stored date shape', () => {
+  render(<JobCard job={{ ...job, due: '2020-01-05' }} />);
+  expect(screen.getByText(/overdue · 5 jan 2020/i)).toBeInTheDocument();
+});
+
+test('a job whose goods have gone is never overdue', () => {
+  for (const status of ['FINISH', 'INVOICE', 'PAID']) {
+    const { unmount } = render(<JobCard job={{ ...job, status, due: '05/01/2020' }} />);
+    expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument();
+    unmount();
+  }
+});
+
+test('the board has a column for a confirmed order (New)', () => {
+  render(<JobsBoard jobs={[{ ...job, status: 'New' }]} onJobClick={() => {}} />);
+  expect(screen.getByRole('region', { name: 'New, 1 job' })).toHaveTextContent('Acme Inc');
 });
 
 test('does not throw when onClick is omitted', () => {

@@ -21,9 +21,9 @@ from app.core.ledger import CATEGORIES, MANUAL, Line, LedgerError, money
 from app.core.ledger_postings import (
     INVOICED_STATUSES,
     sync_bill,
-    sync_bill_payment,
     sync_invoice,
     sync_payment,
+    sync_supplier_payment,
 )
 from app.database import get_db
 from app.models.job import Job
@@ -479,7 +479,8 @@ def backfill(
             sync_payment(db, payment, jobs.get(payment.job_id), created_by=who)
         for bill in db.query(SupplierBill).order_by(SupplierBill.id):
             sync_bill(db, bill, created_by=who)
-            sync_bill_payment(db, bill, created_by=who)
+            for bill_payment in bill.payments:
+                sync_supplier_payment(db, bill_payment, bill, created_by=who)
     except LedgerError as exc:
         db.rollback()
         raise _refuse(exc) from exc

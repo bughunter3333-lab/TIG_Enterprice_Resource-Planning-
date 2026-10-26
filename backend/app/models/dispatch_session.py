@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -34,5 +34,9 @@ class DispatchSessionLine(Base):
     ship_via = Column(String(100), nullable=True)
     ship_ref = Column(String(100), nullable=True)
     cartons = Column(Integer, default=1)
+    # Where it went, as it stood on the day: the job's ship-to code and the
+    # address. A job's ship-to can be changed afterwards; a despatch cannot.
+    ship_to = Column(String(100), nullable=True)
+    address = Column(Text, nullable=True)
 
     session = relationship("DispatchSession", back_populates="lines")

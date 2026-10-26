@@ -32,12 +32,15 @@ const MIRROR = {
   panel: 'panel',
   hairline: 'hairline',
   'hairline-soft': 'hairlineSoft',
+  'field-border': 'fieldBorder',
+  'field-border-hover': 'fieldBorderHover',
   accent: 'accent',
   'accent-strong': 'accentStrong',
   'accent-tint': 'accentTint',
   'accent-focus': 'accentFocus',
   faint: 'faint',
   text: 'text',
+  selection: 'selection',
 };
 
 describe('index.css mirrors the palette', () => {
@@ -58,9 +61,8 @@ describe('index.css mirrors the palette', () => {
 
   test('the css carries no colour literal that is not a mirrored property', () => {
     // A hex written straight into a rule is the thing this file exists to stop.
-    // The scrollbar thumb is the one deliberate exception: SAP Horizon's
-    // sapScrollBar_FaceColor, which no other surface needs a token for.
-    const ALLOWED = new Set(['#7b91a8']);
+    // There is no exception: the scrollbar reads --field-border like any field.
+    const ALLOWED = new Set();
     const body = css.slice(css.indexOf('}', css.indexOf(':root')));
     const literals = [...body.matchAll(/#[0-9a-fA-F]{3,8}\b/g)]
       .map(m => m[0].toLowerCase())

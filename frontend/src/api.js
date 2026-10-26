@@ -109,6 +109,9 @@ function normalizeJob(j) {
     proofNotes: j.proof_notes ?? j.proofNotes ?? '',
     // Production / dispatch fields
     dispatchedAt: j.dispatched_at ?? j.dispatchedAt ?? '',
+    // Written on the job when it is despatched (it used to live in a comment).
+    shipVia: j.ship_via ?? '',
+    connote: j.connote ?? '',
     branch: j.branch ?? 'HQ',
     shipToId: j.ship_to_id ?? j.shipToId ?? null,
     weightTotal: parseFloat(j.weight_total ?? j.weightTotal ?? 0),
@@ -158,6 +161,11 @@ function normalizeJobItem(i) {
     poNo: i.po_no ?? i.poNo ?? '',
     poDue: i.po_due ?? i.poDue ?? '',
     weightKg: parseFloat(i.weight_kg ?? i.weightKg ?? 0),
+    // A decoration (a logo) or an alteration is work done to a garment line,
+    // not goods: never picked, held or shipped (backend JobItem.is_service).
+    logoId: i.logo_id ?? i.logoId ?? null,
+    appliesToItemId: i.applies_to_item_id ?? i.appliesToItemId ?? null,
+    isService: (i.logo_id ?? i.logoId ?? null) != null || (i.applies_to_item_id ?? i.appliesToItemId ?? null) != null,
   };
 }
 
@@ -510,6 +518,10 @@ export const jobs = {
   patchDue: (id, due) =>
     request(`/jobs/${id}`, { method: 'PATCH', body: { due } }).then(normalizeJob),
 
+  // Picks every goods line of each job to what it supplies (Jim2 Auto Pick).
+  // Each job is judged on its own: { jobs: [{ job_id, all_picked }], failed }.
+  autoPick: (jobIds) => request('/jobs/auto-pick', { method: 'POST', body: { job_ids: jobIds } }),
+
   addComment: (id, comment, isInternal = false) =>
     request(`/jobs/${id}/comments`, { method: 'POST', body: { comment, is_internal: isInternal } }),
 
@@ -566,6 +578,7 @@ export const inventory = {
     sell_price: data.unitPrice || 0,
     location: data.location,
     status: data.status || 'Active',
+    weight_kg: data.weight_kg || 0,
   }}).then(normalizeInventory),
 
   update: (sku, data) => request(`/inventory/${sku}`, { method: 'PATCH', body: {
@@ -587,6 +600,7 @@ export const inventory = {
     desc_extended: data.desc_extended,
     desc_web: data.desc_web,
     desc_care: data.desc_care,
+    weight_kg: data.weight_kg,
   }}).then(normalizeInventory),
 
   adjust: (sku, adjustment, reason) =>
@@ -757,6 +771,68 @@ export const customers = {
   }}).then(normalizeCustomer),
 
   delete: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
+
+  // One remittance paying several invoices. Without allocations, the server
+  // pays the customer's oldest invoices first; it must all be allocated.
+  recordRemittance: (customerId, { amount, method, reference, receivedDate, allocations }) =>
+    request(`/customers/${customerId}/remittances`, { method: 'POST', body: {
+      amount,
+      method: method || 'EFT',
+      reference: reference || null,
+      received_date: receivedDate || null,
+      ...(allocations ? { allocations: allocations.map(a => ({ job_id: a.jobId, amount: a.amount })) } : {}),
+    }}),
+};
+
+// ── Logos ────────────────────────────────────────────────────────────────────
+// A customer's logo, held once: method, stitch count, price and cost per
+// application, who does it (in-house or a named decorator), and its proof.
+
+const normalizeLogo = (g) => ({
+  id: g.id,
+  code: g.code,
+  customerId: g.customer_id ?? null,
+  name: g.name ?? '',
+  decorationType: g.decoration_type ?? '',
+  position: g.position ?? '',
+  stitchCount: g.stitch_count ?? null,
+  colorCount: g.color_count ?? null,
+  priceEx: parseFloat(g.price_ex ?? 0),
+  costEx: parseFloat(g.cost_ex ?? 0),
+  madeBy: g.made_by ?? 'in_house',
+  supplierId: g.supplier_id ?? null,
+  proofStatus: g.proof_status ?? 'none',
+  proofNotes: g.proof_notes ?? '',
+  approvedBy: g.approved_by ?? null,
+  jobs: g.jobs ?? [],
+});
+
+export const logos = {
+  list: (customerId) =>
+    request(`/logos${customerId ? `?customer_id=${encodeURIComponent(customerId)}` : ''}`).then(r => r.map(normalizeLogo)),
+  create: (data) => request('/logos', { method: 'POST', body: {
+    code: data.code,
+    customer_id: data.customerId || null,
+    name: data.name || null,
+    decoration_type: data.decorationType,
+    position: data.position || null,
+    stitch_count: data.stitchCount === '' || data.stitchCount == null ? null : Number(data.stitchCount),
+    price_ex: Number(data.priceEx) || 0,
+    cost_ex: Number(data.costEx) || 0,
+    made_by: data.madeBy || 'in_house',
+    supplier_id: data.madeBy === 'subcontract' ? (data.supplierId || null) : null,
+  }}).then(normalizeLogo),
+  proof: (id, status, notes) =>
+    request(`/logos/${id}/proof`, { method: 'POST', body: { status, notes: notes || null } }).then(normalizeLogo),
+};
+
+// ── Documents printed by the server ──────────────────────────────────────────
+
+export const documents = {
+  // One PDF for many jobs — delivery notes, ship labels or job labels, a page
+  // (or label) each. Opened in a new tab: the session cookie goes with it.
+  jobsUrl: (type, jobIds) =>
+    `${BASE}/job-documents?${new URLSearchParams([['type', type], ...jobIds.map(id => ['job_id', id])])}`,
 };
 
 // ── Suppliers ────────────────────────────────────────────────────────────────
@@ -820,6 +896,16 @@ export const purchaseOrders = {
 
   receive: (id, items) =>
     request(`/purchase-orders/${id}/receive`, { method: 'POST', body: { items } }).then(normalizePO),
+
+  // The order as the supplier is sent it, and sending it: emailing a Draft
+  // makes it Sent. The supplier's own address unless another is given.
+  pdfUrl: (id) => `${BASE}/purchase-orders/${encodeURIComponent(id)}/pdf`,
+  email: (id, { toEmail, cc, message } = {}) =>
+    request(`/purchase-orders/${encodeURIComponent(id)}/email`, { method: 'POST', body: {
+      to_email: toEmail || null,
+      cc: cc || null,
+      message: message || null,
+    }}),
 
   createFromRequirements: (data) => request('/purchase-orders/from-requirements', { method: 'POST', body: {
     id: data.id,
@@ -1177,6 +1263,22 @@ function normalizeBill(b) {
     status: b.status ?? 'pending',
     paidDate: b.paid_date ?? '',
     paidAmount: parseFloat(b.paid_amount ?? 0),
+    // Still owed: the bill's total less every payment recorded against it.
+    outstanding: parseFloat(b.outstanding ?? (b.amount_inc ?? 0) - (b.paid_amount ?? 0)),
+    // Against a PO: what arrived against it, and whether the bills come to that.
+    poMatch: b.po_match ? {
+      receivedInc: parseFloat(b.po_match.received_inc ?? 0),
+      billedInc: parseFloat(b.po_match.billed_inc ?? 0),
+      difference: parseFloat(b.po_match.difference ?? 0),
+      matches: !!b.po_match.matches,
+    } : null,
+    payments: (b.payments ?? []).map(p => ({
+      id: p.id,
+      amount: parseFloat(p.amount ?? 0),
+      paidDate: p.paid_date ?? '',
+      reference: p.reference ?? '',
+      paidBy: p.paid_by ?? '',
+    })),
     notes: b.notes ?? '',
     accountId: b.account_id ?? null,
     createdAt: b.created_at,
@@ -1263,10 +1365,16 @@ export const supplierBills = {
     ...('accountId' in data ? { account_id: data.accountId ?? null } : {}),
   }}).then(normalizeBill),
 
-  pay: (id, paidAmount, paidDate) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {
+  // Records one payment — added to what is already paid. A bill is 'paid' once
+  // its payments cover it.
+  pay: (id, paidAmount, paidDate, reference) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {
     paid_amount: paidAmount,
     paid_date: paidDate || null,
+    reference: reference || null,
   }}).then(normalizeBill),
+
+  deletePayment: (id, paymentId) =>
+    request(`/ap/bills/${id}/payments/${paymentId}`, { method: 'DELETE' }).then(normalizeBill),
 
   delete: (id) => request(`/ap/bills/${id}`, { method: 'DELETE' }),
 
@@ -1312,6 +1420,9 @@ export const users = {
   list: () => request('/users'),
   // What each role can do, counted from the gates on the server's own routes.
   access: () => request('/users/access'),
+  // The signed-in person's own role: its column of that table, and every
+  // route ("METHOD /path") the role may call.
+  myAccess: () => request('/users/me/access'),
   create: (data) => request('/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),

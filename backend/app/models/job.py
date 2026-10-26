@@ -66,6 +66,15 @@ class Job(Base):
     ship_to_id = Column(Integer, ForeignKey("customer_ship_tos.id"), nullable=True)
     weight_total = Column(Numeric(8, 3), default=0)
     fuel_levy = Column(Numeric(10, 2), default=0)
+    # How it went and the consignment note, written when it is despatched. The
+    # connote used to live only in a comment (F22).
+    ship_via = Column(String(100))
+    connote = Column(String(100))
+    # The account that created the job. The portal may comment only on the
+    # jobs it booked (F26).
+    created_by_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     # Jim2 Sprint-2 fields
     price_level = Column(String(50))  # Retail / Trade / Wholesale / VIP / Cost
     acc_mgr = Column(String(100))  # account manager name or initials
@@ -149,8 +158,22 @@ class JobItem(Base):
     item_status = Column(String(30))
     po_no = Column(String(50), index=True)
     po_due = Column(String(20))
+    # A decoration line points at the logo it applies; a decoration or an
+    # alteration points at the garment line it is done to (owner decision
+    # 2026-10-25, findings F09, F12, F19). Either makes the line a service:
+    # supplied in full, never bought, reserved, picked or shipped as stock.
+    logo_id = Column(
+        Integer, ForeignKey("logos.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    applies_to_item_id = Column(
+        Integer, ForeignKey("job_items.id", ondelete="SET NULL"), nullable=True
+    )
 
     job = relationship("Job", back_populates="items")
+
+    @property
+    def is_service(self) -> bool:
+        return self.logo_id is not None or self.applies_to_item_id is not None
 
 
 class JobComment(Base):

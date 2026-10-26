@@ -5,7 +5,7 @@ from typing import Optional
 
 from app.core.replenishment import replenishment_rows
 from app.database import get_db
-from app.core.dependencies import require_any
+from app.core.dependencies import require_any, require_staff
 from app.models.user import User
 from app.models.job import Job
 from app.models.inventory import InventoryItem, StockMovement
@@ -13,6 +13,9 @@ from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+# As in reports.py: a view with money in it is for staff and above; overseas
+# staff read the one that only counts jobs and days (turnaround).
 
 # ── Math & Statistical Helpers ──────────────────────────────────────────────────
 
@@ -120,7 +123,7 @@ def get_low_stock(db: Session) -> list:
 
 
 @router.get("/overview")
-def get_overview(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_overview(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Summary metrics overview of operations."""
     active_jobs = get_active_jobs(db)
     overdue_jobs = get_overdue_jobs(db)
@@ -172,7 +175,7 @@ def get_overview(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/forecast")
-def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Revenue forecasting analysis using Holt-Winters EWMA and OLS ensemble."""
     all_jobs = db.query(Job).all()
     monthly = {}
@@ -235,7 +238,7 @@ def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/dso")
-def get_dso(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_dso(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Days Sales Outstanding (DSO) collection efficiency and accounts receivable."""
     all_jobs = db.query(Job).all()
     invoiced_jobs = [
@@ -295,7 +298,7 @@ def get_dso(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/abc")
-def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """ABC classification of inventory by stock value (Pareto 80/20 rule)."""
     items = (
         db.query(InventoryItem)
@@ -358,7 +361,7 @@ def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_an
 
 
 @router.get("/churn")
-def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Customer Churn Risk Analysis based on order recency."""
     customers = db.query(Customer).filter(Customer.status == "Active").all()
     all_jobs = db.query(Job).all()
@@ -415,7 +418,7 @@ def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_any)
 
 
 @router.get("/margins")
-def get_margins(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_margins(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Overall margin analysis and order value distribution."""
     all_jobs = db.query(Job).all()
     if not all_jobs:
@@ -566,7 +569,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
 
 
 @router.get("/seasonality")
-def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Month-of-year seasonal revenue patterns and indexes."""
     all_jobs = db.query(Job).all()
     by_month_num = {i: [] for i in range(1, 13)}
@@ -625,7 +628,7 @@ def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_any
 
 
 @router.get("/anomalies")
-def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Z-Score anomaly detection on stock movements, revenue spikes, and stuck jobs."""
     items = db.query(InventoryItem).filter(InventoryItem.status == "Active").all()
     movements = db.query(StockMovement).all()

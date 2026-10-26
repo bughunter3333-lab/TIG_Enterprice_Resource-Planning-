@@ -12,7 +12,8 @@ from app.models.inventory import StockMovement
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.supplier import Supplier
 from app.models.supplier_price_list import SupplierPriceList
-from app.models.job import Job
+from app.models.customer import Customer
+from app.models.job import Job, JobItem
 
 
 @pytest.mark.integration
@@ -167,7 +168,19 @@ class TestStockLocationSummary:
     def test_reports_branches_and_the_unlocated_gap(self, client, db, make_inventory):
         make_inventory(sku="LS1", stock=100)
         adjust_location(db, "LS1", "HQ", on_hand=60)
-        adjust_location(db, "LS1", "MELB", on_hand=15, committed=5)
+        adjust_location(db, "LS1", "MELB", on_hand=15)
+        # Committed is what open orders supply from the branch — here an order
+        # shipping 5 from MELB — not a counter typed onto the position (F14).
+        db.add(Customer(id="LS-C", name="LS Co"))
+        db.add(
+            Job(
+                id="LS-J1",
+                customer_id="LS-C",
+                status="ORDER",
+                branch="MELB",
+                items=[JobItem(stock_code="LS1", order_qty=5, supply_qty=5, b_ord=0)],
+            )
+        )
         db.commit()
 
         body = client.get("/inventory/LS1/location-summary").json()

@@ -20,12 +20,14 @@ async def _read_csv_file(file: UploadFile) -> bytes:
 
 from app.database import get_db
 from app.core.dependencies import require_staff
+from app.core.ledger import ZERO, money
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.supplier import Supplier
 from app.models.inventory import InventoryItem
 from app.models.job import Job
 from app.models.card_file import CardFile
+from app.routers.jobs import VALID_STATUSES
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -49,6 +51,8 @@ JIM2_STATUS_MAP = {
     "print": "PRINT",
     "pick/pack": "Pick/Pack",
     "pick pack": "Pick/Pack",
+    "desp/ready": "Desp/Ready",
+    "desp ready": "Desp/Ready",
     "cancel": "CANCEL",
     "cancelled": "CANCEL",
     "canceled": "CANCEL",
@@ -57,19 +61,9 @@ JIM2_STATUS_MAP = {
     "new": "New",
 }
 
-VALID_STATUSES = {
-    "QUOTE",
-    "New",
-    "ORDER",
-    "In Progress",
-    "PROOF",
-    "PRINT",
-    "Pick/Pack",
-    "FINISH",
-    "INVOICE",
-    "PAID",
-    "CANCEL",
-}
+# The job statuses are the jobs router's own (VALID_STATUSES, imported above):
+# a copy kept here had no Desp/Ready, so a job waiting for the carrier came in
+# as FINISH, ready to invoice.
 
 
 def translate_status(raw: str | None) -> str:
@@ -871,11 +865,143 @@ async def import_inventory(
     }
 
 
+# What an issued invoice says, by the name a refusal gives it. An import does
+# not change these on an invoiced job: the invoice is posted and owed as it
+# stands, and setting them by hand re-posted nothing and left the customer's
+# balance at the old figure.
+_INVOICE_FACTS = {
+    "customer_id": "customer",
+    "invoice": "invoice number",
+    "invoice_date": "invoice date",
+    "total_ex": "total ex GST",
+    "tax": "GST",
+    "total_inc": "total",
+}
+
+
+def _refuse_rewriting_an_invoice(job: Job, data: dict) -> None:
+    """An invoiced job may take payments from an import, and go from INVOICE to
+    PAID; nothing else about its invoice changes. Unprinting is the way back."""
+    status = data["status"]
+    if status != job.status and (job.status, status) != ("INVOICE", "PAID"):
+        raise ValueError(
+            f"job {job.id} is already invoiced ({job.status}); an import cannot "
+            f"move it to {status}"
+        )
+    changed = []
+    for key, name in _INVOICE_FACTS.items():
+        new = data.get(key)
+        if new is None:
+            continue
+        old = getattr(job, key)
+        if key in ("total_ex", "tax", "total_inc"):
+            differs = money(old) != money(new)
+        else:
+            differs = (old or "") != new
+        if differs:
+            changed.append(name)
+    if changed:
+        raise ValueError(
+            f"job {job.id} is already invoiced ({job.status}); an import cannot "
+            f"change its {', '.join(changed)}. Unprint it in the app first."
+        )
+
+
+def _import_job_row(
+    db: Session, data: dict, existing, user: User, *, paid: float | None
+) -> None:
+    """Write one imported job, its status through the shared transition.
+
+    The import used to set the status like any other column, so an imported
+    invoice posted nothing and was owed by nobody until a backfill, and an
+    imported order reserved nothing. Now the job lands as it would have got
+    there: off the ladder (it is history, not a step someone picks) and without
+    a credit check (the shop took the order long ago).
+
+    `paid` is what Jim2 says has been paid (Invoice Paid $). It was written
+    onto the job as its deposit, so an imported paid invoice was posted to
+    receivables with no payment against it: the ledger said it was owed while
+    the customer's balance said it was not. It is a payment now, taken as the
+    app takes one (`_take_payment`), for whatever the job does not already
+    have recorded against it. None — a file without the column — leaves the
+    payments as they are.
+    """
+    from app.core import invoice_numbers
+    from app.routers.jobs import (
+        _DEPLETED_STATUSES,
+        _apply_status_transition,
+        _recalculate_customer_balance,
+        _settle_money,
+        _take_payment,
+    )
+
+    status = data["status"]
+    if status in _DEPLETED_STATUSES and not (data.get("invoice") or "").strip():
+        raise ValueError("an invoiced job needs its invoice number (Inv#)")
+    holder = invoice_numbers.holder_of(
+        db, data.get("invoice"), except_job_id=data["id"]
+    )
+    if holder is not None:
+        raise ValueError(f"invoice number {data['invoice']} is already on job {holder}")
+
+    already = money(existing.deposit) if existing is not None else ZERO
+    paid = already if paid is None else money(paid)
+    total = money(data["total_inc"])
+    if status == "CANCEL" and paid > already:
+        raise ValueError(
+            f"job {data['id']} is cancelled but shows ${paid} paid; a payment "
+            "is not taken on a cancelled job"
+        )
+    if status == "PAID" and paid != total:
+        raise ValueError(
+            f"job {data['id']} is PAID but its paid amount (${paid}) is not its "
+            f"total (${total}); import it as INVOICE with what was paid"
+        )
+    if paid > total:
+        raise ValueError(f"job {data['id']} shows ${paid} paid on a total of ${total}")
+    if existing is not None and existing.status in _DEPLETED_STATUSES:
+        _refuse_rewriting_an_invoice(existing, data)
+    if paid < already:
+        raise ValueError(
+            f"payments of ${already} are already recorded on job {data['id']}; "
+            f"the import says ${paid}. Take a payment back in the app."
+        )
+
+    fields = {k: v for k, v in data.items() if k not in ("id", "status")}
+    if existing:
+        job = existing
+        for k, v in fields.items():
+            if v is not None:
+                setattr(job, k, v)
+    else:
+        job = Job(id=data["id"], status="QUOTE", created_by_user_id=user.id, **fields)
+        db.add(job)
+        db.flush()
+    # What is owed follows from the total and the payments recorded, as on
+    # every other write; an imported invoice dated by Jim2 is not re-stamped.
+    _settle_money(job)
+    # Taken before the move, while the job still owes it: a job lands in PAID
+    # with its payment already against it.
+    if paid > already:
+        _take_payment(
+            job,
+            db,
+            user,
+            amount=float(paid - already),
+            method=data.get("payment_method") or "Account",
+            reference="Jim2 import",
+            received_date=data.get("invoice_date"),
+            notes="Paid amount on the imported Jim2 job list",
+        )
+    _apply_status_transition(job, status, db, by=user, ladder=False, credit=False)
+    _recalculate_customer_balance(job.customer_id, db)
+
+
 @router.post("/jobs")
 async def import_jobs(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
 ):
     rows = parse_csv(await _read_csv_file(file))
     inserted = updated = skipped = 0
@@ -906,8 +1032,13 @@ async def import_jobs(
             # If total_inc missing but total_ex present, derive it
             if total_inc == 0 and total_ex > 0:
                 total_inc = round(total_ex + tax, 2)
-            deposit = safe_float(mapped.get("deposit"))
-            balance = safe_float(mapped.get("balance_due"), total_inc - deposit)
+            # Taken as a payment, not written onto the job; what is still owed
+            # follows from it (`_import_job_row`). None: the file does not say.
+            paid = (
+                safe_float(mapped["deposit"])
+                if mapped.get("deposit") is not None
+                else None
+            )
 
             existing = db.query(Job).filter(Job.id == job_id).first()
 
@@ -927,8 +1058,6 @@ async def import_jobs(
                 "total_ex": total_ex,
                 "tax": tax,
                 "total_inc": total_inc,
-                "deposit": deposit,
-                "balance_due": balance,
                 "payment_method": mapped.get("payment_method") or "Account",
                 "shipping_address": mapped.get("shipping_address"),
                 "notes": mapped.get("notes"),
@@ -942,13 +1071,21 @@ async def import_jobs(
                 "name_contact": mapped.get("name_contact"),
             }
 
+            # A savepoint per row, so a row that is refused takes nothing of
+            # itself into the commit — and nothing of the rows before it out.
+            savepoint = db.begin_nested()
+            try:
+                _import_job_row(db, data, existing, current_user, paid=paid)
+                savepoint.commit()
+            except (HTTPException, ValueError) as exc:
+                savepoint.rollback()
+                reason = exc.detail if isinstance(exc, HTTPException) else str(exc)
+                errors.append({"row": i, "error": str(reason)})
+                skipped += 1
+                continue
             if existing:
-                for k, v in data.items():
-                    if k != "id" and v is not None:
-                        setattr(existing, k, v)
                 updated += 1
             else:
-                db.add(Job(**data))
                 inserted += 1
         except Exception as e:
             errors.append({"row": i, "error": str(e)})

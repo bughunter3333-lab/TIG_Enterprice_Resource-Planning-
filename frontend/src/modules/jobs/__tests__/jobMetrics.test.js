@@ -1,5 +1,5 @@
 import {
-  JOB_VIEWS, isDueToday, isDueWithin, isMine, isOverdue, jobsInView, phaseOf,
+  JOB_VIEWS, isDueToday, isDueWithin, isMine, isNotDespatched, isOverdue, isQuoteExpiring, jobsInView, phaseOf,
 } from '../jobMetrics';
 
 const TODAY = '2026-09-26';
@@ -65,22 +65,64 @@ describe('isMine', () => {
   });
 });
 
+describe('isNotDespatched', () => {
+  test('finished or invoiced with no despatch recorded', () => {
+    expect(isNotDespatched(job('FINISH', ''))).toBe(true);
+    expect(isNotDespatched(job('INVOICE', '', { dispatchedAt: '' }))).toBe(true);
+    expect(isNotDespatched(job('INVOICE', '', { dispatchedAt: '  ' }))).toBe(true);
+  });
+
+  test('a recorded despatch, or any other status, is not counted', () => {
+    expect(isNotDespatched(job('FINISH', '', { dispatchedAt: '2026-09-25T04:00:00Z' }))).toBe(false);
+    for (const s of ['Pick/Pack', 'PAID', 'QUOTE', 'CANCEL']) expect(isNotDespatched(job(s, ''))).toBe(false);
+  });
+});
+
+describe('isQuoteExpiring', () => {
+  const quote = (validityDate, status = 'QUOTE') => job(status, '', { validityDate });
+
+  test('valid until today through the seventh day, in either stored date shape', () => {
+    expect(isQuoteExpiring(quote('2026-09-26'), TODAY)).toBe(true);
+    expect(isQuoteExpiring(quote('03/10/2026'), TODAY)).toBe(true);
+    expect(isQuoteExpiring(quote('2026-10-03T13:00:00'), TODAY)).toBe(true);
+  });
+
+  test('already lapsed, past the week, undated or not a quote is not counted', () => {
+    expect(isQuoteExpiring(quote('2026-09-25'), TODAY)).toBe(false);
+    expect(isQuoteExpiring(quote('2026-10-04'), TODAY)).toBe(false);
+    expect(isQuoteExpiring(quote(''), TODAY)).toBe(false);
+    expect(isQuoteExpiring(quote('2026-09-27', 'ORDER'), TODAY)).toBe(false);
+  });
+});
+
 describe('jobsInView', () => {
   const jobs = [
     job('PRINT', '2026-09-20'),
     job('ORDER', '2026-09-26'),
     job('FINISH', '2026-09-01'),
-    job('QUOTE', '2026-09-01'),
+    job('QUOTE', '2026-09-01', { validityDate: '2026-09-30' }),
     job('Pick/Pack', '2026-09-28'),
+    job('PROOF', '2026-09-29'),
+    job('In Progress', '2026-09-29'),
+    job('INVOICE', '2026-09-01', { dispatchedAt: '2026-09-02' }),
   ];
+  const statuses = (id) => jobsInView(jobs, id, { today: TODAY }).map((j) => j.status);
 
   test('a count is the length of the list it opens', () => {
     for (const v of JOB_VIEWS) {
       const list = jobsInView(jobs, v.id, { today: TODAY });
       expect(list.every((j) => v.test(j, { today: TODAY }))).toBe(true);
     }
-    expect(jobsInView(jobs, 'overdue', { today: TODAY }).map((j) => j.status)).toEqual(['PRINT']);
-    expect(jobsInView(jobs, 'toInvoice', { today: TODAY }).map((j) => j.status)).toEqual(['FINISH']);
+    expect(statuses('overdue')).toEqual(['PRINT']);
+    expect(statuses('toInvoice')).toEqual(['FINISH']);
+  });
+
+  test('the status views count one status each', () => {
+    expect(statuses('proof')).toEqual(['PROOF']);
+    expect(statuses('orderNotStarted')).toEqual(['ORDER']);
+    expect(statuses('inProgress')).toEqual(['In Progress']);
+    expect(statuses('notDespatched')).toEqual(['FINISH']);
+    expect(statuses('quoteExpiring')).toEqual(['QUOTE']);
   });
 
   test('an unknown view matches nothing', () => {
