@@ -69,6 +69,10 @@ python seed_admin.py
 # Seed realistic demo data (idempotent; customers, stock, jobs across all statuses)
 python seed_data.py
 
+# TIG demo data through the API as the first admin (invoices numbered, ledger
+# agrees; test DBs only — tests/integration/test_seed_demo.py)
+python seed_demo.py
+
 # Lint / format
 ruff check app tests
 black --check app tests

@@ -12,12 +12,18 @@ name: Migrate database
 #                   Schema changes need session mode, not the 6543 transaction
 #                   pooler the API itself uses.
 #   ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD   only for "Create admin user".
+# "Load demo data" (seed_demo.py) needs an admin to act as: tick it with the
+# admin box on a new database, or run it after the admin exists.
 
 on:
   workflow_dispatch:
     inputs:
       seed_admin:
         description: "Also create the first admin user (from the ADMIN_* secrets)"
+        type: boolean
+        default: false
+      seed_demo:
+        description: "Also load the TIG demo data (seed_demo.py) - a test database only, it books invoices"
         type: boolean
         default: false
 
@@ -67,3 +73,11 @@ jobs:
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: python seed_admin.py
+
+      - name: Load demo data
+        if: ${{ inputs.seed_demo }}
+        # seed_demo.py goes through the API with FastAPI's TestClient, which
+        # needs httpx: a dev requirement, installed at its pinned version.
+        run: |
+          pip install "$(grep '^httpx==' requirements-dev.txt)"
+          python seed_demo.py
