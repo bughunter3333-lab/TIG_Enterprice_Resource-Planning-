@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, Users, User, FileText, Plus, Edit, Trash2, AlertCircle, X, Printer, Save, Mail, Phone, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, Clock } from 'lucide-react';
+import { Search, Package, Users, User, FileText, Plus, Edit, Trash2, AlertCircle, X, Printer, Save, Mail, Phone, Box, Truck, Layers, ChevronDown, CheckSquare, BookOpen, Weight, Ruler, Settings, Clock } from 'lucide-react';
 import * as api from './api';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
@@ -24,12 +24,17 @@ import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
 import { pickableLines } from './modules/jobs/jobPicking';
+import { applyLogo, linkLine, logoMatches, newLineKey, resolveLineLinks } from './modules/jobs/lineLinks';
+import { useCustomerLogos } from './modules/jobs/useCustomerLogos';
+import AppliesToSelect from './modules/jobs/AppliesToSelect';
 import JobRecordHeader from './modules/jobs/record/JobRecordHeader';
 import JobDetailsCard from './modules/jobs/record/JobDetailsCard';
 import JobLinesCard from './modules/jobs/record/JobLinesCard';
 import JobCommentsCard from './modules/jobs/record/JobCommentsCard';
 import { JobCustomerCard, JobMoneyCard } from './modules/jobs/record/JobSideCards';
 import { nextStepFor } from './modules/jobs/record/lifecycle';
+import { offeredPrintItems } from './modules/jobs/record/printItems';
+import JobDocumentsTab from './modules/jobs/record/JobDocumentsTab';
 import Tabs from './ui/Tabs';
 import { countNeedingReorder } from './modules/stock/lowStock';
 import DraggableModal from './ui/DraggableModal';
@@ -60,6 +65,7 @@ import ProofPanel from './components/jobs/ProofPanel';
 import EmailJobModal from './components/modals/EmailJobModal';
 import SuppliersModule from './modules/suppliers/SuppliersModule';
 import CustomersDetail from './modules/customers/CustomersDetail';
+import { creditUse } from './modules/customers/customerAggregates';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
@@ -326,14 +332,18 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Jim2 Dispatch list: batch-dispatch ready + invoiced jobs
   const [dispatchListOpen, setDispatchListOpen] = useState(false);
   const [dispatchListBusy, setDispatchListBusy] = useState(false);
-  const dispatchBatch = async (batch) => {
+  const dispatchBatch = async (batch, options) => {
     setDispatchListBusy(true);
     try {
       // One transactional session (Jim2 Dispatch #) instead of N separate calls.
-      const session = await api.dispatchSessions.create(batch);
+      const session = await api.dispatchSessions.create(batch, options);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       // The list stays open and ends on what was recorded (DispatchList's
-      // Despatched view), so no toast says it a second time.
+      // Despatched view), so no toast says it a second time. A job the batch
+      // passed over — nothing left to send — is not in that view, so say so.
+      if (session?.skipped?.length) {
+        notify(`Not sent — nothing left to send: ${session.skipped.map(s => s.job_id).join(', ')}`, { type: 'error' });
+      }
       return session;
     } catch (e) {
       notify(e.message || 'Dispatch failed', { type: 'error' });
@@ -680,7 +690,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     document.addEventListener('mouseup', onUp);
   };
 
+  // The customer's logos, suggested in a line's stock-code field (F02).
+  const customerLogos = useCustomerLogos(jobForm.customerId);
+
+  // lineKey: how another line of this form names this one until it is saved
+  // and has an id ("Applies to", F19).
   const blankItem = () => ({
+    lineKey: newLineKey(),
     displayType: 'product', decorationType: 'None',
     description: '', sizes: '', stockCode: '', embCode: '', trsCode: '', decCode: '',
     stitchCount: '', colorCount: '', decPosition: '',
@@ -700,7 +716,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   });
   const ctxAddAbove = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx, 0, blankItem()); return { ...f, items }; });
   const ctxAddBelow = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, blankItem()); return { ...f, items }; });
-  const ctxDuplicate = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, { ...items[idx] }); return { ...f, items }; });
+  const ctxDuplicate = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, { ...items[idx], lineKey: newLineKey() }); return { ...f, items }; });
+  const linkJobItem = (idx, ref) => setJobForm(f => recalcJobTotals({ ...f, items: f.items.map((it, i) => (i === idx ? linkLine(it, ref) : it)) }));
   const ctxMoveUp = (idx) => setJobForm(f => { if (idx === 0) return f; const items = [...f.items]; [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]]; return { ...f, items }; });
   const ctxMoveDown = (idx) => setJobForm(f => { if (idx >= f.items.length - 1) return f; const items = [...f.items]; [items[idx], items[idx + 1]] = [items[idx + 1], items[idx]]; return { ...f, items }; });
   const ctxClearRow = (idx) => setJobForm(f => { const items = f.items.map((it, i) => i === idx ? blankItem() : it); return recalcJobTotals({ ...f, items }); });
@@ -709,6 +726,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const updateJobItem = (idx, field, value) => setJobForm(f => {
     const items = [...f.items];
     items[idx] = { ...items[idx], [field]: value };
+    // A retyped code is no longer the logo it was; the server resolves it again.
+    if (field === 'stockCode') items[idx].logoId = null;
     // Clear stale decoration fields when type changes
     if (field === 'decorationType') {
       if (value !== 'EMB') { items[idx].embCode = ''; items[idx].stitchCount = ''; }
@@ -815,7 +834,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return;
     }
     try {
-      const formWithTotals = recalcJobTotals(jobForm);
+      const formWithTotals = recalcJobTotals({ ...jobForm, items: resolveLineLinks(jobForm.items) });
       if (editingItem) {
         const updated = await api.jobs.update(editingItem.id, formWithTotals);
         updatePinnedJob(updated);
@@ -1492,7 +1511,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   editTitle={jobLockReason(activeJob)}
                   onClone={() => cloneJob(activeJob)}
                   onEmail={() => setEmailModalJob(activeJob)}
-                  printItems={[
+                  printItems={offeredPrintItems([
                     { key: 'invoice', label: 'Tax invoice', onClick: () => openInvoiceDoc(activeJob) },
                     { key: 'proforma', label: 'Proforma invoice', onClick: () => openInvoiceDoc(activeJob, 'proforma') },
                     { key: 'proformaBal', label: 'Proforma — balance only', onClick: () => openInvoiceDoc(activeJob, 'proformaBalance') },
@@ -1500,7 +1519,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     { key: 'deliveryNote', label: 'Delivery note', onClick: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
                     { key: 'jobSheet', label: 'Job sheet', onClick: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
                     { key: 'shipLabel', label: 'Ship label', onClick: () => setDocumentPrint({ type: 'shipLabel', job: activeJob }) },
-                  ]}
+                  ], offer)}
                   // Duplicate to sites, Unprint: decided in ui/shell/pageActions.js.
                   moreActions={pageHeader?.actions ?? []}
                   nextStep={mayStep ? step : null}
@@ -1749,37 +1768,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
             {/* ── DOCUMENTS TAB ────────────────────────────────────────── */}
             {jobDetailTab === 'documents' && (
-              <div>
-                <p className="text-sm mb-4" style={{ color: T.textMuted }}>Generate and print documents for Job #{activeJob.id}.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
-                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
-                    { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-ok-tint hover:bg-ok-tint border-ok text-ok' },
-                    { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-emphasis-tint hover:bg-emphasis-tint border-emphasis text-emphasis' },
-                    { type: 'shipLabel', label: 'Ship Label', desc: 'Large-format shipping label with recipient address and job number', icon: Tag, color: 'bg-danger-tint hover:bg-danger-tint border-danger text-danger' },
-                  ].map(doc => {
-                    const Icon = doc.icon;
-                    return (
-                      <button
-                        key={doc.type}
-                        onClick={() => {
-                          if (doc.type === 'invoice') openInvoiceDoc(activeJob);
-                          else setDocumentPrint({ type: doc.type, job: activeJob });
-                        }}
-                        className={`p-4 rounded-lg border text-left transition-colors ${doc.color}`}
-                      >
-                        <Icon className="w-5 h-5 mb-2" />
-                        <p className="font-semibold text-sm">{doc.label}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{doc.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-4 pt-4 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textFaint }}>
-                  <p>All documents open a print-ready preview. Use your browser's print function (Ctrl+P) to print or save as PDF.</p>
-                </div>
-              </div>
+              <JobDocumentsTab
+                job={activeJob}
+                offer={offer}
+                onInvoice={(job) => openInvoiceDoc(job)}
+                onDocument={(type, job) => setDocumentPrint({ type, job })}
+              />
             )}
 
             {/* ── COST TAB ─────────────────────────────────────────────── */}
@@ -1955,6 +1949,15 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         queryClient.invalidateQueries({ queryKey: ['jobs'] });
                         setActiveJob(j => ({ ...j, proofStatus: status, proofNotes: notes }));
                       }}
+                      // A logo's proof is the logo's, for every job carrying it (F31).
+                      onApproveLogo={offer('POST', '/logos/{logo_id}/proof')
+                        ? async (logoId) => {
+                            const logo = await api.logos.proof(logoId, 'approved');
+                            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+                            queryClient.invalidateQueries({ queryKey: ['logos'] });
+                            setActiveJob(j => ({ ...j, items: (j.items || []).map(i => (i.logoId === logoId ? { ...i, logoProofStatus: logo.proofStatus } : i)) }));
+                          }
+                        : undefined}
                     />
                   </div>
                 );
@@ -2255,11 +2258,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     {/* Proof — semantic colours kept */}
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
+                      {/* A job with logo lines is proofed on its logos (F31), so it has no proof of its own to set here. */}
+                      {(jobForm.items || []).some(i => i.logoId != null) ? (
+                        <span className="text-xs" style={{ color: T.textMuted }} title="Approved once per logo, on the customer's Logos tab">On its logos</span>
+                      ) : (
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
                         className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-ok-tint text-ok border-ok' : jobForm.proofStatus === 'sent' ? 'bg-warn-tint text-warn border-warn' : jobForm.proofStatus === 'rejected' ? 'bg-danger-tint text-danger border-danger' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
+                      )}
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
                     {/* Lock — amber kept as identity colour */}
@@ -2284,11 +2292,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
-                      if (!fc || !fc.creditLimit) return null;
-                      const outstanding = jobs.filter(j => j.customerId === fc.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-                      const overLimit = outstanding > fc.creditLimit;
-                      const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
-                      if (util < 80) return null;
+                      const credit = creditUse(fc);
+                      if (!credit || credit.util < 80) return null;
+                      const { outstanding, overLimit, util } = credit;
                       return (
                         <div className={`flex items-center gap-2 px-3 py-2 text-xs ${overLimit ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'}`} style={{minWidth:200}}>
                           <span className="text-base">{overLimit ? '🚫' : '⚠️'}</span>
@@ -2451,11 +2457,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
-                      if (!fc || !fc.creditLimit) return null;
-                      const outstanding = jobs.filter(j => j.customerId === fc.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-                      const overLimit = outstanding > fc.creditLimit;
-                      const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
-                      if (util < 80) return null;
+                      const credit = creditUse(fc);
+                      if (!credit || credit.util < 80) return null;
+                      const { outstanding, overLimit, util } = credit;
                       return (
                         <div className={`rounded-lg px-3 py-2 text-sm flex items-start gap-2 ${overLimit ? 'bg-danger-tint border border-danger text-danger' : 'bg-warn-tint border border-warn text-warn'}`}>
                           <span className="text-lg leading-tight">{overLimit ? '🚫' : '⚠️'}</span>
@@ -2831,10 +2835,18 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                 const avail = Math.max(0, (inv.stock || 0) - (inv.committed_qty || 0));
                                 const supply = Math.min(order, avail);
                                 const bOrd = Math.max(0, order - supply);
-                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, supply, bOrd, total: parseFloat((priceEx * order).toFixed(2)) };
+                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, logoId: null, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, supply, bOrd, total: parseFloat((priceEx * order).toFixed(2)) };
                                 return recalcJobTotals({ ...f, items });
                               });
                               setDescDropdown({ idx: -1, query: '', highlighted: 0 });
+                              setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
+                            };
+
+                            // The customer's logos matching what is typed: choosing one
+                            // makes the line that logo, a service at the logo's price (F02).
+                            const logoScored = skuIsOpen ? logoMatches(customerLogos, skuQ) : [];
+                            const selectLogo = (logo) => {
+                              setJobForm(f => recalcJobTotals({ ...f, items: f.items.map((it, i) => (i === idx ? applyLogo(it, logo) : it)) }));
                               setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                             };
 
@@ -2887,10 +2899,21 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                           if (e.key === 'Escape') setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                                         }}
                                         className={ci + ' font-mono'} placeholder="SKU…" autoComplete="off" />
-                                      {skuIsOpen && skuDropdown.rect && skuDropdown.typed && skuScored.length > 0 && (
+                                      {skuIsOpen && skuDropdown.rect && skuDropdown.typed && (skuScored.length > 0 || logoScored.length > 0) && (
                                         <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 380, left: skuDropdown.rect.left, top: skuDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
                                           <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{skuQ ? `SKU: "${skuQ}"` : 'Browse by SKU'}</div>
-                                          {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-center" style={{ color: T.textFaint }}>No matches</div>
+                                          {logoScored.map(logo => (
+                                            <div key={`logo-${logo.id}`} onMouseDown={() => selectLogo(logo)}
+                                              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt"
+                                              style={{ borderBottom: `1px solid ${T.hairline}`, background: T.editable }}>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="font-mono font-bold text-xs" style={{ color: T.accentStrong }}>{hl(logo.code, skuQ)}</div>
+                                                <div className="text-xs truncate" style={{ color: T.textMuted }}>Logo · {logo.decorationType}{logo.name ? ` · ${logo.name}` : ''}</div>
+                                              </div>
+                                              {logo.priceEx > 0 && <div className="text-xs shrink-0" style={{ color: T.textFaint }}>${logo.priceEx.toFixed(2)}</div>}
+                                            </div>
+                                          ))}
+                                          {skuScored.length === 0 ? null
                                             : skuScored.map(({ inv }, i) => (
                                               <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setSkuDropdown(s => ({ ...s, highlighted: i }))}
                                                 className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt`}
@@ -3083,6 +3106,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                         </>)}
+                                        {/* The garment this decoration or alteration is done to (F02, F19). */}
+                                        <div className="ml-auto">
+                                          <AppliesToSelect items={jobForm.items} idx={idx} onChange={(ref) => linkJobItem(idx, ref)} />
+                                        </div>
                                       </div>
                                     </td>
                                     <td style={{ width: 24 }}></td>

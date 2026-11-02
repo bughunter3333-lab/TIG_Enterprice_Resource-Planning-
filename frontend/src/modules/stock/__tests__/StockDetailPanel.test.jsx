@@ -2,7 +2,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockDetailPanel from '../StockDetailPanel';
 
-vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]), locationSummary: vi.fn().mockResolvedValue({ total_on_hand: 50, located: 50, unlocated: 0, in_sync: true }) } }));
+vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]), locationSummary: vi.fn().mockResolvedValue({ total_on_hand: 50, located: 50, unlocated: 0, in_sync: true }) }, inventory: { update: vi.fn() }, users: { myAccess: vi.fn().mockResolvedValue({ role: 'staff', areas: [], allowed: [] }) } }));
 
 const wrap = renderWithQuery;
 const item = { sku: 'MR.PS60.NAV', name: 'Navy Polo', stock: 50, committed_qty: 10, item_type: 'Depleting' };

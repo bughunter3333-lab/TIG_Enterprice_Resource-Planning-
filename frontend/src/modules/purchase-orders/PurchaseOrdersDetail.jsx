@@ -2,6 +2,7 @@ import { CheckSquare, X } from 'lucide-react';
 import POGoodsReceiptsPanel from '../../modules/purchase-orders/POGoodsReceiptsPanel';
 import POModule from '../../modules/purchase-orders/POModule';
 import POSendActions from './POSendActions';
+import POStatusSelect from './POStatusSelect';
 
 export default function PurchaseOrdersDetail({ exportToCSV, openModal, poStatusFilter, purchaseOrders, receivePO, receiveQtys, searchTerm, selectedPO, setPoStatusFilter, setReceiveQtys, setSearchTerm, setSelectedPO, updatePOStatus }) {
   const statusMeta = {
@@ -48,10 +49,7 @@ export default function PurchaseOrdersDetail({ exportToCSV, openModal, poStatusF
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <POSendActions po={selectedPO} onSent={(status) => setSelectedPO(p => ({ ...p, status }))} />
-                <select value={selectedPO.status} onChange={e=>{ updatePOStatus(selectedPO.id,e.target.value); setSelectedPO(p=>({...p,status:e.target.value})); }}
-                  className="text-xs border border-hairline rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus bg-white">
-                  {['Draft','Sent','Partial','Received','Cancelled'].map(s=><option key={s} value={s}>{s}</option>)}
-                </select>
+                <POStatusSelect status={selectedPO.status} onChange={status=>{ updatePOStatus(selectedPO.id,status); setSelectedPO(p=>({...p,status})); }} />
                 <button onClick={()=>setSelectedPO(null)} className="p-1.5 hover:bg-hairline-soft rounded-lg"><X className="w-4 h-4 text-faint"/></button>
               </div>
             </div>

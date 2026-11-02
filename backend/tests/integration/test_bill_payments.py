@@ -252,6 +252,7 @@ class TestABillAgainstAPurchaseOrderIsMatched:
         match = client.get(f"/ap/bills/{bill['id']}").json()["po_match"]
         assert match == {
             "po_id": "PO-M1",
+            "ordered_inc": 171.05,
             "received_inc": 184.25,
             "billed_inc": 184.25,
             "difference": 0.0,

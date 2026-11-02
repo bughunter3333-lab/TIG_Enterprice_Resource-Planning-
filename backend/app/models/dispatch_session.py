@@ -38,5 +38,44 @@ class DispatchSessionLine(Base):
     # address. A job's ship-to can be changed afterwards; a despatch cannot.
     ship_to = Column(String(100), nullable=True)
     address = Column(Text, nullable=True)
+    # The day the consignment goes (ISO): today unless the despatch says
+    # otherwise — after the carrier's cut-off it goes tomorrow (S2-20, B1-07).
+    despatch_date = Column(String(20), nullable=True)
 
     session = relationship("DispatchSession", back_populates="lines")
+    items = relationship(
+        "DispatchLineItem",
+        back_populates="session_line",
+        cascade="all, delete-orphan",
+        order_by="DispatchLineItem.id",
+    )
+
+
+class DispatchLineItem(Base):
+    """What one despatch of a job sent of one of its lines (F21).
+
+    The job line's picked and supplied quantities are running totals, so a
+    further consignment's paperwork printed everything sent so far; this is
+    what went in this one.
+    """
+
+    __tablename__ = "dispatch_line_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dispatch_session_line_id = Column(
+        Integer,
+        ForeignKey("dispatch_session_lines.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # A job line deleted after it went leaves the record of what went standing
+    # rather than refusing the delete or losing the despatch.
+    job_item_id = Column(
+        Integer,
+        ForeignKey("job_items.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    qty = Column(Integer, nullable=False)
+
+    session_line = relationship("DispatchSessionLine", back_populates="items")

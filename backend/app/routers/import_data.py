@@ -907,6 +907,56 @@ def _refuse_rewriting_an_invoice(job: Job, data: dict) -> None:
         )
 
 
+_TOTALS = ("total_ex", "tax", "total_inc")
+
+
+def _carried_total(mapped: dict, key: str) -> float | None:
+    """A header total as the file gives it; None where the file does not say.
+
+    A missing column read as 0.00, which was written over the job's total and
+    refused as a disagreement with its lines or its other parts (F04).
+    """
+    return safe_float(mapped[key]) if mapped.get(key) is not None else None
+
+
+def _require_header_agrees(data: dict) -> None:
+    """The header's parts add up: total inc GST is total ex GST plus GST.
+
+    A row carrying only a total has no parts to compare, and a part the file
+    does not carry is not compared. One whose parts disagree was taken as it
+    stood, and invoiced at the inc figure (F04).
+    """
+    if any(data.get(k) is None for k in _TOTALS):
+        return
+    ex, tax, inc = (money(data[k]) for k in _TOTALS)
+    if (ex or tax) and ex + tax != inc:
+        raise ValueError(
+            f"job {data['id']}: total ex GST ${ex} plus GST ${tax} is not its "
+            f"total ${inc}"
+        )
+
+
+def _refuse_retotalling_lines(job: Job, data: dict) -> None:
+    """A job with lines totals its lines; an import does not overwrite that.
+
+    A row for an app job with $330 of lines, saying $1.10, used to overwrite
+    the header — and the next invoice billed $1.10 (F04). Only the totals the
+    file carries are compared: a file without them says nothing about them.
+    """
+    differs = [
+        k
+        for k in _TOTALS
+        if data.get(k) is not None and money(getattr(job, k)) != money(data[k])
+    ]
+    if differs:
+        says = ", ".join(f"{_INVOICE_FACTS[k]} ${money(data[k])}" for k in differs)
+        raise ValueError(
+            f"job {job.id} has lines totalling ${money(job.total_inc)}; the "
+            f"import says {says}. Its total is its lines' — change the lines in "
+            "the app."
+        )
+
+
 def _import_job_row(
     db: Session, data: dict, existing, user: User, *, paid: float | None
 ) -> None:
@@ -929,16 +979,20 @@ def _import_job_row(
     from app.core import invoice_numbers
     from app.routers.jobs import (
         _DEPLETED_STATUSES,
+        PORTAL_ITEM_NO,
         _apply_status_transition,
         _recalculate_customer_balance,
+        _require_not_a_repeat,
+        _require_own_logos,
         _settle_money,
+        _system_comment,
         _take_payment,
     )
 
     status = data["status"]
     if status in _DEPLETED_STATUSES and not (data.get("invoice") or "").strip():
         raise ValueError("an invoiced job needs its invoice number (Inv#)")
-    holder = invoice_numbers.holder_of(
+    holder = invoice_numbers.typed_holder(
         db, data.get("invoice"), except_job_id=data["id"]
     )
     if holder is not None:
@@ -946,7 +1000,12 @@ def _import_job_row(
 
     already = money(existing.deposit) if existing is not None else ZERO
     paid = already if paid is None else money(paid)
-    total = money(data["total_inc"])
+    # The job's own total where the file does not carry one (F04).
+    total = money(
+        data["total_inc"]
+        if data["total_inc"] is not None
+        else existing.total_inc if existing is not None else 0
+    )
     if status == "CANCEL" and paid > already:
         raise ValueError(
             f"job {data['id']} is cancelled but shows ${paid} paid; a payment "
@@ -959,15 +1018,40 @@ def _import_job_row(
         )
     if paid > total:
         raise ValueError(f"job {data['id']} shows ${paid} paid on a total of ${total}")
+    _require_header_agrees(data)
     if existing is not None and existing.status in _DEPLETED_STATUSES:
         _refuse_rewriting_an_invoice(existing, data)
+    if existing is not None and existing.items:
+        _refuse_retotalling_lines(existing, data)
     if paid < already:
         raise ValueError(
             f"payments of ${already} are already recorded on job {data['id']}; "
             f"the import says ${paid}. Take a payment back in the app."
         )
+    if existing is not None and existing.item_no == PORTAL_ITEM_NO:
+        # A portal order rewritten by a re-import — its order number or its
+        # customer — is checked as a PATCH is: one booked a repeat (F01).
+        _require_not_a_repeat(
+            db,
+            data["customer_id"],
+            existing.item_no,
+            data["serial_no"] if data.get("serial_no") else existing.serial_no,
+            job_id=existing.id,
+        )
+    if existing is not None and data["customer_id"] != existing.customer_id:
+        # Moved to another customer with the first one's logo lines (F09).
+        _require_own_logos(db, existing, data["customer_id"])
 
-    fields = {k: v for k, v in data.items() if k not in ("id", "status")}
+    # An invoice date belongs to an invoiced job. Written onto a FINISH job it
+    # outlived an unprint, and invoicing again kept the old date, so the sale
+    # landed in the wrong BAS period (F33). A total the file does not carry is
+    # not written: it is not a zero (F04).
+    skip = (
+        {"id", "status"}
+        | (set() if status in _DEPLETED_STATUSES else {"invoice_date"})
+        | {k for k in _TOTALS if data.get(k) is None}
+    )
+    fields = {k: v for k, v in data.items() if k not in skip}
     if existing:
         job = existing
         for k, v in fields.items():
@@ -975,6 +1059,10 @@ def _import_job_row(
                 setattr(job, k, v)
     else:
         job = Job(id=data["id"], status="QUOTE", created_by_user_id=user.id, **fields)
+        # Every job's trail says how it was made (F28).
+        opening = _system_comment(job, "Imported from Jim2", by=user)
+        opening.status = status
+        job.comments.append(opening)
         db.add(job)
         db.flush()
     # What is owed follows from the total and the payments recorded, as on
@@ -1026,12 +1114,16 @@ async def import_jobs(
 
             status = translate_status(mapped.get("status"))
 
-            total_ex = safe_float(mapped.get("total_ex"))
-            tax = safe_float(mapped.get("tax"))
-            total_inc = safe_float(mapped.get("total_inc"))
+            total_ex = _carried_total(mapped, "total_ex")
+            tax = _carried_total(mapped, "tax")
+            total_inc = _carried_total(mapped, "total_inc")
             # If total_inc missing but total_ex present, derive it
-            if total_inc == 0 and total_ex > 0:
-                total_inc = round(total_ex + tax, 2)
+            if not total_inc and total_ex and total_ex > 0:
+                total_inc = round(total_ex + (tax or 0), 2)
+            # And the GST, from the two totals that are there: the only figure
+            # that agrees with them (F04).
+            if tax is None and total_ex is not None and total_inc is not None:
+                tax = round(total_inc - total_ex, 2)
             # Taken as a payment, not written onto the job; what is still owed
             # follows from it (`_import_job_row`). None: the file does not say.
             paid = (
@@ -1080,6 +1172,8 @@ async def import_jobs(
             except (HTTPException, ValueError) as exc:
                 savepoint.rollback()
                 reason = exc.detail if isinstance(exc, HTTPException) else str(exc)
+                if isinstance(reason, dict):  # a repeat names the job it repeats
+                    reason = reason.get("message", reason)
                 errors.append({"row": i, "error": str(reason)})
                 skipped += 1
                 continue

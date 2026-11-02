@@ -2,7 +2,7 @@ import {  screen, fireEvent } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockModule from '../StockModule';
 
-vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]) } }));
+vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]) }, inventory: { update: vi.fn() }, users: { myAccess: vi.fn().mockResolvedValue({ role: 'staff', areas: [], allowed: [] }) } }));
 
 const wrap = renderWithQuery;
 const inventory = [

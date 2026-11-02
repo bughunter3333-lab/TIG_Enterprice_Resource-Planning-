@@ -8,11 +8,19 @@ import StatusBadge from '../../ui/StatusBadge';
 import { fieldChrome } from '../../ui/fieldStyle';
 import { dispatchSessions, documents, jobs as jobsApi } from '../../api';
 import { notify } from '../../lib/notify';
+import { localDay } from '../../lib/localDay';
 import { BECOMES_FINISH_ON_DESPATCH, DESPATCHABLE_STATUSES } from './jobStatuses';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// The server prints across many jobs: one PDF, a page or a label per job (F21).
+const printJobs = (type, ids) => window.open(documents.jobsUrl(type, ids), '_blank', 'noopener');
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const cartonsOf = (s) => s.lines.reduce((n, l) => n + Number(l.cartons || 0), 0);
+// The range the server takes a despatch date in (routers/jobs.py despatch_day).
+const DESPATCH_DATE_BACK_DAYS = 30;
+const DESPATCH_DATE_AHEAD_DAYS = 14;
+// The day a recorded batch went: its lines all carry the one date.
+const dayOf = (s) => s.lines.find(l => l.despatch_date)?.despatch_date || null;
 
 // Jim2 Dispatch list: all dispatchable jobs (ready + invoiced) in one screen
 // with inline-editable Ship Via / Ship Ref / Cartons (Jim2 shows these as
@@ -39,7 +47,7 @@ const jobNo = { fontFamily: T.fontMono, fontWeight: 500, color: T.accent };
 // in its own window so the app chrome/CSS never bleeds into the printout.
 function printManifest(s) {
   const totalCartons = cartonsOf(s);
-  const when = s.created_at ? new Date(s.created_at).toLocaleString() : '';
+  const when = dayOf(s) || (s.created_at ? new Date(s.created_at).toLocaleString() : '');
   const bodyRows = s.lines.map(l => `
       <tr>
         <td class="mono">${esc(l.job_id)}</td>
@@ -136,6 +144,9 @@ function Dispatched({ session, onMore, onDone }) {
   const when = session.created_at
     ? new Date(session.created_at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
     : null;
+  // Printed now, the paperwork carries the cartons and connote just recorded;
+  // printed from the list before despatch it could not (F21).
+  const jobIds = session.lines.map(l => l.job_id);
   return (
     <div className="tig-arrive" role="status">
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '24px 20px 20px' }}>
@@ -148,6 +159,7 @@ function Dispatched({ session, onMore, onDone }) {
             <span style={{ fontWeight: 500, color: T.text }}>Dispatch #{session.id}</span>
             {' · '}{plural(session.lines.length, 'job')}{' · '}{plural(cartonsOf(session), 'carton')}
             {when && <>{' · recorded at '}{when}</>}
+            {dayOf(session) && dayOf(session) !== localDay() && <>{' · going '}{dayOf(session)}</>}
           </p>
         </div>
       </div>
@@ -156,6 +168,8 @@ function Dispatched({ session, onMore, onDone }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '12px 16px', borderTop: `1px solid ${T.hairline}`, background: T.panelAlt }}>
         <Button size="sm" onClick={() => printManifest(session)}><Printer size={13} aria-hidden /> Print manifest</Button>
+        <Button size="sm" onClick={() => printJobs('delivery-note', jobIds)}><Printer size={13} aria-hidden /> Delivery notes</Button>
+        <Button size="sm" onClick={() => printJobs('ship-label', jobIds)}><Printer size={13} aria-hidden /> Ship labels</Button>
         <Button size="sm" onClick={() => exportCsv(session)}><Download size={13} aria-hidden /> Export CSV</Button>
         <div style={{ flex: 1 }} />
         <Button size="sm" variant="ghost" onClick={onMore}>Dispatch more</Button>
@@ -166,12 +180,21 @@ function Dispatched({ session, onMore, onDone }) {
 }
 
 export default function DispatchList({ jobs = [], onDispatch, onClose, busy = false }) {
-  const rows = jobs.filter(j => DISPATCHABLE.includes(j.status));
+  // A job that has gone already is off the list unless asked for: sending it
+  // again is a further consignment (back-ordered sizes), not the usual case (F22).
+  const [showDespatched, setShowDespatched] = useState(false);
+  const ready = jobs.filter(j => DISPATCHABLE.includes(j.status));
+  const despatchedCount = ready.filter(j => j.dispatchedAt).length;
+  const rows = showDespatched ? ready : ready.filter(j => !j.dispatchedAt);
   const [selected, setSelected] = useState(() => new Set());
   const [edits, setEdits] = useState({}); // jobId -> { shipVia, shipRef, cartons }
   // Off until ticked: invoicing posts to the accounts, so it is chosen, not
   // the default side effect of sending goods out.
   const [advance, setAdvance] = useState(false);
+  // The day the batch goes: today, or the next collection after the carrier's
+  // cut-off (B1-07). Null until one is picked, so "today" is the day it is
+  // sent — a list left open overnight dated the morning's batch yesterday.
+  const [despatchDate, setDespatchDate] = useState(null);
   // The session the last batch recorded, shown as the finish until dismissed.
   const [finished, setFinished] = useState(null);
   // Past sessions (Jim2 "Dispatch #"): pick one to review/export its lines.
@@ -217,23 +240,36 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
       setPicking(false);
     }
   };
-  // The server prints across the list: one PDF, a page or a label per job (F21).
-  const printSelected = (type) => window.open(documents.jobsUrl(type, [...selected]), '_blank', 'noopener');
+  const printSelected = (type) => printJobs(type, [...selected]);
+  // Hiding the despatched jobs drops them from the selection too, so nothing
+  // off screen is printed or sent.
+  const toggleShowDespatched = () => {
+    if (showDespatched) {
+      const gone = new Set(ready.filter(j => j.dispatchedAt).map(j => j.id));
+      setSelected(prev => new Set([...prev].filter(id => !gone.has(id))));
+    }
+    setShowDespatched(s => !s);
+  };
 
   const dispatchSelected = async () => {
     const batch = rows
       .filter(r => selected.has(r.id))
       .map(r => ({
         id: r.id,
-        shipVia: valOf(r, 'shipVia', r.shipTo || ''),
+        // The carrier, not the ship-to code: an unedited row wrote the site
+        // code onto the job as its carrier (F22).
+        shipVia: valOf(r, 'shipVia', r.shipVia || ''),
         shipRef: valOf(r, 'shipRef', ''),
         cartons: Math.max(1, parseInt(valOf(r, 'cartons', 1), 10) || 1),
         advanceStatus: advance && BECOMES_FINISH_ON_DESPATCH.includes(r.status),
+        again: !!r.dispatchedAt,
       }));
     if (!batch.length) return;
     // A refused batch resolves to nothing (the caller has said why); only a
     // recorded session ends the screen.
-    const session = await onDispatch(batch);
+    const session = await onDispatch(batch, { despatchDate: despatchDate || localDay() });
+    // A batch dated another day leaves the next one dated today again.
+    if (session?.lines) setDespatchDate(null);
     if (session?.lines) {
       setFinished(session);
       setSelected(new Set());
@@ -277,7 +313,8 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
         <>
           <SessionLines session={viewSession} />
           <div style={{ padding: '10px 16px', fontSize: T.fsSmall, color: T.textMuted, background: T.panelAlt }}>
-            Dispatched {viewSession.created_at ? new Date(viewSession.created_at).toLocaleString() : ''} — {plural(viewSession.lines.length, 'job')} · {plural(cartonsOf(viewSession), 'carton')}
+            Dispatched {viewSession.created_at ? new Date(viewSession.created_at).toLocaleString() : ''}
+            {dayOf(viewSession) ? ` · going ${dayOf(viewSession)}` : ''} — {plural(viewSession.lines.length, 'job')} · {plural(cartonsOf(viewSession), 'carton')}
           </div>
         </>
       )}
@@ -318,9 +355,10 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
                   <td style={cell}><StatusBadge status={j.status} size="sm" /></td>
                   <td style={{ ...cell, fontSize: T.fsSmall, color: j.dispatchedAt ? T.ok : T.textFaint }}>
                     {j.dispatchedAt ? `${j.dispatchedAt}${j.connote ? ` · ${j.connote}` : ''}` : '—'}
+                    {j.dispatchedAt && <span style={{ marginLeft: 6, color: T.warn, fontWeight: 500 }}>Further consignment</span>}
                   </td>
                   <td style={editCell}>
-                    <input style={inp} aria-label={`Ship via for ${j.id}`} value={valOf(j, 'shipVia', j.shipTo || '')} onChange={e => setEdit(j.id, 'shipVia', e.target.value)} placeholder="Carrier or method" />
+                    <input style={inp} aria-label={`Ship via for ${j.id}`} value={valOf(j, 'shipVia', j.shipVia || '')} onChange={e => setEdit(j.id, 'shipVia', e.target.value)} placeholder="Carrier or method" />
                   </td>
                   <td style={editCell}>
                     <input style={{ ...inp, fontFamily: T.fontMono, fontSize: T.fsSmall }} aria-label={`Ship ref for ${j.id}`} value={valOf(j, 'shipRef', '')} onChange={e => setEdit(j.id, 'shipRef', e.target.value)} placeholder="Con note or ref" />
@@ -336,19 +374,32 @@ export default function DispatchList({ jobs = [], onDispatch, onClose, busy = fa
       </div>
 
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.hairline}`, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: T.panelAlt }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: T.fsSmall, color: T.textMuted }}>
+          Despatch date
+          <input type="date" value={despatchDate || localDay()} onChange={e => setDespatchDate(e.target.value || null)}
+            min={localDay(-DESPATCH_DATE_BACK_DAYS)} max={localDay(DESPATCH_DATE_AHEAD_DAYS)}
+            style={{ ...fieldChrome({}), height: 28, fontSize: T.fsSmall, padding: '0 6px' }} />
+        </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: T.fsSmall, color: T.textMuted, cursor: 'pointer', userSelect: 'none' }}>
           <input type="checkbox" checked={advance} onChange={() => setAdvance(a => !a)} style={{ accentColor: T.accent }} />
           Advance FINISH → INVOICE on dispatch
         </label>
+        {despatchedCount > 0 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: T.fsSmall, color: T.textMuted, cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={showDespatched} onChange={toggleShowDespatched} style={{ accentColor: T.accent }} />
+            Show despatched ({despatchedCount})
+          </label>
+        )}
         <div style={{ flex: 1 }} />
         <Button size="sm" onClick={autoPick} disabled={none || picking}>
           <CheckSquare size={13} aria-hidden /> {picking ? 'Picking…' : 'Auto Pick'}
         </Button>
-        {[['delivery-note', 'Delivery notes'], ['ship-label', 'Ship labels'], ['job-label', 'Job labels']].map(([type, label]) => (
-          <Button key={type} size="sm" onClick={() => printSelected(type)} disabled={none}>
-            <Printer size={13} aria-hidden /> {label}
-          </Button>
-        ))}
+        {/* Delivery notes and ship labels print from the Dispatched view, once a
+            despatch has recorded the cartons and connote; printed from here they
+            read the job's last despatch (F21). */}
+        <Button size="sm" onClick={() => printSelected('job-label')} disabled={none}>
+          <Printer size={13} aria-hidden /> Job labels
+        </Button>
         <span style={{ fontSize: T.fsSmall, color: T.textMuted, fontVariantNumeric: 'tabular-nums', padding: '0 4px' }}>{selected.size} of {rows.length} selected</span>
         <Button variant="primary" onClick={dispatchSelected} disabled={none || busy}>
           <Truck size={14} aria-hidden /> {busy ? 'Dispatching…' : `Dispatch selected (${selected.size})`}

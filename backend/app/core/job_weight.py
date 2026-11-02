@@ -8,7 +8,11 @@ its SKU's even when the SKU's was 0. The warning then counted the embroidery
 and alteration lines, which weigh nothing by nature, and missed the garments.
 
 A line weighs its stock item's weight per unit when that is known, else its
-own; only stocked garment lines are weighed, and only they can be missing one.
+own; only garment (goods) lines are weighed, and only they can be missing one.
+A bought-in garment, whose code is no stock item, is a goods line too: it
+weighs its own weight, and is flagged when it has none — it used to be left
+out of both, so 10 bought-in polos read 0 kg with no warning. So is a line
+with a quantity and no code at all.
 """
 
 from sqlalchemy.orm import Session
@@ -28,7 +32,7 @@ def _stock_weights(db: Session, job) -> dict[str, float]:
     }
 
 
-def _garment_lines(job, stocked: dict):
+def _garment_lines(job):
     for item in job.items:
         if item.display_type not in (None, "product"):
             continue
@@ -36,7 +40,9 @@ def _garment_lines(job, stocked: dict):
         # line's code can be stocked without the line being anything to weigh.
         if item.is_service:
             continue
-        if item.stock_code in stocked:
+        # A goods line keyed with no stock code is still bought and sent, so
+        # it is weighed by its own weight — and named when it has none (F08).
+        if item.stock_code or item.qty or item.order_qty:
             yield item
 
 
@@ -48,16 +54,19 @@ def order_weight(job, db: Session) -> float:
     stocked = _stock_weights(db, job)
     total = sum(
         _unit_weight(item, stocked) * (item.qty or item.order_qty or 0)
-        for item in _garment_lines(job, stocked)
+        for item in _garment_lines(job)
     )
     return round(total, 3)
 
 
 def unweighed_lines(job, db: Session) -> list[str]:
-    """The SKUs of the job's garment lines that weigh nothing, in line order."""
+    """The job's garment lines that weigh nothing, in line order.
+
+    Each is named by its SKU, or by its description when it has no code.
+    """
     stocked = _stock_weights(db, job)
     return [
-        item.stock_code
-        for item in sorted(_garment_lines(job, stocked), key=lambda i: i.sort or 0)
+        item.stock_code or item.description or "a line with no code"
+        for item in sorted(_garment_lines(job), key=lambda i: i.sort or 0)
         if not _unit_weight(item, stocked)
     ]

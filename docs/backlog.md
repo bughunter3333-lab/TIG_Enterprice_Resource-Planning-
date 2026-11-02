@@ -1568,6 +1568,99 @@ despatch — would make them meet; it changes the chart of accounts, the BAS and
 every past period's comparatives, so it is for the owner and the bookkeeper.
 Written up in `docs/superpowers/specs/2026-10-25-job-cost-and-the-ledger.md`.
 
+## SIM2 S2-01–S2-20. The research-based simulation (2026-11-01)
+
+Eight scenarios from `docs/research/2026-10-31-how-a-uniform-supplier-runs.md`
+were run end to end through the real API on throwaway databases (after the 27
+SIM gaps were closed): an aged-care allocation roll-out (24 wearers, 4
+residences), Ricoh-style personalised packs (10 people, 4 sites, subcontract
+embroidery), a franchise bulk order with name badges and a credit hold, a club
+indent with deposit and balance, an office order with set-up fee and price
+breaks on 30 EOM, hi-vis for night road works, a council allowance with cost
+centres and client-held stock, and a childcare card-paid order with an
+exchange. All eight ran to the end — several only through staff workarounds.
+55 findings (19 bugs, 13 gaps, 9 missing, 3 UX, 11 rules that held) reduce to
+20 root causes. **(decision)** marks a fix that needs an owner rule first.
+
+| # | Sev | Root cause | Findings | Fix direction |
+| --- | --- | --- | --- | --- |
+| S2-01 | HIGH | Portal jobs carry no customer name: tax invoices print an empty Bill To (invalid from $1,000), aged receivables say "Unknown" | A1-01, B1-01 | Fill `customer_name` from the customer on create; the invoice prints the customer's name and ABN from the master |
+| S2-02 | HIGH | Invoicing a partly despatched job bills the back-ordered units; at INVOICE the back-orders drop out of buying and filling, so stock bought for the job sits free | A1-02, C2-01, B1-04, C2-03 | **(decision)** refuse to invoice while lines are back-ordered (close the back-order first), or invoice per consignment |
+| S2-03 | HIGH | Editing a line's quantity never re-works supply and back-order: bills the new quantity, ships the old | B3-01 | Re-derive the split on any quantity change |
+| S2-04 | HIGH | Receiving a bought-in (non-stock) code never reaches the job line, and the buying list keeps asking | B2-01 | Fill by the PO line's job when the code is no stock item |
+| S2-05 | HIGH | Charge lines (FREIGHT, set-up, fees, notes) are goods: back-ordered, bought, weighed, printed as back-ordered | A2-01, B3-02 | A stock item whose type is Service is a service line |
+| S2-06 | HIGH | A $0 job (no-charge exchange, remake) is held by the credit check, cannot be invoiced or closed, so its goods never leave stock | A1-04, B1-05 | **(decision)** a no-charge job closes at $0 and depletes stock; $0 adds no credit exposure |
+| S2-07 | HIGH | No returns: no document, no return location, no inspection, no credit note; a −1 line is accepted, reserves −1 and never restocks | A1-05, A1-06, C3-03, B3-05 | Quantities ≥ 0 now; **(decision)** returns against job lines into RET, inspected to restock / quarantine / scrap (decorated goods not restockable), fee line, exchange link, credit note |
+| S2-08 | HIGH | Card-paid portal orders arrive unpaid (payment fields dropped silently); inc-only prices make a $0 job; inc prices drift a cent so the real card amount is refused | A1-03, C3-04, C3-01, C3-02, C3-05 | Intake records the store's card payment; a line priced inc derives ex and totals to the cent the store charged; fully paid at invoice reads PAID |
+| S2-09 | HIGH | Supplier credit notes cannot be applied, and aged payables ignores them | C1-02 | Apply a credit against the supplier's bills; aged payables nets it |
+| S2-10 | HIGH | No allowance or funding split per wearer | C2-02, A1-03 | **(decision)** allowance ledger per wearer per financial year; each line funded by allowance, card or employee debt |
+| S2-11 | HIGH | Client-held stock is not ring-fenced | C2-05 | **(decision)** stock owned by a named customer, available only to its orders |
+| S2-12 | HIGH | No hi-vis class or UPF on stock; a Class D swap onto a night-works order is accepted | C1-01 | **(decision)** compliance attributes on stock and a required class on the job |
+| S2-13 | MED | Invoice prints the delivery date as Due Date and the company's terms; changing a customer's terms re-dates open invoices; AR "as at" lists later invoices | B2-02, B2-03, B2-04 | Store terms and due date on the invoice when issued; as-at filters by invoice date |
+| S2-14 | MED | Money rules: COD not enforced and a zero limit means unlimited; no authorised credit release; overpayment cannot sit on account; deposit GST falls in the invoice period | B2-07, B1-02, B1-03, B2-05 | **(decision)** COD blocks confirm until paid; release by a manager with a reason; customer deposits held until invoiced |
+| S2-15 | MED | No proof gate: a job reaches PRINT with its logo unapproved | B2-06 | PRINT needs every logo on the job approved |
+| S2-16 | MED | Pricing: quantity breaks stored but never applied; a line with no price books at $0; a duplicated job re-charges the logo set-up | B3-03, B3-04 | Price from the stock's levels when no price is keyed; the logo records that its set-up was billed |
+| S2-17 | MED | Scrap and close-short on decoration do not feed back to the job: scrapped units stay supplied, decoration applications are not re-listed | C1-03, A2-02 | Scrap against a job line back-orders it; close-short releases decoration lines too |
+| S2-18 | MED | Job profitability costs stocked lines at $0 | B1-06 | Cost from the stock's unit cost when the line has none |
+| S2-19 | MED | No cost centre on job, statement or search | C2-04 | **(decision)** a cost centre per job, on the statement and in search |
+| S2-20 | LOW | Despatch and PO details: one job with nothing to send refuses the whole batch; a further consignment's note lists empty lines; no despatch date; PO items cannot be added by PATCH (silently ignored); indent size curve is free text only | A1-07, A1-08, B1-07, C1-04, B2-08 | Skip and report jobs with nothing to send; notes list only what went; PATCH refuses or adds items |
+
+**Status 2026-11-02 — the ones that needed no decision are fixed** (migration
+`e7f8a9b0c1d2`; tests `tests/integration/test_sim2_*.py`):
+
+- S2-01 a job takes its customer's name when none is keyed (create, a move to
+  another customer, and a backfill); the invoice's Bill To prints the master's
+  name and ABN.
+- S2-03 a saved line whose quantity or code changes has its supply and
+  back-order worked out again, unless the save sent a split that adds up;
+  and a save never has an open order hold more than is free to it.
+- S2-04 a code that is no stock item goes to the PO line's job on receipt.
+- S2-05 a stock code typed Service or Non-Depleting, or in the Service
+  category, is a charge: supplied in full, never reserved, bought, weighed,
+  picked or listed as back-ordered.
+- S2-07 (in part) line quantities are never below zero. Returns themselves
+  wait on the decision.
+- S2-08 (in part) a line sent priced inc GST totals to the cent; the store's
+  payment (`deposit`, `payment_method`) is recorded with a portal order, and
+  more than the order is refused. **Open:** whether an invoiced job that is
+  fully paid moves to PAID by itself (C3-05) — today no payment moves a job
+  to PAID, before or after invoicing.
+- S2-09 a credit note is applied to the supplier's bill
+  (`POST /ap/bills/{credit}/apply`); outstanding and aged payables net it,
+  and neither side can later be edited past it or moved to another
+  supplier. Accounts Payable offers Apply on a credit note.
+- S2-13 an invoice stamps its terms and due date when issued; aged
+  receivables as at a past date leaves out later invoices and adds back
+  payments taken after it.
+- S2-15 a job goes from anywhere before PRINT (a quote, a portal order, a
+  job being created) to PRINT, past it or straight to invoiced only with
+  every logo on it approved.
+- S2-16 (in part) a line sent with no price takes the stock's price-level
+  break for its own quantity, else the sell price. **Open:** the logo set-up
+  charged once — nothing ties a set-up line (SETUP.LOGO) to the logo it set
+  up, so the rule for recognising one is needed first.
+- S2-17 a write-off against a job (`POST /inventory/{sku}/adjust` with
+  `job_id`) back-orders the job's line (and its pick), at the job's branch,
+  and is recorded as the job's; closing a decoration PO short re-lists the
+  applications it did not bring — a line it brought in part is split.
+- S2-18 a stocked line with no purchase price costs the stock's unit cost.
+- S2-20 (in part) a despatch batch leaves out, and names, a job with nothing
+  to send; a further consignment's note leaves off lines finished earlier; a
+  PO PATCH refuses unknown fields and adds lines by `add_items`; a despatch
+  is dated (today unless the despatcher picks the next collection, after the
+  carrier's cut-off — B1-07), and its delivery note prints that day. The
+  invoice is still dated the day it is issued (that is S2-02's decision).
+  **Open:** an indent's size curve (B2-08), which needs a design: per-size
+  quantities on an indent line, received and closed short per size.
+
+Held under pressure: the portal retry 409, confirmation back-ordering the
+shortfall with a trail, one PO across many jobs with oldest-first fill,
+subcontract decoration bought per job and not shelved, all-or-nothing
+remittances, the credit check counting open orders, badge names on the PO, the
+second consignment printing only its contents, order weight naming unweighed
+lines, 30 EOM due dates, and the ledger agreeing with the documents in every
+scenario.
+
 ## Known gaps, deliberately open
 
 Not scheduled, recorded so they are not rediscovered as surprises.

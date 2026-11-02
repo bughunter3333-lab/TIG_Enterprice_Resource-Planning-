@@ -11,6 +11,7 @@ import { Mail, Printer } from 'lucide-react';
 import { purchaseOrders } from '../../api';
 import { useOffer } from '../../lib/useMyAccess';
 import { notify } from '../../lib/notify';
+import { UNSENDABLE_PO_STATUSES } from './poFilters';
 
 const btn = 'flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-hairline bg-white hover:bg-panel-alt disabled:opacity-50';
 
@@ -36,7 +37,7 @@ export default function POSendActions({ po, onSent }) {
       <a href={purchaseOrders.pdfUrl(po.id)} target="_blank" rel="noopener noreferrer" className={btn}>
         <Printer className="w-3.5 h-3.5" />Print
       </a>
-      {offer('POST', '/purchase-orders/{po_id}/email') && (
+      {offer('POST', '/purchase-orders/{po_id}/email') && !UNSENDABLE_PO_STATUSES.includes(po.status) && (
         <button onClick={send} disabled={sending} className={btn}>
           <Mail className="w-3.5 h-3.5" />{sending ? 'Sending…' : 'Email supplier'}
         </button>

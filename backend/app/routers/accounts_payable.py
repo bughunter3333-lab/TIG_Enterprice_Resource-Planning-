@@ -13,6 +13,7 @@ from app.core import bill_matching
 from app.core.dependencies import require_staff
 from app.core.ledger import ZERO, LedgerError, money
 from app.core.ledger_postings import (
+    bill_outstanding,
     bill_owed,
     sync_bill,
     sync_supplier_payment,
@@ -59,6 +60,11 @@ class BillUpdate(BaseModel):
     account_id: Optional[int] = None
 
 
+class CreditApply(BaseModel):
+    # The supplier's bill the credit note comes off.
+    bill_id: int
+
+
 class BillPay(BaseModel):
     # This payment's amount — added to what has already been paid, never in
     # place of it.
@@ -92,9 +98,10 @@ def _paid(bill: SupplierBill) -> Decimal:
 def _settle(bill: SupplierBill) -> None:
     """Make the bill's paid amount, paid date and status say what its payments say.
 
-    'paid' is never set by hand: a bill is paid when its payments cover it, and
-    a paid bill whose total rises, or whose payment is taken back, is open
-    again — 'approved', since it was cleared for payment once.
+    'paid' is never set by hand: a bill is paid when its payments, and the
+    credit notes applied to it, cover it; a paid bill whose total rises, or
+    whose payment or credit is taken back, is open again — 'approved', since it
+    was cleared for payment once. A credit note is settled once it is applied.
     """
     paid = _paid(bill)
     bill.paid_amount = paid
@@ -102,7 +109,9 @@ def _settle(bill: SupplierBill) -> None:
         (p.paid_date for p in bill.payments if p.paid_date), default=None
     )
     owed = bill_owed(bill)
-    if owed > ZERO and paid >= owed:
+    if bill.applied_to_bill_id is not None or (
+        owed > ZERO and bill_outstanding(bill, paid) <= ZERO
+    ):
         bill.status = "paid"
     elif bill.status == "paid":
         bill.status = "approved"
@@ -130,9 +139,16 @@ def _serialize(
         "status": b.status,
         "paid_date": b.paid_date,
         "paid_amount": float(b.paid_amount or 0),
-        "outstanding": float(bill_owed(b) - money(b.paid_amount)),
+        "outstanding": float(bill_outstanding(b)),
         "notes": b.notes,
         "account_id": b.account_id,
+        "applied_to_bill_id": b.applied_to_bill_id,
+        # Named as the screen names it, whatever list the bill is in.
+        "applied_to_bill_number": (
+            (b.applied_to.bill_number or f"#{b.applied_to.id}")
+            if b.applied_to is not None
+            else None
+        ),
         "created_at": b.created_at.isoformat() if b.created_at else None,
         # Against a PO: what arrived against it, and whether the bills for it
         # come to that (app/core/bill_matching.py). None for any other bill.
@@ -170,7 +186,12 @@ def _get_bill(db: Session, bill_id: int) -> SupplierBill:
 def list_bills(
     status: Optional[str] = Query(None),
     supplier_id: Optional[str] = Query(None),
+    supplier_name: Optional[str] = Query(None),
     overdue_only: bool = Query(False),
+    # Still open and not a credit already applied: what a credit note can come
+    # off. Asked for by the apply screen, which otherwise read the first 500
+    # bills of a supplier — the oldest, all paid (S2-09).
+    open_only: bool = Query(False),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -181,6 +202,13 @@ def list_bills(
         q = q.filter(SupplierBill.status == status)
     if supplier_id:
         q = q.filter(SupplierBill.supplier_id == supplier_id)
+    if supplier_name:
+        q = q.filter(SupplierBill.supplier_name == supplier_name)
+    if open_only:
+        q = q.filter(
+            SupplierBill.status.in_(OPEN_STATUSES),
+            SupplierBill.applied_to_bill_id.is_(None),
+        )
     if overdue_only:
         today = date.today().isoformat()
         q = q.filter(
@@ -244,6 +272,44 @@ def get_bill(
     return _full(db, _get_bill(db, bill_id))
 
 
+def _check_credit_edit(
+    db: Session, bill: SupplierBill, changes: dict, gross: Decimal
+) -> None:
+    """An edit keeps what `apply_credit` checked when the credit was applied.
+
+    Edited afterwards, an applied credit note could come to more than its bill
+    had outstanding, leaving the bill 'paid' below nothing and the supplier's
+    debt to TIG on no list; and either side could move to another supplier,
+    so one supplier's credit paid another's bill.
+    """
+    linked = bool(bill.credits) or bill.applied_to_bill_id is not None
+    supplier = changes.get("supplier_id", bill.supplier_id) or changes.get(
+        "supplier_name", bill.supplier_name
+    )
+    if linked and supplier != (bill.supplier_id or bill.supplier_name):
+        raise HTTPException(
+            409,
+            "A credit note applied to a bill stays with that bill's supplier — "
+            "delete the credit note first",
+        )
+    if bill.applied_to_bill_id is None:
+        return
+    if gross >= ZERO:
+        raise HTTPException(
+            409,
+            f"This credit note is applied to bill {bill.applied_to_bill_id}, so it "
+            "stays a credit — delete it to take it off the bill",
+        )
+    target = _get_bill(db, bill.applied_to_bill_id)
+    others = sum((bill_owed(c) for c in target.credits if c.id != bill.id), ZERO)
+    if bill_owed(target) + others + gross - _paid(target) < ZERO:
+        raise HTTPException(
+            409,
+            f"The credit would be {_dollars(-gross)}, more than bill "
+            f"{target.bill_number or target.id} has outstanding",
+        )
+
+
 @router.patch("/bills/{bill_id}")
 def update_bill(
     bill_id: int,
@@ -263,14 +329,22 @@ def update_bill(
             for k in ("amount_inc", "amount_ex", "tax")
         }
     )
-    owed, paid = bill_owed(after), _paid(bill)
-    if paid > owed:
+    # Net of the credit notes applied to it (S2-09). A credit note itself is
+    # owed below zero and has nothing paid, which this used to refuse too.
+    gross = bill_owed(after)
+    credited = sum((bill_owed(c) for c in bill.credits), ZERO)
+    owed = gross + credited
+    paid = _paid(bill)
+    if (gross >= ZERO or bill.credits) and paid > owed:
         raise HTTPException(
             409,
-            f"{_dollars(paid)} has been paid against this bill, so its total "
-            "cannot be less than that. Take a payment back first.",
+            f"{_dollars(paid)} has been paid"
+            + (f" and {_dollars(-credited)} credited" if bill.credits else "")
+            + " against this bill, so its total cannot be less than that. "
+            "Take a payment back first.",
         )
-    covered = owed > ZERO and paid >= owed
+    _check_credit_edit(db, bill, changes, gross)
+    covered = gross > ZERO and paid >= owed
     if data.status == "paid" and not covered:
         raise HTTPException(
             400, "A bill is marked paid by recording its payments, not by hand"
@@ -289,6 +363,9 @@ def update_bill(
     if "account_id" in data.model_fields_set:
         bill.account_id = data.account_id
     _settle(bill)
+    if bill.applied_to_bill_id is not None:
+        # A credit note's new amount moves what its bill is owed.
+        _settle(_get_bill(db, bill.applied_to_bill_id))
     db.flush()
     _post_to_ledger(db, bill, current_user.username)
     db.commit()
@@ -304,7 +381,13 @@ def pay_bill(
     current_user: User = Depends(require_staff),
 ):
     bill = _get_bill(db, bill_id)
-    outstanding = bill_owed(bill) - _paid(bill)
+    if bill_owed(bill) < ZERO:
+        raise HTTPException(
+            409,
+            "This is a credit note: apply it to one of the supplier's bills "
+            "rather than paying it",
+        )
+    outstanding = bill_outstanding(bill, _paid(bill))
     amount = money(data.paid_amount)
     if outstanding <= ZERO:
         raise HTTPException(409, "This bill is already paid in full")
@@ -329,6 +412,55 @@ def pay_bill(
     _settle(bill)
     db.commit()
     db.refresh(bill)
+    return _full(db, bill)
+
+
+@router.post("/bills/{credit_id}/apply")
+def apply_credit(
+    credit_id: int,
+    data: CreditApply,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+):
+    """Take a supplier's credit note off one of its bills (S2-09).
+
+    A short shipment, faulty goods or a rebate comes as a credit note. It was
+    accepted as a negative bill and then could be neither paid (a payment is
+    more than nothing) nor set against the bill, so the bill read as owed it
+    for ever. Applied, the bill is owed that much less, and once its payments
+    cover the rest it is paid. Nothing posts: both are in the ledger already,
+    and the payable nets them.
+    """
+    credit = _get_bill(db, credit_id)
+    amount = -bill_owed(credit)
+    if amount <= ZERO:
+        raise HTTPException(
+            422, "Only a credit note — a bill for less than nothing — is applied"
+        )
+    if credit.applied_to_bill_id is not None:
+        raise HTTPException(
+            409, f"This credit note is applied to bill {credit.applied_to_bill_id}"
+        )
+    bill = _get_bill(db, data.bill_id)
+    if bill_owed(bill) <= ZERO:
+        raise HTTPException(422, "A credit note is applied to a bill, not to a credit")
+    if (bill.supplier_id or bill.supplier_name) != (
+        credit.supplier_id or credit.supplier_name
+    ):
+        raise HTTPException(422, "That bill is from another supplier")
+    outstanding = bill_outstanding(bill, _paid(bill))
+    if amount > outstanding:
+        raise HTTPException(
+            409,
+            f"The credit is {_dollars(amount)} and the bill has "
+            f"{_dollars(outstanding)} outstanding",
+        )
+    credit.applied_to_bill_id = bill.id
+    db.flush()
+    db.expire(bill, ["credits"])
+    _settle(credit)
+    _settle(bill)
+    db.commit()
     return _full(db, bill)
 
 
@@ -368,7 +500,23 @@ def delete_bill(
         withdraw_bill(db, bill, created_by=current_user.username)
     except LedgerError as exc:
         raise HTTPException(409, str(exc)) from exc
+    # A credit note applied to it is unapplied; a bill it was applied to is
+    # owed it again.
+    freed = list(bill.credits)
+    for credit in freed:
+        credit.applied_to_bill_id = None
+    target = (
+        _get_bill(db, bill.applied_to_bill_id)
+        if bill.applied_to_bill_id is not None
+        else None
+    )
     db.delete(bill)
+    db.flush()
+    for credit in freed:
+        _settle(credit)
+    if target is not None:
+        db.expire(target, ["credits"])
+        _settle(target)
     db.commit()
 
 
@@ -381,17 +529,18 @@ def ap_summary(
     all_open = (
         db.query(SupplierBill).filter(SupplierBill.status.in_(OPEN_STATUSES)).all()
     )
-    overdue = [b for b in all_open if b.due_date and b.due_date < today]
+    # A credit note not yet applied nets into what is open, but is never a
+    # bill overdue or falling due (S2-09): the list says so of none.
+    bills = [b for b in all_open if bill_owed(b) > ZERO]
+    overdue = [b for b in bills if b.due_date and b.due_date < today]
     due_this_week = [
-        b for b in all_open if b.due_date and today <= b.due_date <= _week_end(today)
+        b for b in bills if b.due_date and today <= b.due_date <= _week_end(today)
     ]
 
     def owing(bills):
         # What is still owed, not the bill's total: a part-paid bill is open for
         # its balance.
-        return round(
-            float(sum((bill_owed(b) - money(b.paid_amount) for b in bills), ZERO)), 2
-        )
+        return round(float(sum((bill_outstanding(b) for b in bills), ZERO)), 2)
 
     return {
         "total_open_count": len(all_open),

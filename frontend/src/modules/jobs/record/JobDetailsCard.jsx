@@ -2,6 +2,15 @@ import { T } from '../../../ui/tokens';
 import Card from '../../../ui/Card';
 import { dueOf } from './recordFormat';
 import { formatDay } from '../../../lib/dates';
+import { logosOf, LOGO_PROOF_LABELS } from '../../../components/jobs/ProofPanel';
+
+// A job with logo lines is proofed on its logos (F31); its own proof field
+// would contradict them, so only a job without logos shows it.
+function proofOf(job) {
+  const logos = logosOf(job);
+  if (logos.length) return logos.map(l => `${l.code} ${(LOGO_PROOF_LABELS[l.status] ?? l.status).toLowerCase()}`).join(', ');
+  return job.proofStatus && job.proofStatus !== 'none' ? job.proofStatus : '';
+}
 
 function Item({ label, value, mono, tone }) {
   return (
@@ -64,7 +73,7 @@ export default function JobDetailsCard({ job }) {
           <Item label="Weight" value={job.weightTotal ? `${Number(job.weightTotal).toFixed(2)} kg` : ''} />
           {job.shipVia && <Item label="Ship via" value={job.shipVia} />}
           {job.connote && <Item label="Connote" value={job.connote} mono />}
-          {job.proofStatus && job.proofStatus !== 'none' && <Item label="Proof" value={job.proofStatus} />}
+          {proofOf(job) && <Item label="Proof" value={proofOf(job)} />}
         </Column>
       </div>
     </Card>

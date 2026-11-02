@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Save, Check } from 'lucide-react';
-import { stock } from '../../../api';
+import { inventory } from '../../../api';
 import { T } from '../../../ui/tokens';
 
 // Jim2 Stock "Descriptions" tab: long-form text slots per SKU, editable.
@@ -39,7 +39,7 @@ export default function StockDescriptionsTab({ item }) {
     setStatus('saving');
     setErr('');
     try {
-      await stock.update(item.sku, {
+      await inventory.update(item.sku, {
         desc_extended: draft.desc_extended,
         desc_web: draft.desc_web,
         desc_care: draft.desc_care,

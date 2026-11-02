@@ -168,7 +168,7 @@ class TestADecorationLineIsAService:
         make_inventory(sku="POLO-M", stock=10)
         # Even if someone has made a stock item with the logo's code.
         make_inventory(sku="EMB.CFG.LHC", stock=0)
-        _logo(client, db)
+        logo = _logo(client, db)
         job = _order(
             client,
             db,
@@ -177,6 +177,8 @@ class TestADecorationLineIsAService:
         )
         listed = {i["sku"]: i["committed_qty"] for i in client.get("/inventory").json()}
         assert listed["EMB.CFG.LHC"] == 0
+        # Past PRINT only once its proof is approved (S2-15).
+        client.post(f"/logos/{logo['id']}/proof", json={"status": "approved"})
         assert (
             client.post(
                 f"/jobs/{job['id']}/status", json={"status": "Desp/Ready"}

@@ -29,7 +29,10 @@ export default function POGoodsReceiptsPanel({ po }) {
   const today = new Date().toISOString().slice(0, 10);
 
   function openForm() {
+    // A row is a PO line, not a SKU: on a PO bought for several jobs one SKU
+    // is on several lines, and the receipt must say which it fills (F18).
     setFormLines((po.items || []).map(item => ({
+      poItemId: item.id ?? null,
       sku: item.sku,
       description: item.description,
       qtyExpected: item.qtyOrdered - item.qtyReceived,
@@ -132,7 +135,7 @@ export default function POGoodsReceiptsPanel({ po }) {
             </thead>
             <tbody>
               {formLines.map((ln, idx) => (
-                <tr key={ln.sku} className="border-b last:border-0">
+                <tr key={ln.poItemId ?? idx} className="border-b last:border-0">
                   <td className="px-2 py-1.5 font-mono font-bold text-accent-strong">{ln.sku}</td>
                   <td className="px-2 py-1.5 text-center text-muted">{ln.qtyExpected}</td>
                   <td className="px-2 py-1.5">

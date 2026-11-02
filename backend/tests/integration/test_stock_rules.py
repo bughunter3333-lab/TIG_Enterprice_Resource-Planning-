@@ -105,9 +105,15 @@ class TestWeight:
         self, client, db, make_inventory
     ):
         from app.core.job_weight import unweighed_lines
+        from app.models.logo import Logo
 
         make_inventory(sku="POLO-M", stock=10, weight_kg=0.25)
         make_inventory(sku="JKT-L", stock=10)
+        # The logo is registered, so its line is decoration work. An
+        # unregistered code is a bought-in garment, which is weighed (F08).
+        _customer(db)
+        db.add(Logo(code="EMB.CFG.LHC", customer_id="SR-C", decoration_type="EMB"))
+        db.commit()
         job = _create(
             client,
             db,

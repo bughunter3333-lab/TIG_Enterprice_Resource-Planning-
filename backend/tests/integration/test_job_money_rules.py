@@ -134,7 +134,8 @@ class TestTheServerTotalsTheLines:
         assert r.json()["total_ex"] == 151.95
         assert r.json()["total_inc"] == 167.15
 
-    def test_a_job_with_no_lines_keeps_the_totals_it_was_given(self, client, db):
+    def test_a_job_created_with_no_lines_totals_zero(self, client, db):
+        # Only the Jim2 import writes header totals (2026-10-26 plan, F04).
         _customer(db)
         r = client.post(
             "/jobs",
@@ -145,7 +146,7 @@ class TestTheServerTotalsTheLines:
                 "total_inc": 110.0,
             },
         )
-        assert r.json()["total_inc"] == 110.0
+        assert r.json()["total_inc"] == 0
 
 
 # ── F05: despatch invoices only what the status endpoint would ───────────────

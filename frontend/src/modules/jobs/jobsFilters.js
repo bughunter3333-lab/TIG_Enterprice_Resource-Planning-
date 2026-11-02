@@ -157,17 +157,27 @@ export function buildFilterOptions(jobs) {
   return { uniqueCustomers, uniqueAssignees, uniqueShipCodes, uniqueGroups };
 }
 
+// What the search box looks in. A portal order is known by its order number
+// (serial no.), whoever ordered it and, once gone, its connote — the same
+// fields the server's `GET /jobs?search=` reads (F01).
+const SEARCHED = ['customer', 'customerId', 'invoice', 'custRef', 'ourRef', 'shipTo',
+  'serialNo', 'nameContact', 'requestedBy', 'exJobRef', 'connote'];
+
+// The list holds the newest jobs only; a search also asks the server, and what
+// it finds beyond them joins the list. A loaded job keeps its loaded copy.
+export function mergeJobs(loaded, found) {
+  if (!found?.length) return loaded;
+  const have = new Set(loaded.map(j => String(j.id)));
+  const extra = found.filter(j => !have.has(String(j.id)));
+  return extra.length ? [...loaded, ...extra] : loaded;
+}
+
 export function filterJobs(jobs, f, currentUser, now = new Date()) {
   return jobs.filter(job => {
     const term = (f.searchTerm || '').toLowerCase();
     const matchesSearch = !term ||
       String(job.id).toLowerCase().includes(term) ||
-      (job.customer || '').toLowerCase().includes(term) ||
-      (job.customerId || '').toLowerCase().includes(term) ||
-      (job.invoice || '').toLowerCase().includes(term) ||
-      (job.custRef || '').toLowerCase().includes(term) ||
-      (job.ourRef || '').toLowerCase().includes(term) ||
-      (job.shipTo || '').toLowerCase().includes(term);
+      SEARCHED.some(key => String(job[key] || '').toLowerCase().includes(term));
 
     const matchesStatus = f.status === 'all' || job.status === f.status;
     const matchesPriority = f.priority === 'all' || job.priority === f.priority;

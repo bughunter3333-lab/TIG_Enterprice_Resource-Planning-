@@ -7,9 +7,25 @@ from sqlalchemy import (
     ForeignKey,
     Text,
     func,
+    or_,
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
+
+# A stock code kept for a charge rather than goods — freight, a set-up, a fee
+# (S2-05). Jim2's Service and Non-Depleting types, and the seed data's Service
+# category (FREIGHT, SETUP-SCRN). Such a line has no stock level: it is never
+# short, so it is supplied in full and never reserved, bought, weighed, picked
+# or listed as back-ordered. Read as goods, every job with a freight line sat
+# on the buying list and printed 'Freight: 1 back-ordered' on its delivery note.
+CHARGE_ITEM_TYPES = ("service", "non-depleting")
+CHARGE_CATEGORY = "service"
+
+
+def is_charge(item: "InventoryItem") -> bool:
+    return (item.item_type or "").strip().lower() in CHARGE_ITEM_TYPES or (
+        item.category or ""
+    ).strip().lower() == CHARGE_CATEGORY
 
 
 class InventoryItem(Base):
@@ -70,6 +86,14 @@ class InventoryItem(Base):
     @property
     def available_qty(self) -> int:
         return max(0, (self.stock or 0) - (self.committed_qty or 0))
+
+
+def charge_condition():
+    """`is_charge` in SQL, for a query over stock items."""
+    return or_(
+        func.lower(func.trim(InventoryItem.item_type)).in_(CHARGE_ITEM_TYPES),
+        func.lower(func.trim(InventoryItem.category)) == CHARGE_CATEGORY,
+    )
 
 
 class StockMovement(Base):

@@ -18,7 +18,8 @@ from app.core.stock_location import (
     position_qty,
     unlocated_qty,
 )
-from app.core.receiving import RECEIPT_TYPES
+from app.core import po_totals
+from app.core.receiving import RECEIPT_TYPES, touch_job
 from app.core.stock_ledger import place_unlocated, post_movement, post_relocation
 from app.core.replenishment import needs_replenishment, replenishment_rows
 from app.core.reservations import (
@@ -95,6 +96,10 @@ class StockAdjust(BaseModel):
     adjustment: int
     reason: str
     branch: str = "HQ"
+    # A write-off of goods an open order holds — decorated wrong, damaged in
+    # production. The job's lines give up the units and back-order them, so
+    # the buying list asks for the replacements (S2-17).
+    job_id: Optional[str] = None
 
 
 class PutAway(BaseModel):
@@ -603,6 +608,92 @@ def update_item(
     return item
 
 
+def _scrap_from_job(db: Session, sku: str, body: StockAdjust) -> str:
+    """The units written off come off the job's supply and are back-ordered.
+
+    Scrapping goods an order held left its lines supplied: the delivery note
+    listed 30 going when 26 shipped, and nothing asked for the 4 replacements
+    (S2-17). A line whose purchase order is closed has had all that order will
+    bring, so it goes back on the buying list; one waiting on an open order
+    keeps it, and the extra is bought by hand. The movement names the job, so
+    the loss is the job's.
+
+    Written off where the job holds them: returns that branch, for the
+    on-hand movement, so the reservation and the shelf move at one branch.
+    """
+    qty = -body.adjustment
+    if qty <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Only a write-off is made against a job — a negative adjustment",
+        )
+    job = db.get(Job, body.job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job {body.job_id} not found")
+    if job.status not in COMMITTED_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job {job.id} is {job.status} — it holds no stock to write off",
+        )
+    branch = job.branch or DEFAULT_BRANCH
+    if "branch" in body.model_fields_set and normalize_branch(
+        body.branch
+    ) != normalize_branch(branch):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Job {job.id} holds its stock at {branch}, not {body.branch}",
+        )
+    lines = sorted(
+        (
+            i
+            for i in job.items
+            if i.stock_code == sku
+            and i.display_type == "product"
+            and not i.is_service
+            and (i.supply_qty or 0) > 0
+        ),
+        key=lambda i: (-(i.sort or 0), -(i.id or 0)),
+    )
+    held = sum(int(i.supply_qty) for i in lines)
+    if held < qty:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job {job.id} holds {held} of {sku}, not {qty}",
+        )
+    closed = {
+        po.id
+        for po in db.query(PurchaseOrder).filter(
+            PurchaseOrder.id.in_({i.po_no for i in lines if i.po_no}),
+            PurchaseOrder.status.in_(("Received", "Cancelled")),
+        )
+    }
+    remaining = qty
+    for line in lines:
+        if remaining <= 0:
+            break
+        take = min(int(line.supply_qty), remaining)
+        line.supply_qty -= take
+        line.b_ord = int(line.b_ord or 0) + take
+        # A picked line sends its pick: it can no longer pick what is gone.
+        line.qty_pick = min(int(line.qty_pick or 0), line.supply_qty)
+        line.item_status = None
+        if line.po_no in closed:
+            line.po_no = line.po_due = None
+        remaining -= take
+    post_movement(
+        db,
+        sku=sku,
+        movement_type="Released",
+        branch=branch,
+        committed=-qty,
+        reference=job.id,
+        job_id=job.id,
+        notes=f"Released from Job {job.id} — {qty} written off",
+    )
+    touch_job(job)
+    return branch
+
+
 @router.post("/{sku}/adjust")
 def adjust_stock(
     sku: str,
@@ -618,13 +709,18 @@ def adjust_stock(
         raise HTTPException(
             status_code=400, detail="Adjustment would result in negative stock"
         )
+    branch = body.branch
+    if body.job_id is not None:
+        branch = _scrap_from_job(db, sku, body)
     post_movement(
         db,
         sku=sku,
         movement_type="Adjustment",
-        branch=body.branch,
+        branch=branch,
         quantity=body.adjustment,
         notes=body.reason,
+        job_id=body.job_id,
+        reference=body.job_id,
     )
     db.commit()
     db.refresh(item)
@@ -643,22 +739,16 @@ def delete_item(
     return {"ok": True}
 
 
-@router.get("/{sku}/locations")
-def get_locations(
-    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
-):
-    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
-        raise HTTPException(status_code=404, detail="Item not found")
-    locs = (
-        db.query(StockLocation)
-        .filter(StockLocation.sku == sku)
-        .order_by(StockLocation.branch)
-        .all()
-    )
-    # Reserved quantity is derived from the open jobs themselves rather than
-    # read off the stored counter, so it cannot drift from the jobs it claims to
-    # describe. On PO is derived the same way from outstanding purchase orders,
-    # against the branch that receives them.
+def _location_rows(db: Session, sku: str, locs: list) -> list:
+    """Stock positions as the screen reads them.
+
+    Reserved quantity is derived from the open jobs themselves rather than
+    read off the stored counter, so it cannot drift from the jobs it claims to
+    describe. On PO is derived the same way from outstanding purchase orders,
+    against the branch that receives them. The writes answer with this too:
+    they used to return the stored counter, which a branch move leaves behind
+    (F14), so a save showed a different figure from the list beside it.
+    """
     committed = committed_by_branch(db, sku)
     backordered = backordered_by_branch(db, sku)
     on_po = on_order_total(db, sku)
@@ -682,6 +772,21 @@ def get_locations(
         }
         for loc in locs
     ]
+
+
+@router.get("/{sku}/locations")
+def get_locations(
+    sku: str, db: Session = Depends(get_db), _: User = Depends(require_any)
+):
+    if not db.query(InventoryItem).filter(InventoryItem.sku == sku).first():
+        raise HTTPException(status_code=404, detail="Item not found")
+    locs = (
+        db.query(StockLocation)
+        .filter(StockLocation.sku == sku)
+        .order_by(StockLocation.branch)
+        .all()
+    )
+    return _location_rows(db, sku, locs)
 
 
 @router.post("/{sku}/locations")
@@ -726,21 +831,7 @@ def add_location(
     )
     db.commit()
     db.refresh(loc)
-    return {
-        "id": loc.id,
-        "sku": loc.sku,
-        "branch": loc.branch,
-        "zone": loc.zone,
-        "qty_on_hand": loc.qty_on_hand,
-        "committed_qty": loc.committed_qty,
-        "available_qty": loc.available_qty,
-        "backorder_qty": loc.backorder_qty,
-        "on_po_qty": loc.on_po_qty,
-        "primary_bin_1": loc.primary_bin_1,
-        "max_qty_bin_1": loc.max_qty_bin_1,
-        "primary_bin_2": loc.primary_bin_2,
-        "max_qty_bin_2": loc.max_qty_bin_2,
-    }
+    return _location_rows(db, sku, [loc])[0]
 
 
 @router.patch("/{sku}/locations/{branch}")
@@ -797,21 +888,7 @@ def update_location(
     )
     db.commit()
     db.refresh(loc)
-    return {
-        "id": loc.id,
-        "sku": loc.sku,
-        "branch": loc.branch,
-        "zone": loc.zone,
-        "qty_on_hand": loc.qty_on_hand,
-        "committed_qty": loc.committed_qty,
-        "available_qty": loc.available_qty,
-        "backorder_qty": loc.backorder_qty,
-        "on_po_qty": loc.on_po_qty,
-        "primary_bin_1": loc.primary_bin_1,
-        "max_qty_bin_1": loc.max_qty_bin_1,
-        "primary_bin_2": loc.primary_bin_2,
-        "max_qty_bin_2": loc.max_qty_bin_2,
-    }
+    return _location_rows(db, sku, [loc])[0]
 
 
 @router.delete("/{sku}/locations/{branch}")
@@ -1521,15 +1598,12 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
             po_id = f"{base_id}-{suffix}"
 
         po_items = []
-        total = 0.0
         for item in items:
             # Use explicit reorder_qty when set; fall back to doubling the min_stock shortfall
             if item.reorder_qty and item.reorder_qty > 0:
                 qty = item.reorder_qty
             else:
                 qty = max(item.min_stock * 2 - item.stock, item.min_stock)
-            line_total = float(qty * (item.unit_cost or 0))
-            total += line_total
             po_items.append(
                 PurchaseOrderItem(
                     sku=item.sku,
@@ -1537,7 +1611,6 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
                     qty_ordered=qty,
                     qty_received=0,
                     unit_cost=float(item.unit_cost or 0),
-                    total=line_total,
                 )
             )
 
@@ -1547,10 +1620,12 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
             supplier_name=supplier_name,
             status="Draft",
             order_date=today,
-            total=total,
             notes=f"Auto-generated reorder — {len(items)} low-stock item(s)",
         )
         po.items = po_items
+        # Totalled like every other PO: it set only `total`, ex GST, so its
+        # GST and inc-GST totals read 0 and payables never saw it (F15).
+        po_totals.set_totals(po)
         db.add(po)
         created_ids.append(po_id)
 

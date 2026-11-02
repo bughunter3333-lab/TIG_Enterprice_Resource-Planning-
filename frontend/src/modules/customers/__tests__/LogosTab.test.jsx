@@ -8,7 +8,7 @@ import { logos, suppliers, users } from '../../../api';
 import LogosTab, { logoProblems } from '../LogosTab';
 
 vi.mock('../../../api', () => ({
-  logos: { list: vi.fn(), create: vi.fn(), proof: vi.fn() },
+  logos: { list: vi.fn(), create: vi.fn(), proof: vi.fn(), update: vi.fn() },
   suppliers: { list: vi.fn() },
   users: { myAccess: vi.fn() },
 }));
@@ -61,6 +61,45 @@ test('a new logo is sent with its customer', async () => {
   fireEvent.change(form.getByPlaceholderText('EMB.CFG.LHC'), { target: { value: 'EMB.CFG.BACK' } });
   fireEvent.click(form.getByRole('button', { name: 'Add logo' }));
   await waitFor(() => expect(logos.create).toHaveBeenCalledWith(expect.objectContaining({ code: 'EMB.CFG.BACK', customerId: 'CFG' })));
+});
+
+const EDITOR = { ...STAFF, allowed: [...STAFF.allowed, 'PATCH /logos/{logo_id}'] };
+
+test('editing a logo sends only what changed, through PATCH /logos/{id} (F09)', async () => {
+  users.myAccess.mockResolvedValue(EDITOR);
+  logos.update.mockResolvedValue({ ...LOGO, priceEx: 7, madeBy: 'in_house', supplierId: null });
+  renderWithQuery(<LogosTab customerId="CFG" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit EMB.CFG.LHC' }));
+  const form = within(screen.getByRole('form', { name: 'Edit EMB.CFG.LHC' }));
+  expect(form.getByLabelText('Price ex GST').value).toBe('6.5');
+  fireEvent.change(form.getByLabelText('Price ex GST'), { target: { value: '7' } });
+  fireEvent.change(form.getByLabelText('Done'), { target: { value: 'in_house' } });
+  fireEvent.click(form.getByRole('button', { name: 'Save' }));
+  // A stitch count sent unchanged could read as new artwork and reopen the proof.
+  await waitFor(() => expect(logos.update).toHaveBeenCalledWith(4, { priceEx: '7', madeBy: 'in_house', supplierId: '' }));
+});
+
+test('a logo can be made inactive, and an inactive one is still listed to bring back', async () => {
+  users.myAccess.mockResolvedValue(EDITOR);
+  logos.list.mockResolvedValue([LOGO, { ...LOGO, id: 6, code: 'EMB.CFG.OLD', isActive: false }]);
+  logos.update.mockResolvedValue({ ...LOGO, isActive: false });
+  renderWithQuery(<LogosTab customerId="CFG" />);
+  const old = within((await screen.findByText('EMB.CFG.OLD')).closest('tr'));
+  expect(old.getByText('Inactive')).toBeInTheDocument();
+  expect(logos.list).toHaveBeenCalledWith('CFG', { includeInactive: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Edit EMB.CFG.LHC' }));
+  const form = within(screen.getByRole('form', { name: 'Edit EMB.CFG.LHC' }));
+  fireEvent.click(form.getByLabelText('Active'));
+  fireEvent.click(form.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(logos.update).toHaveBeenCalledWith(4, { isActive: false }));
+});
+
+test('a role that may not change logos is not offered Edit', async () => {
+  users.myAccess.mockResolvedValue(STAFF);
+  renderWithQuery(<LogosTab customerId="CFG" />);
+  expect(await screen.findByText('EMB.CFG.LHC')).toBeInTheDocument();
+  await screen.findByRole('button', { name: 'New logo' });
+  expect(screen.queryByRole('button', { name: 'Edit EMB.CFG.LHC' })).not.toBeInTheDocument();
 });
 
 test('what makes a new logo unsaveable', () => {

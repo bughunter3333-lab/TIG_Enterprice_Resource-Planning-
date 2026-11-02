@@ -2,6 +2,14 @@ import { dayKey, todayKey } from '../../lib/dates';
 
 export const PO_STATUSES = ['Draft', 'Sent', 'Partial', 'Received', 'Cancelled'];
 
+// What a person may set. Partial and Received follow from what the lines have
+// received; the server refuses them by hand (F29).
+export const SETTABLE_PO_STATUSES = ['Draft', 'Sent', 'Cancelled'];
+
+// Closed: nothing is left to send the supplier, and the server refuses to
+// email one (409, UNSENDABLE_STATUSES in routers/purchase_orders.py; F17).
+export const UNSENDABLE_PO_STATUSES = ['Cancelled', 'Received'];
+
 export const EMPTY_PO_FILTERS = { search: '', status: 'all' };
 
 /**

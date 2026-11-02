@@ -389,6 +389,10 @@ def health(db: Session) -> dict:
         "invoiced_without_date": undated,
         "totals_disagree_with_lines": totals_off,
         "balances_disagree_with_invoices": balances_off,
+        "po_totals_disagree_with_lines": _purchase_orders_disagreeing_with_their_lines(
+            db
+        ),
+        "portal_orders_booked_twice": _portal_orders_booked_twice(db),
         "in_agreement": (
             balances[receivable.id] == ar_expected
             and balances[payable.id] == ap_expected
@@ -454,3 +458,71 @@ def _documents_disagreeing_with_themselves(db: Session) -> tuple[list, list]:
                 }
             )
     return totals_off, balances_off
+
+
+def _purchase_orders_disagreeing_with_their_lines(db: Session) -> list:
+    """POs whose stored totals are not their lines (F15).
+
+    Every PO write totals its lines now (`app/core/po_totals.py`), but
+    auto-reorder used to set only an ex-GST `total`, leaving the GST and
+    inc-GST totals that payables and committed spend read at zero. Those POs
+    are still in the data; listed, they get looked at instead of trusted.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.core import po_totals
+    from app.models.purchase_order import PurchaseOrder
+
+    off = []
+    for po in (
+        db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
+        .order_by(PurchaseOrder.id)
+    ):
+        if not po.items:
+            continue  # no lines to disagree with
+        lines = po_totals.from_lines(po.items)
+        stored = (money(po.total_ex), money(po.tax_total), money(po.total_inc))
+        if stored != tuple(lines):
+            off.append(
+                {
+                    "po_id": po.id,
+                    "supplier": po.supplier_name,
+                    "header": f(money(po.total_inc)),
+                    "lines": f(lines.inc),
+                }
+            )
+    return off
+
+
+def _portal_orders_booked_twice(db: Session) -> list:
+    """Online-store orders booked as more than one job (F01).
+
+    A retry is refused now, but a repeat booked before that is still in the
+    data, and a unique index on the order number would fail the deploy on it.
+    Same customer and order number, not cancelled — the order number read the
+    way the refusal reads it, so this lists what it would have refused.
+    """
+    from app.routers.jobs import PORTAL_ITEM_NO, _order_number
+
+    by_order: dict[tuple, list] = {}
+    for job in (
+        db.query(Job)
+        .filter(Job.item_no == PORTAL_ITEM_NO, Job.status != "CANCEL")
+        .order_by(Job.id)
+    ):
+        number = _order_number(job.serial_no)
+        if number:
+            by_order.setdefault((job.customer_id, number.lower()), []).append(
+                (job, number)
+            )
+    return [
+        {
+            "customer_id": jobs[0][0].customer_id,
+            "customer": jobs[0][0].customer_name,
+            "order_no": jobs[0][1],
+            "job_ids": [job.id for job, _ in jobs],
+        }
+        for jobs in by_order.values()
+        if len(jobs) > 1
+    ]

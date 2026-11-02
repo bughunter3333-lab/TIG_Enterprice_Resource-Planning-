@@ -68,10 +68,8 @@ class TestEveryWayInIsDated:
                 "customer_name": "Made Invoiced",
                 "status": "INVOICE",
                 "invoice": "INV-ID-NEW",
-                "total_ex": 100,
-                "tax": 10,
-                "total_inc": 110,
-                "items": [],
+                # The total is the lines' (F04): a lineless job totals zero.
+                "items": [{"description": "Polo", "order_qty": 1, "price_ex": 100}],
             },
         )
         assert r.status_code == 200, r.text

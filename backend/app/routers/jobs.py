@@ -1,23 +1,40 @@
+import hashlib
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy import func, cast, Integer
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import func, cast, Integer, text
 from sqlalchemy.orm import Session, joinedload
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.database import get_db
-from app.core import invoice_numbers, job_totals, job_weight
+from app.core import (
+    despatch_documents,
+    invoice_numbers,
+    job_totals,
+    job_weight,
+    payment_terms,
+)
 from app.core.reservations import COMMITTED_STATUSES, committed_total
+from app.core.stock_location import DEFAULT_BRANCH
 from app.core.stock_ledger import post_movement, reverse_job_movements
 from app.core.ledger import LedgerError
 from app.core.ledger_postings import has_posted_invoice, sync_invoice, sync_payment
-from app.models.dispatch_session import DispatchSession, DispatchSessionLine
+from app.models.dispatch_session import (
+    DispatchLineItem,
+    DispatchSession,
+    DispatchSessionLine,
+)
 from app.models.job import Job, JobItem, JobComment
 from app.models.job_payment import JobPayment
 from app.models.logo import Logo
 from app.models.customer import Customer
-from app.models.inventory import InventoryItem, StockMovement
+from app.models.inventory import InventoryItem, StockMovement, is_charge
+from app.models.settings import CompanySettings
+from app.models.stock_pricing import StockPriceLevel
 from app.core.dependencies import (
+    SERVICE_ROLES,
     require_any,
     require_commenter,
     require_intake,
@@ -142,13 +159,16 @@ class JobItemSchema(BaseModel):
     stitch_count: Optional[int] = None
     color_count: Optional[int] = None
     dec_position: Optional[str] = None
-    order_qty: int = 0
+    # Never below zero (S2-07): a -1 line keyed for a return reserved -1, so
+    # every availability check saw a unit that does not exist, and restocked
+    # nothing. A return is not a negative order.
+    order_qty: int = Field(0, ge=0)
     # None means "work it out"; 0 means "supply nothing from stock", which is a
     # real choice on a line that is entirely bought in. The job form always
     # sends both, so this only affects callers that omit them.
-    supply_qty: Optional[int] = None
-    qty: int = 0
-    b_ord: Optional[int] = None
+    supply_qty: Optional[int] = Field(None, ge=0)
+    qty: int = Field(0, ge=0)
+    b_ord: Optional[int] = Field(None, ge=0)
     qty_pick: int = 0
     qty_delivered: int = 0
     qty_invoiced: int = 0
@@ -227,6 +247,14 @@ class _JobSharedFields(BaseModel):
     requested_by: Optional[str] = None
     lock_rate: Optional[bool] = None
 
+    @field_validator("branch")
+    @classmethod
+    def _blank_branch_is_hq(cls, value: Optional[str]) -> Optional[str]:
+        # Null, which every derived figure reads as HQ. '' was stored as a branch
+        # of its own: the reservation stayed at HQ while the derived committed
+        # figure moved to '' (F14).
+        return value if value is None or value.strip() else None
+
 
 class JobCreate(_JobSharedFields):
     id: Optional[str] = None
@@ -255,6 +283,8 @@ class JobUpdate(_JobSharedFields):
 
 
 class StatusUpdate(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     status: str
     # Invoicing goods the system says do not exist is refused by default. A
     # wrong count is ordinary, so it can be accepted deliberately, and the
@@ -271,6 +301,8 @@ class CommentCreate(BaseModel):
 
 
 class BulkStatusRequest(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     job_ids: List[str] = Field(min_length=1)
     status: str
     allow_negative_stock: bool = False
@@ -278,6 +310,8 @@ class BulkStatusRequest(BaseModel):
 
 class DuplicateRequest(BaseModel):
     """Overrides for the copy. Everything omitted carries over from the source."""
+
+    model_config = _KNOWN_FIELDS_ONLY
 
     ship_to: Optional[str] = None
     ship_to_id: Optional[int] = None
@@ -288,10 +322,14 @@ class DuplicateRequest(BaseModel):
 
 
 class LockToggle(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     locked: bool
 
 
 class PaymentCreate(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     amount: float
     method: str = "EFT"
     reference: Optional[str] = None
@@ -300,19 +338,62 @@ class PaymentCreate(BaseModel):
 
 
 class DispatchRequest(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     ship_via: str = Field(max_length=100)
     ship_ref: str = Field(max_length=100)
     cartons: int = Field(1, ge=1)
     notes: Optional[str] = None
     advance_status: bool = False
+    # A job that has gone already goes again only when this says so: a further
+    # consignment, such as back-ordered sizes following on (F22).
+    again: bool = False
+    # The day it goes, when not today — after the carrier's cut-off (B1-07).
+    despatch_date: Optional[date] = None
+
+
+# How far a despatch may be dated from today: a consignment recorded late, or
+# booked for the next collection. Beyond that it is a typing slip (2062).
+DESPATCH_DATE_BACK_DAYS = 30
+DESPATCH_DATE_AHEAD_DAYS = 14
+
+
+def despatch_day(value: Optional[date]) -> str:
+    """The ISO day a despatch goes: today unless given, and within range.
+
+    The screens send the browser's day. The API keeps UTC, which is a day
+    behind Sydney until 10 or 11 in the morning, so the range allows a day
+    either side of the server's today: a date the screen offers is never
+    refused for it.
+    """
+    today = date.today()
+    if value is None:
+        return today.isoformat()
+    if not (
+        today - timedelta(days=DESPATCH_DATE_BACK_DAYS + 1)
+        <= value
+        <= today + timedelta(days=DESPATCH_DATE_AHEAD_DAYS + 1)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A despatch is dated within {DESPATCH_DATE_BACK_DAYS} days before "
+                f"and {DESPATCH_DATE_AHEAD_DAYS} days after today, not {value}"
+            ),
+        )
+    return value.isoformat()
 
 
 class PickLine(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     item_id: int
     qty_pick: int = Field(ge=0)
 
 
 class PickRequest(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     picks: List[PickLine]
 
 
@@ -409,7 +490,14 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
     """
     if not job.customer_id:
         return
-    customer = db.query(Customer).filter(Customer.id == job.customer_id).first()
+    # Locked for the check: two orders for one customer at the same moment
+    # each left the other out of 'open orders', and both passed (F27).
+    customer = (
+        db.query(Customer)
+        .filter(Customer.id == job.customer_id)
+        .with_for_update()
+        .first()
+    )
     if not customer:
         return
     if customer.credit_hold:
@@ -489,8 +577,44 @@ def _check_status_change(
         _validate_transition(job, new_status, by)
     _require_role_for(job, new_status, by)
     _validate_required_fields(job, new_status)
+    _require_approved_proofs(job, new_status)
     if credit and _takes_an_order(job.status, new_status):
         _check_credit_limit(job, db)
+
+
+_PRINTED = PRODUCTION_LADDER[PRODUCTION_LADDER.index("PRINT") :]
+
+
+def _require_approved_proofs(job: "Job", new_status: str) -> None:
+    """A job goes to print only once each logo on it is approved (S2-15).
+
+    It reached PRINT with its logo's proof never sent: nothing linked the
+    production step to the logo master's approval. Checked on the way from
+    anywhere before PRINT — a quote, a portal order, a job being created — to
+    PRINT, past it or straight to invoiced: skipping forward does not skip it.
+    Not on a job brought back, which was printed already. A logo is approved
+    once, for every job (`POST /logos/{id}/proof`).
+    """
+    printed_already = job.status in _PRINTED or job.status in _DEPLETED_STATUSES
+    if printed_already or not (
+        new_status in _PRINTED or new_status in _DEPLETED_STATUSES
+    ):
+        return
+    waiting = sorted(
+        {
+            item.logo_code or f"logo {item.logo_id}"
+            for item in job.items
+            if item.logo_id is not None and item.logo_proof_status != "approved"
+        }
+    )
+    if waiting:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Job {job.id} cannot go to {new_status}: the proof of "
+                f"{', '.join(waiting)} is not approved"
+            ),
+        )
 
 
 def _total_from_lines(job: "Job", *, emptied: bool = False) -> None:
@@ -498,9 +622,10 @@ def _total_from_lines(job: "Job", *, emptied: bool = False) -> None:
 
     The header used to be whatever the caller sent, so a line added at despatch
     without resending the totals was never charged (F04). A job with no lines —
-    a Jim2 import carries totals only — keeps the totals it was given; one
-    whose last line a save has just removed (`emptied`) totals zero, or it
-    went on charging for lines it no longer has.
+    a Jim2 import carries totals only — keeps the totals it has (nothing here
+    takes them from a caller, `_HEADER_TOTALS`); one whose last line a save
+    has just removed (`emptied`) totals zero, or it went on charging for lines
+    it no longer has.
     """
     items = list(job.items)
     if not items:
@@ -516,7 +641,7 @@ def _total_from_lines(job: "Job", *, emptied: bool = False) -> None:
 
 
 def _require_invoice_number_free(db: Session, number: Optional[str], job_id) -> None:
-    holder = invoice_numbers.holder_of(db, number, except_job_id=job_id)
+    holder = invoice_numbers.typed_holder(db, number, except_job_id=job_id)
     if holder is not None:
         raise HTTPException(
             status_code=409,
@@ -579,6 +704,21 @@ def _post_reservation(job: "Job", db: Session, changes: dict[str, int]) -> None:
             job_id=job.id,
             notes=f"{'Committed for' if delta > 0 else 'Released from'} Job {job.id}",
         )
+
+
+def _move_reservation(job: "Job", db: Session, to_branch: Optional[str]) -> None:
+    """Take an open order's reservation to the branch that will now ship it.
+
+    Released where it was held and committed at the new branch, so the stored
+    per-branch figure follows the job; a branch change used to leave it at the
+    old branch, where nothing would ever release it (F14).
+    """
+    if (to_branch or DEFAULT_BRANCH) == (job.branch or DEFAULT_BRANCH):
+        return
+    held = _reserved_by_sku(job)
+    _post_reservation(job, db, {sku: -qty for sku, qty in held.items()})
+    job.branch = to_branch
+    _post_reservation(job, db, held)
 
 
 def _commit_job_stock(job: "Job", db: Session) -> None:
@@ -728,19 +868,105 @@ def _is_stock_line(item: "JobItem") -> bool:
     )
 
 
-def _logo_for(db: Session, data: dict) -> Optional[Logo]:
+def _logo_for(db: Session, data: dict, customer_id: Optional[str]) -> Optional[Logo]:
+    """The logo a line applies: one of the job's customer's active logos.
+
+    Named by id, or found by the line's stock code. Any logo used to match, so
+    a line took another customer's logo — its price, stitches and proof — or a
+    retired one (F09), and the portal could read any logo's cost back (F26).
+    The refusal does not say whether the logo exists for someone else.
+    """
+    theirs = db.query(Logo).filter(
+        Logo.customer_id == customer_id, Logo.is_active.is_(True)
+    )
     if data.get("logo_id"):
-        logo = db.get(Logo, data["logo_id"])
+        logo = theirs.filter(Logo.id == data["logo_id"]).first()
         if logo is None:
-            raise HTTPException(status_code=422, detail=f"No logo {data['logo_id']}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"No logo {data['logo_id']} for customer {customer_id}",
+            )
         return logo
     code = (data.get("stock_code") or "").strip()
     if not code:
         return None
-    return db.query(Logo).filter(func.lower(Logo.code) == code.lower()).first()
+    return theirs.filter(func.lower(Logo.code) == code.lower()).first()
 
 
-def _new_line(line: "JobItemSchema", db: Session) -> "JobItem":
+def _require_own_logos(db: Session, job: "Job", customer_id: Optional[str]) -> None:
+    """A job for `customer_id` carries no other customer's logo lines (F09).
+
+    `_logo_for` is asked only when a line is written, so moving a job to another
+    customer kept the first customer's logo — its price, stitches and proof —
+    on the new customer's job. The refusal names the lines to take off first.
+    """
+    ids = {item.logo_id for item in job.items if item.logo_id is not None}
+    if not ids:
+        return
+    logos = {logo.id: logo for logo in db.query(Logo).filter(Logo.id.in_(ids))}
+    foreign = [
+        f"line {item.sort} ({logos[item.logo_id].code})"
+        for item in sorted(job.items, key=lambda i: i.sort or 0)
+        if item.logo_id in logos and logos[item.logo_id].customer_id != customer_id
+    ]
+    if foreign:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Job {job.id} carries another customer's logo on "
+                f"{', '.join(foreign)} — take those lines off before moving it "
+                f"to {customer_id}"
+            ),
+        )
+
+
+def _require_no_retired_logo(db: Session, job: "Job") -> None:
+    """Create Similar applies no retired logo (F09).
+
+    `_logo_for` refuses one on a line written by hand; a copy took the source's
+    logo as it stood, so new work went out with artwork the customer retired.
+    """
+    retired = [
+        f"line {item.sort} ({logo.code})"
+        for item in sorted(job.items, key=lambda i: i.sort or 0)
+        if item.logo_id is not None
+        and (logo := db.get(Logo, item.logo_id)) is not None
+        and not logo.is_active
+    ]
+    if retired:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Job {job.id} applies a retired logo on {', '.join(retired)} — "
+                "change those lines before copying it"
+            ),
+        )
+
+
+def _from_logo(logo: Logo, line: dict, sent: set) -> dict:
+    """What a line applying `logo` takes from it, where the line says nothing."""
+    taken = {
+        "logo_id": logo.id,
+        "dec_code": line.get("dec_code") or logo.code,
+        "dec_position": line.get("dec_position") or logo.position,
+    }
+    if line.get("decoration_type") in (None, "", "None"):
+        taken["decoration_type"] = logo.decoration_type
+    if line.get("stitch_count") is None:
+        taken["stitch_count"] = logo.stitch_count
+    if "price_ex" not in sent and "price_inc" not in sent:
+        taken["price_ex"] = float(logo.price_ex or 0)
+    if "purchase_price" not in sent:
+        taken["purchase_price"] = float(logo.cost_ex or 0)
+    return taken
+
+
+def _new_line(
+    line: "JobItemSchema",
+    db: Session,
+    customer_id: Optional[str],
+    price_level: Optional[str] = None,
+) -> "JobItem":
     """A new job line, as the server builds it — from the form, a portal or a script.
 
     A line carrying a logo's code applies that logo: it points at it, and takes
@@ -751,29 +977,94 @@ def _new_line(line: "JobItemSchema", db: Session) -> "JobItem":
     garments to buy (F12).
     """
     data = line.model_dump(exclude={"id", "applies_to_line"})
-    sent = line.model_fields_set
-    logo = _logo_for(db, data)
+    logo = _logo_for(db, data, customer_id)
     if logo is not None:
-        data["logo_id"] = logo.id
-        if data.get("decoration_type") in (None, "", "None"):
-            data["decoration_type"] = logo.decoration_type
-        data["dec_code"] = data.get("dec_code") or logo.code
-        data["dec_position"] = data.get("dec_position") or logo.position
-        if data.get("stitch_count") is None:
-            data["stitch_count"] = logo.stitch_count
-        if "price_ex" not in sent:
-            data["price_ex"] = float(logo.price_ex or 0)
-        if "purchase_price" not in sent:
-            data["purchase_price"] = float(logo.cost_ex or 0)
+        data.update(_from_logo(logo, data, line.model_fields_set))
+    _price_line(data, line.model_fields_set, db, price_level)
+    # Set now: `is_charge` is read from the database, and a line not yet
+    # flushed has none — its weight and what it may apply to are worked out
+    # before then (the flush reads it again).
+    charge = _is_charge_code(db, data.get("stock_code"))
     if (
         logo is not None
         or line.applies_to_line is not None
         or data.get("applies_to_item_id")
+        or charge
     ):
         data["supply_qty"] = int(data.get("order_qty") or 0)
         data["b_ord"] = 0
-        return JobItem(**data)
-    return JobItem(**_derive_line_split(data, db))
+        item = JobItem(**data)
+    else:
+        item = JobItem(**_derive_line_split(data, db))
+    item.is_charge = charge
+    return item
+
+
+def _price_line(data: dict, sent: set, db: Session, price_level: Optional[str]) -> None:
+    """The price of a new line that did not say its price ex GST.
+
+    Priced inc GST only — the online store sends its shelf prices — it is
+    held at that price (S2-08). Those lines were stored at $0: price_inc was
+    accepted and never read, and the order totalled nothing. Sent no price at
+    all, a stock code takes the stock's price (S2-16); it was booked at $0.
+    A logo line has the logo's price already (`_from_logo`).
+    """
+    if "price_ex" in sent:
+        return
+    if "price_inc" in sent:
+        inc = float(data.get("price_inc") or 0)
+        if inc:
+            data["priced_inc"] = True
+            data["price_ex"] = round(inc / 1.1, 2)
+        return
+    if data.get("logo_id"):
+        return
+    price = _stock_price(
+        db, data.get("stock_code"), int(data.get("order_qty") or 0), price_level
+    )
+    if price is not None:
+        data["price_ex"] = price
+        data["price_inc"] = round(price * 1.1, 2)
+
+
+def _stock_price(
+    db: Session, sku: Optional[str], qty: int, price_level: Optional[str]
+) -> Optional[float]:
+    """A stock code's price ex GST for `qty` on the job's price level (S2-16).
+
+    The level the job names, or the stock's only level when it names none it
+    has; on it, the break for the line's own quantity — not the customer's
+    running total, so a later order never reprices an earlier one. Without a
+    level or a break that applies, the stock's sell price. None when the code
+    is no stock item or has no price.
+    """
+    if not sku:
+        return None
+    inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    if inv is None:
+        return None
+    levels = db.query(StockPriceLevel).filter(StockPriceLevel.sku == sku).all()
+    wanted = (price_level or "").strip().lower()
+    level = next((lv for lv in levels if lv.price_level.lower() == wanted), None)
+    if level is None and len(levels) == 1:
+        level = levels[0]
+    if level is not None:
+        breaks = [b for b in level.breakpoints if (b.min_qty or 0) <= qty]
+        if breaks:
+            best = max(breaks, key=lambda b: b.min_qty or 0)
+            return round(float(best.price_ex), 2)
+    return float(inv.sell_price) if inv.sell_price else None
+
+
+def _is_charge_code(db: Session, sku: Optional[str]) -> bool:
+    """A stock code kept for freight, a set-up or a fee, not goods (S2-05).
+
+    `JobItem.is_charge` says the same of a saved line; this is for a line not
+    flushed yet, or one just recoded."""
+    if not sku:
+        return False
+    inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+    return inv is not None and is_charge(inv)
 
 
 def _applies_to_targets(
@@ -783,6 +1074,9 @@ def _applies_to_targets(
     by_sort: dict = {}
     for item in items:
         by_sort.setdefault(item.sort, []).append(item)
+    # Not linked yet, so a line that itself applies to another does not read
+    # as a service until after this; it is not goods either way.
+    sources = {id(item) for item, _ in pairs}
     resolved = []
     for item, target_sort in pairs:
         targets = [t for t in by_sort.get(target_sort, []) if t is not item]
@@ -794,8 +1088,20 @@ def _applies_to_targets(
                     "one line on this job"
                 ),
             )
+        if id(targets[0]) in sources or not _is_stock_line(targets[0]):
+            raise _not_a_goods_line(item, f"line {target_sort}")
         resolved.append((item, targets[0]))
     return resolved
+
+
+def _not_a_goods_line(item: "JobItem", target: str) -> HTTPException:
+    return HTTPException(
+        status_code=422,
+        detail=(
+            f"Line {item.sort} applies to {target}, which is not a goods line "
+            "on this job"
+        ),
+    )
 
 
 def _link(resolved: list[tuple["JobItem", "JobItem"]]) -> None:
@@ -823,8 +1129,10 @@ def _reconcile_items(job: "Job", incoming: List["JobItemSchema"], db: Session) -
     name a line they apply to, for `_applies_to_targets` once the lines are in.
     """
     existing = {item.id: item for item in job.items}
+    kept = {line.id for line in incoming if line.id in existing}
     seen = set()
     pairs = []
+    named = []
 
     for line in incoming:
         current = existing.get(line.id) if line.id is not None else None
@@ -833,38 +1141,174 @@ def _reconcile_items(job: "Job", incoming: List["JobItemSchema"], db: Session) -
             # omitted field with its schema default, which puts back the same
             # wipe the delete-and-recreate caused — po_no and qty_pick are
             # written by other screens and rarely appear in a save payload.
-            for name, value in line.model_dump(
+            sent = line.model_dump(
                 exclude={"id", "applies_to_line"}, exclude_unset=True
-            ).items():
+            )
+            recoded = "stock_code" in sent and (
+                (sent["stock_code"] or "").strip().lower()
+                != (current.stock_code or "").strip().lower()
+            )
+            ordered_before = int(current.order_qty or 0)
+            ex_before = round(float(current.price_ex or 0), 2)
+            for name, value in sent.items():
                 setattr(current, name, value)
-            if current.is_service or line.applies_to_line is not None:
+            # A new price ex GST typed over a line priced inc GST reprices it
+            # ex; the form resending the one it was shown does not (S2-08).
+            if current.priced_inc:
+                if round(float(current.price_ex or 0), 2) != ex_before:
+                    current.priced_inc = False
+                else:
+                    current.price_ex = round(float(current.price_inc or 0) / 1.1, 2)
+            # A saved line given a logo's code applies the logo, as a new line
+            # does; it stayed goods and was bought (F02). So does one keyed
+            # before its logo was registered, on whichever save comes next.
+            if recoded or "logo_id" in sent or current.logo_id is None:
+                _relink_logo(current, sent, db, job.customer_id, recoded=recoded)
+            # A recoded line's `is_charge` is its old code's until it is
+            # flushed; set it now for what reads it before then.
+            charge = (
+                _is_charge_code(db, current.stock_code)
+                if recoded
+                else bool(current.is_charge)
+            )
+            current.is_charge = charge
+            if (
+                current.logo_id is not None
+                or current.applies_to_item_id is not None
+                or charge
+                or line.applies_to_line is not None
+            ):
                 current.supply_qty, current.b_ord = current.order_qty or 0, 0
+            elif _split_is_stale(current, sent, ordered_before, recoded):
+                split = _derive_line_split(
+                    {"order_qty": current.order_qty, "stock_code": current.stock_code},
+                    db,
+                    job=job,
+                    siblings=tuple(
+                        i for i in job.items if i is not current and i.id in kept
+                    ),
+                )
+                current.supply_qty, current.b_ord = split["supply_qty"], split["b_ord"]
             seen.add(current.id)
         else:
             # No id, or an id this job does not own — either way it is new here,
             # and a new row does want the defaults.
-            current = _new_line(line, db)
+            current = _new_line(line, db, job.customer_id, job.price_level)
             job.items.append(current)
         if line.applies_to_line is not None:
             pairs.append((current, line.applies_to_line))
+        else:
+            named.append(current)
 
     for item_id, item in existing.items():
         if item_id not in seen:
             db.delete(item)
+    # Checked once every line is in its final state, and every line, not only
+    # the ones that resent it: any id was accepted (a line on another job, the
+    # line itself, one not there), and a garment turned into a note or deleted
+    # left its alteration pointing at nothing (F19). A line relinked by its
+    # `applies_to_line` is checked by `_applies_to_targets` instead.
+    for item in named:
+        target_id = item.applies_to_item_id
+        if target_id is None:
+            continue
+        target = existing.get(target_id) if target_id in seen else None
+        if target is None or target is item or not _is_stock_line(target):
+            raise _not_a_goods_line(item, _line_name(existing, seen, target_id))
     return pairs
 
 
-def _derive_line_split(data: dict, db: Session) -> dict:
+def _split_is_stale(
+    item: "JobItem", sent: dict, ordered_before: int, recoded: bool
+) -> bool:
+    """A saved goods line's supply and back-order no longer describe it (S2-03).
+
+    Its quantity or its code changed, and the save did not send a split that
+    adds up to the new quantity. A save that sent the old split with a new
+    quantity — or none at all — kept the old one: 26 polos billed, 22
+    reserved and shipped, and the 4 never back-ordered, so never bought.
+    """
+    if item.display_type != "product":
+        return False
+    order = int(item.order_qty or 0)
+    if not recoded and order == ordered_before:
+        return False
+    supply, back_order = sent.get("supply_qty"), sent.get("b_ord")
+    if supply is None or back_order is None:
+        return True
+    return int(supply) + int(back_order) != order
+
+
+def _line_name(existing: dict, seen: set, item_id: int) -> str:
+    """How a refusal names the line an alteration points at."""
+    target = existing.get(item_id)
+    if target is None:
+        return f"item {item_id}"
+    return f"line {target.sort}" + ("" if item_id in seen else " (removed)")
+
+
+def _relink_logo(
+    item: "JobItem",
+    sent: dict,
+    db: Session,
+    customer_id: Optional[str],
+    *,
+    recoded: bool,
+) -> None:
+    """Apply the logo a saved line now names, by id or by its code.
+
+    Recoded to a code that is none of the customer's logos, it drops the logo
+    it had and is goods again, split as a new goods line is: it kept the logo,
+    so the garment it now names was never bought (F02).
+    """
+    logo = _logo_for(
+        db,
+        {"logo_id": sent.get("logo_id"), "stock_code": item.stock_code},
+        customer_id,
+    )
+    if logo is None:
+        if recoded and item.logo_id is not None:
+            item.logo_id = None
+            if not item.is_service:
+                split = _derive_line_split(
+                    {
+                        "order_qty": item.order_qty,
+                        "stock_code": item.stock_code,
+                        "supply_qty": sent.get("supply_qty"),
+                        "b_ord": sent.get("b_ord"),
+                    },
+                    db,
+                )
+                item.supply_qty, item.b_ord = split["supply_qty"], split["b_ord"]
+        return
+    line = {
+        name: getattr(item, name)
+        for name in ("decoration_type", "dec_code", "dec_position", "stitch_count")
+    }
+    for name, value in _from_logo(logo, line, set(sent)).items():
+        setattr(item, name, value)
+
+
+def _derive_line_split(
+    data: dict,
+    db: Session,
+    *,
+    job: Optional["Job"] = None,
+    siblings: tuple = (),
+) -> dict:
     """Fill in supply and back-order for a line that did not state them.
 
     Mirrors the job form: supply what is available, back-order the rest, and
     cap supply at availability rather than at stock on hand, so two orders
     cannot both reserve the same units. A line with no stock code has nothing
     to reserve and nothing to procure -- that is how the freight and decoration
-    lines read in Jim2, Order 1 / Supply 1 / B.Ord 0.
+    lines read in Jim2, Order 1 / Supply 1 / B.Ord 0. Nor has a charge kept as
+    a stock code (S2-05).
 
     Only called for lines that omitted the fields. An explicit zero is a
-    decision and is left alone.
+    decision and is left alone. For a saved line of `job`, what is available
+    leaves out what the job itself holds, but its other lines (`siblings`)
+    still count against it.
     """
     supply_given = data.get("supply_qty") is not None
     bord_given = data.get("b_ord") is not None
@@ -883,13 +1327,22 @@ def _derive_line_split(data: dict, db: Session) -> dict:
             # Not a stocked line. Nothing to reserve; the whole quantity has to
             # be bought, which is what the buying screen is for.
             supply, back_order = 0, order
+        elif is_charge(inv):
+            supply, back_order = order, 0
         else:
             # committed_total, not InventoryItem.committed_qty. The stored
             # column is not maintained -- inventory.py derives commitment from
             # the open jobs themselves and overrides it on read, "so what the
             # grid shows cannot drift from the documents it describes".
             # Reading the column here made every line look fully suppliable.
-            committed = committed_total(db, sku)
+            if job is None:
+                committed = committed_total(db, sku)
+            else:
+                committed = committed_total(db, sku, excluding_job=job.id) + sum(
+                    int(other.supply_qty or 0)
+                    for other in siblings
+                    if other.stock_code == sku and _is_stock_line(other)
+                )
             available = max(0, int(inv.stock or 0) - committed)
             supply = min(order, available)
             back_order = max(0, order - supply)
@@ -946,6 +1399,39 @@ def _supply_only_what_is_free(job: "Job", db: Session) -> None:
                 "booked against is no longer free",
             )
         )
+
+
+def _cap_supply_at_free(job: "Job", db: Session, held: dict) -> None:
+    """A save never has an open order hold more than is free to it (S2-03).
+
+    Each line's split is worked out on its own while the save is applied, so
+    a quantity raised and a line added in one save could each take the same
+    free units: 13 held of 10 on hand, nothing back-ordered, nothing bought.
+    Run once the save's lines are flushed, over all of them together: for a
+    SKU the job now holds more of than it did, it may hold what it held, or
+    what is free to it if that is more; the rest is back-ordered, from its
+    last lines first.
+    """
+    lines: dict = {}
+    for item in job.items:
+        if _is_stock_line(item) and item.supply_qty:
+            lines.setdefault(item.stock_code, []).append(item)
+    for sku, items in sorted(lines.items()):
+        holding = sum(int(i.supply_qty) for i in items)
+        if holding <= held.get(sku, 0):
+            continue
+        inv = db.query(InventoryItem).filter(InventoryItem.sku == sku).first()
+        if inv is None:
+            continue
+        free = int(inv.stock or 0) - committed_total(db, sku, excluding_job=job.id)
+        excess = holding - max(held.get(sku, 0), free)
+        for item in sorted(items, key=lambda i: (i.sort or 0, i.id or 0), reverse=True):
+            if excess <= 0:
+                break
+            cut = min(int(item.supply_qty), excess)
+            item.supply_qty -= cut
+            item.b_ord = int(item.b_ord or 0) + cut
+            excess -= cut
 
 
 def _on_hand_shortfalls(job: "Job", db: Session) -> dict:
@@ -1085,12 +1571,14 @@ def _apply_status_transition(
         # old date (F33). The number stays — it is the same invoice, reissued.
         job.invoice_status = "not_invoiced"
         job.invoice_date = None
+        # Reissued, it falls due on the terms of that day.
+        job.invoice_terms = job.invoice_due_date = None
 
     # Compliance timestamps. Not dispatched_at: that is the day a despatch was
     # recorded (`_record_despatch`), and stamping it on FINISH dated goods that
     # had not gone anywhere (F32).
     if new_status in _DEPLETED_STATUSES:
-        _stamp_invoiced(job, today)
+        _stamp_invoiced(job, today, db)
     if new_status == "PAID":
         job.payment_status = "paid"
         if not job.payment_date:
@@ -1107,7 +1595,7 @@ def _apply_status_transition(
     _sync_invoice_or_refuse(job, db)
 
 
-def _stamp_invoiced(job: "Job", today: str) -> None:
+def _stamp_invoiced(job: "Job", today: str, db: Session) -> None:
     """What becoming invoiced writes onto a job, from every path that does it.
 
     Once only on INVOICE, so a job sent straight to PAID — or created already
@@ -1115,11 +1603,17 @@ def _stamp_invoiced(job: "Job", today: str) -> None:
     invoice date, so those sales were silently absent from it; the ledger found
     this by disagreeing with it. Keyed on the invoiced boundary now, the same
     one stock and the ledger use.
+
+    It always marks the job invoiced; only the date is kept when it has one.
+    Returning early on a date left a job that came in from an import with a
+    stale date reading INVOICE but 'not_invoiced' (F33).
     """
+    job.invoice_status = "invoiced"
     if job.invoice_date:
+        _stamp_terms(job, db)
         return
     job.invoice_date = today
-    job.invoice_status = "invoiced"
+    _stamp_terms(job, db)
     # What the customer owes, worked out here rather than in the browser.
     # This was only ever computed in the job form, so a job invoiced by an
     # import, a feed, a portal or a script carried a balance of zero, and
@@ -1130,6 +1624,28 @@ def _stamp_invoiced(job: "Job", today: str) -> None:
     job.balance_due = max(
         0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
     )
+
+
+def _stamp_terms(job: "Job", db: Session) -> None:
+    """The terms an invoice is issued on, and the day it falls due (S2-13).
+
+    The customer's terms, else the company's default, counted from the invoice
+    date. Read once, here: aged receivables used to work the due date out from
+    the customer's terms of the day, so changing them re-dated every open
+    invoice, and the PDF printed the goods' due date and the company's terms.
+    """
+    if job.invoice_due_date:
+        return
+    customer_terms = (
+        db.query(Customer.payment_terms).filter(Customer.id == job.customer_id).scalar()
+    )
+    default = db.query(CompanySettings.payment_terms_default).limit(1).scalar()
+    try:
+        issued = date.fromisoformat(job.invoice_date[:10])
+    except ValueError:
+        return  # an imported date that is not one; receivables reads it as before
+    job.invoice_terms = payment_terms.terms_in_force(customer_terms, default)
+    job.invoice_due_date = payment_terms.due_date(issued, job.invoice_terms).isoformat()
 
 
 # Whether a job is paid or invoiced, what has been taken against it and what
@@ -1144,6 +1660,13 @@ def _stamp_invoiced(job: "Job", today: str) -> None:
 _SERVER_OWNED_MONEY = frozenset(
     {"deposit", "balance_due", "payment_status", "invoice_status"}
 )
+
+# A job's total is its lines'. Only the Jim2 import writes header totals, for
+# history that has no lines; a job created, copied or edited here with no
+# lines totals zero, or keeps the totals it was imported with. Taking the
+# caller's figures let a lineless job be invoiced at whatever was sent — a
+# $5,000 invoice for nothing (F04). The form still sends them; they are ignored.
+_HEADER_TOTALS = frozenset({"total_ex", "tax", "total_inc"})
 
 
 def _settle_money(job: "Job") -> None:
@@ -1241,9 +1764,13 @@ def list_jobs(
         term = f"%{search}%"
         # The portal's order number (serial_no) and the person who ordered
         # (name_contact, requested_by) too: a portal order could be found only
-        # by the customer's name (F01).
+        # by the customer's name (F01). The customer and ship-to codes as well,
+        # as the screen's own filter matches them: a job past the newest 500
+        # loaded could not be found by either.
         q = q.filter(
             Job.id.ilike(term)
+            | Job.customer_id.ilike(term)
+            | Job.ship_to.ilike(term)
             | Job.customer_name.ilike(term)
             | Job.invoice.ilike(term)
             | Job.cust_ref.ilike(term)
@@ -1346,6 +1873,8 @@ def bulk_status(
 
 
 class AutoPickRequest(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     job_ids: List[str] = Field(min_length=1, max_length=500)
 
 
@@ -1461,6 +1990,8 @@ def get_order_requirements(
         rows = base.filter(
             JobItem.b_ord > 0,
             (JobItem.po_no.is_(None)) | (JobItem.po_no == ""),
+            # A charge saved back-ordered before charges were services (S2-05).
+            ~JobItem.is_charge,
         ).all()
 
         grouped: dict = {}
@@ -1661,8 +2192,87 @@ def _portal_rules(body: "JobCreate") -> None:
         )
 
 
+def _require_registered_decoration(
+    line: "JobItemSchema", item: "JobItem", db: Session
+) -> None:
+    """A portal decoration line names a registered logo or a stock item (F12).
+
+    One whose code is neither, and which is done to no garment line, was read
+    as a garment and bought. The portal registers the logo first. Staff lines
+    are not refused (the plan's rule). A decoration is marked by its method, or
+    by an embroidery or decoration code alone — the form sends "None" for no
+    method, and a line marked only by its codes was bought too.
+    """
+    code = (item.stock_code or "").strip()
+    marks = (item.decoration_type, item.emb_code, item.dec_code)
+    if (
+        all((mark or "").strip() in ("", "None") for mark in marks)
+        or not code
+        or item.is_service
+        or line.applies_to_line is not None
+        or db.get(InventoryItem, code) is not None
+    ):
+        return
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            f"Line {item.sort}: {code} is not one of this customer's logos or a "
+            "stock item — register the logo first"
+        ),
+    )
+
+
+# What a line cost TIG and what it makes on it. A service account (the online
+# store's portal) is told neither: through a line naming a logo, it read that
+# logo's cost back (F26).
+_COST_FIELDS = frozenset({"purchase_price", "margin", "margin_percent"})
+
+
+def _without_cost(job: "Job") -> dict:
+    body = jsonable_encoder(job)
+    return {
+        **body,
+        "items": [
+            {name: value for name, value in item.items() if name not in _COST_FIELDS}
+            for item in body.get("items", [])
+        ],
+    }
+
+
+def _order_lock_key(customer_id: Optional[str], serial: str) -> int:
+    """The advisory-lock key of a portal order: a signed 64-bit number.
+
+    From hashlib, not hash(): Python salts string hashes per process, and every
+    API instance must reach the same key for the same order.
+    """
+    name = f"portal-order\x1f{customer_id}\x1f{_order_number(serial).lower()}"
+    digest = hashlib.sha256(name.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big", signed=True)
+
+
+def _lock_order_number(db: Session, customer_id: Optional[str], serial: str) -> None:
+    """Hold (customer, order number) until this transaction ends (F01).
+
+    The duplicate check reads, and the job is written after: two overlapping
+    retries each read nothing and both booked. With the lock the second waits
+    for the first to commit, and its check then sees the job. No unique index:
+    live data may already hold duplicates, which would fail the deploy.
+    PostgreSQL only — SQLite has one writer at a time already.
+    """
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"),
+        {"key": _order_lock_key(customer_id, serial)},
+    )
+
+
 def _require_not_a_repeat(
-    db: Session, body: "JobCreate", item_no: Optional[str]
+    db: Session,
+    customer_id: Optional[str],
+    item_no: Optional[str],
+    serial_no: Optional[str],
+    job_id: Optional[str] = None,
 ) -> None:
     """A portal order already booked is not booked again (F01).
 
@@ -1670,20 +2280,21 @@ def _require_not_a_repeat(
     jobs not cancelled. A portal that retries a timed-out request used to make
     a second job, which shipped and invoiced the same uniform twice. The
     refusal names the job already made, so the retry can carry on with it.
+    `job_id` is the job being edited, which does not repeat itself.
     """
-    serial = _order_number(body.serial_no)
+    serial = _order_number(serial_no)
     if item_no != PORTAL_ITEM_NO or not serial:
         return
-    existing = (
-        db.query(Job)
-        .filter(
-            Job.customer_id == body.customer_id,
-            Job.item_no == PORTAL_ITEM_NO,
-            func.lower(_stored_order_number(Job.serial_no)) == serial.lower(),
-            Job.status != "CANCEL",
-        )
-        .first()
+    _lock_order_number(db, customer_id, serial)
+    query = db.query(Job).filter(
+        Job.customer_id == customer_id,
+        Job.item_no == PORTAL_ITEM_NO,
+        func.lower(_stored_order_number(Job.serial_no)) == serial.lower(),
+        Job.status != "CANCEL",
     )
+    if job_id is not None:
+        query = query.filter(Job.id != job_id)
+    existing = query.first()
     if existing is not None:
         raise HTTPException(
             status_code=409,
@@ -1693,6 +2304,43 @@ def _require_not_a_repeat(
                 "job_id": existing.id,
             },
         )
+
+
+def _store_payment(job: "Job", body: "JobCreate") -> float:
+    """What the online store took at checkout, to record with its order (S2-08).
+
+    The store sends it as `deposit`, with its payment method. It was dropped
+    without a word, so a card-paid order read as owed by the employer's
+    account until staff keyed the payment again. More than the order comes to
+    is refused: it is money taken for goods the order does not have.
+    """
+    amount = round(float(body.deposit or 0), 2)
+    if amount <= 0:
+        return 0.0
+    if amount > float(job.balance_due or 0):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"The store took ${amount:.2f} but the order comes to "
+                f"${float(job.total_inc or 0):.2f}"
+            ),
+        )
+    return amount
+
+
+def _name_from_customer(job: "Job", db: Session) -> None:
+    """The buyer's name from the customer master, when none was keyed (S2-01).
+
+    The tax invoice's Bill To, aged receivables and the despatch screens read
+    `customer_name`. The online store never sends one, so every portal job
+    printed an invoice naming no buyer — invalid from $1,000 — and aged
+    receivables listed it as 'Unknown'.
+    """
+    if (job.customer_name or "").strip() or not job.customer_id:
+        return
+    name = db.query(Customer.name).filter(Customer.id == job.customer_id).scalar()
+    if name:
+        job.customer_name = name
 
 
 @router.post("")
@@ -1705,7 +2353,7 @@ def create_job(
     if from_portal:
         _portal_rules(body)
     item_no = PORTAL_ITEM_NO if from_portal else body.item_no
-    _require_not_a_repeat(db, body, item_no)
+    _require_not_a_repeat(db, body.customer_id, item_no, body.serial_no)
     job_id = body.id or _next_job_id(db)
     if db.query(Job).filter(Job.id == job_id).first():
         raise HTTPException(status_code=409, detail="Job ID already exists")
@@ -1714,7 +2362,9 @@ def create_job(
     _require_invoice_number_free(db, body.invoice, job_id)
     job = Job(
         **{
-            **body.model_dump(exclude={"items", "status", *_SERVER_OWNED_MONEY}),
+            **body.model_dump(
+                exclude={"items", "status", *_SERVER_OWNED_MONEY, *_HEADER_TOTALS}
+            ),
             "id": job_id,
             "status": "QUOTE",
             "item_no": item_no,
@@ -1725,7 +2375,9 @@ def create_job(
             "created_by_user_id": current_user.id,
         }
     )
+    _name_from_customer(job, db)
     job.deposit = 0
+    job.total_ex = job.tax = job.total_inc = 0.0
     job.invoice_status = "not_invoiced"
     # The first line of the trail: who took the order, and how it came in (F28).
     opening = _system_comment(
@@ -1741,7 +2393,13 @@ def create_job(
     job.comments.append(opening)
     pairs = []
     for item_data in body.items:
-        line = _new_line(item_data, db)
+        line = _new_line(item_data, db, body.customer_id, body.price_level)
+        if item_data.applies_to_item_id is not None:
+            # A new job's lines have no ids yet, so any id names another job's
+            # line (F19). They are named by their `sort` instead.
+            raise _not_a_goods_line(line, f"item {item_data.applies_to_item_id}")
+        if from_portal:
+            _require_registered_decoration(item_data, line, db)
         job.items.append(line)
         if item_data.applies_to_line is not None:
             pairs.append((line, item_data.applies_to_line))
@@ -1749,9 +2407,26 @@ def create_job(
     _total_from_lines(job)
     _recalculate_weight(job, db)
     _settle_money(job)
+    paid_at_store = _store_payment(job, body) if from_portal else 0.0
     _transition_new_job(job, body.status, db, current_user, links=links)
+    if paid_at_store:
+        _take_payment(
+            job,
+            db,
+            current_user,
+            amount=paid_at_store,
+            method=(
+                body.payment_method
+                if "payment_method" in body.model_fields_set and body.payment_method
+                else "Card"
+            ),
+            reference=f"Online order {job.serial_no}",
+            notes="Paid at the online store",
+        )
+        _recalculate_customer_balance(job.customer_id, db)
     db.commit()
-    return _job_with_relations(db, job_id)
+    made = _job_with_relations(db, job_id)
+    return _without_cost(made) if current_user.role in SERVICE_ROLES else made
 
 
 @router.patch("/{job_id}")
@@ -1776,14 +2451,44 @@ def update_job(
         _require_role_for(job, body.status, current_user)
     if body.invoice is not None:
         _require_invoice_number_free(db, body.invoice, job.id)
+    # An edit can make a job a repeat of a portal order too: a new order
+    # number, keyed as an online order, or moved to the customer who already
+    # has that order (F01).
+    if (
+        (
+            body.serial_no is not None
+            and _order_number(body.serial_no) != _order_number(job.serial_no)
+        )
+        or (body.item_no is not None and body.item_no != job.item_no)
+        or (body.customer_id is not None and body.customer_id != job.customer_id)
+    ):
+        _require_not_a_repeat(
+            db,
+            body.customer_id or job.customer_id,
+            job.item_no if body.item_no is None else body.item_no,
+            job.serial_no if body.serial_no is None else body.serial_no,
+            job_id=job.id,
+        )
 
     # Status is applied last, through the shared transition, so it is never just
     # another field in this setattr loop — that is how this endpoint used to move
     # a job into ORDER while reserving no stock at all.
     update_data = body.model_dump(
         exclude_none=True,
-        exclude={"items", "status", "weight_total", *_SERVER_OWNED_MONEY},
+        exclude={
+            "items",
+            "status",
+            "weight_total",
+            *_SERVER_OWNED_MONEY,
+            *_HEADER_TOTALS,
+        },
     )
+    if "branch" in body.model_fields_set and body.branch is None:
+        update_data["branch"] = None  # blank: HQ, stored as null (F14)
+    total_before = float(job.total_inc or 0)
+    customer_before = job.customer_id
+    if "branch" in update_data and job.status in COMMITTED_STATUSES:
+        _move_reservation(job, db, update_data["branch"])
     for field, value in update_data.items():
         setattr(job, field, value)
 
@@ -1803,6 +2508,7 @@ def update_job(
             _link(_applies_to_targets(job.items, pairs))
             db.flush()
         if held is not None:
+            _cap_supply_at_free(job, db, held)
             now = _reserved_by_sku(job)
             _post_reservation(
                 job,
@@ -1810,11 +2516,27 @@ def update_job(
                 {sku: now.get(sku, 0) - held.get(sku, 0) for sku in {*held, *now}},
             )
 
+    moved = job.customer_id != customer_before
+    if moved:
+        _require_own_logos(db, job, job.customer_id)
+        if "customer_name" not in update_data:
+            # The old customer's name would bill the new one.
+            job.customer_name = None
+            _name_from_customer(job, db)
+
     # The total and weight follow the lines, and what is owed follows the total
     # — never the browser's figures.
     _total_from_lines(job, emptied=had_lines and not job.items)
     _recalculate_weight(job, db)
     _settle_money(job)
+    # An open order made bigger asks for more credit, the same as a new one;
+    # only crossing into ORDER was checked, so a $156 order could be edited to
+    # $1,562 against a $200 limit (F27). One moved to another customer asks
+    # that customer for all of it: a move was never checked at all.
+    if job.status in COMMITTED_STATUSES and (
+        moved or float(job.total_inc or 0) > total_before
+    ):
+        _check_credit_limit(job, db)
 
     if body.status and body.status != job.status:
         # After the lines are in place: what gets reserved is what the job now
@@ -1898,6 +2620,7 @@ def duplicate_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+    _require_no_retired_logo(db, src)
 
     carried = (
         "customer_id",
@@ -1917,9 +2640,6 @@ def duplicate_job(
         "invoice_desc",
         "requested_by",
         "lock_rate",
-        "total_ex",
-        "tax",
-        "total_inc",
         "shipping_address",
         "ship_to",
         "ship_to_id",
@@ -1931,6 +2651,10 @@ def duplicate_job(
         status="QUOTE",
         created_by_user_id=current_user.id,
         date_in=datetime.now().strftime("%Y-%m-%d"),
+        # The copy's total is its lines' (`_HEADER_TOTALS`).
+        total_ex=0,
+        tax=0,
+        total_inc=0,
         deposit=0,
         balance_due=0,
         payment_status="unpaid",
@@ -1940,6 +2664,13 @@ def duplicate_job(
     )
     for field, value in body.model_dump(exclude={"status"}, exclude_none=True).items():
         setattr(new, field, value)
+    # Its trail starts by saying where it came from, as a created job's does
+    # (F28); a copy used to start with nothing at all.
+    opening = _system_comment(
+        new, f"Created as {body.status} — a copy of job {src.id}", by=current_user
+    )
+    opening.status = body.status
+    new.comments.append(opening)
 
     copies = {}
     for item in sorted(src.items, key=lambda i: i.sort or 0):
@@ -1966,6 +2697,9 @@ def duplicate_job(
             discount=item.discount,
             price_ex=item.price_ex,
             price_inc=item.price_inc,
+            # Priced as the source is: inc GST to the cent (S2-08).
+            priced_inc=item.priced_inc,
+            is_charge=item.is_charge,
             total=item.total,
             hide=item.hide,
             tax_type=item.tax_type,
@@ -2220,12 +2954,21 @@ def delete_job(
     return {"ok": True}
 
 
+# Job.connote is String(100); further consignments append to it.
+_CONNOTE_MAX = 100
+
+
 def _despatch_address(job: "Job") -> str:
     site = job.ship_to_address
     if site is not None:
         place = " ".join(p for p in (site.city, site.state, site.postcode) if p)
         return ", ".join(p for p in (site.name, site.address, place) if p)
     return job.shipping_address or ""
+
+
+class NothingToSend(HTTPException):
+    """A job with nothing left to send: the refusal a despatch batch passes
+    over, naming the job, rather than refusing the whole batch (S2-20)."""
 
 
 def _record_despatch(
@@ -2239,7 +2982,9 @@ def _record_despatch(
     cartons: int = 1,
     notes: Optional[str] = None,
     advance: bool = False,
-) -> None:
+    again: bool = False,
+    despatch_date: Optional[date] = None,
+) -> DispatchSessionLine:
     """Send a job out: the one way, from the despatch list or the job itself.
 
     A packed job (Pick/Pack, Desp/Ready) becomes FINISH, because FINISH is the
@@ -2247,13 +2992,59 @@ def _record_despatch(
     and checks as the status endpoint (F05). The day, the carrier and the
     connote go on the job, and where it went goes on the despatch line, as it
     stood that day (F22). A job still in production is refused.
+
+    A job that has gone already is refused too, unless `again` says this is a
+    further consignment: FINISH and the invoiced statuses stay despatchable, so
+    a second despatch used to go through and overwrite the first connote.
+
+    What goes of each goods line is recorded on the despatch line: what it has
+    ready (picked, else supplied) less what earlier consignments took (F21).
+    A job whose goods have nothing left to send is refused. Returns the
+    despatch line.
+
+    It goes on `despatch_date`, today unless given (`despatch_day`): after the
+    carrier's cut-off a consignment goes the next day (B1-07).
     """
+    day = despatch_day(despatch_date)
     if job.status not in DESPATCHABLE_STATUSES:
         raise HTTPException(
             status_code=409,
             detail=(
                 f"Job {job.id} is {job.status} — it can be despatched once it is "
                 "packed (Pick/Pack or Desp/Ready)."
+            ),
+        )
+    if job.dispatched_at and not again:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Job {job.id} was despatched on {job.dispatched_at}"
+                + (f" (connote {job.connote})" if job.connote else "")
+                + ". Send it again only as a further consignment."
+            ),
+        )
+    connote = ship_ref
+    if ship_ref and job.connote and again:
+        # A further consignment adds its connote; the first one still names
+        # what went first.
+        connote = f"{job.connote}, {ship_ref}"
+        if len(connote) > _CONNOTE_MAX:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Job {job.id} has no room for another connote "
+                    f"({job.connote}); record it on a new job."
+                ),
+            )
+    # Worked out before the job moves on. A job with no goods lines (the
+    # customer's own garments decorated) has nothing of ours to count.
+    going = despatch_documents.still_to_send(job, db)
+    if despatch_documents.goods_lines(job) and not going:
+        raise NothingToSend(
+            status_code=409,
+            detail=(
+                f"Job {job.id} has nothing left to send: no line has anything "
+                "picked or supplied beyond what earlier consignments took."
             ),
         )
     status_at_despatch = job.status
@@ -2264,12 +3055,17 @@ def _record_despatch(
 
     now = datetime.now()
     if not job.dispatched_at:
-        job.dispatched_at = now.strftime("%Y-%m-%d")
+        job.dispatched_at = day
     if ship_via:
         job.ship_via = ship_via
     if ship_ref:
-        job.connote = ship_ref
-    text = f"Dispatched — Ship Via: {ship_via}, Ref: {ship_ref}, Cartons: {cartons}"
+        job.connote = connote
+    # The day it goes, always: compared with the server's (UTC) day, every
+    # Sydney-morning despatch read as held over (B1-07).
+    text = (
+        f"Dispatched {day} — Ship Via: {ship_via}, Ref: {ship_ref}, "
+        f"Cartons: {cartons}"
+    )
     db.add(
         JobComment(
             job_id=job.id,
@@ -2282,17 +3078,30 @@ def _record_despatch(
             comment=text + (f". {notes}" if notes else ""),
         )
     )
-    session.lines.append(
-        DispatchSessionLine(
-            job_id=job.id,
-            customer_name=job.customer_name,
-            ship_via=ship_via,
-            ship_ref=ship_ref,
-            cartons=cartons,
-            ship_to=job.ship_to,
-            address=_despatch_address(job),
-        )
+    line = DispatchSessionLine(
+        job_id=job.id,
+        customer_name=job.customer_name,
+        ship_via=ship_via,
+        ship_ref=ship_ref,
+        cartons=cartons,
+        ship_to=job.ship_to,
+        address=_despatch_address(job),
+        despatch_date=day,
     )
+    session.lines.append(line)
+    db.flush()  # the despatch line's id, which what went is recorded against
+    for item, qty in going:
+        line.items.append(
+            DispatchLineItem(
+                dispatch_session_line_id=line.id, job_item_id=item.id, qty=qty
+            )
+        )
+    return line
+
+
+def _despatched(line: DispatchSessionLine) -> list:
+    """What one despatch sent of each job line, as the despatch responses say."""
+    return [{"job_item_id": row.job_item_id, "qty": row.qty} for row in line.items]
 
 
 @router.post("/{job_id}/dispatch")
@@ -2310,7 +3119,7 @@ def dispatch_job(
     try:
         session = DispatchSession(user_id=current_user.id)
         db.add(session)
-        _record_despatch(
+        line = _record_despatch(
             job,
             db,
             current_user,
@@ -2320,6 +3129,8 @@ def dispatch_job(
             cartons=body.cartons,
             notes=body.notes,
             advance=body.advance_status,
+            again=body.again,
+            despatch_date=body.despatch_date,
         )
         savepoint.commit()
     except HTTPException:
@@ -2327,7 +3138,7 @@ def dispatch_job(
         raise
     db.commit()
     db.refresh(job)
-    return job
+    return {**jsonable_encoder(job), "despatched": _despatched(line)}
 
 
 def _pick_target(item: "JobItem") -> int:

@@ -14,21 +14,29 @@ from app.database import get_db
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem
 from app.models.job import JobItem
+from app.models.logo import Logo
 from app.models.settings import CompanySettings
 from app.models.supplier import Supplier
-from app.core import purchase_order_document, receiving
+from app.core import po_totals, purchase_order_document, receiving
 from app.core.dependencies import require_any, require_staff
+from app.core.reservations import COMMITTED_STATUSES
 from app.routers.email_router import _send_and_log, smtp_config
-from app.core.ledger import money
+from app.routers.jobs import _total_from_lines
 from app.core.stock_location import DEFAULT_BRANCH
 from app.models.user import User
 from datetime import datetime
-from decimal import Decimal
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase_orders"])
 
 VALID_STATUSES = {"Draft", "Sent", "Partial", "Received", "Cancelled"}
-_GST = Decimal("0.10")
+# What a person may set. Partial and Received are what the lines say
+# (`receiving.settle_po_status`), never chosen (F29) — save that a Partial PO
+# may be closed short as Received (`_check_status_change`, F25).
+SETTABLE_STATUSES = ("Draft", "Sent", "Cancelled")
+# A PO in these is closed: there is nothing left to send the supplier (F17).
+UNSENDABLE_STATUSES = ("Cancelled", "Received")
+# What a PO is created as: nothing has arrived against a new one (F25).
+NEW_STATUSES = ("Draft", "Sent")
 
 
 def _set_totals(po: PurchaseOrder) -> None:
@@ -37,17 +45,10 @@ def _set_totals(po: PurchaseOrder) -> None:
     Every way of raising a PO goes through this. The two that raise one from
     order requirements and from back-orders set only `total`, so their ex-GST,
     GST and inc-GST figures read zero, and aged payables — which reads the
-    inc-GST total — never saw them (F15).
+    inc-GST total — never saw them (F15). The formula is `app/core/po_totals.py`,
+    shared with auto-reorder, the PO document and the ledger health check.
     """
-    total_ex = Decimal("0")
-    for line in po.items:
-        line.total = money(Decimal(int(line.qty_ordered or 0)) * money(line.unit_cost))
-        total_ex += money(line.total)
-    tax = money(total_ex * _GST)
-    po.total_ex = total_ex
-    po.tax_total = tax
-    po.total_inc = total_ex + tax
-    po.total = po.total_inc  # the older single total, kept in step
+    po_totals.set_totals(po)
 
 
 def _po_with_items(db: Session, po_id: str) -> PurchaseOrder:
@@ -85,9 +86,16 @@ class POCreate(BaseModel):
 
 
 class POUpdate(BaseModel):
+    # A field it does not know is refused: `items` sent here used to be dropped
+    # with a 200, so a set-up charge "added" to a PO was never on it (S2-20).
+    model_config = ConfigDict(extra="forbid")
+
     status: Optional[str] = None
     expected_date: Optional[str] = None
     notes: Optional[str] = None
+    # Lines added to the PO — a printer's set-up charge on the decoration PO,
+    # so the supplier's bill can match it. Lines already on it are not edited.
+    add_items: Optional[List[POItemSchema]] = None
 
 
 class ReceiveItem(BaseModel):
@@ -165,6 +173,18 @@ def create_po(
 ):
     if db.query(PurchaseOrder).filter(PurchaseOrder.id == body.id).first():
         raise HTTPException(status_code=409, detail="PO ID already exists")
+    # Created as Received, or with lines already received, a PO read as goods
+    # received and not billed while nothing had been shelved (F25).
+    if body.status not in NEW_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A new purchase order is Draft or Sent, not '{body.status}'",
+        )
+    if any(item.qty_received for item in body.items):
+        raise HTTPException(
+            status_code=422,
+            detail="A new purchase order has nothing received — receive goods against it",
+        )
     po = PurchaseOrder(**body.model_dump(exclude={"items"}))
     for item_data in body.items:
         po.items.append(PurchaseOrderItem(**item_data.model_dump()))
@@ -187,6 +207,26 @@ def create_po_from_requirements(
     item_ids = [r.item_id for r in body.requirements]
     job_items = db.query(JobItem).filter(JobItem.id.in_(item_ids)).all()
     item_map = {ji.id: ji for ji in job_items}
+
+    # A logo done in-house is production work, not a purchase: the worklist no
+    # longer offers it, and this is the door it could still come in by (F16).
+    logo_ids = {ji.logo_id for ji in job_items if ji.logo_id}
+    in_house = {
+        logo.id: logo.code
+        for logo in db.query(Logo).filter(
+            Logo.id.in_(logo_ids), Logo.made_by == "in_house"
+        )
+    }
+    refused = [
+        f"job {ji.job_id} {in_house[ji.logo_id]}"
+        for ji in job_items
+        if ji.logo_id in in_house
+    ]
+    if refused:
+        raise HTTPException(
+            status_code=422,
+            detail="In-house work is not bought on a PO: " + ", ".join(refused),
+        )
 
     # One line per SKU *per job*, not one line per SKU. Jim2's PO 2048001 carries
     # RS.K43012CU.NAV.14 twice -- once for job 1194956 and once for 1194961 --
@@ -349,6 +389,126 @@ def create_po_from_back_orders(
     return _po_with_items(db, body.id)
 
 
+def _check_status_change(po: PurchaseOrder, status: str) -> None:
+    """Draft, Sent and Cancelled are chosen; Partial and Received are not (F29).
+
+    Set by hand they said whatever somebody picked: a PO with 4 of 6 still to
+    come read Received, and the screen then hid the controls to receive them.
+    Once anything has arrived the lines decide, so the PO cannot be put back to
+    Draft or Sent, or cancelled with goods already on the shelf.
+
+    The one exception is closing it short (F25): a Partial PO whose rest is not
+    coming is set Received. Left Partial, it was committed spend for units
+    that would never arrive, and could be closed no other way.
+    """
+    if status == "Received" and po.status == "Partial":
+        return
+    if status not in SETTABLE_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"'{status}' follows from what has been received; it is not set by hand"
+                if status in VALID_STATUSES
+                else f"Invalid status. Valid: {list(SETTABLE_STATUSES)}"
+            ),
+        )
+    if any((line.qty_received or 0) > 0 for line in po.items):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{po.id} has goods received against it, so it stays {po.status}",
+        )
+
+
+def _release_waiting_lines(db: Session, po: PurchaseOrder, status: str) -> None:
+    """Job lines a closed PO will no longer fill go back on the buying list.
+
+    A line keeps the number of the PO raised for it, and the buying list skips
+    a line that has one. Closed short, the PO will not bring the units still
+    back-ordered; cancelled, it brings nothing. Left pointing at it, those
+    lines were never suggested for buying again.
+    """
+    lines = db.query(JobItem).filter(JobItem.po_no == po.id)
+    if status == "Received":
+        lines = lines.filter(JobItem.b_ord > 0)
+    for ji in lines:
+        ji.po_no = None
+        ji.po_due = None
+        receiving.touch_job(ji.job)
+    if status == "Received":
+        for po_line in po.items:
+            _release_short_work(db, po_line)
+
+
+def _release_short_work(db: Session, po_line: PurchaseOrderItem) -> None:
+    """Decoration a PO closed short will not bring goes back on the buying list.
+
+    Work is never back-ordered, so the release above passed it by: an
+    embroiderer's 38 of 40 closed the PO with the 2 missing applications on no
+    list, and none of the job's decoration — even what came back — read
+    Received (S2-17). One PO line buys a job's applications across its lines,
+    so what came is given to them in line order; the lines it does not cover
+    are released, to be bought again. A line it covers in part, on an open
+    order, is split: what came stays on this PO, Received, and the rest is a
+    line of its own to buy — released whole, 38 of 40 came back asking for 40.
+    """
+    services = receiving.service_lines(db, po_line, po_line.sku)
+    if not services or (po_line.qty_received or 0) >= (po_line.qty_ordered or 0):
+        return
+    job = services[0].job
+    covered = po_line.qty_received or 0
+    split = False
+    for item in sorted(services, key=lambda i: (i.sort or 0, i.id or 0)):
+        qty = int(item.order_qty or 0)
+        if qty <= covered:
+            covered -= qty
+            item.item_status = "Received"
+        elif covered and job.status in COMMITTED_STATUSES:
+            job.items.append(_split_off(item, qty - covered))
+            item.order_qty = item.supply_qty = covered
+            if item.qty:
+                item.qty = min(int(item.qty), covered)
+            item.item_status = "Received"
+            covered, split = 0, True
+        else:
+            item.po_no = item.po_due = None
+    if split:
+        _total_from_lines(job)
+    receiving.touch_job(job)
+
+
+def _split_off(item: JobItem, qty: int) -> JobItem:
+    """A copy of a decoration line for `qty` of it, not on any PO yet."""
+    columns = {c.key: getattr(item, c.key) for c in JobItem.__table__.columns}
+    for key in ("id", "job_id", "po_no", "po_due", "item_status"):
+        columns.pop(key, None)
+    rest = JobItem(**columns)
+    rest.order_qty = rest.supply_qty = qty
+    rest.b_ord = 0
+    if rest.qty:
+        rest.qty = max(0, int(rest.qty) - (int(item.order_qty or 0) - qty))
+    return rest
+
+
+def _add_lines(po: PurchaseOrder, lines: List[POItemSchema], status: str) -> None:
+    """New lines on an open PO, each with nothing received yet (F25).
+
+    `status` is what the PO is becoming, so a save that closes it adds nothing.
+    """
+    if status in UNSENDABLE_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{po.id} is {status} — nothing is added to it",
+        )
+    if any(line.qty_received for line in lines):
+        raise HTTPException(
+            status_code=422,
+            detail="An added line has nothing received — receive goods against it",
+        )
+    for line in lines:
+        po.items.append(PurchaseOrderItem(**line.model_dump()))
+    _set_totals(po)
+
+
 @router.patch("/{po_id}")
 def update_po(
     po_id: str,
@@ -356,16 +516,25 @@ def update_po(
     db: Session = Depends(get_db),
     _: User = Depends(require_staff),
 ):
-    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
+    # Locked as a receive locks it, so a cancel cannot read a line as empty
+    # while a receive is crediting it (F29).
+    po = receiving.lock_po(db, po_id)
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
-    if body.status and body.status not in VALID_STATUSES:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    for field, value in body.model_dump(exclude_none=True).items():
+    if body.status is not None and body.status != po.status:
+        _check_status_change(po, body.status)
+        if body.status == "Received":
+            po.received_date = po.received_date or datetime.now().strftime("%Y-%m-%d")
+        if body.status in ("Received", "Cancelled"):
+            _release_waiting_lines(db, po, body.status)
+    if body.add_items:
+        _add_lines(po, body.add_items, body.status or po.status)
+    for field, value in body.model_dump(
+        exclude_none=True, exclude={"add_items"}
+    ).items():
         setattr(po, field, value)
     db.commit()
-    db.refresh(po)
-    return po
+    return _po_with_items(db, po_id)
 
 
 @router.post("/{po_id}/receive")
@@ -376,14 +545,11 @@ def receive_items(
     _: User = Depends(require_staff),
 ):
     """Mark items as received and update inventory stock levels."""
-    po = (
-        db.query(PurchaseOrder)
-        .options(joinedload(PurchaseOrder.items))
-        .filter(PurchaseOrder.id == po_id)
-        .first()
-    )
+    # Locked before its lines are credited, as a goods receipt locks it (F18).
+    po = receiving.lock_po(db, po_id)
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
+    receiving.check_receivable(po)
 
     receive_map = {r.id: r.qty_received for r in body.items}
     today = datetime.now().strftime("%Y-%m-%d")
@@ -473,6 +639,12 @@ def email_po(
             detail="SMTP not configured. Set SMTP settings in Company Settings.",
         )
     po, supplier, company, pdf = _po_document(db, po_id)
+    if po.status in UNSENDABLE_STATUSES:
+        # Sent again, the supplier reads a closed order as a new one.
+        raise HTTPException(
+            status_code=409,
+            detail=f"Purchase order {po.id} is {po.status} — it is not sent again",
+        )
     to = body.to_email or (supplier.email if supplier else None)
     if not to:
         raise HTTPException(

@@ -1,3 +1,5 @@
+import { localDay } from './lib/localDay';
+
 const BASE = '/api';
 
 // A gateway, a proxy or a host that has stopped serving answers with HTML, not
@@ -164,6 +166,9 @@ function normalizeJobItem(i) {
     // A decoration (a logo) or an alteration is work done to a garment line,
     // not goods: never picked, held or shipped (backend JobItem.is_service).
     logoId: i.logo_id ?? i.logoId ?? null,
+    // The proof is the logo's, held once for every job that carries it (F31).
+    logoCode: i.logo_code ?? i.logoCode ?? '',
+    logoProofStatus: i.logo_proof_status ?? i.logoProofStatus ?? null,
     appliesToItemId: i.applies_to_item_id ?? i.appliesToItemId ?? null,
     isService: (i.logo_id ?? i.logoId ?? null) != null || (i.applies_to_item_id ?? i.appliesToItemId ?? null) != null,
   };
@@ -398,6 +403,10 @@ export const jobs = {
       item_status: i.itemStatus || '',
       po_no: i.poNo || '',
       po_due: i.poDue || '',
+      // The garment a decoration or alteration is done to: a saved line by its
+      // id, a line sent in this same request by its position (F02, F19).
+      applies_to_item_id: i.appliesToItemId ?? null,
+      ...(i.appliesToLine != null ? { applies_to_line: i.appliesToLine } : {}),
     })),
   }}).then(normalizeJob),
 
@@ -484,6 +493,8 @@ export const jobs = {
       item_status: i.itemStatus || '',
       po_no: i.poNo || '',
       po_due: i.poDue || '',
+      applies_to_item_id: i.appliesToItemId ?? null,
+      ...(i.appliesToLine != null ? { applies_to_line: i.appliesToLine } : {}),
     })) : undefined,
   }}).then(normalizeJob),
 
@@ -541,6 +552,11 @@ export const jobs = {
       cartons: data.cartons || 1,
       notes: data.notes || null,
       advance_status: data.advanceStatus || false,
+      // A job that has gone already is refused unless this is a further
+      // consignment (e.g. back-ordered sizes) — F22.
+      again: !!data.again,
+      // The browser's day, not the API's UTC one (B1-07).
+      despatch_date: data.despatchDate || localDay(),
     }}).then(normalizeJob),
 
   unprint: (id) =>
@@ -804,12 +820,34 @@ const normalizeLogo = (g) => ({
   proofStatus: g.proof_status ?? 'none',
   proofNotes: g.proof_notes ?? '',
   approvedBy: g.approved_by ?? null,
+  isActive: g.is_active ?? true,
   jobs: g.jobs ?? [],
 });
 
+// Only the fields the caller names, so an edit of the price never sends the
+// stitch count back (a changed stitch count reopens the logo's proof, F31).
+const logoChanges = (data) => {
+  const body = {};
+  if ('position' in data) body.position = data.position || null;
+  if ('stitchCount' in data) body.stitch_count = data.stitchCount === '' || data.stitchCount == null ? null : Number(data.stitchCount);
+  if ('priceEx' in data) body.price_ex = Number(data.priceEx) || 0;
+  if ('costEx' in data) body.cost_ex = Number(data.costEx) || 0;
+  if ('madeBy' in data) body.made_by = data.madeBy;
+  if ('supplierId' in data) body.supplier_id = data.supplierId || null;
+  if ('isActive' in data) body.is_active = Boolean(data.isActive);
+  return body;
+};
+
 export const logos = {
-  list: (customerId) =>
-    request(`/logos${customerId ? `?customer_id=${encodeURIComponent(customerId)}` : ''}`).then(r => r.map(normalizeLogo)),
+  // Active logos only, unless asked: an inactive one is not applied to new lines.
+  list: (customerId, { includeInactive = false } = {}) => {
+    const q = new URLSearchParams();
+    if (customerId) q.set('customer_id', customerId);
+    if (includeInactive) q.set('include_inactive', 'true');
+    const qs = q.toString();
+    return request(`/logos${qs ? `?${qs}` : ''}`).then(r => r.map(normalizeLogo));
+  },
+  update: (id, data) => request(`/logos/${id}`, { method: 'PATCH', body: logoChanges(data) }).then(normalizeLogo),
   create: (data) => request('/logos', { method: 'POST', body: {
     code: data.code,
     customer_id: data.customerId || null,
@@ -990,6 +1028,7 @@ function normalizeGR(gr) {
       unitCost: parseFloat(ln.unit_cost || 0),
       condition: ln.condition || 'Good',
       notes: ln.notes,
+      poItemId: ln.po_item_id ?? null,
     })),
     charges: (gr.charges || []).map(c => ({
       id: c.id,
@@ -1027,6 +1066,9 @@ export const goodsReceipts = {
       unit_cost: ln.unitCost || 0,
       condition: ln.condition || 'Good',
       notes: ln.notes || null,
+      // Which PO line this is: without it the server credits the first open
+      // line of the SKU, which on a PO bought for several jobs fills the wrong job (F18).
+      po_item_id: ln.poItemId ?? null,
     })),
     // Landed costs (freight/duty/customs) — apportioned into COG on accept.
     charges: (data.charges || [])
@@ -1265,8 +1307,9 @@ function normalizeBill(b) {
     paidAmount: parseFloat(b.paid_amount ?? 0),
     // Still owed: the bill's total less every payment recorded against it.
     outstanding: parseFloat(b.outstanding ?? (b.amount_inc ?? 0) - (b.paid_amount ?? 0)),
-    // Against a PO: what arrived against it, and whether the bills come to that.
+    // Against a PO: what was ordered, what arrived against it, and whether the bills come to that.
     poMatch: b.po_match ? {
+      orderedInc: parseFloat(b.po_match.ordered_inc ?? 0),
       receivedInc: parseFloat(b.po_match.received_inc ?? 0),
       billedInc: parseFloat(b.po_match.billed_inc ?? 0),
       difference: parseFloat(b.po_match.difference ?? 0),
@@ -1281,6 +1324,9 @@ function normalizeBill(b) {
     })),
     notes: b.notes ?? '',
     accountId: b.account_id ?? null,
+    // A credit note applied against one of the supplier's bills (S2-09).
+    appliedToBillId: b.applied_to_bill_id ?? null,
+    appliedToBillNumber: b.applied_to_bill_number ?? null,
     createdAt: b.created_at,
   };
 }
@@ -1375,6 +1421,11 @@ export const supplierBills = {
 
   deletePayment: (id, paymentId) =>
     request(`/ap/bills/${id}/payments/${paymentId}`, { method: 'DELETE' }).then(normalizeBill),
+
+  // A credit note (a bill below zero) is applied to one of the supplier's
+  // bills, never paid; answers with that bill, now owed that much less.
+  applyCredit: (creditId, billId) =>
+    request(`/ap/bills/${creditId}/apply`, { method: 'POST', body: { bill_id: billId } }).then(normalizeBill),
 
   delete: (id) => request(`/ap/bills/${id}`, { method: 'DELETE' }),
 
@@ -1493,11 +1544,18 @@ export const adminSettings = {
 // ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
 
 export const dispatchSessions = {
-  // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus }]
-  create: (lines) =>
+  // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus, again }]
+  // `again`: a job that has gone already is sent as a further consignment (F22).
+  // `despatchDate` (YYYY-MM-DD): the day the batch goes — after the carrier's
+  // cut-off, the next collection (B1-07). Today, the browser's, unless given:
+  // the API's own today is UTC's, yesterday in a Sydney morning.
+  create: (lines, { despatchDate } = {}) =>
     request('/dispatch-sessions', {
       method: 'POST',
-      body: { lines: lines.map(l => ({ job_id: l.id, ship_via: l.shipVia, ship_ref: l.shipRef, cartons: l.cartons, advance_status: l.advanceStatus })) },
+      body: {
+        lines: lines.map(l => ({ job_id: l.id, ship_via: l.shipVia, ship_ref: l.shipRef, cartons: l.cartons, advance_status: l.advanceStatus, again: !!l.again })),
+        despatch_date: despatchDate || localDay(),
+      },
     }),
   list: () => request('/dispatch-sessions'),
   get: (id) => request(`/dispatch-sessions/${id}`),

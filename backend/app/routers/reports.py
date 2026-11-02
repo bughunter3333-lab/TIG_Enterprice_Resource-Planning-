@@ -1,19 +1,22 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
 from typing import Optional
 from datetime import date
 from app.database import get_db
 from app.models.job import Job, JobItem
+from app.models.job_payment import JobPayment
 from app.models.inventory import InventoryItem
 from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
 from app.models.settings import CompanySettings
 from app.models.supplier import Supplier
 from app.models.supplier_bill import SupplierBill
+from app.core import bill_matching, po_totals
 from app.core.dependencies import require_any, require_staff
 from app.core.fiscal import current_fiscal_year
 from app.core.ledger import money
-from app.core.ledger_postings import INVOICED_STATUSES, bill_owed
+from app.core.ledger_postings import INVOICED_STATUSES, bill_outstanding, bill_owed
 from app.core.payment_terms import due_date
 from app.core.reservations import COMMITTED_STATUSES
 from app.models.user import User
@@ -189,12 +192,16 @@ def aged_receivables(
     overdue. Each customer row and each of its lines carries all five.
     """
     as_at_date = date.fromisoformat(as_at) if as_at else date.today()
-    jobs = (
-        db.query(Job)
-        .filter(
-            Job.balance_due > 0,
-            Job.status.in_(["INVOICE", "PAID"]),
-        )
+    query = db.query(Job).filter(Job.status.in_(["INVOICE", "PAID"]))
+    if not as_at:
+        query = query.filter(Job.balance_due > 0)
+    jobs = query.all()
+    # As at a past date an invoice paid since was still owed (S2-13): what is
+    # owed then is what is owed now plus what has been taken after it.
+    paid_after = dict(
+        db.query(JobPayment.job_id, func.sum(JobPayment.amount))
+        .filter(JobPayment.received_date > as_at_date.isoformat())
+        .group_by(JobPayment.job_id)
         .all()
     )
     settings = db.query(CompanySettings).first()
@@ -208,6 +215,12 @@ def aged_receivables(
 
     by_customer: dict = {}
     for j in jobs:
+        invoiced = _parse_date(j.invoice_date or j.date_in or "", as_at_date)
+        if invoiced > as_at_date:
+            continue  # raised after the date asked about
+        bal = round(float(j.balance_due or 0) + float(paid_after.get(j.id) or 0), 2)
+        if bal <= 0:
+            continue
         cid = j.customer_id or "UNKNOWN"
         if cid not in by_customer:
             by_customer[cid] = {
@@ -218,12 +231,16 @@ def aged_receivables(
                 "oldest_due": None,
                 "lines": [],
             }
-        invoiced = _parse_date(j.invoice_date or j.date_in or "", as_at_date)
-        due_dt = due_date(invoiced, terms_of.get(j.customer_id), default_terms)
+        # The due date it was issued with; worked out only for an invoice
+        # issued before invoices carried one.
+        due_dt = (
+            _parse_date(j.invoice_due_date, invoiced)
+            if j.invoice_due_date
+            else due_date(invoiced, terms_of.get(j.customer_id), default_terms)
+        )
 
         days_overdue = (as_at_date - due_dt).days
         bucket = _aging_bucket(days_overdue)
-        bal = float(j.balance_due or 0)
         row = by_customer[cid]
         row["total"] += bal
         row[bucket] += bal
@@ -270,6 +287,11 @@ def aged_payables(
 
     Open purchase orders are listed beside it as committed spend: what is on
     order and not yet billed, so a PO's billed part is not counted twice.
+
+    A PO received in full leaves committed spend, and until its bill is typed
+    the goods are owed but on no bill — so it is listed as received, not
+    billed: its received value against what is billed for it. A part-received
+    PO is still committed spend, which already counts its received part.
     """
     as_at_date = date.fromisoformat(as_at) if as_at else date.today()
     bills = (
@@ -286,8 +308,10 @@ def aged_payables(
 
     by_supplier: dict = {}
     for bill in bills:
-        owing = float(bill_owed(bill) - money(bill.paid_amount))
-        if owing <= 0:
+        # Net of the credit notes applied to it; a credit note not yet applied
+        # is listed below zero, as the ledger has it (S2-09).
+        owing = float(bill_outstanding(bill))
+        if owing == 0:
             continue
         sid = bill.supplier_id or bill.supplier_name or "UNKNOWN"
         if sid not in by_supplier:
@@ -304,7 +328,8 @@ def aged_payables(
             billed = _parse_date(bill.bill_date or "", as_at_date)
             due_dt = due_date(billed, terms_of.get(bill.supplier_id))
         days_overdue = (as_at_date - due_dt).days
-        bucket = _aging_bucket(days_overdue)
+        # Money owed back is never overdue.
+        bucket = _aging_bucket(days_overdue) if owing > 0 else "current"
         row = by_supplier[sid]
         row["total"] += owing
         row[bucket] += owing
@@ -315,7 +340,7 @@ def aged_payables(
                 "po_id": bill.po_id,
                 "bill_date": bill.bill_date,
                 "due_date": str(due_dt),
-                "days_overdue": max(0, days_overdue),
+                "days_overdue": max(0, days_overdue) if owing > 0 else 0,
                 "amount_inc": float(bill_owed(bill)),
                 "paid": float(money(bill.paid_amount)),
                 "outstanding": owing,
@@ -329,34 +354,46 @@ def aged_payables(
             r[k] = round(r[k], 2)
 
     committed = _committed_spend(db)
+    received = _received_not_billed(db)
     totals = {k: round(sum(r[k] for r in rows), 2) for k in (*AGING_BUCKETS, "total")}
     totals["committed"] = round(sum(c["unbilled"] for c in committed), 2)
+    totals["received_not_billed"] = round(
+        sum(r["outstanding_inc"] for r in received), 2
+    )
     return {
         "rows": rows,
         "committed": committed,
+        "received_not_billed": received,
         "totals": totals,
         "as_at": str(as_at_date),
     }
 
 
+def _po_value(po: PurchaseOrder):
+    """A PO's lines inc GST — the stored total only for a PO with no lines.
+
+    Auto-reorder used to store no inc-GST total (F15), and committed spend read
+    those orders as nothing; a header-only PO has only its header to go on.
+    """
+    if po.items:
+        return po_totals.from_lines(po.items).inc
+    return money(po.total_inc)
+
+
 def _committed_spend(db: Session) -> list:
     """Open purchase orders, less what has already been billed against them."""
-    billed: dict = {}
-    for po_id, amount_inc, amount_ex, tax in db.query(
-        SupplierBill.po_id,
-        SupplierBill.amount_inc,
-        SupplierBill.amount_ex,
-        SupplierBill.tax,
-    ).filter(SupplierBill.po_id.isnot(None)):
-        owed = money(amount_inc) or money(amount_ex) + money(tax)
-        billed[po_id] = billed.get(po_id, money(0)) + owed
-    committed = []
-    for po in (
+    pos = (
         db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
         .filter(PurchaseOrder.status.notin_(["Cancelled", "Received"]))
         .order_by(PurchaseOrder.id)
-    ):
-        unbilled = money(po.total_inc) - billed.get(po.id, money(0))
+        .all()
+    )
+    billed = bill_matching.billed_by_po(db, [po.id for po in pos])
+    committed = []
+    for po in pos:
+        total_inc = _po_value(po)
+        unbilled = total_inc - billed[po.id]
         if unbilled <= 0:
             continue
         committed.append(
@@ -366,11 +403,43 @@ def _committed_spend(db: Session) -> list:
                 "supplier_name": po.supplier_name,
                 "order_date": po.order_date,
                 "status": po.status,
-                "total_inc": float(money(po.total_inc)),
+                "total_inc": float(total_inc),
                 "unbilled": float(unbilled),
             }
         )
     return committed
+
+
+def _received_not_billed(db: Session) -> list:
+    """Received POs whose goods are worth more than is billed for them (F25)."""
+    pos = (
+        db.query(PurchaseOrder)
+        .filter(PurchaseOrder.status == "Received")
+        .order_by(PurchaseOrder.id)
+        .all()
+    )
+    po_ids = [po.id for po in pos]
+    values = bill_matching.po_values(db, po_ids)
+    billed = bill_matching.billed_by_po(db, po_ids)
+    out = []
+    for po in pos:
+        received_inc = values[po.id]["received_inc"]
+        outstanding = received_inc - billed[po.id]
+        if outstanding <= 0:
+            continue
+        out.append(
+            {
+                "po_id": po.id,
+                "supplier_id": po.supplier_id,
+                "supplier_name": po.supplier_name,
+                "order_date": po.order_date,
+                "status": po.status,
+                "received_inc": float(received_inc),
+                "billed_inc": float(billed[po.id]),
+                "outstanding_inc": float(outstanding),
+            }
+        )
+    return out
 
 
 @router.get("/customers/{customer_id}/statement")
@@ -504,12 +573,31 @@ def job_profitability(
     if date_to:
         q = q.filter(Job.date_in <= date_to)
     jobs = q.all()
+    # A stocked line with no purchase price of its own costs what the stock
+    # does (S2-18): read only from the line, every line taken from the shelf
+    # cost $0 and the job showed a 100% margin.
+    skus = {
+        it.stock_code
+        for j in jobs
+        for it in j.items
+        if it.stock_code and not float(it.purchase_price or 0)
+    }
+    stock_cost = (
+        dict(
+            db.query(InventoryItem.sku, InventoryItem.unit_cost).filter(
+                InventoryItem.sku.in_(skus)
+            )
+        )
+        if skus
+        else {}
+    )
 
     rows = []
     for j in jobs:
         product_items = [it for it in j.items if it.display_type == "product"]
         cost = sum(
-            float(it.purchase_price or 0) * int(it.order_qty or 0)
+            float(it.purchase_price or stock_cost.get(it.stock_code) or 0)
+            * int(it.order_qty or 0)
             for it in product_items
         )
         revenue = float(j.total_ex or 0)
@@ -640,7 +728,11 @@ def back_orders(
     rows_raw = (
         db.query(JobItem, Job)
         .join(Job, JobItem.job_id == Job.id)
-        .filter(Job.status.in_(list(COMMITTED_STATUSES)), JobItem.b_ord > 0)
+        .filter(
+            Job.status.in_(list(COMMITTED_STATUSES)),
+            JobItem.b_ord > 0,
+            ~JobItem.is_charge,  # freight, set-up, fees (S2-05)
+        )
         .all()
     )
 

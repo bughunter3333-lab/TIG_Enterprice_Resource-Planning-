@@ -990,6 +990,8 @@ class TestMoneyFieldsAreServerOwned:
                 "balance_due": 0,
                 "payment_status": "paid",
                 "invoice_status": "invoiced",
+                # The total is the lines' (F04), so the $110 is a line.
+                "items": [{"description": "Polo", "order_qty": 1, "price_ex": 100.0}],
             },
         )
         assert r.status_code in (200, 201)
@@ -1010,7 +1012,8 @@ class TestMoneyFieldsAreServerOwned:
         assert r.status_code == 200
 
         # The form sends back what it loaded plus the new total; it has no
-        # business restating the deposit, and its balance is now stale.
+        # business restating the deposit, and its balance is now stale. The
+        # total moves with the lines (F04), so the $220 is a line.
         r = client.patch(
             "/jobs/J-OWN03",
             json={
@@ -1019,6 +1022,7 @@ class TestMoneyFieldsAreServerOwned:
                 "total_inc": 220.0,
                 "deposit": 0,
                 "balance_due": 110.0,
+                "items": [{"description": "Polo", "order_qty": 2, "price_ex": 100.0}],
             },
         )
         assert r.status_code == 200

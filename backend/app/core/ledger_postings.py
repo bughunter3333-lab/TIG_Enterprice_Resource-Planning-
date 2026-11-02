@@ -12,6 +12,7 @@ invoice states, and the income is the difference. The GST figure — the one BAS
 reads — is therefore always exactly what the document says.
 """
 
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -186,6 +187,22 @@ def bill_owed(bill):
     """What a bill is for, including GST — ex + GST when the total was never set."""
     owed, _ = _customer_total(bill.amount_inc, bill.amount_ex, bill.tax)
     return owed
+
+
+def bill_outstanding(bill, paid: Optional[Decimal] = None) -> Decimal:
+    """What is still owed on a bill: its total less what has been paid
+    (`paid`, else its paid amount) and the credit notes applied to it (S2-09).
+
+    A credit note applied to a bill is spent, and owes nothing. One not yet
+    applied is what the supplier owes back: below zero. Aged payables used to
+    pass credit notes over, so a supplier who had credited $110 read as owed
+    it for ever after the net was paid.
+    """
+    if bill.applied_to_bill_id is not None:
+        return ZERO
+    credited = sum((bill_owed(c) for c in bill.credits), ZERO)
+    taken = money(bill.paid_amount) if paid is None else paid
+    return bill_owed(bill) + credited - taken
 
 
 def supplier_payment_lines(db: Session, payment, bill) -> Optional[list[Line]]:

@@ -27,6 +27,11 @@ router = APIRouter(prefix="/logos", tags=["logos"])
 
 MadeBy = Literal["in_house", "subcontract"]
 
+# What a proof shows the customer. A change to any means proofing again: an
+# embroidery approved as a print, or with other thread colours, or on the back,
+# is not what the customer saw (F31).
+_PROOFED = ("artwork_ref", "stitch_count", "decoration_type", "color_count", "position")
+
 
 class LogoIn(BaseModel):
     code: str = Field(min_length=1, max_length=50)
@@ -179,6 +184,13 @@ def update_logo(
         changes.get("made_by", logo.made_by),
         changes.get("supplier_id", logo.supplier_id),
     )
+    # New artwork, a different stitch-out, method, colour count or position is
+    # not what the customer approved: the logo goes back to waiting for a
+    # proof, for every job that applies it (F31).
+    if any(
+        name in changes and changes[name] != getattr(logo, name) for name in _PROOFED
+    ):
+        logo.proof_status = "none"
     for field, value in changes.items():
         setattr(logo, field, value)
     db.commit()

@@ -7,10 +7,14 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Text,
+    exists,
     func,
+    select,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import column_property, relationship
 from app.database import Base
+from app.models.inventory import InventoryItem, charge_condition
+from app.models.logo import Logo
 
 
 class Job(Base):
@@ -84,6 +88,11 @@ class Job(Base):
     lock_rate = Column(Boolean, default=False)  # lock exchange/pricing rate
     # Compliance / audit timestamps
     invoice_date = Column(String(20))
+    # The terms an invoice was issued on and the day it falls due by them,
+    # stamped when it is invoiced: changing the customer's terms afterwards
+    # used to re-date every open invoice (S2-13).
+    invoice_terms = Column(String(30))
+    invoice_due_date = Column(String(20))
     payment_date = Column(String(20))
     dispatched_at = Column(String(20))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -152,6 +161,10 @@ class JobItem(Base):
     discount = Column(Numeric(5, 2), default=0)
     price_ex = Column(Numeric(10, 2), default=0)
     price_inc = Column(Numeric(10, 2), default=0)
+    # Priced inc GST — the online store's shelf price: the line totals its
+    # price_inc to the cent, and price_ex is only that price less GST, shown
+    # (S2-08, `core/job_totals.py`).
+    priced_inc = Column(Boolean, default=False)
     total = Column(Numeric(10, 2), default=0)
     hide = Column(Boolean, default=False)
     tax_type = Column(String(5))
@@ -168,12 +181,41 @@ class JobItem(Base):
     applies_to_item_id = Column(
         Integer, ForeignKey("job_items.id", ondelete="SET NULL"), nullable=True
     )
+    # Read from the logo, never stored on the line: the proof is the logo's,
+    # approved once for every job, and the job page used to keep its own copy
+    # that the logo's approval never reached (F31). None on a line with no logo.
+    logo_code = column_property(
+        select(Logo.code)
+        .where(Logo.id == logo_id)
+        .correlate_except(Logo)
+        .scalar_subquery()
+    )
+    logo_proof_status = column_property(
+        select(Logo.proof_status)
+        .where(Logo.id == logo_id)
+        .correlate_except(Logo)
+        .scalar_subquery()
+    )
+
+    # Its code is a stock item kept for a charge — freight, a set-up, a fee —
+    # not goods (S2-05, `models.inventory.is_charge`). Read with the line, and
+    # again after any flush that touches it, so a recoded line reads its new
+    # code once flushed.
+    is_charge = column_property(
+        exists()
+        .where(InventoryItem.sku == stock_code, charge_condition())
+        .correlate_except(InventoryItem)
+    )
 
     job = relationship("Job", back_populates="items")
 
     @property
     def is_service(self) -> bool:
-        return self.logo_id is not None or self.applies_to_item_id is not None
+        return (
+            self.logo_id is not None
+            or self.applies_to_item_id is not None
+            or bool(self.is_charge)
+        )
 
 
 class JobComment(Base):

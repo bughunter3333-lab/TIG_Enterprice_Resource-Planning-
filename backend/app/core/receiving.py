@@ -13,6 +13,7 @@ back-orders at all. Both now come through here.
 from datetime import date, datetime, timezone
 from typing import Iterable, Optional
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.reservations import COMMITTED_STATUSES, committed_total
@@ -24,6 +25,36 @@ from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 # The movement types that are goods arriving from a supplier: a goods receipt,
 # and the quick receive on a purchase order.
 RECEIPT_TYPES = ("GR", "Purchase Receipt")
+
+
+def lock_po(db: Session, po_id: str) -> Optional[PurchaseOrder]:
+    """The PO with its row locked, and its lines read afresh under the lock.
+
+    Crediting a line is a read-modify-write of `qty_received`. Two receives of
+    the same line at once both read 0 and both wrote 5: 10 were shelved, the
+    line read 5 of 10, and the other 5 were offered to receive again (F18).
+    Every receive takes this lock before it credits, so the second waits for
+    the first and then reads the line as the first left it.
+    """
+    po = db.get(PurchaseOrder, po_id, with_for_update=True, populate_existing=True)
+    if po is not None:
+        db.query(PurchaseOrderItem).filter(
+            PurchaseOrderItem.order_id == po_id
+        ).populate_existing().all()
+    return po
+
+
+def check_receivable(po: PurchaseOrder) -> None:
+    """A cancelled PO takes no goods (F29).
+
+    Received against, it put stock on the shelf and a line read 7 of 4, while
+    the PO still read Cancelled — and could then never be set back to Sent.
+    """
+    if po.status == "Cancelled":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Purchase order {po.id} is cancelled — nothing is received against it",
+        )
 
 
 def credit_po_lines(
@@ -118,8 +149,10 @@ def receive(
 
     A line that bought a job's decoration or alteration work is credited (the
     PO still closes) but shelves nothing; the work reads 'Received' on the job
-    once all of it is in.
+    once all of it is in. Nor does a code that is no stock item — an indent,
+    a special order: it goes straight to the job it was bought for.
     """
+    stocked = db.query(InventoryItem.sku).filter_by(sku=sku).first() is not None
     for line, qty in credits:
         services = service_lines(db, line, sku)
         if services:
@@ -127,6 +160,9 @@ def receive(
                 for item in services:
                     item.item_status = "Received"
                 touch_job(services[0].job)
+            continue
+        if not stocked:
+            fill_bought_in(db, line, sku, qty)
             continue
         post_movement(
             db,
@@ -141,6 +177,45 @@ def receive(
             job_id=line.job_id,
             notes=notes,
         )
+
+
+def fill_bought_in(db: Session, line: PurchaseOrderItem, sku: str, qty: int) -> None:
+    """Units of a code that is no stock item, to the job its PO line names (S2-04).
+
+    Order requirements and a PO keyed by hand both buy codes that are not
+    stock items — a custom indent, a special-order shirt. Receiving them
+    shelved nothing (there is no stock item) and `fill_back_orders` returned
+    for want of one, so the job line stayed back-ordered: the despatch had no
+    record of the goods and the buying list asked for them again. They are the
+    job's from the moment they arrive: back-order becomes supply, lines raised
+    on this PO first. Open orders only, as for stock.
+    """
+    if not line.job_id or qty <= 0:
+        return
+    waiting = (
+        db.query(JobItem)
+        .join(Job, Job.id == JobItem.job_id)
+        .filter(
+            JobItem.job_id == line.job_id,
+            JobItem.stock_code == sku,
+            JobItem.b_ord > 0,
+            Job.status.in_(list(COMMITTED_STATUSES)),
+        )
+        .order_by(JobItem.sort.asc(), JobItem.id.asc())
+        .all()
+    )
+    waiting.sort(key=lambda item: item.po_no != line.order_id)
+    remaining = qty
+    for item in waiting:
+        if remaining <= 0:
+            break
+        fill = min(item.b_ord, remaining)
+        item.b_ord -= fill
+        item.supply_qty = (item.supply_qty or 0) + fill
+        if item.b_ord == 0:
+            item.item_status = "Received"
+        touch_job(item.job)
+        remaining -= fill
 
 
 def fill_back_orders(

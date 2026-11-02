@@ -1,4 +1,4 @@
-import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, quickListModule, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, quickListModule, mergeJobs, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
 import { jobsInView } from '../jobMetrics';
 import { todayKey } from '../../../lib/dates';
 
@@ -21,6 +21,22 @@ test('search matches id, customer, customerId, refs', () => {
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, searchTerm: 'bhp' }, null)).toHaveLength(2);
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, searchTerm: '1002' }, null)).toHaveLength(1);
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, searchTerm: 'po-9' }, null)).toHaveLength(1);
+});
+
+test('search also finds a portal order by its order number, contact, requester, ex-job ref or connote (F01)', () => {
+  const portal = { ...jobs[1], id: '1004', serialNo: 'WEB-10422', nameContact: 'Priya Natarajan', requestedBy: 'Dale Cooper', exJobRef: 'J2-88123', connote: 'STK00991' };
+  const all = [...jobs, portal];
+  for (const term of ['web-104', 'priya', 'dale c', 'j2-881', 'stk009']) {
+    expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: term }, null).map(j => j.id)).toEqual(['1004']);
+  }
+});
+
+test('jobs the server found are added to the loaded list once, the loaded copy kept (F01)', () => {
+  const found = [{ ...jobs[0], customer: 'stale copy' }, { id: '0999', customer: 'Old Co', items: [] }];
+  const merged = mergeJobs(jobs, found);
+  expect(merged.map(j => j.id)).toEqual(['1001', '1002', '1003', '0999']);
+  expect(merged[0].customer).toBe('BHP Group');
+  expect(mergeJobs(jobs, undefined)).toBe(jobs);
 });
 
 test('status, priority, customer, assignee filters', () => {

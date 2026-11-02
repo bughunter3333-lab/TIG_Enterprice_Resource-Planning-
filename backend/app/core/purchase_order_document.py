@@ -23,6 +23,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.core import po_totals
+
 DARK = colors.HexColor("#1e293b")
 ACCENT = colors.HexColor("#2563eb")
 LIGHT_BG = colors.HexColor("#f8fafc")
@@ -49,6 +51,13 @@ _title = ParagraphStyle(
 )
 _name = ParagraphStyle(
     "po_name", fontSize=16, textColor=DARK, fontName="Helvetica-Bold"
+)
+_cancelled = ParagraphStyle(
+    "po_cancelled",
+    fontSize=16,
+    textColor=colors.HexColor("#b91c1c"),
+    fontName="Helvetica-Bold",
+    alignment=TA_RIGHT,
 )
 
 
@@ -82,6 +91,12 @@ def build(po, supplier, company) -> bytes:
         ),
         HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=6),
     ]
+    # Printed from the PO screen, a cancelled order read as a live one (F17).
+    if po.status == "Cancelled":
+        story += [
+            _p("CANCELLED — do not supply this order", _cancelled),
+            Spacer(1, 3 * mm),
+        ]
 
     to_lines = [f"<b>{po.supplier_name or (supplier.name if supplier else '')}</b>"]
     if supplier is not None:
@@ -119,9 +134,12 @@ def build(po, supplier, company) -> bytes:
                 _p(line.job_id or "Stock"),
                 _p(line.qty_ordered, _right),
                 _p(_money(line.unit_cost), _right),
-                _p(_money(line.total), _right),
+                _p(_money(po_totals.line_total(line)), _right),
             ]
         )
+    # Totalled from the lines printed above, not the stored header: a PO whose
+    # header was never totalled went to the supplier reading $0.00 (F17).
+    totals = po_totals.from_lines(po.items)
     lines = Table(
         rows,
         colWidths=[30 * mm, 62 * mm, 22 * mm, 14 * mm, 25 * mm, 27 * mm],
@@ -140,12 +158,12 @@ def build(po, supplier, company) -> bytes:
     story.append(
         Table(
             [
-                ["", _p("Subtotal (ex GST)", _right), _p(_money(po.total_ex), _right)],
-                ["", _p("GST", _right), _p(_money(po.tax_total), _right)],
+                ["", _p("Subtotal (ex GST)", _right), _p(_money(totals.ex), _right)],
+                ["", _p("GST", _right), _p(_money(totals.tax), _right)],
                 [
                     "",
                     _p("<b>Total (inc GST)</b>", _right),
-                    _p(f"<b>{_money(po.total_inc)}</b>", _right),
+                    _p(f"<b>{_money(totals.inc)}</b>", _right),
                 ],
             ],
             colWidths=["55%", "30%", "15%"],

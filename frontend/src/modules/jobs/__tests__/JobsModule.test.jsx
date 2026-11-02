@@ -1,7 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '../../../test/renderWithQuery';
+import { jobs as jobsApi } from '../../../api';
 import JobsList from '../JobsList';
 import JobsModule from '../JobsModule';
 import { EMPTY_JOBS_FILTERS } from '../jobsFilters';
+
+// The module asks the server too once a search is typed (F01).
+vi.mock('../../../api', () => ({ jobs: { list: vi.fn() } }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  jobsApi.list.mockResolvedValue([]);
+});
 
 const jobs = [
   { id: '1001', customer: 'BHP Group', status: 'PRINT', priority: 'Urgent', accMgr: 'SM', total: 1500, due: '12/06/2026', items: [{ decorationType: 'Embroidery' }] },
@@ -60,27 +70,46 @@ const base = {
 };
 
 test('table mode shows filtered rows; active filter renders a removable chip', () => {
-  render(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS, status: 'PRINT' }} />);
+  renderWithQuery(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS, status: 'PRINT' }} />);
   expect(screen.getByText('2001')).toBeInTheDocument();
   expect(screen.queryByText('2002')).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText('Remove Status filter'));
   expect(base.onFilterChange).toHaveBeenCalledWith('status', 'all');
 });
 
+test('a search asks the server too, and shows a job outside the loaded list (F01)', async () => {
+  // The list loads the newest 500 jobs; an older portal order is found by its
+  // order number only on the server.
+  jobsApi.list.mockResolvedValue([
+    { id: '0999', customer: 'Old Co', customerId: 'OLD', status: 'FINISH', priority: 'Normal', due: '', total: 10, items: [], serialNo: 'WEB-77' },
+  ]);
+  renderWithQuery(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS, searchTerm: 'web-77' }} />);
+  expect(await screen.findByText('0999')).toBeInTheDocument();
+  expect(jobsApi.list).toHaveBeenCalledWith({ search: 'web-77' });
+  expect(screen.queryByText('2001')).not.toBeInTheDocument();
+});
+
+test('one character typed does not ask the server', async () => {
+  renderWithQuery(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS, searchTerm: '2' }} />);
+  expect(screen.getByText('2001')).toBeInTheDocument();
+  await new Promise(r => setTimeout(r, 400));
+  expect(jobsApi.list).not.toHaveBeenCalled();
+});
+
 test('board mode renders kanban columns instead of the grid', () => {
-  render(<JobsModule {...base} viewMode="board" />);
+  renderWithQuery(<JobsModule {...base} viewMode="board" />);
   expect(screen.getByText('QUOTE')).toBeInTheDocument();   // column header
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });
 
 test('view toggle fires onViewModeChange', () => {
-  render(<JobsModule {...base} />);
+  renderWithQuery(<JobsModule {...base} />);
   fireEvent.click(screen.getByLabelText('Board view'));
   expect(base.onViewModeChange).toHaveBeenCalledWith('board');
 });
 
 test('lockedStatus shows only matching jobs regardless of filters.status', () => {
-  render(<JobsModule {...base} lockedStatus="QUOTE" jobs={[
+  renderWithQuery(<JobsModule {...base} lockedStatus="QUOTE" jobs={[
     { id: '3001', customer: 'A', customerId: 'A', status: 'QUOTE', priority: 'Normal', assignedTo: 'Emon', due: '12/06/2026', total: 10, items: [], shipTo: 'SYD' },
     { id: '3002', customer: 'B', customerId: 'B', status: 'PRINT', priority: 'Normal', assignedTo: 'Sam', due: '12/06/2026', total: 20, items: [], shipTo: 'MEL' },
   ]} filters={{ ...EMPTY_JOBS_FILTERS, status: 'PRINT' }} />);
@@ -90,14 +119,14 @@ test('lockedStatus shows only matching jobs regardless of filters.status', () =>
 });
 
 test('lockedStatus hides Status chip, Status column, and Status from the add menu', () => {
-  const { unmount } = render(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS }} />);
+  const { unmount } = renderWithQuery(<JobsModule {...base} filters={{ ...EMPTY_JOBS_FILTERS }} />);
   // Baseline (not locked): the Status column header IS present. Addressed as a
   // column header rather than by text — "Status" also appears in the group-by
   // selector, and this assertion is about the column.
   expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
   unmount();
 
-  render(<JobsModule {...base} lockedStatus="QUOTE" filters={{ ...EMPTY_JOBS_FILTERS, status: 'QUOTE' }} />);
+  renderWithQuery(<JobsModule {...base} lockedStatus="QUOTE" filters={{ ...EMPTY_JOBS_FILTERS, status: 'QUOTE' }} />);
   // (a) no removable Status chip
   expect(screen.queryByLabelText('Remove Status filter')).not.toBeInTheDocument();
   // (b) Status column header hidden (redundant when every row is QUOTE)

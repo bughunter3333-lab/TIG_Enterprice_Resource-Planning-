@@ -101,13 +101,94 @@ function AddLogo({ customerId, decorators, onDone }) {
   );
 }
 
+// What can be changed on a logo once made (F09). Its code and method are what
+// job lines carry and how the proof was made, so they stay.
+const editable = (g) => ({
+  position: g.position || '', stitchCount: g.stitchCount ?? '', priceEx: String(g.priceEx), costEx: String(g.costEx),
+  madeBy: g.madeBy, supplierId: g.supplierId || '', isActive: g.isActive !== false,
+});
+
+/** The fields of `form` that differ from the logo; a logo brought in-house loses its decorator. */
+export function logoChanges(logo, form) {
+  const was = editable(logo);
+  const out = {};
+  for (const key of Object.keys(form)) {
+    if (String(form[key]) !== String(was[key])) out[key] = form[key];
+  }
+  if (out.madeBy === 'in_house') out.supplierId = '';
+  return out;
+}
+
+function EditLogo({ logo, customerId, decorators, onDone }) {
+  const [form, setForm] = useState(() => editable(logo));
+  const [tried, setTried] = useState(false);
+  const qc = useQueryClient();
+  const problems = logoProblems({ ...form, code: logo.code, decorationType: logo.decorationType });
+  const changes = logoChanges(logo, form);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const save = useMutation({
+    mutationFn: () => logos.update(logo.id, changes),
+    onSuccess: (saved) => {
+      qc.invalidateQueries({ queryKey: ['logos', customerId] });
+      notify(`Logo ${saved.code} saved`, { type: 'success' });
+      onDone();
+    },
+    onError: (e) => notify(e.message, { type: 'error' }),
+  });
+  const submit = (e) => {
+    e.preventDefault();
+    setTried(true);
+    if (Object.keys(problems).length === 0 && Object.keys(changes).length > 0) save.mutate();
+  };
+  const field = (key, label, input) => (
+    <label className="block text-xs text-muted">
+      {label}
+      {input}
+      {tried && problems[key] && <span role="alert" className="block text-danger">{problems[key]}</span>}
+    </label>
+  );
+  return (
+    <form onSubmit={submit} className="grid grid-cols-3 gap-2 p-3 mb-4 rounded border bg-panel-alt" aria-label={`Edit ${logo.code}`}>
+      <p className="col-span-3 text-sm font-mono font-bold">{logo.code} <span className="font-sans font-normal text-muted">{logo.decorationType}</span></p>
+      {field('position', 'Position', <input className={inp} value={form.position} onChange={set('position')} />)}
+      {field('stitchCount', 'Stitches', <input className={inp} inputMode="numeric" value={form.stitchCount} onChange={set('stitchCount')} />)}
+      {field('madeBy', 'Done', (
+        <select className={inp} value={form.madeBy} onChange={set('madeBy')}>
+          <option value="in_house">In-house</option>
+          <option value="subcontract">By a decorator</option>
+        </select>
+      ))}
+      {form.madeBy === 'subcontract' && field('supplierId', 'Decorator', (
+        <select className={inp} value={form.supplierId} onChange={set('supplierId')}>
+          <option value="">Choose…</option>
+          {decorators.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+        </select>
+      ))}
+      {field('priceEx', 'Price ex GST', <input className={inp} inputMode="decimal" value={form.priceEx} onChange={set('priceEx')} />)}
+      {field('costEx', 'Cost ex GST', <input className={inp} inputMode="decimal" value={form.costEx} onChange={set('costEx')} />)}
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} />
+        Active
+      </label>
+      <div className="col-span-3 flex justify-end gap-2">
+        <button type="button" onClick={onDone} className="text-xs px-3 py-1.5 rounded border text-muted">Cancel</button>
+        <button type="submit" disabled={save.isPending || Object.keys(changes).length === 0} className="text-xs px-3 py-1.5 rounded bg-accent-strong text-white disabled:opacity-50">
+          {save.isPending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function LogosTab({ customerId }) {
   const offer = useOffer();
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
+  // Inactive logos too: one made inactive is listed, so it can be brought back.
   const { data: list, isPending, isError } = useQuery({
-    queryKey: ['logos', customerId],
-    queryFn: () => logos.list(customerId),
+    queryKey: ['logos', customerId, 'all'],
+    queryFn: () => logos.list(customerId, { includeInactive: true }),
   });
   // Decorators are suppliers: named in the list, chosen in the form.
   const { data: decorators = [] } = useQuery({
@@ -124,6 +205,7 @@ export default function LogosTab({ customerId }) {
   });
   const canAdd = offer('POST', '/logos');
   const canProof = offer('POST', '/logos/{logo_id}/proof');
+  const canEdit = offer('PATCH', '/logos/{logo_id}');
   const decoratorName = (id) => decorators.find((s) => s.code === id)?.name ?? id;
 
   if (isError) return <p className="text-sm text-danger">Couldn't load this customer's logos.</p>;
@@ -137,6 +219,7 @@ export default function LogosTab({ customerId }) {
         )}
       </div>
       {adding && <AddLogo customerId={customerId} decorators={decorators} onDone={() => setAdding(false)} />}
+      {editing && <EditLogo key={editing.id} logo={editing} customerId={customerId} decorators={decorators} onDone={() => setEditing(null)} />}
       {list.length === 0 ? (
         <p className="text-sm text-faint py-6 text-center">No logos yet.</p>
       ) : (
@@ -150,8 +233,12 @@ export default function LogosTab({ customerId }) {
           </thead>
           <tbody className="divide-y divide-hairline-soft">
             {list.map((g) => (
-              <tr key={g.id}>
-                <td className="px-2 py-2 font-mono font-bold">{g.code}<div className="font-sans font-normal text-muted">{g.name}</div></td>
+              <tr key={g.id} className={g.isActive === false ? 'text-faint' : undefined}>
+                <td className="px-2 py-2 font-mono font-bold">
+                  {g.code}
+                  <div className="font-sans font-normal text-muted">{g.name}</div>
+                  {g.isActive === false && <div className="font-sans font-semibold text-warn">Inactive</div>}
+                </td>
                 <td className="px-2 py-2">{g.decorationType}</td>
                 <td className="px-2 py-2">{g.position || '—'}</td>
                 <td className="px-2 py-2">{g.stitchCount ?? '—'}</td>
@@ -162,7 +249,10 @@ export default function LogosTab({ customerId }) {
                   {g.approvedBy && <div className="font-normal text-muted">{g.approvedBy}</div>}
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap">
-                  {canProof && ['sent', 'approved', 'rejected'].filter((s) => s !== g.proofStatus).map((s) => (
+                  {canEdit && (
+                    <button onClick={() => setEditing(g)} className="ml-1 underline text-accent-strong" aria-label={`Edit ${g.code}`}>Edit</button>
+                  )}
+                  {canProof &&['sent', 'approved', 'rejected'].filter((s) => s !== g.proofStatus).map((s) => (
                     <button key={s} onClick={() => proof.mutate({ id: g.id, status: s })} disabled={proof.isPending}
                       className="ml-1 underline text-accent-strong disabled:opacity-50"
                       aria-label={`Mark ${g.code} ${PROOF_LABELS[s].toLowerCase()}`}>

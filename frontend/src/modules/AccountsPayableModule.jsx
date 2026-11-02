@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, DollarSign, AlertCircle, Clock, CheckCircle, X, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, AlertCircle, Clock, CheckCircle, X, Download, Receipt } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
@@ -16,36 +16,51 @@ const STATUS_STYLES = {
 
 /**
  * A bill against a PO, held up against what actually arrived on that PO —
- * received quantities at the PO price, plus landed charges, with GST.
+ * received quantities at the PO price, plus landed charges, with GST. The
+ * ordered figure sits beside it (F36): matching is for the whole PO, against
+ * what was received, not per bill or per line.
  */
 function PoMatch({ bill }) {
   const m = bill.poMatch;
   if (!m) return null;
-  if (m.matches) {
-    return <div className="font-sans text-[10px]" style={{ color: T.ok }}>{bill.poId} ✓ matches received</div>;
-  }
   const more = m.difference > 0;
   return (
-    <div className="font-sans text-[10px]" style={{ color: T.danger }}
-      title={`Billed ${fmt$(m.billedInc)} against ${fmt$(m.receivedInc)} received on ${bill.poId}`}>
-      {bill.poId}: billed {fmt$(Math.abs(m.difference))} {more ? 'more' : 'less'} than received
-    </div>
+    <>
+      {m.matches ? (
+        <div className="font-sans text-[10px]" style={{ color: T.ok }}>{bill.poId} ✓ matches received</div>
+      ) : (
+        <div className="font-sans text-[10px]" style={{ color: T.danger }}
+          title={`Billed ${fmt$(m.billedInc)} against ${fmt$(m.receivedInc)} received on ${bill.poId}`}>
+          {bill.poId}: billed {fmt$(Math.abs(m.difference))} {more ? 'more' : 'less'} than received
+        </div>
+      )}
+      <div className="font-sans text-[10px]" style={{ color: T.textMuted }}>
+        Ordered {fmt$(m.orderedInc)} · received {fmt$(m.receivedInc)} · billed {fmt$(m.billedInc)}
+      </div>
+    </>
   );
 }
 
 function isOverdue(bill) {
-  return bill.dueDate && bill.dueDate < today() && bill.status !== 'paid';
+  return bill.dueDate && bill.dueDate < today() && bill.status !== 'paid' && !isCredit(bill);
 }
+
+/** A credit note: a bill for less than nothing — applied to a bill, never paid (S2-09). */
+const isCredit = (bill) => bill.amountInc < 0;
+const supplierOf = (bill) => bill.supplierId || bill.supplierName;
 
 function exportCSV(rows) {
   if (!rows.length) return;
-  const headers = ['ID','Supplier','Bill#','Bill Date','Due Date','Description','Excl GST','GST','Incl GST','Status','Paid Date','Paid Amount'];
+  // Outstanding and Applied To say how a bill settled by a credit note was
+  // settled: paid, yet its payments $110 short (S2-09).
+  const headers = ['ID','Supplier','Bill#','Bill Date','Due Date','Description','Excl GST','GST','Incl GST','Status','Paid Date','Paid Amount','Outstanding','Applied To'];
   const lines = [
     headers.join(','),
     ...rows.map(b => [
       b.id, b.supplierName, b.billNumber, b.billDate, b.dueDate,
       `"${(b.description||'').replace(/"/g,'""')}"`,
       b.amountEx, b.tax, b.amountInc, b.status, b.paidDate, b.paidAmount,
+      b.outstanding, b.appliedToBillNumber || '',
     ].join(',')),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -327,6 +342,86 @@ function PayModal({ bill, onPay, onTakeBack, onClose }) {
   );
 }
 
+/**
+ * Take a supplier's credit note off one of its open bills. The bills offered
+ * are the same supplier's, still owing; one owing less than the credit cannot
+ * take it, as the server refuses that too.
+ */
+function ApplyCreditModal({ credit, onApply, onClose }) {
+  const [billId, setBillId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const amount = -credit.amountInc;
+  // The supplier's open bills only, asked of the server: the first page of
+  // all their bills is the oldest, all paid.
+  const { data: theirs = [], isFetching } = useQuery({
+    queryKey: ['ap-bills', 'credit-targets', supplierOf(credit)],
+    queryFn: () => api.supplierBills.list({
+      ...(credit.supplierId ? { supplier_id: credit.supplierId } : { supplier_name: credit.supplierName }),
+      open_only: true,
+    }),
+  });
+  const open = theirs.filter(b =>
+    b.id !== credit.id && !isCredit(b) && b.status !== 'paid' && supplierOf(b) === supplierOf(credit));
+
+  const handleApply = async () => {
+    if (!billId) { setErr('Choose the bill it comes off'); return; }
+    setSaving(true); setErr('');
+    try { await onApply(Number(billId)); }
+    catch (e) { setErr(e.message); setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
+      <div role="dialog" aria-label="Apply credit note" className="rounded-lg shadow-xl w-96 p-5" style={{ background: T.panel }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold" style={{ color: T.text }}>Apply Credit Note</h3>
+          <button onClick={onClose} aria-label="Close"><X className="w-4 h-4" style={{ color: T.textFaint }} /></button>
+        </div>
+        <p className="text-sm mb-3" style={{ color: T.textMuted }}>
+          Credit: <span className="font-medium" style={{ color: T.text }}>{credit.billNumber || `#${credit.id}`}</span>
+          {' · '}<span className="font-semibold" style={{ color: T.ok }}>{fmt$(amount)}</span><br />
+          from {credit.supplierName || '—'}
+        </p>
+        {!isFetching && open.length === 0 && (
+          <p className="text-sm" style={{ color: T.textFaint }}>This supplier has no open bill to apply it to.</p>
+        )}
+        {open.length > 0 && (
+          <fieldset className="space-y-1.5">
+            <legend className="text-xs mb-1" style={{ color: T.textMuted }}>Comes off bill</legend>
+            {open.map(b => {
+              const tooSmall = b.outstanding + 0.005 < amount;
+              return (
+                <label key={b.id} className="flex items-start gap-2 text-sm rounded-lg px-2 py-1.5"
+                  style={{ border: `1px solid ${String(b.id) === billId ? T.accentStrong : T.hairline}`, color: tooSmall ? T.textFaint : T.text, cursor: tooSmall ? 'not-allowed' : 'pointer' }}>
+                  <input type="radio" name="credit-target" value={b.id} disabled={tooSmall} className="mt-0.5"
+                    checked={String(b.id) === billId} onChange={e => setBillId(e.target.value)} />
+                  <span className="flex-1 min-w-0">
+                    <span className="flex justify-between gap-2">
+                      <span className="truncate">{b.billNumber || `#${b.id}`} · {b.billDate || '—'}</span>
+                      <span className="whitespace-nowrap tabular-nums">{fmt$(b.outstanding)} owing</span>
+                    </span>
+                    {tooSmall && <span className="block text-xs">Owes less than the credit</span>}
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
+        )}
+        {err && <p className="mt-2 text-xs" style={{ color: T.danger }}>{err}</p>}
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="flex-1 px-3 py-2 rounded-lg text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+          <button onClick={handleApply} disabled={saving || open.length === 0}
+            className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            style={{ background: T.accentStrong, color: '#fff' }}>
+            {saving ? '…' : 'Apply Credit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AccountsPayableModule({ suppliers = [] }) {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
@@ -334,6 +429,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [billForm, setBillForm] = useState(null);   // null = closed, {} = new, bill = edit
   const [payModal, setPayModal] = useState(null);
+  const [creditModal, setCreditModal] = useState(null);
   const [delConfirm, setDelConfirm] = useState(null);
 
   const { data: bills = [], isFetching } = useQuery({
@@ -375,9 +471,20 @@ export default function AccountsPayableModule({ suppliers = [] }) {
     invalidate(); qc.invalidateQueries({ queryKey: ['ap-bill', payModal.id] }); setPayModal(null);
   };
 
+  const handleApplyCredit = async (billId) => {
+    await api.supplierBills.applyCredit(creditModal.id, billId);
+    invalidate(); setCreditModal(null);
+  };
+
   const handleDelete = async () => {
     await api.supplierBills.delete(delConfirm);
     invalidate(); setDelConfirm(null);
+  };
+
+  // What an applied credit note names: the bill it came off.
+  const numberOf = (id) => {
+    const b = bills.find(x => x.id === id);
+    return b ? (b.billNumber || `#${b.id}`) : `#${id}`;
   };
 
   const filtered = bills.filter(b => {
@@ -513,7 +620,20 @@ export default function AccountsPayableModule({ suppliers = [] }) {
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
-                      {bill.status !== 'paid' ? (
+                      {isCredit(bill) ? (
+                        bill.appliedToBillId ? (
+                          <span className="text-[11px]" style={{ color: T.textMuted }}>
+                            Applied to {bill.appliedToBillNumber || numberOf(bill.appliedToBillId)}
+                          </span>
+                        ) : (
+                          <button onClick={() => setCreditModal(bill)}
+                            aria-label={`Apply credit note ${bill.billNumber || bill.id}`}
+                            className="flex items-center gap-0.5 text-[11px] px-2 py-1 rounded-lg font-medium"
+                            style={{ border: `1px solid ${T.accentStrong}`, color: T.accentStrong }}>
+                            <Receipt className="w-3 h-3" />Apply
+                          </button>
+                        )
+                      ) : bill.status !== 'paid' ? (
                         <button onClick={() => setPayModal(bill)}
                           className="flex items-center gap-0.5 text-[11px] px-2 py-1 rounded-lg font-medium"
                           style={{ background: T.accentStrong, color: '#fff' }}>
@@ -572,6 +692,11 @@ export default function AccountsPayableModule({ suppliers = [] }) {
       {/* Pay modal */}
       {payModal && (
         <PayModal bill={payModal} onPay={handlePay} onTakeBack={handleTakeBack} onClose={() => setPayModal(null)} />
+      )}
+
+      {/* Apply a credit note */}
+      {creditModal && (
+        <ApplyCreditModal credit={creditModal} onApply={handleApplyCredit} onClose={() => setCreditModal(null)} />
       )}
 
       {/* Delete confirm */}

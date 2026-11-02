@@ -348,6 +348,41 @@ function CommittedSpend({ committed, total }) {
   );
 }
 
+// Goods that have arrived on a PO but are not yet billed in full: owed to the
+// supplier already, though no bill is typed, so they were in neither list (F25).
+function ReceivedNotBilled({ rows }) {
+  if (!rows?.length) return null;
+  const total = rows.reduce((s, r) => s + (parseFloat(r.outstanding_inc) || 0), 0);
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
+      <div className="px-3 py-2 text-sm font-semibold flex justify-between" style={{ background: T.hairlineSoft, color: T.text }}>
+        <span>Received, not billed — goods in, no bill yet</span>
+        <span>{fmt$(total)}</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            {['Purchase order', 'Supplier', 'Received', 'Billed', 'Not yet billed'].map(h => (
+              <th key={h} className="text-left px-3 py-2 text-xs font-semibold" style={{ color: T.textMuted }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.po_id}>
+              <td className="px-3 py-1.5 font-mono text-xs">{r.po_id}</td>
+              <td className="px-3 py-1.5">{r.supplier_name}</td>
+              <td className="px-3 py-1.5 text-right">{fmt$(r.received_inc)}</td>
+              <td className="px-3 py-1.5 text-right">{fmt$(r.billed_inc)}</td>
+              <td className="px-3 py-1.5 text-right">{fmt$(r.outstanding_inc)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AgedPayablesTab() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['reports/aged-payables'],
@@ -413,6 +448,7 @@ function AgedPayablesTab() {
         <div className="text-center py-16" style={{ color: T.textFaint }}>No unpaid supplier bills.</div>
       )}
       <CommittedSpend committed={data?.committed} total={totals.committed} />
+      <ReceivedNotBilled rows={data?.received_not_billed} />
     </div>
   );
 }

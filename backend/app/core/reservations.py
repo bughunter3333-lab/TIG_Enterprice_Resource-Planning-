@@ -48,9 +48,18 @@ _COMMITTED = list(COMMITTED_STATUSES)
 
 # Goods lines only. A decoration or alteration line (one applying a logo, or
 # done to another line) is a service: nothing of it is held or bought, even if
-# its code happens to match a stock item (JobItem.is_service). Every read of
+# its code happens to match a stock item (JobItem.is_service). Nor is a section
+# or note line, whatever code it carries. The same rule as `_is_stock_line` in
+# routers/jobs.py, which posts, picks and depletes — a note line counted here
+# was reserved on every screen and never posted or shipped (F14). Every read of
 # what jobs hold filters with this — the Committed tab too.
-GOODS_LINES = (JobItem.logo_id.is_(None), JobItem.applies_to_item_id.is_(None))
+GOODS_LINES = (
+    JobItem.display_type == "product",
+    JobItem.logo_id.is_(None),
+    JobItem.applies_to_item_id.is_(None),
+    # Nor a charge — freight, a set-up, a fee (S2-05).
+    ~JobItem.is_charge,
+)
 
 
 def _base_query(db: Session):

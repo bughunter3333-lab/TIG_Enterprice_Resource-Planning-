@@ -27,9 +27,9 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 from app.database import get_db
-from app.core import despatch_documents
+from app.core import despatch_documents, payment_terms
 from app.core.dependencies import require_any, require_staff
-from app.core.job_weight import unweighed_lines
+from app.core.job_weight import order_weight, unweighed_lines
 from app.core.ledger_postings import INVOICED_STATUSES
 from app.models.dispatch_session import DispatchSessionLine
 from app.models.job import Job
@@ -62,7 +62,34 @@ def printable_lines(job: Job) -> list:
     ]
 
 
-def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
+def _invoice_terms(
+    job: Job, company: CompanySettings, customer: Optional[Customer]
+) -> tuple[str, Optional[str]]:
+    """The terms an invoice prints and the day it falls due (S2-13).
+
+    As stamped when it was issued; worked out, the way aged receivables does,
+    for an invoice issued before invoices carried them. The PDF used to print
+    the goods' due date as the Due Date and the company's terms, whatever the
+    customer's were.
+    """
+    if job.invoice_terms and job.invoice_due_date:
+        return job.invoice_terms, job.invoice_due_date
+    terms = payment_terms.terms_in_force(
+        customer.payment_terms if customer else None, company.payment_terms_default
+    )
+    try:
+        issued = date.fromisoformat((job.invoice_date or "")[:10])
+    except ValueError:
+        return terms, None
+    return terms, payment_terms.due_date(issued, terms).isoformat()
+
+
+def _build_pdf(
+    job: Job,
+    company: CompanySettings,
+    doc_type: str,
+    customer: Optional[Customer] = None,
+) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -149,8 +176,12 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     ]
     if not is_invoice and job.validity_date:
         doc_lines.append(f"Valid Until: <b>{job.validity_date}</b>")
-    if is_invoice and job.due:
-        doc_lines.append(f"Due Date: <b>{job.due}</b>")
+    terms = company.payment_terms_default
+    if is_invoice:
+        terms, due = _invoice_terms(job, company, customer)
+        doc_lines.append(f"Terms: <b>{terms}</b>")
+        if due:
+            doc_lines.append(f"Due Date: <b>{due}</b>")
 
     # Render as paragraphs
     co_cell = [Paragraph(l, small) for l in co_lines]
@@ -177,8 +208,17 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
                 S("bt", fontSize=8, textColor=ACCENT, fontName="Helvetica-Bold"),
             )
         ],
-        [Paragraph(f"<b>{job.customer_name or ''}</b>", normal)],
+        # The buyer from the customer master when the job names none (S2-01):
+        # a tax invoice of $1,000 or more must identify the buyer.
+        [
+            Paragraph(
+                f"<b>{job.customer_name or (customer.name if customer else '')}</b>",
+                normal,
+            )
+        ],
     ]
+    if customer and customer.abn:
+        bill_to_data.append([Paragraph(f"ABN: {customer.abn}", small)])
     if job.cust_ref:
         bill_to_data.append([Paragraph(f"Ref: {job.cust_ref}", small)])
     if job.shipping_address:
@@ -329,8 +369,8 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
             bank_lines.append(f"Account: {company.bank_account}")
         if company.bank_account_name:
             bank_lines.append(f"Account Name: {company.bank_account_name}")
-        if company.payment_terms_default:
-            bank_lines.append(f"Terms: {company.payment_terms_default}")
+        if terms:
+            bank_lines.append(f"Terms: {terms}")
         for line in bank_lines:
             story.append(Paragraph(line, small))
         story.append(Spacer(1, 3 * mm))
@@ -364,7 +404,10 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
 
 
 def _build_picking_slip(
-    job: Job, company: CompanySettings, unweighed: Optional[list] = None
+    job: Job,
+    company: CompanySettings,
+    unweighed: Optional[list] = None,
+    weight: float = 0.0,
 ) -> bytes:
     unweighed = unweighed or []
     buf = io.BytesIO()
@@ -530,7 +573,8 @@ def _build_picking_slip(
 
     # Weight and notes footer. The garments with no weight are named, as Jim2
     # names them: freight is charged on this figure (app/core/job_weight.py).
-    weight = float(getattr(job, "weight_total", 0) or 0)
+    # It is weighed as the slip prints, not read from the job: the stored
+    # weight went stale when a stock item's weight was entered later (F08).
     footer_rows = []
     if weight > 0 or unweighed:
         weight_text = f"Order Weight: {weight:.2f} kg"
@@ -1231,7 +1275,9 @@ def job_pdf(
     company = _company(db)
 
     if type == "picking-slip":
-        pdf_bytes = _build_picking_slip(job, company, unweighed_lines(job, db))
+        pdf_bytes = _build_picking_slip(
+            job, company, unweighed_lines(job, db), order_weight(job, db)
+        )
         filename = f"picking_slip_{job_id}.pdf"
     elif type == "job-sheet":
         pdf_bytes = _build_job_sheet(job, company)
@@ -1243,7 +1289,10 @@ def job_pdf(
         )
         filename = f"{type}_{job_id}.pdf"
     else:
-        pdf_bytes = _build_pdf(job, company, type)
+        customer = (
+            db.get(Customer, job.customer_id) if job.customer_id is not None else None
+        )
+        pdf_bytes = _build_pdf(job, company, type, customer)
         filename = (
             f"{type}_{(job.invoice if type == 'invoice' else None) or job_id}.pdf"
         )

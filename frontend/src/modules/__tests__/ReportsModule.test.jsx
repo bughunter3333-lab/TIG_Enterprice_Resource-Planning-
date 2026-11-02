@@ -93,6 +93,29 @@ test('open purchase orders are shown as committed spend, apart from what is owed
   expect(screen.getByText(/on order, not yet billed/)).toBeInTheDocument();
 });
 
+test('goods received but not yet billed are shown beside committed spend (F25)', async () => {
+  users.myAccess.mockResolvedValue(STAFF);
+  reports.agedPayables.mockResolvedValue({
+    rows: [],
+    committed: [],
+    received_not_billed: [
+      { po_id: 'PO-RX', supplier_name: 'Fly Apparel', received_inc: 55, billed_inc: 0, outstanding_inc: 55 },
+      { po_id: 'PO-RY', supplier_name: 'Workwear Wholesale', received_inc: 110, billed_inc: 40, outstanding_inc: 70 },
+    ],
+    totals: { current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, over_90: 0, total: 0, committed: 0 },
+    as_at: '2026-10-27',
+  });
+  renderWithQuery(<ReportsModule initialTab="agedpay" />);
+  expect(await screen.findByText(/Received, not billed/)).toBeInTheDocument();
+  const table = within(screen.getByText('PO-RY').closest('table'));
+  expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+    'Purchase order', 'Supplier', 'Received', 'Billed', 'Not yet billed',
+  ]);
+  const row = within(table.getByText('PO-RY').closest('tr')).getAllByRole('cell').map((c) => c.textContent);
+  expect(row).toEqual(['PO-RY', 'Workwear Wholesale', '$110.00', '$40.00', '$70.00']);
+  expect(screen.getByText('$125.00')).toBeInTheDocument();
+});
+
 test('overseas staff are shown no money report, and are not sent to one', async () => {
   users.myAccess.mockResolvedValue(OVERSEAS);
   const { client } = renderWithQuery(<ReportsModule initialTab="aged" />);

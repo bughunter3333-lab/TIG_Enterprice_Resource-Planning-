@@ -52,6 +52,16 @@ def _read(start: date, terms: Optional[str]) -> Optional[date]:
     return None
 
 
+def terms_in_force(terms: Optional[str], default: Optional[str] = None) -> str:
+    """The terms `due_date` reads: `terms`, else `default`, else Net 30.
+
+    What an invoice prints as its terms, so the words agree with the date."""
+    for candidate in (terms, default):
+        if _read(date.today(), candidate) is not None:
+            return " ".join(candidate.split())
+    return DEFAULT_TERMS
+
+
 def due_date(start: date, terms: Optional[str], default: Optional[str] = None) -> date:
     """When an invoice dated `start` falls due on `terms`.
 

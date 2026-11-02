@@ -2,11 +2,12 @@
 
 Creating a session despatches every job in it, each exactly as
 POST /jobs/{id}/dispatch does (`_record_despatch`: a packed job becomes FINISH,
-the connote goes on the job, where it went goes on the line, and an optional
-advance to INVOICE), under a sequential Dispatch #.
+the connote goes on the job, where it went and what went of each job line go
+on the line, and an optional advance to INVOICE), under a sequential Dispatch #.
 """
 
-from typing import List
+from datetime import date
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -14,24 +15,39 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.core.dependencies import require_staff
-from app.models.dispatch_session import DispatchSession
+from app.models.dispatch_session import DispatchSession, DispatchSessionLine
 from app.models.job import Job
 from app.models.user import User
-from app.routers.jobs import _record_despatch
+from app.routers.jobs import (
+    _KNOWN_FIELDS_ONLY,
+    NothingToSend,
+    _despatched,
+    _record_despatch,
+    despatch_day,
+)
 
 router = APIRouter(prefix="/dispatch-sessions", tags=["dispatch"])
 
 
 class SessionLineIn(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     job_id: str
     ship_via: str = Field("", max_length=100)
     ship_ref: str = Field("", max_length=100)
     cartons: int = Field(default=1, ge=1)
     advance_status: bool = False
+    # A further consignment of a job that has gone already (F22).
+    again: bool = False
 
 
 class SessionCreate(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
     lines: List[SessionLineIn] = Field(min_length=1)
+    # The day the batch goes, when not today — after the carrier's cut-off
+    # it is the next collection (B1-07).
+    despatch_date: Optional[date] = None
 
 
 def _serialize(s: DispatchSession, include_lines: bool = True) -> dict:
@@ -50,6 +66,9 @@ def _serialize(s: DispatchSession, include_lines: bool = True) -> dict:
                 "cartons": ln.cartons,
                 "ship_to": ln.ship_to,
                 "address": ln.address,
+                "despatch_date": ln.despatch_date,
+                # What went of each job line in this consignment (F21).
+                "items": _despatched(ln),
             }
             for ln in s.lines
         ]
@@ -62,6 +81,16 @@ def create_dispatch_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff),
 ):
+    # One job, one line: a job named twice went out twice on the same day
+    # under the same Dispatch #, and its connote was whichever line came last.
+    despatch_day(body.despatch_date)  # once, before any job is looked at
+    named = [ln.job_id for ln in body.lines]
+    twice = sorted({jid for jid in named if named.count(jid) > 1})
+    if twice:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job(s) named more than once in the batch: {', '.join(twice)}",
+        )
     jobs = {
         j.id: j
         for j in db.query(Job)
@@ -77,9 +106,13 @@ def create_dispatch_session(
 
     # All or nothing. A batch where some jobs went and some did not would leave
     # the despatcher working out which half went out; refusing it whole, naming
-    # each job that cannot go and why, is one thing to fix.
+    # each job that cannot go and why, is one thing to fix. Save a job with
+    # nothing left to send — a pack all back-ordered, one sent in full already:
+    # it is left out and named, and the rest go (S2-20). Refusing the batch for
+    # it made the despatcher take each one out by hand and send again.
     savepoint = db.begin_nested()
     refused = []
+    skipped = []
     session = DispatchSession(user_id=current_user.id)
     db.add(session)
     for ln in body.lines:
@@ -93,9 +126,15 @@ def create_dispatch_session(
                 ship_ref=ln.ship_ref,
                 cartons=ln.cartons,
                 advance=ln.advance_status,
+                again=ln.again,
+                despatch_date=body.despatch_date,
             )
+        except NothingToSend as exc:
+            skipped.append({"job_id": ln.job_id, "reason": exc.detail})
         except HTTPException as exc:
             refused.append((exc.status_code, f"{ln.job_id}: {exc.detail}"))
+    if not refused and len(skipped) == len(body.lines):
+        refused = [(409, f"{s['job_id']}: {s['reason']}") for s in skipped]
     if refused:
         savepoint.rollback()
         raise HTTPException(
@@ -106,7 +145,7 @@ def create_dispatch_session(
     savepoint.commit()
     db.commit()
     db.refresh(session)
-    return _serialize(session)
+    return {**_serialize(session), "skipped": skipped}
 
 
 @router.get("")
@@ -132,7 +171,9 @@ def get_dispatch_session(
 ):
     s = (
         db.query(DispatchSession)
-        .options(joinedload(DispatchSession.lines))
+        .options(
+            joinedload(DispatchSession.lines).selectinload(DispatchSessionLine.items)
+        )
         .filter(DispatchSession.id == session_id)
         .first()
     )

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Kanban, List } from 'lucide-react';
 import FilterBar from '../../ui/FilterBar';
 import Button from '../../ui/Button';
@@ -7,8 +8,23 @@ import DensityToggle from '../../ui/DensityToggle';
 import { fieldChrome } from '../../ui/fieldStyle';
 import JobsList from './JobsList';
 import JobsBoard from '../../components/jobs/JobsBoard';
-import { filterJobs, buildFilterOptions, QUICK_FILTERS } from './jobsFilters';
+import { filterJobs, buildFilterOptions, mergeJobs, QUICK_FILTERS } from './jobsFilters';
+import { jobs as jobsApi } from '../../api';
 import { STATUS_COLORS, T } from '../../ui/tokens';
+
+const SERVER_SEARCH_MIN = 2;
+const SEARCH_SETTLE_MS = 250;
+
+// The search as it stands once typing pauses, so the server is asked once per
+// word rather than once per keystroke.
+function useSettled(value) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(value), SEARCH_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [value]);
+  return settled;
+}
 
 // Maps controlled-filter keys → FilterBar chip defs. 'all'/empty/null = inactive.
 const CHIP_DEFS = [
@@ -29,7 +45,20 @@ export default function JobsModule({
     () => (lockedStatus ? { ...filters, status: lockedStatus } : filters),
     [filters, lockedStatus],
   );
-  const filtered = useMemo(() => filterJobs(jobs ?? [], effectiveFilters, currentUser), [jobs, effectiveFilters, currentUser]);
+  // The loaded list is the newest 500 jobs. With two or more characters typed
+  // the server is asked as well, so an older order is still found (F01).
+  const term = useSettled((filters.searchTerm || '').trim());
+  const { data: found } = useQuery({
+    queryKey: ['jobs', 'search', term],
+    queryFn: () => jobsApi.list({ search: term }),
+    enabled: term.length >= SERVER_SEARCH_MIN,
+    staleTime: 30_000,
+  });
+  const pool = useMemo(
+    () => mergeJobs(jobs ?? [], term.length >= SERVER_SEARCH_MIN ? found : undefined),
+    [jobs, found, term],
+  );
+  const filtered = useMemo(() => filterJobs(pool, effectiveFilters, currentUser), [pool, effectiveFilters, currentUser]);
   const options = useMemo(() => buildFilterOptions(jobs ?? []), [jobs]);
 
   const chips = CHIP_DEFS

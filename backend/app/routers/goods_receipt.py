@@ -16,6 +16,9 @@ from app.models.inventory import InventoryItem
 router = APIRouter(prefix="/goods-receipts", tags=["goods-receipts"])
 
 VALID_STATUSES = {"Pending", "Inspecting", "Accepted", "Rejected"}
+# What PATCH may move a receipt between. Accepted is reached only through the
+# accept endpoint, which shelves the stock, and is final (F03).
+EDITABLE_STATUSES = ("Pending", "Inspecting", "Rejected")
 
 
 class GRLineIn(BaseModel):
@@ -143,6 +146,7 @@ def create_receipt(
             raise HTTPException(
                 status_code=404, detail=f"Purchase order {body.po_id} not found"
             )
+        receiving.check_receivable(po)
         supplier_name = supplier_name or po.supplier_name
         supplier_id = supplier_id or po.supplier_id
     for ln in body.lines:
@@ -223,6 +227,20 @@ def update_receipt(
         raise HTTPException(
             status_code=422, detail=f"Invalid status. Valid: {sorted(VALID_STATUSES)}"
         )
+    # Set by hand, Accepted said the stock was shelved when it was not, and an
+    # accepted receipt put back to Pending was accepted, and shelved, again.
+    if "status" in body.model_fields_set and body.status != gr.status:
+        if gr.status == "Accepted":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Goods receipt {gr.id} is accepted and its stock shelved — "
+                "reverse it with a stock adjustment",
+            )
+        if body.status not in EDITABLE_STATUSES:
+            raise HTTPException(
+                status_code=409,
+                detail="A receipt is accepted by accepting it, which shelves its stock",
+            )
 
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(gr, k, v)
@@ -238,7 +256,9 @@ def accept_receipt(
     _=Depends(require_staff),
 ):
     """Accept a goods receipt: update stock on hand, update PO qty_received, mark Accepted."""
-    gr = db.get(GoodsReceipt, receipt_id)
+    # The row is locked and its status read afresh under the lock: two accepts
+    # at once both read Pending, and both shelved the stock (F18).
+    gr = db.get(GoodsReceipt, receipt_id, with_for_update=True, populate_existing=True)
     if not gr:
         raise HTTPException(status_code=404, detail="Goods receipt not found")
     if gr.status == "Accepted":
@@ -276,7 +296,11 @@ def accept_receipt(
         )
     )
 
-    po = db.get(PurchaseOrder, gr.po_id) if gr.po_id else None
+    # The PO is locked before its lines are credited: two receives of one line
+    # at once both read it as 0 and both wrote 5 (F18).
+    po = receiving.lock_po(db, gr.po_id) if gr.po_id else None
+    if po is not None:
+        receiving.check_receivable(po)
     reference = f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else "")
     notes = f"Goods receipt from {gr.supplier_name or 'supplier'}"
     prefer_jobs: dict[str, list] = {}

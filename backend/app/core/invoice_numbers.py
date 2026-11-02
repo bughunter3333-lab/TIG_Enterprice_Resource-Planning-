@@ -54,13 +54,35 @@ def _highest_used(db: Session, prefix: str) -> int:
     return highest
 
 
+def _lock_sequence(db: Session) -> Optional[CompanySettings]:
+    """The company settings row, locked until the transaction ends.
+
+    Every way a number reaches a job takes this lock first — issued or typed —
+    so one cannot be checked free while the other is putting it on a job.
+    """
+    return db.query(CompanySettings).with_for_update().first()
+
+
+def typed_holder(
+    db: Session, number: Optional[str], except_job_id=None
+) -> Optional[str]:
+    """`holder_of` for a number typed by hand, checked under the sequence lock.
+
+    Unlocked, the check read before either write committed: a typed INV105
+    and an INV105 being issued at the same moment both went on (F24).
+    """
+    if number and number.strip():
+        _lock_sequence(db)
+    return holder_of(db, number, except_job_id=except_job_id)
+
+
 def issue(db: Session) -> str:
     """The next invoice number, reserved: the sequence moves past it.
 
     The settings row is locked for the length of the transaction, so two
     invoices issued at the same moment cannot be handed the same number.
     """
-    settings = db.query(CompanySettings).with_for_update().first()
+    settings = _lock_sequence(db)
     if settings is None:
         settings = CompanySettings(id=1)
         db.add(settings)
