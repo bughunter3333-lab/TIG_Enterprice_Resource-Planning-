@@ -3,14 +3,14 @@ import { Play, X, Eye, Plus, Pencil, ClipboardList } from 'lucide-react';
 import { T, statusColor } from '../../ui/tokens';
 import DataGrid from '../../ui/DataGrid';
 import { computeAutoPickAvailability } from './jobsFilters';
-import { JOB_STATUSES } from './jobStatuses';
+import { JOB_STATUSES, statusLabel } from './jobStatuses';
 
 // Jim2-style advanced "Job List" builder. Presentational: the parent owns the
 // `draft` filter object and the live `results`. Filters are organised into
 // labelled groups (research: grouping + dividers is what keeps a dense ERP
 // filter panel readable rather than "messy").
 
-const STATUSES = JOB_STATUSES;
+const STATUSES = JOB_STATUSES.map(s => ({ value: s, label: statusLabel(s) }));
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 
 const lbl = { fontSize: 9, fontWeight: 700, color: T.textFaint, letterSpacing: '0.03em', textTransform: 'uppercase', marginBottom: 2, display: 'block' };
@@ -82,7 +82,7 @@ function ClassChk({ label, checked, onToggle }) {
 
 const RESULT_COLUMNS = (onOpen, availMap = null) => [
   { key: 'id', label: 'Job#', width: 78, render: r => <span style={{ fontWeight: 700 }}>{r.id}</span> },
-  { key: 'status', label: 'Status', width: 84, render: r => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{r.status}</span> },
+  { key: 'status', label: 'Status', width: 84, render: r => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{statusLabel(r.status)}</span> },
   { key: 'projectNo', label: 'Project#', width: 92, render: r => r.projectNo || '' },
   { key: 'customerId', label: 'Cust#', width: 88 },
   { key: 'customer', label: 'Customer Name' },

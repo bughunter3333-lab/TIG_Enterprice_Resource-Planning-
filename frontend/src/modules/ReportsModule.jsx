@@ -12,6 +12,7 @@ import {
 import { countNeedingReorder } from './stock/lowStock';
 import { offers } from '../lib/access';
 import { useMyAccess } from '../lib/useMyAccess';
+import { FINISHED_STATUSES, statusLabel } from './jobs/jobStatuses';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1135,7 +1136,7 @@ function DecorationPerformanceTab() {
 function OverviewTab({ jobs = [], inventory = [] }) {
   const jobsByStatus = Object.entries(
     jobs.reduce((acc, j) => { acc[j.status] = (acc[j.status] || 0) + 1; return acc; }, {})
-  ).map(([name, value]) => ({ name, value }));
+  ).map(([status, value]) => ({ name: statusLabel(status), value }));
 
   const revenueByMonth = (() => {
     const map = {};
@@ -1168,7 +1169,7 @@ function OverviewTab({ jobs = [], inventory = [] }) {
       <div className="grid grid-cols-4 gap-4">
         {[
           { label: 'Total Revenue', value: fmt$(jobs.reduce((s,j)=>s+(j.total||0),0)), color: 'text-ok' },
-          { label: 'Active Jobs', value: jobs.filter(j=>!['FINISH','CANCEL'].includes(j.status)).length, color: 'text-accent-strong' },
+          { label: 'Active Jobs', value: jobs.filter(j=>![...FINISHED_STATUSES,'CANCEL'].includes(j.status)).length, color: 'text-accent-strong' },
           { label: 'Low Stock Items', value: countNeedingReorder(inventory), color: 'text-danger' },
           { label: 'Inventory Value', value: fmt$(inventory.reduce((s,i)=>s+i.stock*(i.unitCost||0),0)), color: 'text-emphasis' },
         ].map(kpi => (

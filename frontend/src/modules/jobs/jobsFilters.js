@@ -1,6 +1,7 @@
 import { parseD } from '../../ui/dates';
 import { todayKey } from '../../lib/dates';
 import { inView, viewLabel } from './jobMetrics';
+import { FINISHED_STATUSES } from './jobStatuses';
 
 // Jim2 "Auto Pick Stock": allocate on-hand stock FIFO down the list order —
 // each job claims stock for its product lines before later jobs get any.
@@ -82,10 +83,11 @@ export const EMPTY_JOBS_FILTERS = {
 // ticked the job only has to match one of them (OR within the checked set).
 export const JOB_LIST_CLASSES = {
   quote: (s) => s === 'QUOTE',
-  active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'].includes(s),
+  active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt', 'Pick/Pack'].includes(s),
   // Packed: Pick/Pack, and Desp/Ready — waiting for the carrier.
   ready: (s) => ['Pick/Pack', 'Desp/Ready'].includes(s),
-  finish: (s) => s === 'FINISH',
+  // Gone: FINISH, and FINISH checked and Ready to invoice.
+  finish: (s) => FINISHED_STATUSES.includes(s),
   invoiced: (s) => ['INVOICE', 'PAID'].includes(s),
 };
 
@@ -100,7 +102,7 @@ const _inRange = (raw, from, to) => {
   return true;
 };
 
-const _FINISHED = ['FINISH', 'INVOICE', 'PAID', 'CANCEL'];
+const _FINISHED = [...FINISHED_STATUSES, 'INVOICE', 'PAID', 'CANCEL'];
 
 // The saved/advanced "Job List" predicate. Every field is optional, so an empty
 // object (or null) matches everything; only populated fields constrain results.

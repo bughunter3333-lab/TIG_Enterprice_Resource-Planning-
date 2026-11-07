@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { stock } from '../../../api';
 import DataGrid from '../../../ui/DataGrid';
 import { T, statusColor } from '../../../ui/tokens';
+import { statusLabel } from '../../jobs/jobStatuses';
 
 // Jim2 Stock "Stock On Hand" tab: incoming stock — the outstanding lines of
 // open purchase orders (ordered but not yet received) that will land on hand.
@@ -22,7 +23,7 @@ export default function StockOnHandTab({ sku, onNavigatePO }) {
           style={{ color: T.accentStrong, fontWeight: 700, cursor: 'pointer', fontFamily: T.mono ?? 'monospace' }}>{r.po_id}</span>
       ) },
     { key: 'supplier_name', label: 'Supplier' },
-    { key: 'status', label: 'Status', width: 82, render: (r) => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{r.status}</span> },
+    { key: 'status', label: 'Status', width: 82, render: (r) => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{statusLabel(r.status)}</span> },
     { key: 'expected_date', label: 'Expected', width: 92, render: (r) => r.expected_date || '—' },
     { key: 'qty_ordered', label: 'Ord', width: 48, align: 'right' },
     { key: 'qty_received', label: 'Recv', width: 50, align: 'right' },

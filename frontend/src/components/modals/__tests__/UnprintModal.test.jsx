@@ -63,8 +63,9 @@ test('states both ends of the reversal', () => {
   setup();
   // The two statuses sit in their own spans inside one sentence. Both have to
   // be on screen: "revert this job" with no from/to is not a confirmable action.
-  expect(screen.getByText('INVOICE')).toBeInTheDocument();
-  expect(screen.getByText('FINISH')).toBeInTheDocument();
+  // In TIG's words (jobStatuses.js statusLabel), as the badges show them.
+  expect(screen.getByText('Invoiced')).toBeInTheDocument();
+  expect(screen.getByText('Finish')).toBeInTheDocument();
   expect(
     screen.getByText(/An internal comment will be added recording this action/)
   ).toBeInTheDocument();
@@ -72,8 +73,8 @@ test('states both ends of the reversal', () => {
 
 test('reads the status off the job it was given, not a hardcoded one', () => {
   setup({ job: { id: 7712, status: 'PAID' } });
-  expect(screen.getByText('PAID')).toBeInTheDocument();
-  expect(screen.queryByText('INVOICE')).not.toBeInTheDocument();
+  expect(screen.getByText('Paid')).toBeInTheDocument();
+  expect(screen.queryByText('Invoiced')).not.toBeInTheDocument();
 });
 
 test('renders the error it was given', () => {

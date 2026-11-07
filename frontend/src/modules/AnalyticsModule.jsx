@@ -9,6 +9,7 @@ import {
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
+import { statusLabel } from './jobs/jobStatuses';
 import {
   ResponsiveContainer, AreaChart, Area, Line,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -649,7 +650,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                       <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
                       <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
+                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{statusLabel(j.status)}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-danger">{j.days_open} days</td>
                     </tr>

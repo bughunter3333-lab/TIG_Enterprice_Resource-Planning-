@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronDown, ListFilter, Trash2, Boxes, FileText, Shop
 import { T, statusColor } from '../tokens';
 import { todayKey } from '../../lib/dates';
 import { inView, viewLabel } from '../../modules/jobs/jobMetrics';
+import { statusLabel } from '../../modules/jobs/jobStatuses';
 
 // Built-in quick lists — the shared job views (modules/jobs/jobMetrics.js), so
 // each count here is the length of the list it opens, and agrees with the
@@ -32,7 +33,7 @@ function StatusMark({ status, maxWidth = 80 }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth, flexShrink: 1 }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor(status), flexShrink: 0 }} />
-      <span style={{ fontSize: 11, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{status}</span>
+      <span style={{ fontSize: 11, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusLabel(status)}</span>
     </span>
   );
 }

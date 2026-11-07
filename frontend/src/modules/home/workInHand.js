@@ -6,15 +6,16 @@
  * each count is the length of the list it opens.
  */
 import { jobsInView } from '../jobs/jobMetrics';
+import { FINISHED_STATUSES } from '../jobs/jobStatuses';
 
 // The stages of the bar, in the order of the work. `status` names the phase
 // colour the segment takes (tokens.js statusOnDark).
 export const STAGES = [
   { id: 'quoted', label: 'Quoted', statuses: ['QUOTE', 'New'], status: 'QUOTE' },
-  { id: 'production', label: 'In production', statuses: ['ORDER', 'In Progress', 'PRINT'], status: 'ORDER' },
+  { id: 'production', label: 'In production', statuses: ['ORDER', 'In Progress', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt'], status: 'ORDER' },
   { id: 'proof', label: 'With the customer', statuses: ['PROOF'], status: 'PROOF' },
   { id: 'packing', label: 'Packing and despatch', statuses: ['Pick/Pack', 'Desp/Ready'], status: 'Pick/Pack' },
-  { id: 'toInvoice', label: 'To invoice', statuses: ['FINISH'], status: 'FINISH' },
+  { id: 'toInvoice', label: 'To invoice', statuses: FINISHED_STATUSES, status: 'FINISH' },
   { id: 'awaitingPayment', label: 'Awaiting payment', statuses: ['INVOICE'], status: 'INVOICE' },
 ];
 

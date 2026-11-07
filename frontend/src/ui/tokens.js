@@ -100,15 +100,22 @@ export const T = {
 // phase has a text colour and the pale tint its chip sits on (both pairs pass
 // 4.5:1, and the text colour also carries white words as a fill):
 //
-//   Intake      QUOTE, New                   violet — nobody has committed yet;
-//               New is a portal order waiting to be confirmed (F11), so it
-//               sits with the quote rather than the work
-//   Production  ORDER, In Progress, PRINT    blue
-//               PROOF                        amber — the one production status
-//               where someone outside is holding things up
-//   Fulfil      Pick/Pack, Desp/Ready, FINISH teal
-//   Billing     INVOICE, PAID                green
+//   Intake      QUOTE, New (Booked)          violet — nobody has committed yet;
+//               a booked order waits to be released (F11), so it sits with
+//               the quote rather than the work
+//   Production  ORDER (Confirmed), In Progress, Picked, PRINT    blue
+//   Waiting     PROOF, Inco/Pick, ProdExt    amber — someone outside is
+//               holding things up: the customer's approval, the rest of
+//               the stock, the external decorator
+//   Fulfil      Pick/Pack, Desp/Ready        teal
+//   Finished    FINISH                       green — gone (TIG's green FINISH)
+//   Ready       Ready                        red — FINISH a person has checked,
+//               ready to invoice (TIG's red FINISH; owner approved 2026-11-07)
+//   Billing     INVOICE, PAID                dark slate — Jim2 shows invoiced
+//               jobs black, and green now means gone, not invoiced
 //   Closed      CANCEL                       grey
+// FINISH green and Ready red differ in their word too ("Ready to invoice"),
+// so nothing depends on colour alone.
 // `onDark` is the same phase lifted for the one dark surface (Home's work in
 // hand): the text colours above sink into a near-black ground.
 const PHASES = {
@@ -116,7 +123,9 @@ const PHASES = {
   production: { color: '#0b63f6', tint: '#eef4ff', onDark: '#6ea2ff' },
   waiting:    { color: '#b45309', tint: '#fff5e8', onDark: '#f2b056' },
   fulfil:     { color: '#0f766e', tint: '#e8f6f4', onDark: '#4fd1c1' },
-  billing:    { color: '#15803d', tint: '#ecf8f0', onDark: '#5fd38a' },
+  finished:   { color: palette.ok, tint: '#ecf8f0', onDark: '#5fd38a' },
+  ready:      { color: palette.danger, tint: palette.dangerTint, onDark: '#f87171' },
+  billing:    { color: '#1e293b', tint: '#eef1f5', onDark: '#e2e8f0' },
   closed:     { color: '#52525b', tint: '#f1f1f3', onDark: '#a1a1aa' },
 };
 
@@ -126,10 +135,14 @@ const STATUS_PHASE = {
   ORDER: 'production',
   'In Progress': 'production',
   PROOF: 'waiting',
+  Picked: 'production',
+  'Inco/Pick': 'waiting',
   PRINT: 'production',
+  ProdExt: 'waiting',
   'Pick/Pack': 'fulfil',
   'Desp/Ready': 'fulfil',
-  FINISH: 'fulfil',
+  FINISH: 'finished',
+  Ready: 'ready',
   INVOICE: 'billing',
   PAID: 'billing',
   CANCEL: 'closed',

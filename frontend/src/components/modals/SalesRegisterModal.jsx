@@ -2,6 +2,7 @@ import { DollarSign, FileSpreadsheet, X } from 'lucide-react';
 import * as api from '../../api';
 import DraggableModal from '../../ui/DraggableModal';
 import { T } from '../../ui/tokens';
+import { statusLabel } from '../../modules/jobs/jobStatuses';
 
 export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) {
   if (!salesRegModal.open) return null;
@@ -64,7 +65,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
                   <tr key={j.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
                     <td className="px-3 py-1.5 font-mono font-medium" style={{ color: T.accentStrong }}>{j.id}</td>
                     <td className="px-3 py-1.5" style={{ color: T.text }}>{j.customer}</td>
-                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{j.status}</span></td>
+                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{statusLabel(j.status)}</span></td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.dateIn}</td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.invoice || '—'}</td>
                     <td className="px-3 py-1.5 text-right" style={{ color: T.text }}>${(j.subtotal||0).toFixed(2)}</td>

@@ -4,6 +4,7 @@ import { T } from '../../../ui/tokens';
 import Card from '../../../ui/Card';
 import Button from '../../../ui/Button';
 import { fieldChrome } from '../../../ui/fieldStyle';
+import { statusLabel } from '../jobStatuses';
 
 /**
  * The job's running notes, newest first, and a line to add one. An internal
@@ -50,7 +51,7 @@ export default function JobCommentsCard({ job, onAdd, onPin }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: T.fsSmall, color: T.textMuted }}>
                   <span style={{ color: T.text, fontWeight: 500 }}>{c.authorName || c.initials}</span>
                   <span>{c.date} {c.time}</span>
-                  {c.status && <span style={{ padding: '1px 6px', borderRadius: T.radiusSm, background: T.hairlineSoft }}>{c.status}</span>}
+                  {c.status && <span style={{ padding: '1px 6px', borderRadius: T.radiusSm, background: T.hairlineSoft }}>{statusLabel(c.status)}</span>}
                   {c.isInternal && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: T.warn, fontWeight: 600 }}><Lock size={10} aria-hidden />Internal</span>}
                 </div>
                 <div style={{ fontSize: T.fsGrid, color: T.text, marginTop: 2, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{c.comment}</div>

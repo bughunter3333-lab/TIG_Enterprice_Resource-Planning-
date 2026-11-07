@@ -24,7 +24,7 @@ import { matchPOList, EMPTY_PO_LIST } from './modules/purchase-orders/poListFilt
 import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
-import { pickableLines } from './modules/jobs/jobPicking';
+import { linePickedInFull, pickableLines, pickMoveFor, pickTarget } from './modules/jobs/jobPicking';
 import { applyLogo, linkLine, logoMatches, newLineKey, resolveLineLinks } from './modules/jobs/lineLinks';
 import { useCustomerLogos } from './modules/jobs/useCustomerLogos';
 import AppliesToSelect from './modules/jobs/AppliesToSelect';
@@ -72,7 +72,7 @@ import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
 import { todayKey } from './lib/dates';
 import { useOffer } from './lib/useMyAccess';
-import { JOB_STATUSES, PRODUCTION_STATUSES } from './modules/jobs/jobStatuses';
+import { FINISHED_STATUSES, JOB_STATUSES, ORDER_CATEGORIES, PRODUCTION_STATUSES, statusLabel } from './modules/jobs/jobStatuses';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
 import POListPage from './modules/saved-lists/POListPage';
 import StockListPage from './modules/saved-lists/StockListPage';
@@ -487,8 +487,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobForm, setJobForm] = useState({
     customer: '',
     customerId: '',
-    status: 'ORDER',
+    status: 'New',
     priority: 'Normal',
+    orderCategory: 'Normal',
     type: 'Standard',
     quote: '',
     dateIn: todayKey(),
@@ -593,9 +594,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         });
       } else {
         setJobForm({
-          // From the Quotes screen a new job is a quote: an ORDER reserves stock
-          // and runs the credit check, which a quote must not.
-          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'ORDER', priority: 'Normal',
+          // From the Quotes screen a new job is a quote. Any other new job is
+          // Booked (New): TIG books every order first and releases it to
+          // Confirmed (ORDER), which reserves stock and runs the credit check
+          // (docs/superpowers/specs/2026-11-07-tig-status-ladder.md).
+          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'New', priority: 'Normal',
+          orderCategory: 'Normal',
           type: 'Standard', quote: '', dateIn: todayKey(),
           due: '', out: '', assignedTo: '', branch: 'HQ', shipToId: null, shippingAddress: '',
           paymentMethod: 'Account', custRef: '', ourRef: '', description: '', shipTo: '',
@@ -918,6 +922,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         customerId: job.customerId,
         status: 'QUOTE',
         priority: job.priority,
+        orderCategory: job.orderCategory ?? 'Normal',
         type: job.type,
         assignedTo: job.assignedTo,
         shippingAddress: job.shippingAddress,
@@ -1241,7 +1246,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     // On-time delivery rate (finished/invoiced/paid jobs in last 90 days that met their due date)
     const ninetyDaysAgo = new Date(now); ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const completedRecent = jobs.filter(j => {
-      if (!['FINISH','INVOICE','PAID'].includes(j.status)) return false;
+      if (![...FINISHED_STATUSES,'INVOICE','PAID'].includes(j.status)) return false;
       const d = parseJobDate(j.dateIn); return d && d >= ninetyDaysAgo;
     });
     const onTimeCount = completedRecent.filter(j => {
@@ -1267,7 +1272,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     // Jobs due in next 48 hours (not today)
     const in48h = new Date(now); in48h.setHours(in48h.getHours() + 48);
     const dueSoon = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
+      if ([...FINISHED_STATUSES,'PAID','CANCEL'].includes(j.status)) return false;
       const d = parseJobDate(j.due);
       if (!d) return false;
       const ds = d.toISOString().split('T')[0];
@@ -1279,7 +1284,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleString('en-AU', { month: 'short' });
-      const rev = jobs.filter(j => ['INVOICE','PAID','FINISH'].includes(j.status) && jobDateIn(j) === key)
+      const rev = jobs.filter(j => ['INVOICE','PAID',...FINISHED_STATUSES].includes(j.status) && jobDateIn(j) === key)
         .reduce((s, j) => s + (j.subtotal || 0), 0);
       return { month: label, revenue: Math.round(rev) };
     });
@@ -1318,8 +1323,8 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     }));
 
     return {
-      activeJobs: jobs.filter(j => !['FINISH','PAID','CANCEL'].includes(j.status)).length,
-      completedToday: jobs.filter(j => j.status === 'FINISH' && j.out === now.toLocaleDateString('en-GB')).length,
+      activeJobs: jobs.filter(j => ![...FINISHED_STATUSES,'PAID','CANCEL'].includes(j.status)).length,
+      completedToday: jobs.filter(j => FINISHED_STATUSES.includes(j.status) && j.out === now.toLocaleDateString('en-GB')).length,
       pendingInvoices: jobs.filter(j => j.balanceDue > 0).length,
       lowStock: countNeedingReorder(inventory),
       totalRevenue: jobs.reduce((sum, j) => sum + (j.total || 0), 0),
@@ -1357,7 +1362,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     setAiMessages(prev => [...prev, { role: 'user', text: userMsg, ts: new Date() }]);
     setAiLoading(true);
     try {
-      const context = `Jobs: ${jobs.length} total, ${jobs.filter(j => j.status === 'FINISH').length} finished. ` +
+      const context = `Jobs: ${jobs.length} total, ${jobs.filter(j => FINISHED_STATUSES.includes(j.status)).length} finished. ` +
         `Inventory: ${inventory.length} SKUs, ${countNeedingReorder(inventory)} low stock. ` +
         `Customers: ${customers.length}. Suppliers: ${suppliers.length}. ` +
         `Purchase Orders: ${purchaseOrders.length} total, ${purchaseOrders.filter(p => p.status === 'Draft').length} drafts. ` +
@@ -1655,15 +1660,21 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               // Persisted Pick/Pack (Jim2 Qty Pick): drafts overlay the saved
               // qty_pick per line; Save Picks writes them via /jobs/{id}/pick.
               const productLines = pickableLines(activeJob);
-              const target = (i) => i.supply || i.qty || i.order || 0;
+              const target = pickTarget;
               const draft = pickState[activeJob.id] || {};
               const pickedOf = (i) => (draft[i.id] !== undefined ? draft[i.id] : (i.qtyPick || 0));
               const setDraft = (itemId, val) => setPickState(prev => ({
                 ...prev, [activeJob.id]: { ...(prev[activeJob.id] || {}), [itemId]: val },
               }));
-              const fullyPicked = productLines.length > 0 && productLines.every(i => target(i) > 0 && pickedOf(i) >= target(i));
-              const pickedCount = productLines.filter(i => target(i) > 0 && pickedOf(i) >= target(i)).length;
+              // A line with stock still on back-order is not picked in full
+              // (jobPicking.js, the server's own rule).
+              const linePicked = (i) => linePickedInFull(i, pickedOf(i));
+              const fullyPicked = productLines.length > 0 && productLines.every(linePicked);
+              const pickedCount = productLines.filter(linePicked).length;
               const pct = productLines.length ? Math.round((pickedCount / productLines.length) * 100) : 0;
+              // Picked or Inco/Pick, marked by hand (jobPicking.js). "Mark
+              // Complete" used to send the job to FINISH, which says it has gone (F30).
+              const pickMove = pickMoveFor(activeJob.status, productLines, pickedOf);
               const dirty = productLines.some(i => draft[i.id] !== undefined && draft[i.id] !== (i.qtyPick || 0));
               const savePicks = async () => {
                 try {
@@ -1767,12 +1778,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="w-full rounded-full h-2" style={{ background: T.hairline }}>
                       <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? T.ok : T.accent }} />
                     </div>
-                    {fullyPicked && (
+                    {(fullyPicked || pickMove) && (
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-medium" style={{ color: T.ok }}>All lines picked{dirty ? ' — save picks to record' : ''}</span>
-                        <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: T.ok }}>
-                          Mark Complete
-                        </button>
+                        <span className="text-sm font-medium" style={{ color: fullyPicked ? T.ok : T.warn }}>
+                          {fullyPicked ? 'All lines picked' : 'Part picked — the rest waits on stock'}{dirty ? ' — save picks to record' : ''}
+                        </span>
+                        {pickMove && (
+                          <button onClick={() => updateJobStatus(activeJob.id, pickMove)} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: fullyPicked ? T.ok : T.warn }}>
+                            {pickMove === 'Picked' ? 'Mark picked' : 'Mark Inco/Pick'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1887,7 +1902,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                               <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>
                               <p className="text-xs" style={{ color: T.textFaint }}>{c.authorName || c.initials} · {c.date} {c.time}</p>
                             </div>
-                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{c.status}</span>}
+                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{statusLabel(c.status)}</span>}
                           </div>
                         </div>
                       ))}
@@ -2232,7 +2247,15 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
                         className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
-                        {JOB_STATUSES.map(s => <option key={s}>{s}</option>)}
+                        {JOB_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
+                      </select>
+                    </div>
+                    {/* Order category — Jim2's, beside the urgency (JIM7) */}
+                    <div className="flex items-center gap-1">
+                      <label htmlFor="job-order-category" className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Category</label>
+                      <select id="job-order-category" value={jobForm.orderCategory ?? 'Normal'} onChange={e => setJobForm({...jobForm, orderCategory: e.target.value})}
+                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        {ORDER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
@@ -3431,9 +3454,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           </div>
                           <div className="flex items-center space-x-3">
                             <span className="text-xs text-muted">{j.due}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                              { QUOTE:'bg-hairline-soft text-header', New:'bg-warn-tint text-warn', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' }[j.status] || 'bg-hairline-soft text-muted'
-                            }`}>{j.status}</span>
+                            <StatusBadge status={j.status} size="sm" />
                           </div>
                         </button>
                       ))}
@@ -4256,7 +4277,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   (j.invoice || '').toLowerCase().includes(q) ||
                   (j.custRef || '').toLowerCase().includes(q)
                 ).slice(0, 6);
-                const statusColors = { QUOTE:'bg-hairline-soft text-muted', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
                 return hits.length > 0 ? (
                   <div className="mt-2 rounded-xl border border-hairline-soft overflow-hidden shadow-sm">
                     {hits.map(j => (
@@ -4265,7 +4285,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent-tint text-left border-b border-hairline-soft last:border-0 transition-colors">
                         <span className="font-mono text-xs font-bold text-accent-strong w-24 shrink-0">#{j.id}</span>
                         <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColors[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
+                        <span className="shrink-0"><StatusBadge status={j.status} size="sm" /></span>
                       </button>
                     ))}
                   </div>
@@ -4422,7 +4442,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 (s.name||'').toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q)
               ).slice(0, 2);
               const hasResults = jobHits.length || custHits.length || invHits.length || suppHits.length;
-              const statusBg = { QUOTE:'bg-hairline-soft text-muted', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
               return (
                 <div className="max-h-[60vh] overflow-y-auto divide-y divide-hairline-soft">
                   {jobHits.length > 0 && (
@@ -4434,7 +4453,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           <FileText className="w-4 h-4 text-accent shrink-0" />
                           <span className="font-mono text-sm font-bold text-accent-strong w-20 shrink-0">#{j.id}</span>
                           <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBg[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
+                          <StatusBadge status={j.status} size="sm" />
                           <span className="text-sm font-semibold text-muted shrink-0">${(j.total||0).toFixed(0)}</span>
                         </div>
                       ))}

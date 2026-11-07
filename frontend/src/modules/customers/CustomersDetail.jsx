@@ -8,6 +8,8 @@ import { reports } from '../../api';
 import LogosTab from './LogosTab';
 import SitesTab from './SitesTab';
 import RemittanceForm from './RemittanceForm';
+import StatusBadge from '../../ui/StatusBadge';
+import { statusLabel } from '../jobs/jobStatuses';
 
 const AGING_BUCKETS = [
   ['current', 'Current', 'green'],
@@ -207,7 +209,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                             {cJobs.sort((a,b)=>b.id.localeCompare(a.id)).map(j => (
                               <tr key={j.id} className="hover:bg-accent-tint cursor-pointer" onClick={() => { pinJob(j); setActiveModule('jobs'); }}>
                                 <td className="px-3 py-2 font-mono font-bold text-accent-strong">#{j.id}</td>
-                                <td className="px-3 py-2"><span className="px-1.5 py-0.5 rounded text-[10px] bg-hairline-soft font-medium">{j.status}</span></td>
+                                <td className="px-3 py-2"><StatusBadge status={j.status} size="sm" /></td>
                                 <td className="px-3 py-2 text-muted">{j.dateIn}</td>
                                 <td className="px-3 py-2 text-right font-medium">${(j.total||0).toFixed(2)}</td>
                                 <td className={`px-3 py-2 text-right font-semibold ${j.balanceDue > 0 ? 'text-danger' : 'text-faint'}`}>${(j.balanceDue||0).toFixed(2)}</td>
@@ -264,7 +266,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                                 <tr key={j.id} className="border-b hover:bg-panel-alt">
                                   <td className="px-3 py-2 text-muted">{j.dateIn}</td>
                                   <td className="px-3 py-2 font-mono font-bold text-accent-strong">#{j.id}</td>
-                                  <td className="px-3 py-2">{j.status} {j.custRef?`· Ref: ${j.custRef}`:''}</td>
+                                  <td className="px-3 py-2">{statusLabel(j.status)} {j.custRef?`· Ref: ${j.custRef}`:''}</td>
                                   <td className="px-3 py-2 text-right">${(j.total||0).toFixed(2)}</td>
                                   <td className="px-3 py-2 text-right text-ok">{paid > 0 ? `-$${paid.toFixed(2)}` : '—'}</td>
                                   <td className={`px-3 py-2 text-right font-semibold ${running>0?'text-danger':'text-ok'}`}>${running.toFixed(2)}</td>

@@ -2,6 +2,7 @@ import { dayKey, formatDay } from '../../lib/dates';
 import DataGrid from '../../ui/DataGrid';
 import StatusBadge from '../../ui/StatusBadge';
 import { T } from '../../ui/tokens';
+import { statusLabel } from './jobStatuses';
 
 const money = (v) => `$${(v ?? 0).toLocaleString('en-AU', { maximumFractionDigits: 0 })}`;
 const decoration = (job) => [...new Set((job.items ?? []).map(i => i.decorationType).filter(d => d && d !== 'None'))][0] ?? '—';
@@ -83,6 +84,7 @@ export default function JobsList({ jobs, onJobClick, lockedStatus, groupBy, sele
       rowKey="id"
       onRowClick={onJobClick}
       groupBy={groupBy || undefined}
+      groupLabel={groupBy === 'status' ? statusLabel : undefined}
       emptyText="No jobs match the current filters"
       emptyHint="Take a filter off, or start a new job."
     />

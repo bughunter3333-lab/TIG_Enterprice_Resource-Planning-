@@ -32,6 +32,10 @@ class Job(Base):
     out = Column(String(20))
     quote = Column(String(50))
     priority = Column(String(20), default="Normal")
+    # Normal, Branch or Employee (JIM7); `priority` is the urgency.
+    order_category = Column(
+        String(20), nullable=False, default="Normal", server_default="Normal"
+    )
     type = Column(String(20), default="Normal")
     assigned_to = Column(String(50))
     total_ex = Column(Numeric(10, 2), default=0)

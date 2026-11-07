@@ -35,10 +35,18 @@ router = APIRouter(prefix="/import", tags=["import"])
 # ── Jim2 status translation ───────────────────────────────────────────────────
 
 JIM2_STATUS_MAP = {
-    # Jim2 native statuses → TIG system statuses
-    "booked": "ORDER",
+    # Jim2 native statuses → TIG system statuses. Booked is an order not yet
+    # released (shown Booked, stored New) and Confirmed is released (ORDER);
+    # Ready is FINISH marked ready to invoice — TIG's ladder,
+    # docs/superpowers/specs/2026-11-07-tig-status-ladder.md.
+    "booked": "New",
+    "confirmed": "ORDER",
     "active": "In Progress",
-    "ready": "FINISH",
+    "ready": "Ready",
+    "picked": "Picked",
+    "inco/pick": "Inco/Pick",
+    "inco pick": "Inco/Pick",
+    "prodext": "ProdExt",
     "finish": "FINISH",
     "finished": "FINISH",
     "invoice": "INVOICE",
@@ -64,6 +72,22 @@ JIM2_STATUS_MAP = {
 # The job statuses are the jobs router's own (VALID_STATUSES, imported above):
 # a copy kept here had no Desp/Ready, so a job waiting for the carrier came in
 # as FINISH, ready to invoice.
+
+
+# Jim2's Priority holds the order category — Normal, Branch or Employee
+# (owner decision 2026-11-06, JIM7) — where this app's `priority` is the
+# urgency. Any other value is taken as an urgency, as before, rather than
+# refusing the row: old data is flagged, not blocked.
+_ORDER_CATEGORIES = {"normal": "Normal", "branch": "Branch", "employee": "Employee"}
+
+
+def priority_and_category(raw: str | None) -> tuple[str, str]:
+    """(priority, order_category) from a Jim2 Priority value."""
+    value = (raw or "").strip()
+    category = _ORDER_CATEGORIES.get(value.lower())
+    if category:
+        return "Normal", category
+    return value or "Normal", "Normal"
 
 
 def translate_status(raw: str | None) -> str:
@@ -1113,6 +1137,7 @@ async def import_jobs(
             cust_id = mapped.get("customer_id") or "UNKNOWN"
 
             status = translate_status(mapped.get("status"))
+            priority, order_category = priority_and_category(mapped.get("priority"))
 
             total_ex = _carried_total(mapped, "total_ex")
             tax = _carried_total(mapped, "tax")
@@ -1144,7 +1169,8 @@ async def import_jobs(
                 "date_in": mapped.get("date_in"),
                 "due": mapped.get("due"),
                 "out": mapped.get("out"),
-                "priority": mapped.get("priority") or "Normal",
+                "priority": priority,
+                "order_category": order_category,
                 "type": mapped.get("type") or "Standard",
                 "assigned_to": mapped.get("assigned_to"),
                 "total_ex": total_ex,

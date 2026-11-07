@@ -18,7 +18,7 @@ from app.core.fiscal import current_fiscal_year
 from app.core.ledger import money
 from app.core.ledger_postings import INVOICED_STATUSES, bill_outstanding, bill_owed
 from app.core.payment_terms import due_date
-from app.core.reservations import COMMITTED_STATUSES
+from app.core.reservations import COMMITTED_STATUSES, FINISHED_STATUSES
 from app.models.user import User
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -566,7 +566,7 @@ def job_profitability(
     q = (
         db.query(Job)
         .options(joinedload(Job.items))
-        .filter(Job.status.in_(["INVOICE", "PAID", "FINISH"]))
+        .filter(Job.status.in_(["INVOICE", "PAID", *FINISHED_STATUSES]))
     )
     if date_from:
         q = q.filter(Job.date_in >= date_from)
@@ -643,7 +643,7 @@ def on_time_delivery(
     _: User = Depends(require_any),
 ):
     """On-time delivery rate — % of completed jobs dispatched on or before due date."""
-    q = db.query(Job).filter(Job.status.in_(["FINISH", "INVOICE", "PAID"]))
+    q = db.query(Job).filter(Job.status.in_([*FINISHED_STATUSES, "INVOICE", "PAID"]))
     if date_from:
         q = q.filter(Job.date_in >= date_from)
     if date_to:
@@ -805,7 +805,7 @@ def decoration_performance(
     q = (
         db.query(Job)
         .options(joinedload(Job.items))
-        .filter(Job.status.in_(["INVOICE", "PAID", "FINISH"]))
+        .filter(Job.status.in_(["INVOICE", "PAID", *FINISHED_STATUSES]))
     )
     if date_from:
         q = q.filter(Job.date_in >= date_from)

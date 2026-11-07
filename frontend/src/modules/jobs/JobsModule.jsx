@@ -13,7 +13,8 @@ import JobsBoard from '../../components/jobs/JobsBoard';
 import { filterJobs, buildFilterOptions, mergeJobs, QUICK_FILTERS } from './jobsFilters';
 import { jobs as jobsApi, purchaseOrders as purchaseOrdersApi } from '../../api';
 import { useOffer } from '../../lib/useMyAccess';
-import { STATUS_COLORS, T } from '../../ui/tokens';
+import { T } from '../../ui/tokens';
+import { JOB_STATUSES, statusLabel } from './jobStatuses';
 
 const SERVER_SEARCH_MIN = 2;
 const SEARCH_SETTLE_MS = 250;
@@ -75,11 +76,13 @@ export default function JobsModule({
         ? (QUICK_FILTERS.find(q => q.id === filters.quick)?.label ?? String(filters.quick))
         : d.key === 'customer'
           ? (options.uniqueCustomers.find(c => c.id === filters.customer)?.name ?? String(filters.customer))
-          : String(filters[d.key]),
+          : d.key === 'status'
+            ? statusLabel(filters.status)
+            : String(filters[d.key]),
     }));
 
   const available = [
-    { key: 'status', label: 'Status', options: Object.keys(STATUS_COLORS).map(s => ({ value: s, label: s })) },
+    { key: 'status', label: 'Status', options: JOB_STATUSES.map(s => ({ value: s, label: statusLabel(s) })) },
     { key: 'priority', label: 'Priority', options: ['Urgent', 'High', 'Normal', 'Low'].map(p => ({ value: p, label: p })) },
     { key: 'customer', label: 'Customer', options: options.uniqueCustomers.map(c => ({ value: c.id, label: c.name })) },
     { key: 'assignedTo', label: 'Assignee', options: options.uniqueAssignees.map(a => ({ value: a, label: a })) },
@@ -131,7 +134,7 @@ export default function JobsModule({
   // A message only when every job went through; otherwise the bar names the
   // ones that did not.
   const allWent = (message) => (n, result) => (result?.failed?.length ? null : message(n));
-  const changeStatus = (status) => runBatch(ids => jobsApi.bulkStatus(ids, status), allWent(n => `${plural(n)} moved to ${status}`));
+  const changeStatus = (status) => runBatch(ids => jobsApi.bulkStatus(ids, status), allWent(n => `${plural(n)} moved to ${statusLabel(status)}`));
   const moveDue = (due) => runBatch(ids => jobsApi.bulkDue(ids, due), allWent(n => `${plural(n)} now due ${due}`));
   // POs for the selected jobs' short lines, one per supplier (JIM24). What
   // could not be bought — no supplier, not an open order — stays ticked with

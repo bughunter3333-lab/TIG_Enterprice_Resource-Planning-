@@ -7,17 +7,19 @@
  * count is always the length of the list it opens.
  *
  * The phases follow the server's lifecycle (ALLOWED_TRANSITIONS in
- * backend/app/routers/jobs.py): QUOTE → ORDER → In Progress → (PROOF) → PRINT
- * → Pick/Pack → Desp/Ready → FINISH → INVOICE → PAID, with CANCEL reachable
- * from any step. Desp/Ready is packed and waiting for the carrier; FINISH is
- * the goods having gone.
+ * backend/app/routers/jobs.py): QUOTE → New (Booked) → ORDER (Confirmed) →
+ * In Progress → (PROOF) → Picked → (Inco/Pick) → PRINT → (ProdExt) →
+ * Pick/Pack → Desp/Ready → FINISH → Ready → INVOICE → PAID, with CANCEL
+ * reachable from any step. Desp/Ready is packed and waiting for the carrier;
+ * FINISH is the goods having gone, Ready is FINISH checked, ready to invoice.
  */
 import { addDays, dayKey, todayKey } from '../../lib/dates';
+import { FINISHED_STATUSES } from './jobStatuses';
 
 export const PHASES = [
   { id: 'sales', label: 'Sales', statuses: ['QUOTE'] },
-  { id: 'production', label: 'Production', statuses: ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT'] },
-  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'Desp/Ready', 'FINISH'] },
+  { id: 'production', label: 'Production', statuses: ['New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt'] },
+  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'Desp/Ready', ...FINISHED_STATUSES] },
   { id: 'billing', label: 'Billing', statuses: ['INVOICE', 'PAID'] },
   { id: 'closed', label: 'Cancelled', statuses: ['CANCEL'] },
 ];
@@ -32,7 +34,9 @@ export const phaseOf = (status) => PHASE_OF[status] ?? 'production';
  * promise to the customer, so this is what "overdue" and "due today" count.
  * A quote has a validity date instead; from FINISH on, the goods have gone.
  */
-export const OPEN_WORK = ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'Desp/Ready'];
+export const OPEN_WORK = [
+  'New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt', 'Pick/Pack', 'Desp/Ready',
+];
 
 const isOpenWork = (job) => OPEN_WORK.includes(job.status);
 const due = (job) => dayKey(job.due);
@@ -46,12 +50,12 @@ export const isDueWithin = (job, days, today = todayKey()) => {
   return isOpenWork(job) && !!d && d >= today && d <= addDays(today, days);
 };
 
-/** Finished and delivered, waiting for its invoice. */
-export const isToInvoice = (job) => job.status === 'FINISH';
+/** Finished and delivered, waiting for its invoice — checked (Ready) or not yet. */
+export const isToInvoice = (job) => FINISHED_STATUSES.includes(job.status);
 
 /** Finished or invoiced, with no despatch recorded against it yet. */
 export const isNotDespatched = (job) =>
-  ['FINISH', 'INVOICE'].includes(job.status) && !String(job.dispatchedAt ?? '').trim();
+  [...FINISHED_STATUSES, 'INVOICE'].includes(job.status) && !String(job.dispatchedAt ?? '').trim();
 
 /** A quote whose validity runs out from today through the next 7 days. */
 export const isQuoteExpiring = (job, today = todayKey()) => {

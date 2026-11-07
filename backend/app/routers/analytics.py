@@ -4,6 +4,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional
 
 from app.core.replenishment import replenishment_rows
+from app.core.reservations import FINISHED_STATUSES
 from app.database import get_db
 from app.core.dependencies import require_any, require_staff
 from app.models.user import User
@@ -95,8 +96,16 @@ def _zscore_anomalies(values: list) -> list[tuple[int, float]]:
     ]
 
 
+# Completed: gone (FINISH, or marked Ready to invoice), invoiced or paid.
+_DONE = (*FINISHED_STATUSES, "INVOICE", "PAID")
+
+
 def get_active_jobs(db: Session) -> list:
-    return db.query(Job).filter(Job.status.notin_(["FINISH", "CANCEL", "PAID"])).all()
+    return (
+        db.query(Job)
+        .filter(Job.status.notin_([*FINISHED_STATUSES, "CANCEL", "PAID"]))
+        .all()
+    )
 
 
 def get_overdue_jobs(db: Session) -> list:
@@ -491,11 +500,7 @@ def get_margins(db: Session = Depends(get_db), _: User = Depends(require_staff))
 @router.get("/turnaround")
 def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)):
     """Throughput analytics and job turnaround times."""
-    finished = [
-        j
-        for j in db.query(Job).all()
-        if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in
-    ]
+    finished = [j for j in db.query(Job).all() if j.status in _DONE and j.date_in]
     if not finished:
         return {"error": "No completed jobs to analyze turnaround time."}
 
@@ -503,9 +508,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
     for j in finished:
         d_in = parse_date(j.date_in or "")
         d_out = parse_date(j.out or "") or (
-            parse_date(j.due or "")
-            if j.status in ("FINISH", "INVOICE", "PAID")
-            else None
+            parse_date(j.due or "") if j.status in _DONE else None
         )
         if d_in and d_out and d_out >= d_in:
             durations.append((d_out - d_in).days)

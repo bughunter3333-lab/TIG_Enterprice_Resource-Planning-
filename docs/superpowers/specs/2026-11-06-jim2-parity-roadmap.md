@@ -143,6 +143,19 @@ read are no longer offered.
 | Phase 3 | S2-10 — allowances; S2-19 — cost centres; S2-16 — logo set-up charged once |
 | Phase 4 | JIM10 — who keeps the books; S2-02, S2-06, S2-08, S2-14 — money rules; SIM-F37 — perpetual inventory |
 
+## Added from the owner's generic Jim2 workflow (2026-11-07)
+
+A general description of Jim2's end-to-end flow (CRM → quote → order → PO →
+receipt → job → schedule → despatch → invoice → receipts → banking → reports)
+confirmed the phases above and added four items not yet in them:
+
+- **Attachments on a job** — artwork files, proofs, a signed delivery note
+  (Jim2 Documents tab). Phase 3, with email into jobs.
+- **Labour time on a job** — embroidery and print time against the job, for
+  job costing. Phase 3.
+- **Sales by rep** and **slow-moving stock** reports. Phase 4.
+- **Supplier payment runs** (pay many bills at once). Phase 4, with ABA files.
+
 ## Not planned
 
 Payroll (Jim2 has none either), retail POS/EFTPOS, gift cards, hire stock,

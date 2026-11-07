@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, cast, Integer, text
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional, List
+from typing import List, Literal, Optional
 from datetime import date, datetime, timedelta, timezone
 
 from app.database import get_db
@@ -16,7 +16,11 @@ from app.core import (
     job_weight,
     payment_terms,
 )
-from app.core.reservations import COMMITTED_STATUSES, committed_total
+from app.core.reservations import (
+    COMMITTED_STATUSES,
+    FINISHED_STATUSES,
+    committed_total,
+)
 from app.core.stock_location import DEFAULT_BRANCH
 from app.core.stock_ledger import post_movement, reverse_job_movements
 from app.core.ledger import LedgerError
@@ -53,53 +57,80 @@ _KNOWN_FIELDS_ONLY = ConfigDict(extra="forbid")
 PORTAL_ITEM_NO = "NOP.ONLINE"
 _PORTAL_STATUSES = ("New", "QUOTE")
 
+# Jim2's order category, beside the urgency in `priority` (owner decision
+# 2026-11-06, JIM7): a customer's order, a branch's, or an employee's own.
+OrderCategory = Literal["Normal", "Branch", "Employee"]
+
 VALID_STATUSES = {
     "QUOTE",
     "New",
     "ORDER",
     "In Progress",
     "PROOF",
+    "Picked",
+    "Inco/Pick",
     "PRINT",
+    "ProdExt",
     "Pick/Pack",
     "Desp/Ready",
     "FINISH",
+    "Ready",
     "INVOICE",
     "PAID",
     "CANCEL",
 }
 
-# Production, in order. Desp/Ready is packed and waiting for the carrier; FINISH
-# is gone (owner decision 2026-10-25, finding F30). A job moves forward to any
-# later step — one that needs no proof skips PROOF, one with no decoration goes
-# from ORDER straight to Pick/Pack, as TIG does in bulk — and back a step to
-# put a mistake right.
+# Production, in order — TIG's own ladder (docs/superpowers/specs/
+# 2026-11-07-tig-status-ladder.md). `New` is shown as Booked and `ORDER` as
+# Confirmed; the stored values stay. Picked and Inco/Pick (part picked, the
+# rest waiting on stock) come before PRINT, so garments are picked while the
+# proof is out; ProdExt (out at an external decorator) comes after it, so no
+# logo leaves unapproved. Desp/Ready is packed and waiting for the carrier;
+# FINISH is gone (F30); Ready is FINISH checked by a person, ready to invoice.
+# A job moves forward to any later step — one that needs no proof skips PROOF,
+# one with no decoration goes from ORDER straight to Pick/Pack, as TIG does in
+# bulk — and back a step to put a mistake right.
 PRODUCTION_LADDER = (
     "ORDER",
     "In Progress",
     "PROOF",
+    "Picked",
+    "Inco/Pick",
     "PRINT",
+    "ProdExt",
     "Pick/Pack",
     "Desp/Ready",
     "FINISH",
+    "Ready",
 )
 
+# Back a step means back to the step it most likely came from: a step that
+# is often skipped going forward brings the ones before it into reach.
 _BACK_A_STEP: dict[str, set[str]] = {
-    "ORDER": {"QUOTE"},
+    "ORDER": {"QUOTE", "New"},
     "In Progress": {"ORDER"},
     "PROOF": {"In Progress"},
-    "PRINT": {"PROOF", "In Progress"},  # PROOF is often skipped going forward
-    "Pick/Pack": {"PRINT"},
+    "Picked": {"PROOF", "In Progress", "ORDER"},
+    # Inco/Pick is often reached straight from before Picked (the pick panel
+    # marks a part pick), so it reaches back as far as Picked does.
+    "Inco/Pick": {"Picked", "PROOF", "In Progress", "ORDER"},
+    "PRINT": {"Inco/Pick", "Picked", "PROOF", "In Progress"},
+    "ProdExt": {"PRINT", "Inco/Pick", "Picked"},
+    # An undecorated job comes to packing from picking; packing that finds a
+    # short goes back to Picked or Inco/Pick.
+    "Pick/Pack": {"ProdExt", "PRINT", "Inco/Pick", "Picked"},
     "Desp/Ready": {"Pick/Pack"},
     "FINISH": {"Desp/Ready", "Pick/Pack"},
+    "Ready": {"FINISH"},
 }
 
 
 def _ladder() -> dict[str, set[str]]:
     moves: dict[str, set[str]] = {
-        "QUOTE": {*PRODUCTION_LADDER, "CANCEL"},
+        "QUOTE": {*PRODUCTION_LADDER, "New", "CANCEL"},
         "New": {*PRODUCTION_LADDER, "QUOTE", "CANCEL"},
-        # Invoicing is from FINISH only: the goods have gone.
-        "INVOICE": {"PAID", "FINISH", "CANCEL"},
+        # Invoicing is from FINISH or Ready only: the goods have gone.
+        "INVOICE": {"PAID", *FINISHED_STATUSES, "CANCEL"},
         "PAID": {"CANCEL"},
         "CANCEL": {"QUOTE"},
     }
@@ -108,7 +139,8 @@ def _ladder() -> dict[str, set[str]]:
     # Straight to PAID is a cash sale: invoiced and paid in the one move, and
     # the transition invoices it on the way (stamps, numbers and posts it).
     # The payment is recorded first, as for any job (`_validate_required_fields`).
-    moves["FINISH"] |= {"INVOICE", "PAID"}
+    for finished in FINISHED_STATUSES:
+        moves[finished] |= {"INVOICE", "PAID"}
     return moves
 
 
@@ -119,7 +151,7 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = _ladder()
 # A job is despatched once it is packed. Invoiced jobs are here too: a job can
 # be invoiced before the carrier collects it.
 DESPATCHABLE_STATUSES = frozenset(
-    {"Pick/Pack", "Desp/Ready", "FINISH", "INVOICE", "PAID"}
+    {"Pick/Pack", "Desp/Ready", *FINISHED_STATUSES, "INVOICE", "PAID"}
 )
 
 # Fields that must be present when moving to certain statuses. The invoice
@@ -207,6 +239,7 @@ class _JobSharedFields(BaseModel):
     due: Optional[str] = None
     out: Optional[str] = None
     priority: Optional[str] = None
+    order_category: Optional[OrderCategory] = None
     assigned_to: Optional[str] = None
     total_ex: Optional[float] = None
     tax: Optional[float] = None
@@ -264,6 +297,7 @@ class JobCreate(_JobSharedFields):
     date_in: Optional[str] = None
     quote: Optional[str] = None
     priority: str = "Normal"
+    order_category: OrderCategory = "Normal"
     type: str = "Normal"
     total_ex: float = 0
     tax: float = 0
@@ -410,7 +444,7 @@ def _validate_transition(job: "Job", new_status: str, current_user: "User") -> N
     """
     allowed = ALLOWED_TRANSITIONS.get(job.status, set())
     if current_user.role == "admin" and job.status in PRODUCTION_LADDER:
-        earlier = ("QUOTE", *PRODUCTION_LADDER)
+        earlier = ("QUOTE", "New", *PRODUCTION_LADDER)
         allowed = allowed | set(earlier[: earlier.index(job.status)])
     if new_status not in allowed:
         raise HTTPException(
@@ -595,9 +629,15 @@ def _require_approved_proofs(job: "Job", new_status: str) -> None:
     Not on a job brought back, which was printed already. A logo is approved
     once, for every job (`POST /logos/{id}/proof`).
     """
+    # Going out to an external decorator is checked from anywhere, printed or
+    # not: the artwork leaves the building, and a logo whose artwork changed
+    # while the job was at PRINT (`PATCH /logos/{id}` resets its proof)
+    # or a logo line added after printing would go out unapproved.
+    to_the_decorator = new_status == "ProdExt" and job.status != "ProdExt"
     printed_already = job.status in _PRINTED or job.status in _DEPLETED_STATUSES
-    if printed_already or not (
-        new_status in _PRINTED or new_status in _DEPLETED_STATUSES
+    if not to_the_decorator and (
+        printed_already
+        or not (new_status in _PRINTED or new_status in _DEPLETED_STATUSES)
     ):
         return
     waiting = sorted(
@@ -2666,6 +2706,7 @@ def duplicate_job(
         "customer_id",
         "customer_name",
         "priority",
+        "order_category",
         "type",
         "assigned_to",
         "payment_method",
@@ -3118,7 +3159,7 @@ def _record_despatch(
     status_at_despatch = job.status
     if job.status in ("Pick/Pack", "Desp/Ready"):
         _apply_status_transition(job, "FINISH", db, by=by)
-    if advance and job.status == "FINISH":
+    if advance and job.status in FINISHED_STATUSES:
         _apply_status_transition(job, "INVOICE", db, by=by)
 
     now = datetime.now()

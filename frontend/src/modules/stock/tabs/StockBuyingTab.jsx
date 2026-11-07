@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { stock } from '../../../api';
 import DataGrid from '../../../ui/DataGrid';
 import { T, statusColor } from '../../../ui/tokens';
+import { statusLabel } from '../../jobs/jobStatuses';
 import { money } from '../stockFormat';
 
 // Jim2 Stock "Buying" tab: full purchase-order line history for this SKU.
@@ -18,7 +19,7 @@ export default function StockBuyingTab({ sku, onNavigatePO }) {
           style={{ color: T.accentStrong, fontWeight: 700, cursor: 'pointer', fontFamily: T.mono ?? 'monospace' }}>{r.po_id}</span>
       ) },
     { key: 'supplier_name', label: 'Supplier' },
-    { key: 'status', label: 'Status', width: 82, render: (r) => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{r.status}</span> },
+    { key: 'status', label: 'Status', width: 82, render: (r) => <span style={{ color: statusColor(r.status), fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>{statusLabel(r.status)}</span> },
     { key: 'order_date', label: 'Ordered', width: 84 },
     { key: 'qty_ordered', label: 'Ord', width: 48, align: 'right' },
     { key: 'qty_received', label: 'Recv', width: 50, align: 'right' },

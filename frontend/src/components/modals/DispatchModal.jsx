@@ -21,6 +21,7 @@ import { Box, Truck, X } from 'lucide-react';
 import * as api from '../../api';
 import DraggableModal from '../../ui/DraggableModal';
 import { T } from '../../ui/tokens';
+import { FINISHED_STATUSES } from '../../modules/jobs/jobStatuses';
 
   // Takes the monolith's updatePinnedJob, not setActiveJob. The job can be open
   // in the pinned tab strip as well as active, and setActiveJob only refreshes
@@ -67,7 +68,7 @@ export default function DispatchModal({ dispatchModal, onJobUpdated, setDispatch
           <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Notes</label>
           <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
         </div>
-        {dispatchModal.job?.status === 'FINISH' && (
+        {FINISHED_STATUSES.includes(dispatchModal.job?.status) && (
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: T.text }}>
             <input type="checkbox" checked={dispatchModal.advanceStatus} onChange={e => setDispatchModal(m => ({ ...m, advanceStatus: e.target.checked }))} />
             Advance status to INVOICE after dispatch

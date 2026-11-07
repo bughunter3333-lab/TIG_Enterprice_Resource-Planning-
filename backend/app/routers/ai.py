@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 import re
 
 from app.core.replenishment import replenishment_rows
+from app.core.reservations import FINISHED_STATUSES
 from app.database import get_db
 from app.core.dependencies import require_any
 from app.core.config import settings
@@ -16,8 +17,14 @@ from app.models.customer import Customer
 from app.models.supplier import Supplier
 from app.models.purchase_order import PurchaseOrder
 from app.models.card_file import CardFile
+from app.routers.jobs import PRODUCTION_LADDER
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Off the floor: gone (FINISH, or FINISH marked Ready to invoice), paid or
+# cancelled. Done: gone, invoiced or paid — a job counted as completed.
+_OFF_THE_FLOOR = (*FINISHED_STATUSES, "PAID", "CANCEL")
+_DONE = (*FINISHED_STATUSES, "INVOICE", "PAID")
 
 
 class ChatRequest(BaseModel):
@@ -54,7 +61,7 @@ def pct(part: int, total: int) -> str:
 
 
 def get_active_jobs(db: Session) -> list:
-    return db.query(Job).filter(Job.status.notin_(["FINISH", "CANCEL", "PAID"])).all()
+    return db.query(Job).filter(Job.status.notin_(_OFF_THE_FLOOR)).all()
 
 
 def get_overdue_jobs(db: Session) -> list:
@@ -194,7 +201,7 @@ def _zscore_anomalies(values: list) -> list[tuple[int, float]]:
 
 def respond_jobs_summary(db: Session) -> str:
     all_jobs = db.query(Job).all()
-    active = [j for j in all_jobs if j.status not in ("FINISH", "CANCEL", "PAID")]
+    active = [j for j in all_jobs if j.status not in _OFF_THE_FLOOR]
     overdue = get_overdue_jobs(db)
     due_soon = get_jobs_due_soon(db, 7)
     by_status: dict = {}
@@ -427,14 +434,14 @@ def respond_specific_job(db: Session, job_id: str) -> str:
     if (
         (due := parse_date(job.due or ""))
         and due < date.today()
-        and job.status not in ("FINISH", "PAID", "CANCEL")
+        and job.status not in _OFF_THE_FLOOR
     ):
         lines.append(f"\n⚠ **{(date.today() - due).days} day(s) overdue.**")
     return "\n".join(lines)
 
 
 def respond_production_pipeline(db: Session) -> str:
-    stages = ["ORDER", "In Progress", "PROOF", "PRINT", "Pick/Pack", "FINISH"]
+    stages = list(PRODUCTION_LADDER)
     all_jobs = db.query(Job).filter(Job.status.in_(stages)).all()
     by_stage: dict = {s: [] for s in stages}
     for j in all_jobs:
@@ -613,7 +620,13 @@ def respond_todays_summary(db: Session) -> str:
     else:
         lines.append("✅ No critical items — all clear.")
     in_prog = (
-        db.query(Job).filter(Job.status.in_(["In Progress", "PRINT", "PROOF"])).all()
+        db.query(Job)
+        .filter(
+            Job.status.in_(
+                ["In Progress", "PROOF", "Picked", "Inco/Pick", "PRINT", "ProdExt"]
+            )
+        )
+        .all()
     )
     if in_prog:
         lines.append(f"\n**In Production ({len(in_prog)}):**")
@@ -977,20 +990,14 @@ def respond_dso(db: Session) -> str:
 
 def respond_turnaround(db: Session) -> str:
     """Average job turnaround time from creation to completion."""
-    finished = [
-        j
-        for j in db.query(Job).all()
-        if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in
-    ]
+    finished = [j for j in db.query(Job).all() if j.status in _DONE and j.date_in]
     if not finished:
         return "No completed jobs to analyse turnaround time."
     durations = []
     for j in finished:
         d_in = parse_date(j.date_in or "")
         d_out = parse_date(j.out or "") or (
-            parse_date(j.due or "")
-            if j.status in ("FINISH", "INVOICE", "PAID")
-            else None
+            parse_date(j.due or "") if j.status in _DONE else None
         )
         if d_in and d_out and d_out >= d_in:
             durations.append((d_out - d_in).days)
@@ -1096,7 +1103,7 @@ def respond_seasonality(db: Session) -> str:
 def build_live_context(db: Session) -> str:
     """Snapshot of key metrics to inject into the LLM system prompt."""
     all_jobs = db.query(Job).all()
-    active = [j for j in all_jobs if j.status not in ("FINISH", "CANCEL", "PAID")]
+    active = [j for j in all_jobs if j.status not in _OFF_THE_FLOOR]
     overdue = get_overdue_jobs(db)
     low_stock = get_low_stock(db)
     this_m = jobs_this_month(db)
@@ -1142,7 +1149,7 @@ You have access to live data from their ERP system. Respond concisely using mark
 
 {live_context}
 
-Job workflow: QUOTE → New → ORDER → In Progress → PROOF → PRINT → Pick/Pack → FINISH → INVOICE → PAID (or CANCEL at any stage).
+Job workflow: QUOTE → New (shown as Booked) → ORDER (shown as Confirmed) → In Progress → PROOF → Picked → Inco/Pick (part picked) → PRINT → ProdExt (out at an external decorator) → Pick/Pack → Desp/Ready → FINISH (despatched) → Ready (ready to invoice) → INVOICE → PAID (or CANCEL at any stage).
 
 Capabilities you can describe or compute:
 - Job status, overdue jobs, production pipeline, due dates

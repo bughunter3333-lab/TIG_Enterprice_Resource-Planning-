@@ -1,9 +1,11 @@
 import { statusColor, statusTint, T } from './tokens';
+import { statusLabel } from '../modules/jobs/jobStatuses';
 
 /**
  * A job's status as a chip: the phase's colour on its own pale tint, with a
  * dot. The word carries the status (it passes 4.5:1 on its tint); the dot and
  * the tint only say which phase it is in, so nothing depends on colour alone.
+ * The word is TIG's name for it (New reads Booked, ORDER Confirmed).
  */
 export default function StatusBadge({ status, size = 'md' }) {
   if (!status) return null;
@@ -23,7 +25,7 @@ export default function StatusBadge({ status, size = 'md' }) {
       whiteSpace: 'nowrap',
     }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
-      {status}
+      {statusLabel(status)}
     </span>
   );
 }

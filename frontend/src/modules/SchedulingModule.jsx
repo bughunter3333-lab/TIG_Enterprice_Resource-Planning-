@@ -1,21 +1,9 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import { T } from '../ui/tokens';
-import { PRODUCTION_STATUSES } from './jobs/jobStatuses';
+import { FINISHED_STATUSES, PRODUCTION_STATUSES, statusLabel } from './jobs/jobStatuses';
+import StatusBadge from '../ui/StatusBadge';
 
-const STATUS_COLORS = {
-  QUOTE: 'bg-hairline-soft text-header border-hairline',
-  New: 'bg-accent-tint text-accent-strong border-accent',
-  ORDER: 'bg-accent-tint text-accent-strong border-accent',
-  'In Progress': 'bg-warn-tint text-warn border-warn',
-  PROOF: 'bg-emphasis-tint text-emphasis border-emphasis',
-  PRINT: 'bg-accent-tint text-accent-strong border-accent',
-  'Pick/Pack': 'bg-accent-tint text-accent-strong border-accent',
-  FINISH: 'bg-ok-tint text-ok border-ok',
-  INVOICE: 'bg-accent-tint text-accent-strong border-accent',
-  PAID: 'bg-ok-tint text-ok border-ok',
-  CANCEL: 'bg-danger-tint text-danger border-danger',
-};
 
 const DEC_COLORS = {
   EMB:    { dot: 'bg-emphasis',  pill: 'bg-emphasis-tint text-emphasis',  label: 'Embroidery' },
@@ -64,7 +52,7 @@ function addDays(d, n) {
 function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
   const due = parseDate(job.due);
   const now = new Date();
-  const isOverdue = due && due < now && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
+  const isOverdue = due && due < now && ![...FINISHED_STATUSES, 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
   const daysLeft = due ? Math.ceil((due - now) / 86400000) : null;
   const decs = [...new Set((job.items || []).map(i => i.decorationType).filter(d => d && d !== 'None'))];
 
@@ -83,7 +71,7 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
         <div className="flex items-center gap-1 shrink-0">
           {job.priority === 'Urgent' && <span className="text-[10px] px-1 rounded font-bold leading-4" style={{ background: T.dangerTint, color: T.danger }}>URG</span>}
           {job.priority === 'High' && <span className="text-[10px] bg-accent-tint text-accent-strong px-1 rounded font-bold leading-4">HIGH</span>}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-hairline-soft text-muted'}`}>{job.status}</span>
+          <StatusBadge status={job.status} size="sm" />
         </div>
       </div>
       <p className="text-xs font-semibold truncate leading-tight" style={{ color: T.text }}>{job.customer}</p>
@@ -123,7 +111,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
   const displayed = filterStatus === 'all' ? jobs : jobs.filter(j => j.status === filterStatus);
   const overdueCount = displayed.filter(j => {
     const d = parseDate(j.due);
-    return d && d < new Date() && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(j.status);
+    return d && d < new Date() && ![...FINISHED_STATUSES, 'PAID', 'CANCEL', 'INVOICE'].includes(j.status);
   }).length;
 
   return (
@@ -299,7 +287,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
             style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
             <option value="all">All Statuses</option>
-            {PROD_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            {PROD_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
           </select>
           <button
             onClick={() => setShowWeekend(v => !v)}

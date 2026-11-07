@@ -47,6 +47,7 @@ export default function DataGrid({
   emptyHint,          // what to do about it, e.g. "Clear a filter or add a job"
   initialSort,        // { key, dir }
   groupBy,            // column key — rows are banded under a header per value
+  groupLabel = String, // value → band heading; bands still sort by the value
   maxHeight,
   density: densityProp, // 'compact' | 'comfortable'; defaults to the person's choice
 }) {
@@ -172,7 +173,7 @@ export default function DataGrid({
                 gap: 8,
               }}
             >
-              <span style={{ fontFamily: T.fontMono, color: T.text }}>{String(value)}</span>
+              <span style={{ fontFamily: T.fontMono, color: T.text }}>{groupLabel(value)}</span>
               <span style={{ color: T.textMuted, fontWeight: 400 }}>
                 {groupRows.length} job{groupRows.length === 1 ? '' : 's'}
               </span>

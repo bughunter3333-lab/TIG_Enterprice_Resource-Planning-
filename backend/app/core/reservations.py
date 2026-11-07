@@ -32,12 +32,21 @@ COMMITTED_STATUSES = frozenset(
         "ORDER",
         "In Progress",
         "PROOF",
+        "Picked",
+        "Inco/Pick",
         "PRINT",
+        "ProdExt",
         "Pick/Pack",
         "Desp/Ready",
         "FINISH",
+        "Ready",
     }
 )
+
+# Gone, and not yet invoiced: FINISH, and FINISH a person has marked ready to
+# invoice (`Ready`, shown red). Every count of "finished, awaiting invoice"
+# reads both.
+FINISHED_STATUSES = frozenset({"FINISH", "Ready"})
 
 # The queries select the committed statuses, rather than leaving out a list of
 # uncommitted ones. They used to leave out QUOTE, INVOICE, PAID and CANCEL —

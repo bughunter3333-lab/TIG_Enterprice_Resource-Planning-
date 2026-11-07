@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Button from '../../ui/Button';
 import { fieldChrome } from '../../ui/fieldStyle';
 import { T } from '../../ui/tokens';
-import { JOB_STATUSES } from './jobStatuses';
+import { JOB_STATUSES, statusLabel } from './jobStatuses';
 
 /**
  * What can be done to the jobs selected in the list, as on Jim2's job list
@@ -28,7 +28,7 @@ export default function BulkActionBar({ count, busy, problems, onStatus, onDue, 
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <select aria-label="New status" value={status} onChange={e => setStatus(e.target.value)} style={field}>
           <option value="">Status…</option>
-          {JOB_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          {JOB_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
         </select>
         <Button size="sm" disabled={!status || busy} onClick={() => onStatus(status)}>Change status</Button>
       </span>

@@ -27,7 +27,7 @@ test('renders job rows with status badge and money formatting, fires onJobClick'
   const onJobClick = vi.fn();
   render(<JobsList jobs={jobs} onJobClick={onJobClick} />);
   expect(screen.getByText('1001')).toBeInTheDocument();
-  expect(screen.getByText('PRINT')).toBeInTheDocument();      // StatusBadge text
+  expect(screen.getByText('Print')).toBeInTheDocument();      // StatusBadge label (CSS uppercases it)
   expect(screen.getByText('$1,500')).toBeInTheDocument();      // money, no decimals
   expect(screen.getByText('Embroidery')).toBeInTheDocument();  // decoration column
   fireEvent.click(screen.getByText('BHP Group'));
@@ -103,7 +103,7 @@ test('one character typed does not ask the server', async () => {
 
 test('board mode renders kanban columns instead of the grid', () => {
   renderWithQuery(<JobsModule {...base} viewMode="board" />);
-  expect(screen.getByText('QUOTE')).toBeInTheDocument();   // column header
+  expect(screen.getByRole('heading', { name: 'Quote' })).toBeInTheDocument();   // column header
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });
 

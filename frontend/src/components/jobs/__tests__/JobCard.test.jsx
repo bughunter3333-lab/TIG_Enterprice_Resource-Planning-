@@ -33,9 +33,16 @@ test('a job whose goods have gone is never overdue', () => {
   }
 });
 
-test('the board has a column for a confirmed order (New)', () => {
+test('the board has a column for a booked order (New), named as TIG says it', () => {
   render(<JobsBoard jobs={[{ ...job, status: 'New' }]} onJobClick={() => {}} />);
-  expect(screen.getByRole('region', { name: 'New, 1 job' })).toHaveTextContent('Acme Inc');
+  expect(screen.getByRole('region', { name: 'Booked, 1 job' })).toHaveTextContent('Acme Inc');
+});
+
+test("the board has a column for each of TIG's floor steps", () => {
+  render(<JobsBoard jobs={[]} onJobClick={() => {}} />);
+  for (const name of ['Picked', 'Inco/Pick', 'ProdExt', 'Ready to invoice']) {
+    expect(screen.getByRole('region', { name: `${name}, 0 jobs` })).toBeInTheDocument();
+  }
 });
 
 test('does not throw when onClick is omitted', () => {
