@@ -32,7 +32,7 @@ export default function AnalyticsModule() {
   const churnQuery = useQuery({ queryKey: ['analytics/churn'], queryFn: api.analytics.getChurn, staleTime: 30000, enabled: activeTab === 'churn' || activeTab === 'overview', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const marginsQuery = useQuery({ queryKey: ['analytics/margins'], queryFn: api.analytics.getMargins, staleTime: 30000, enabled: activeTab === 'margins', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const turnaroundQuery = useQuery({ queryKey: ['analytics/turnaround'], queryFn: api.analytics.getTurnaround, staleTime: 30000, enabled: activeTab === 'turnaround', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
-  const seasonalityQuery = useQuery({ queryKey: ['analytics/seasonality'], queryFn: api.analytics.getSeasonality, staleTime: 30000, enabled: activeTab === 'seasonality', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
+  const seasonalityQuery = useQuery({ queryKey: ['analytics/seasonality'], queryFn: api.analytics.getSeasonality, staleTime: 30000, enabled: activeTab === 'forecast', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const anomaliesQuery = useQuery({ queryKey: ['analytics/anomalies'], queryFn: api.analytics.getAnomalies, staleTime: 30000, enabled: activeTab === 'anomalies' || activeTab === 'overview', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
 
   const refetchAll = () => {
@@ -54,7 +54,7 @@ export default function AnalyticsModule() {
     (activeTab === 'churn' && churnQuery.isLoading) ||
     (activeTab === 'margins' && marginsQuery.isLoading) ||
     (activeTab === 'turnaround' && turnaroundQuery.isLoading) ||
-    (activeTab === 'seasonality' && seasonalityQuery.isLoading) ||
+    (activeTab === 'forecast' && seasonalityQuery.isLoading) ||
     (activeTab === 'anomalies' && anomaliesQuery.isLoading);
 
   return (
@@ -433,6 +433,12 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
             <div className="text-center py-10 text-xs" style={{ color: T.textFaint }}>Loading seasonality indexes...</div>
           ) : seasonalityQuery.isError ? (
             <div className="text-xs" style={{ color: T.danger }}>Error: {seasonalityQuery.error.message}</div>
+          ) : !seasonalityQuery.data?.monthly_patterns?.length ? (
+            // The seasonality chart is drawn on the forecast tab; a database
+            // with too little history has no monthly pattern yet.
+            <div className="text-center py-10 text-xs" style={{ color: T.textFaint }}>
+              {seasonalityQuery.data?.error || 'Not enough sales history for seasonal patterns yet.'}
+            </div>
           ) : (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">

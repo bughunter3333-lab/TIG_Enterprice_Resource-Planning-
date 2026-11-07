@@ -1766,9 +1766,11 @@ def list_jobs(
         # (name_contact, requested_by) too: a portal order could be found only
         # by the customer's name (F01). The customer and ship-to codes as well,
         # as the screen's own filter matches them: a job past the newest 500
-        # loaded could not be found by either.
+        # loaded could not be found by either. And the PO number on its lines:
+        # in Jim2 the job list is filtered by the PO buying for it (JIM26).
         q = q.filter(
-            Job.id.ilike(term)
+            Job.items.any(JobItem.po_no.ilike(term))
+            | Job.id.ilike(term)
             | Job.customer_id.ilike(term)
             | Job.ship_to.ilike(term)
             | Job.customer_name.ilike(term)
@@ -1870,6 +1872,44 @@ def bulk_status(
 
     db.commit()
     return {"moved": moved, "failed": failed}
+
+
+class BulkDueRequest(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
+    job_ids: List[str] = Field(min_length=1, max_length=500)
+    due: date
+
+
+@router.post("/bulk-due")
+def bulk_due(
+    body: BulkDueRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Move the due date of many jobs at once — Jim2's "Change Jobs Date Due"
+    on the job list (JIM24): a late delivery of garments moves every job
+    waiting on it. Each job's trail says what its date was; a job that is not
+    there is named and the rest go ahead."""
+    due = body.due.isoformat()
+    changed, failed = 0, []
+    for job_id in body.job_ids:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            failed.append({"job_id": job_id, "reason": "Job not found"})
+            continue
+        if job.due != due:
+            job.comments.append(
+                _system_comment(
+                    job,
+                    f"Due date moved from {job.due or 'none'} to {due}",
+                    by=current_user,
+                )
+            )
+            job.due = due
+        changed += 1
+    db.commit()
+    return {"changed": changed, "failed": failed}
 
 
 class AutoPickRequest(BaseModel):
@@ -2786,6 +2826,34 @@ def add_comment(
             "comment": comment.comment,
         },
     }
+
+
+class CommentPin(BaseModel):
+    model_config = _KNOWN_FIELDS_ONLY
+
+    pinned: bool
+
+
+@router.post("/{job_id}/comments/{comment_id}/pin")
+def pin_comment(
+    job_id: str,
+    comment_id: int,
+    body: CommentPin,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """Pin a comment to the top of the job's trail, or let it go (Jim2 v4.6):
+    the note that matters stays in sight above the system lines."""
+    comment = (
+        db.query(JobComment)
+        .filter(JobComment.id == comment_id, JobComment.job_id == job_id)
+        .first()
+    )
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found on this job")
+    comment.pinned_at = datetime.now(timezone.utc) if body.pinned else None
+    db.commit()
+    return {"id": comment.id, "pinned_at": comment.pinned_at}
 
 
 @router.post("/{job_id}/lock")

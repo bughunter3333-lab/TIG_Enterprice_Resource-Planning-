@@ -1,11 +1,15 @@
 import {
-  BarChart3, Boxes, ClipboardList, Contact, FileText, Home, Landmark, ShoppingCart, Users,
+  BarChart3, Boxes, CalendarDays, ClipboardList, Contact, FileText, Home, Landmark, ListChecks,
+  Mail, Shirt, ShoppingCart, TrendingUp, Truck, Upload, Users,
 } from 'lucide-react';
 import { areaView } from '../../lib/access';
 
 // The modules, in the sidebar's groups. Same ids as ever — navigation is
 // unchanged. `area` is the module's business area in the server's access table
 // (AREAS in backend/app/core/access.py). Home has none: everyone has a Home.
+// Every built screen has an entry: Scheduling, Order requirements, Suppliers,
+// Styles, Email, Analytics and Import were mounted but reachable only by
+// search or a Home tile, or not at all.
 export const MODULE_GROUPS = [
   {
     label: 'Work',
@@ -13,13 +17,17 @@ export const MODULE_GROUPS = [
       { id: 'home', label: 'Home', icon: Home },
       { id: 'jobs', label: 'Jobs', icon: ClipboardList, badgeKey: 'jobCount', area: 'Jobs and quotes' },
       { id: 'quotes', label: 'Quotes', icon: FileText, badgeKey: 'quoteCount', area: 'Jobs and quotes' },
+      { id: 'scheduling', label: 'Scheduling', icon: CalendarDays, area: 'Jobs and quotes' },
     ],
   },
   {
     label: 'Operations',
     modules: [
       { id: 'purchase-orders', label: 'Purchases', icon: ShoppingCart, area: 'Purchasing' },
+      { id: 'order-requirements', label: 'Order requirements', icon: ListChecks, area: 'Purchasing' },
+      { id: 'suppliers', label: 'Suppliers', icon: Truck, area: 'Purchasing' },
       { id: 'inventory', label: 'Stock', icon: Boxes, area: 'Stock' },
+      { id: 'styles', label: 'Styles', icon: Shirt, area: 'Stock' },
     ],
   },
   {
@@ -27,6 +35,7 @@ export const MODULE_GROUPS = [
     modules: [
       { id: 'customers', label: 'Customers', icon: Users, area: 'Customers' },
       { id: 'card-files', label: 'Card Files', icon: Contact, area: 'Card files' },
+      { id: 'email', label: 'Email', icon: Mail, area: 'Email' },
     ],
   },
   {
@@ -34,6 +43,13 @@ export const MODULE_GROUPS = [
     modules: [
       { id: 'accounts', label: 'Accounts', icon: Landmark, area: 'Accounts' },
       { id: 'reports', label: 'Reports', icon: BarChart3, area: 'Reports' },
+      { id: 'analytics', label: 'Analytics', icon: TrendingUp, area: 'Reports' },
+    ],
+  },
+  {
+    label: 'Data',
+    modules: [
+      { id: 'import', label: 'Import', icon: Upload, area: 'System settings' },
     ],
   },
 ];

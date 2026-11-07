@@ -34,10 +34,47 @@ const COLUMNS = [
   { key: 'due', label: 'Due', width: 124, render: (j) => formatDay(j.due) || '—', sortValue: (j) => dayKey(j.due) },
 ];
 
-export default function JobsList({ jobs, onJobClick, lockedStatus, groupBy }) {
-  const columns = lockedStatus
+// A tick box per row, and one in the header for every job shown, when the list
+// is given a selection. A click on a box selects; it never opens the job.
+function selectionColumn(jobs, selected, onSelectedChange) {
+  const all = jobs.length > 0 && jobs.every(j => selected.has(j.id));
+  const toggle = (id) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    onSelectedChange(next);
+  };
+  const stop = (e) => e.stopPropagation();
+  return {
+    key: '_select',
+    width: 36,
+    label: (
+      <input
+        type="checkbox"
+        aria-label="Select all jobs shown"
+        checked={all}
+        onClick={stop}
+        onChange={() => onSelectedChange(all ? new Set() : new Set(jobs.map(j => j.id)))}
+      />
+    ),
+    render: (j) => (
+      <input
+        type="checkbox"
+        aria-label={`Select job ${j.id}`}
+        checked={selected.has(j.id)}
+        onClick={stop}
+        onChange={() => toggle(j.id)}
+      />
+    ),
+  };
+}
+
+export default function JobsList({ jobs, onJobClick, lockedStatus, groupBy, selected, onSelectedChange }) {
+  const shown = lockedStatus
     ? COLUMNS.filter(col => col.key !== 'status')
     : COLUMNS;
+  const columns = onSelectedChange
+    ? [selectionColumn(jobs, selected ?? new Set(), onSelectedChange), ...shown]
+    : shown;
 
   return (
     <DataGrid

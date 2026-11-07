@@ -30,3 +30,13 @@ test('Company Settings is a tab in Admin, and opens the company settings', async
   expect(await screen.findByDisplayValue('Total Image Group')).toBeInTheDocument();
   expect(api.settings.getCompany).toHaveBeenCalled();
 });
+
+test('no tab saves a setting nothing reads (Phase 0)', () => {
+  renderWithQuery(<AdminPanel currentUser={ADMIN} />);
+  for (const lying of ['Job Fields', 'Status Workflow', 'Price Levels', 'Decoration Types']) {
+    expect(screen.queryByRole('button', { name: lying })).toBeNull();
+  }
+  for (const kept of ['Users and roles', 'Company Settings', 'Print Templates', 'Jim2 Migration']) {
+    expect(screen.getByRole('button', { name: kept })).toBeInTheDocument();
+  }
+});

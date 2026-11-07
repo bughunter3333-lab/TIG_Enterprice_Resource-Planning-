@@ -233,6 +233,7 @@ function normalizeCustomer(c) {
     accountType: c.account_type ?? c.accountType,
     paymentTerms: c.payment_terms ?? c.paymentTerms ?? 'Net 30',
     creditLimit: parseFloat(c.credit_limit ?? c.creditLimit ?? 0),
+    creditHold: Boolean(c.credit_hold ?? c.creditHold ?? false),
     balance: parseFloat(c.balance ?? 0),
     totalSpent: parseFloat(c.ytd_sales ?? c.totalSpent ?? 0),
     accountManager: c.account_manager ?? c.accountManager,
@@ -508,6 +509,11 @@ export const jobs = {
       body: { job_ids: jobIds, status, allow_negative_stock: allowNegativeStock },
     }),
 
+  // Jim2's "Change Jobs Date Due" on the job list (JIM24): one date for every
+  // job selected. `due` is a YYYY-MM-DD day. Answers { changed, failed }.
+  bulkDue: (jobIds, due) =>
+    request('/jobs/bulk-due', { method: 'POST', body: { job_ids: jobIds, due } }),
+
   // Jim2's "Create Similar". Carries the order; leaves the source job's own
   // fulfilment behind. Overrides let a multi-site rollout point each copy at
   // the next address.
@@ -535,6 +541,10 @@ export const jobs = {
 
   addComment: (id, comment, isInternal = false) =>
     request(`/jobs/${id}/comments`, { method: 'POST', body: { comment, is_internal: isInternal } }),
+
+  // Pin a comment to the top of the job's trail, or let it go (Jim2 v4.6).
+  pinComment: (id, commentId, pinned) =>
+    request(`/jobs/${id}/comments/${commentId}/pin`, { method: 'POST', body: { pinned } }),
 
   toggleLock: (id, locked) =>
     request(`/jobs/${id}/lock`, { method: 'POST', body: { locked } }).then(normalizeJob),
@@ -750,6 +760,14 @@ export const customers = {
   // The backend has served these since the ship-to work; nothing on this side
   // ever asked for them, so a customer's sites were unreachable from the app.
   shipTos: (customerId) => request(`/customers/${customerId}/ship-tos`),
+  // A site's code is set once; edits change the rest. A site jobs deliver to
+  // is refused deletion (409, saying how many jobs).
+  createShipTo: (customerId, site) =>
+    request(`/customers/${customerId}/ship-tos`, { method: 'POST', body: site }),
+  updateShipTo: (customerId, siteId, site) =>
+    request(`/customers/${customerId}/ship-tos/${siteId}`, { method: 'PATCH', body: site }),
+  deleteShipTo: (customerId, siteId) =>
+    request(`/customers/${customerId}/ship-tos/${siteId}`, { method: 'DELETE' }),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/customers${q ? `?${q}` : ''}`).then(r => r.map(normalizeCustomer));
@@ -782,6 +800,7 @@ export const customers = {
     account_type: data.accountType,
     payment_terms: data.paymentTerms,
     credit_limit: data.creditLimit,
+    credit_hold: data.creditHold,
     account_manager: data.accountManager,
     status: data.status,
   }}).then(normalizeCustomer),
@@ -907,6 +926,11 @@ export const suppliers = {
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
 export const purchaseOrders = {
+  // Jim2's "Auto Create Purchase Orders" from the job list (JIM24): one PO per
+  // supplier for the selected jobs' short lines. Answers { created: [{ id,
+  // supplier_name, items }], skipped: [{ job_id, sku, reason }] }.
+  fromJobs: (jobIds) =>
+    request('/purchase-orders/from-jobs', { method: 'POST', body: { job_ids: jobIds } }),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/purchase-orders${q ? `?${q}` : ''}`).then(r => r.map(normalizePO));

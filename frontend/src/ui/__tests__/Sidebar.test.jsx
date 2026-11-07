@@ -27,8 +27,15 @@ const access = ({ unreadable = [] } = {}) => ({
   allowed: ['GET /jobs'],
 });
 
-// In sidebar order: Work, Operations, Relationships, Finance.
-const ALL = ['Home', 'Jobs', 'Quotes', 'Purchases', 'Stock', 'Customers', 'Card Files', 'Accounts', 'Reports'];
+// In sidebar order: Work, Operations, Relationships, Finance, Data. Email and
+// Import are in areas this table does not list, so they stay (see below).
+const ALL = [
+  'Home', 'Jobs', 'Quotes', 'Scheduling',
+  'Purchases', 'Order requirements', 'Suppliers', 'Stock', 'Styles',
+  'Customers', 'Card Files', 'Email',
+  'Accounts', 'Reports', 'Analytics',
+  'Import',
+];
 const items = () => within(screen.getByRole('navigation', { name: 'Spaces' })).queryAllByRole('button')
   .map((b) => b.textContent.replace(/\d+$/, ''));
 
@@ -73,7 +80,44 @@ describe('which modules a role sees', () => {
     users.myAccess.mockResolvedValue(access({ unreadable: ['Accounts', 'Purchasing'] }));
     open();
     await screen.findByText('Reports');
-    expect(items()).toEqual(['Home', 'Jobs', 'Quotes', 'Stock', 'Customers', 'Card Files', 'Reports']);
+    expect(items()).toEqual([
+      'Home', 'Jobs', 'Quotes', 'Scheduling', 'Stock', 'Styles',
+      'Customers', 'Card Files', 'Email', 'Reports', 'Analytics', 'Import',
+    ]);
+  });
+
+  test('each built screen goes with its area: none is shown to a role that cannot read it', async () => {
+    const all = [...AREAS, 'Email', 'System settings'];
+    users.myAccess.mockResolvedValue({
+      role: 'overseas_staff',
+      areas: all.map((area) => ({
+        area,
+        view: [['Reports', 'Email', 'System settings', 'Purchasing'].includes(area) ? 0 : 5, 5],
+        change: [0, 5],
+      })),
+      allowed: [],
+    });
+    open();
+    await screen.findByText('Stock');
+    for (const hidden of ['Analytics', 'Reports', 'Email', 'Import', 'Suppliers', 'Order requirements']) {
+      expect(items()).not.toContain(hidden);
+    }
+    expect(items()).toContain('Scheduling');
+    expect(items()).toContain('Styles');
+  });
+
+  test.each([
+    ['Scheduling', 'scheduling'],
+    ['Order requirements', 'order-requirements'],
+    ['Suppliers', 'suppliers'],
+    ['Styles', 'styles'],
+    ['Email', 'email'],
+    ['Analytics', 'analytics'],
+    ['Import', 'import'],
+  ])('%s opens its screen', async (label, id) => {
+    open();
+    fireEvent.click(await screen.findByRole('button', { name: label }));
+    expect(base.onNavigate).toHaveBeenCalledWith(id);
   });
 
   test('Jobs and Quotes share their area', async () => {

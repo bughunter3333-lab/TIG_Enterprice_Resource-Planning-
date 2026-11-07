@@ -175,9 +175,11 @@ export function mergeJobs(loaded, found) {
 export function filterJobs(jobs, f, currentUser, now = new Date()) {
   return jobs.filter(job => {
     const term = (f.searchTerm || '').toLowerCase();
+    // And the PO number on its lines, as the server's search reads it (JIM26).
     const matchesSearch = !term ||
       String(job.id).toLowerCase().includes(term) ||
-      SEARCHED.some(key => String(job[key] || '').toLowerCase().includes(term));
+      SEARCHED.some(key => String(job[key] || '').toLowerCase().includes(term)) ||
+      (job.items || []).some(i => String(i.poNo || '').toLowerCase().includes(term));
 
     const matchesStatus = f.status === 'all' || job.status === f.status;
     const matchesPriority = f.priority === 'all' || job.priority === f.priority;

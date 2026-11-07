@@ -56,6 +56,9 @@ class CustomerUpdate(BaseModel):
     customer_group: Optional[str] = None
     territory: Optional[str] = None
     status: Optional[str] = None
+    # On hold, the credit check refuses the customer's new orders. It had no
+    # writer, so nobody could put a customer on hold.
+    credit_hold: Optional[bool] = None
 
 
 @router.get("")

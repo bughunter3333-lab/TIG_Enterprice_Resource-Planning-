@@ -32,6 +32,11 @@ export const MODULE_TITLES = {
   'order-requirements': 'Order requirements',
   accounts: 'Accounts',
   reports: 'Reports',
+  scheduling: 'Scheduling',
+  styles: 'Styles',
+  email: 'Email',
+  analytics: 'Analytics',
+  import: 'Import',
 };
 
 const INVOICED = ['INVOICE', 'PAID'];

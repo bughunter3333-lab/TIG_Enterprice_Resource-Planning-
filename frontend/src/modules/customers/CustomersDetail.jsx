@@ -6,6 +6,7 @@ import { custOutstanding as outstandingOf, custRevenue as revenueOf, invoicedJob
 import { useOffer } from '../../lib/useMyAccess';
 import { reports } from '../../api';
 import LogosTab from './LogosTab';
+import SitesTab from './SitesTab';
 import RemittanceForm from './RemittanceForm';
 
 const AGING_BUCKETS = [
@@ -99,6 +100,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
               ...(offer('GET', '/reports/aged-receivables') ? ['aging'] : []),
               'statement',
               ...(offer('GET', '/logos') ? ['logos'] : []),
+              ...(offer('GET', '/customers/{customer_id}/ship-tos') ? ['sites'] : []),
             ];
 
             return (
@@ -115,6 +117,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                         <span className="text-xs font-mono text-muted bg-hairline-soft px-2 py-0.5 rounded">{c.id}</span>
                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.status === 'Active' || !c.status ? 'bg-ok-tint text-ok' : 'bg-danger-tint text-danger'}`}>{c.status || 'Active'}</span>
                         <span className="text-xs text-muted">{c.accountType || 'Account'}</span>
+                        {c.creditHold && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded font-bold">On credit hold</span>}
                         {overLimit && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded font-bold">⚠ Over Credit Limit</span>}
                       </div>
                     </div>
@@ -221,6 +224,9 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
 
                   {/* Logos Tab */}
                   {custDetailTab === 'logos' && tabs.includes('logos') && <LogosTab customerId={c.id} />}
+
+                  {/* Sites Tab */}
+                  {custDetailTab === 'sites' && tabs.includes('sites') && <SitesTab customerId={c.id} />}
 
                   {/* Statement Tab */}
                   {custDetailTab === 'statement' && (

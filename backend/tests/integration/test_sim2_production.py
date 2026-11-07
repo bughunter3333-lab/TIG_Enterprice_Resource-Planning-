@@ -229,13 +229,22 @@ class TestTheDespatchDate:
             json={"lines": [{"job_id": job["id"]}], "despatch_date": tomorrow},
         )
         printed = []
-        real = despatch_documents._p
 
-        def spy(text, *args, **kwargs):
-            printed.append(str(text))
-            return real(text, *args, **kwargs)
+        def spying(real):
+            def spy(text, *args, **kwargs):
+                printed.append(str(text))
+                return real(text, *args, **kwargs)
 
-        monkeypatch.setattr(despatch_documents, "_p", spy)
+            return spy
+
+        # Data goes through _p, the note's own markup (with the date in it)
+        # through _rich.
+        for helper in ("_p", "_rich"):
+            monkeypatch.setattr(
+                despatch_documents,
+                helper,
+                spying(getattr(despatch_documents, helper)),
+            )
         r = client.get(f"/jobs/{job['id']}/pdf", params={"type": "delivery-note"})
         assert r.status_code == 200, r.text
         assert f"Despatched: <b>{tomorrow}</b>" in printed

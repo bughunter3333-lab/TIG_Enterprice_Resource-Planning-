@@ -30,6 +30,7 @@ from reportlab.platypus import (
 from sqlalchemy import func
 from sqlalchemy.orm import object_session
 
+from app.core.pdf_text import para
 from app.models.dispatch_session import DispatchLineItem, DispatchSessionLine
 
 DARK = colors.HexColor("#1e293b")
@@ -57,7 +58,13 @@ _to = ParagraphStyle("dd_to", fontSize=13, textColor=DARK, leading=16)
 
 
 def _p(text: Optional[str], style=_text) -> Paragraph:
-    return Paragraph((text or "").replace("\n", "<br/>"), style)
+    """Data as a Paragraph: read as text, never as markup."""
+    return Paragraph(para(text), style)
+
+
+def _rich(markup: str, style=_text) -> Paragraph:
+    """The builder's own markup ("<b>…</b>"); any data in it went through para."""
+    return Paragraph(markup, style)
 
 
 def goods_lines(job) -> list:
@@ -176,22 +183,24 @@ def delivery_note(job, company, despatch: Optional[dict] = None) -> list:
         went.strftime("%Y-%m-%d") if went else job.dispatched_at
     )
     details = [
-        f"Job: <b>{job.id}</b>",
-        f"Your ref: <b>{job.cust_ref or '—'}</b>",
-        f"Despatched: <b>{when or '—'}</b>",
+        f"Job: <b>{para(job.id)}</b>",
+        f"Your ref: <b>{para(job.cust_ref or '—')}</b>",
+        f"Despatched: <b>{para(when or '—')}</b>",
     ]
     if despatch.get("ship_via") or job.ship_via:
-        details.append(f"Via: <b>{despatch.get('ship_via') or job.ship_via}</b>")
+        details.append(f"Via: <b>{para(despatch.get('ship_via') or job.ship_via)}</b>")
     if despatch.get("ship_ref") or job.connote:
-        details.append(f"Connote: <b>{despatch.get('ship_ref') or job.connote}</b>")
+        details.append(
+            f"Connote: <b>{para(despatch.get('ship_ref') or job.connote)}</b>"
+        )
     deliver_to = [
         _p("DELIVER TO", ParagraphStyle("dd_dt", parent=_small, textColor=ACCENT)),
-        _p(f"<b>{job.customer_name or ''}</b>"),
+        _rich(f"<b>{para(job.customer_name)}</b>"),
         _p(despatch.get("address") or job.shipping_address or job.ship_to or ""),
     ]
     story.append(
         Table(
-            [[deliver_to, [_p(line) for line in details]]],
+            [[deliver_to, [_rich(line) for line in details]]],
             colWidths=["55%", "45%"],
             style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]),
         )
@@ -200,11 +209,11 @@ def delivery_note(job, company, despatch: Optional[dict] = None) -> list:
 
     rows = [
         [
-            _p("<b>Code</b>"),
-            _p("<b>Description</b>"),
-            _p("<b>Size</b>"),
-            _p("<b>Qty</b>"),
-            _p("<b>Back-ordered</b>"),
+            _rich("<b>Code</b>"),
+            _rich("<b>Description</b>"),
+            _rich("<b>Size</b>"),
+            _rich("<b>Qty</b>"),
+            _rich("<b>Back-ordered</b>"),
         ]
     ]
     for it, going, back_ordered in delivery_lines(job):
@@ -251,22 +260,40 @@ def ship_labels(job, company, despatch: Optional[dict] = None) -> list:
     """One label per carton, 'Carton n of N'."""
     despatch = despatch or {}
     cartons = max(1, int(despatch.get("cartons") or 1))
+    # As Jim2's label reads (JIM28): which of the customer's sites, for whom,
+    # and how it goes. The consignment being sent wins over the job's last.
+    ship_via = despatch.get("ship_via") or job.ship_via
     story = []
     for n in range(1, cartons + 1):
         if n > 1:
             story.append(PageBreak())
-        story += [
-            _p("TO", _small),
-            _p(f"<b>{job.customer_name or ''}</b>", _to),
+        to = [_p("TO", _small)]
+        if job.ship_to:
+            to.append(_rich(f"Ship Code <b>{para(job.ship_to)}</b>", _bold))
+        to.append(_rich(f"<b>{para(job.customer_name)}</b>", _to))
+        if job.name_contact:
+            to.append(_p(f"Attn {job.name_contact}"))
+        to.append(
             _p(
                 despatch.get("address") or job.shipping_address or job.ship_to or "",
                 _to,
-            ),
+            )
+        )
+        going = [
+            _rich(
+                f"Job <b>{para(job.id)}</b>    "
+                f"Sender Ref {para(job.cust_ref or '—')}"
+            )
+        ]
+        if ship_via:
+            going.append(_rich(f"Ship Via <b>{para(ship_via)}</b>"))
+        story += [
+            *to,
             Spacer(1, 6 * mm),
             HRFlowable(width="100%", thickness=1, color=DARK, spaceAfter=4),
-            _p(f"Job <b>{job.id}</b>    Ref {job.cust_ref or '—'}"),
+            *going,
             _p(f"Connote {despatch.get('ship_ref') or job.connote or '—'}"),
-            _p(f"<b>Carton {n} of {cartons}</b>", _bold),
+            _rich(f"<b>Carton {n} of {cartons}</b>", _bold),
             Spacer(1, 6 * mm),
             _p("FROM", _small),
             _p(company.company_name or "Total Image"),

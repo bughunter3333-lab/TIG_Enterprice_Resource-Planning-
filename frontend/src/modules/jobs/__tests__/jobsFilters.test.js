@@ -31,6 +31,13 @@ test('search also finds a portal order by its order number, contact, requester, 
   }
 });
 
+test('search finds the jobs a purchase order buys for, by the PO number on their lines (JIM26)', () => {
+  const buying = { ...jobs[1], id: '1005', items: [{ stockCode: 'KG-HV-XL', poNo: 'PO-DEMO-001' }, { stockCode: 'EMB', poNo: '' }] };
+  const all = [...jobs, buying];
+  expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: 'po-demo-001' }, null).map(j => j.id)).toEqual(['1005']);
+  expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: 'demo-0' }, null).map(j => j.id)).toEqual(['1005']);
+});
+
 test('jobs the server found are added to the loaded list once, the loaded copy kept (F01)', () => {
   const found = [{ ...jobs[0], customer: 'stale copy' }, { id: '0999', customer: 'Old Co', items: [] }];
   const merged = mergeJobs(jobs, found);

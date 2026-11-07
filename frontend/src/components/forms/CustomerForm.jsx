@@ -126,6 +126,15 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
+                  {/* On hold, the credit check refuses the customer's new orders. */}
+                  <label className="flex items-center gap-2 mt-2 text-sm" style={{color: T.text}}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(customerForm.creditHold)}
+                      onChange={(e) => setCustomerForm({...customerForm, creditHold: e.target.checked})}
+                    />
+                    On credit hold — new orders are refused
+                  </label>
                 </div>
 
                 <div>

@@ -13,7 +13,7 @@ from typing import Optional, List
 from app.database import get_db
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem
-from app.models.job import JobItem
+from app.models.job import Job, JobItem
 from app.models.logo import Logo
 from app.models.settings import CompanySettings
 from app.models.supplier import Supplier
@@ -280,6 +280,108 @@ def create_po_from_requirements(
 
     db.commit()
     return _po_with_items(db, body.id)
+
+
+class POFromJobs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    job_ids: List[str] = Field(min_length=1, max_length=500)
+    expected_date: Optional[str] = None
+
+
+def _new_po_id(db: Session) -> str:
+    """The next free `PO-YYYYMMDD-n` for today."""
+    prefix = f"PO-{datetime.now():%Y%m%d}-"
+    n = db.query(PurchaseOrder).filter(PurchaseOrder.id.like(f"{prefix}%")).count()
+    while db.get(PurchaseOrder, f"{prefix}{n + 1}") is not None:
+        n += 1
+    return f"{prefix}{n + 1}"
+
+
+@router.post("/from-jobs")
+def create_pos_from_jobs(
+    body: POFromJobs,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff),
+):
+    """Raise the purchase orders the selected jobs' short garment lines need —
+    Jim2's "Auto Create Purchase Orders" on the job list (JIM24, JIM3).
+
+    One PO per supplier across the jobs, a line per job as on any PO raised
+    from requirements (that path writes each PO and its number back onto the
+    job lines). Only open orders' back-ordered lines not already on a PO are
+    bought; a line whose stock item names no supplier, and a job that is not
+    an open order, are reported rather than guessed at.
+    """
+    jobs = db.query(Job).filter(Job.id.in_(body.job_ids)).all()
+    skipped, by_supplier = [], {}
+    suppliers = {s.name: s for s in db.query(Supplier).all()}
+    for job in sorted(jobs, key=lambda j: body.job_ids.index(j.id)):
+        if job.status not in COMMITTED_STATUSES:
+            if any((it.b_ord or 0) > 0 for it in job.items):
+                skipped.append(
+                    {
+                        "job_id": job.id,
+                        "sku": "",
+                        "reason": f"not an open order ({job.status})",
+                    }
+                )
+            continue
+        for it in job.items:
+            if (it.b_ord or 0) <= 0 or it.po_no or it.is_service:
+                continue
+            inv = db.query(InventoryItem).filter_by(sku=it.stock_code).first()
+            supplier = suppliers.get(inv.supplier) if inv and inv.supplier else None
+            if supplier is None:
+                supplier = (
+                    db.get(Supplier, inv.supplier) if inv and inv.supplier else None
+                )
+            if supplier is None:
+                skipped.append(
+                    {
+                        "job_id": job.id,
+                        "sku": it.stock_code or "",
+                        "reason": f"{it.stock_code} has no supplier on its stock record",
+                    }
+                )
+                continue
+            by_supplier.setdefault(supplier.id, (supplier, []))[1].append(
+                RequirementItem(item_id=it.id, qty=it.b_ord)
+            )
+
+    created = []
+    for supplier, requirements in by_supplier.values():
+        po = create_po_from_requirements(
+            POFromRequirements(
+                id=_new_po_id(db),
+                supplier_id=supplier.id,
+                supplier_name=supplier.name,
+                expected_date=body.expected_date,
+                requirements=requirements,
+            ),
+            db,
+            current_user,
+        )
+        # Read now: the next supplier's PO commits, which expires this one.
+        created.append(
+            {
+                "id": po.id,
+                "supplier_id": po.supplier_id,
+                "supplier_name": po.supplier_name,
+                "status": po.status,
+                "total_inc": float(po.total_inc or 0),
+                "items": [
+                    {
+                        "sku": line.sku,
+                        "job_id": line.job_id,
+                        "qty_ordered": line.qty_ordered,
+                        "unit_cost": float(line.unit_cost or 0),
+                    }
+                    for line in po.items
+                ],
+            }
+        )
+    return {"created": created, "skipped": skipped}
 
 
 class BackOrderItem(BaseModel):

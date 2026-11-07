@@ -24,6 +24,7 @@ from reportlab.platypus import (
 )
 
 from app.core import po_totals
+from app.core.pdf_text import para
 
 DARK = colors.HexColor("#1e293b")
 ACCENT = colors.HexColor("#2563eb")
@@ -62,7 +63,13 @@ _cancelled = ParagraphStyle(
 
 
 def _p(text, style=_text) -> Paragraph:
-    return Paragraph(str(text or "").replace("\n", "<br/>"), style)
+    """Data as a Paragraph: read as text, never as markup."""
+    return Paragraph(para(text), style)
+
+
+def _rich(markup: str, style=_text) -> Paragraph:
+    """The builder's own markup ("<b>…</b>"); any data in it went through para."""
+    return Paragraph(markup, style)
 
 
 def _money(value) -> str:
@@ -98,22 +105,28 @@ def build(po, supplier, company) -> bytes:
             Spacer(1, 3 * mm),
         ]
 
-    to_lines = [f"<b>{po.supplier_name or (supplier.name if supplier else '')}</b>"]
+    supplier_name = po.supplier_name or (supplier.name if supplier else "")
+    to_lines = [f"<b>{para(supplier_name)}</b>"]
     if supplier is not None:
         to_lines += [
-            s for s in (supplier.contact, supplier.address, supplier.email) if s
+            para(s) for s in (supplier.contact, supplier.address, supplier.email) if s
         ]
     ours = [
-        f"PO No: <b>{po.id}</b>",
-        f"Date: <b>{po.order_date or '—'}</b>",
-        f"Wanted by: <b>{po.expected_date or '—'}</b>",
+        f"PO No: <b>{para(po.id)}</b>",
+        f"Date: <b>{para(po.order_date or '—')}</b>",
+        f"Wanted by: <b>{para(po.expected_date or '—')}</b>",
     ]
-    deliver = [f"<b>Deliver to</b> {company.company_name or ''}"]
+    deliver = [f"<b>Deliver to</b> {para(company.company_name)}"]
     if company.address:
-        deliver.append(company.address)
+        deliver.append(para(company.address))
     story.append(
         Table(
-            [[[_p(line) for line in to_lines], [_p(line) for line in ours + deliver]]],
+            [
+                [
+                    [_rich(line) for line in to_lines],
+                    [_rich(line) for line in ours + deliver],
+                ]
+            ],
             colWidths=["55%", "45%"],
             style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]),
         )
@@ -122,7 +135,7 @@ def build(po, supplier, company) -> bytes:
 
     rows = [
         [
-            _p(f"<b>{h}</b>")
+            _rich(f"<b>{h}</b>")
             for h in ("Code", "Description", "For job", "Qty", "Unit ex", "Total ex")
         ]
     ]
@@ -162,8 +175,8 @@ def build(po, supplier, company) -> bytes:
                 ["", _p("GST", _right), _p(_money(totals.tax), _right)],
                 [
                     "",
-                    _p("<b>Total (inc GST)</b>", _right),
-                    _p(f"<b>{_money(totals.inc)}</b>", _right),
+                    _rich("<b>Total (inc GST)</b>", _right),
+                    _rich(f"<b>{_money(totals.inc)}</b>", _right),
                 ],
             ],
             colWidths=["55%", "30%", "15%"],
@@ -172,6 +185,6 @@ def build(po, supplier, company) -> bytes:
     story.append(Spacer(1, 6 * mm))
     story.append(_p(STANDING_INSTRUCTION))
     if po.notes:
-        story += [Spacer(1, 3 * mm), _p(f"<b>Notes:</b> {po.notes}", _small)]
+        story += [Spacer(1, 3 * mm), _rich(f"<b>Notes:</b> {para(po.notes)}", _small)]
     doc.build(story)
     return buf.getvalue()

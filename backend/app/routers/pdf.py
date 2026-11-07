@@ -31,6 +31,7 @@ from app.core import despatch_documents, payment_terms
 from app.core.dependencies import require_any, require_staff
 from app.core.job_weight import order_weight, unweighed_lines
 from app.core.ledger_postings import INVOICED_STATUSES
+from app.core.pdf_text import para
 from app.models.dispatch_session import DispatchSessionLine
 from app.models.job import Job
 from app.routers.jobs import _despatch_address
@@ -133,7 +134,7 @@ def _build_pdf(
     # ── Header ────────────────────────────────────────────────────────────────
     header_data = [
         [
-            Paragraph(company.company_name or "Total Image", h1),
+            Paragraph(para(company.company_name or "Total Image"), h1),
             Paragraph(
                 title,
                 ParagraphStyle(
@@ -161,27 +162,27 @@ def _build_pdf(
     # ── Company info + doc details ────────────────────────────────────────────
     co_lines = []
     if company.address:
-        co_lines.append(company.address)
+        co_lines.append(para(company.address))
     if company.phone:
-        co_lines.append(f"Ph: {company.phone}")
+        co_lines.append(f"Ph: {para(company.phone)}")
     if company.email:
-        co_lines.append(company.email)
+        co_lines.append(para(company.email))
     if company.abn:
-        co_lines.append(f"ABN: {company.abn}")
+        co_lines.append(f"ABN: {para(company.abn)}")
 
     doc_lines = [
-        f"{doc_label} No: <b>{doc_no or 'N/A'}</b>",
-        f"Date: <b>{doc_date}</b>",
-        f"Job No: <b>{job.id}</b>",
+        f"{doc_label} No: <b>{para(doc_no or 'N/A')}</b>",
+        f"Date: <b>{para(doc_date)}</b>",
+        f"Job No: <b>{para(job.id)}</b>",
     ]
     if not is_invoice and job.validity_date:
-        doc_lines.append(f"Valid Until: <b>{job.validity_date}</b>")
+        doc_lines.append(f"Valid Until: <b>{para(job.validity_date)}</b>")
     terms = company.payment_terms_default
     if is_invoice:
         terms, due = _invoice_terms(job, company, customer)
-        doc_lines.append(f"Terms: <b>{terms}</b>")
+        doc_lines.append(f"Terms: <b>{para(terms)}</b>")
         if due:
-            doc_lines.append(f"Due Date: <b>{due}</b>")
+            doc_lines.append(f"Due Date: <b>{para(due)}</b>")
 
     # Render as paragraphs
     co_cell = [Paragraph(l, small) for l in co_lines]
@@ -212,19 +213,17 @@ def _build_pdf(
         # a tax invoice of $1,000 or more must identify the buyer.
         [
             Paragraph(
-                f"<b>{job.customer_name or (customer.name if customer else '')}</b>",
+                f"<b>{para(job.customer_name or (customer.name if customer else ''))}</b>",
                 normal,
             )
         ],
     ]
     if customer and customer.abn:
-        bill_to_data.append([Paragraph(f"ABN: {customer.abn}", small)])
+        bill_to_data.append([Paragraph(f"ABN: {para(customer.abn)}", small)])
     if job.cust_ref:
-        bill_to_data.append([Paragraph(f"Ref: {job.cust_ref}", small)])
+        bill_to_data.append([Paragraph(f"Ref: {para(job.cust_ref)}", small)])
     if job.shipping_address:
-        bill_to_data.append(
-            [Paragraph(job.shipping_address.replace("\n", "<br/>"), small)]
-        )
+        bill_to_data.append([Paragraph(para(job.shipping_address), small)])
     bill_table = Table(bill_to_data, colWidths=["100%"])
     bill_table.setStyle(
         TableStyle(
@@ -271,7 +270,7 @@ def _build_pdf(
             desc = f"{it.stock_code} — {it.description}"
         rows.append(
             [
-                Paragraph(desc, td),
+                Paragraph(para(desc), td),
                 Paragraph(str(qty), td_r),
                 Paragraph(f"${price_ex:.2f}", td_r),
                 Paragraph(f"{discount:.1f}%" if discount else "—", td_r),
@@ -362,15 +361,15 @@ def _build_pdf(
     if (is_invoice or is_proforma) and company.bank_account:
         bank_lines = ["<b>Payment Details</b>"]
         if company.bank_name:
-            bank_lines.append(f"Bank: {company.bank_name}")
+            bank_lines.append(f"Bank: {para(company.bank_name)}")
         if company.bank_bsb:
-            bank_lines.append(f"BSB: {company.bank_bsb}")
+            bank_lines.append(f"BSB: {para(company.bank_bsb)}")
         if company.bank_account:
-            bank_lines.append(f"Account: {company.bank_account}")
+            bank_lines.append(f"Account: {para(company.bank_account)}")
         if company.bank_account_name:
-            bank_lines.append(f"Account Name: {company.bank_account_name}")
+            bank_lines.append(f"Account Name: {para(company.bank_account_name)}")
         if terms:
-            bank_lines.append(f"Terms: {terms}")
+            bank_lines.append(f"Terms: {para(terms)}")
         for line in bank_lines:
             story.append(Paragraph(line, small))
         story.append(Spacer(1, 3 * mm))
@@ -378,15 +377,15 @@ def _build_pdf(
     # ── Notes ─────────────────────────────────────────────────────────────────
     if job.notes:
         story.append(Paragraph("<b>Notes:</b>", small))
-        story.append(Paragraph(job.notes.replace("\n", "<br/>"), small))
+        story.append(Paragraph(para(job.notes), small))
         story.append(Spacer(1, 3 * mm))
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    footer_text = f"{company.company_name or 'Total Image'}"
+    footer_text = para(company.company_name or "Total Image")
     if company.abn:
-        footer_text += f"  |  ABN {company.abn}"
+        footer_text += f"  |  ABN {para(company.abn)}"
     if company.website:
-        footer_text += f"  |  {company.website}"
+        footer_text += f"  |  {para(company.website)}"
     story.append(
         Paragraph(
             footer_text,
@@ -438,7 +437,7 @@ def _build_picking_slip(
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "PICKING SLIP",
                     ParagraphStyle(
@@ -462,21 +461,21 @@ def _build_picking_slip(
         [
             [
                 Paragraph("JOB #", label),
-                Paragraph(job.id, bold),
+                Paragraph(para(job.id), bold),
                 Paragraph("CUSTOMER", label),
-                Paragraph(job.customer_name or "", bold),
+                Paragraph(para(job.customer_name), bold),
             ],
             [
                 Paragraph("DUE", label),
-                Paragraph(job.due or "—", normal),
+                Paragraph(para(job.due or "—"), normal),
                 Paragraph("CUST REF", label),
-                Paragraph(job.cust_ref or "—", normal),
+                Paragraph(para(job.cust_ref or "—"), normal),
             ],
             [
                 Paragraph("BRANCH", label),
-                Paragraph(getattr(job, "branch", "") or "HQ", normal),
+                Paragraph(para(getattr(job, "branch", "") or "HQ"), normal),
                 Paragraph("ASSIGNED", label),
-                Paragraph(job.assigned_to or "—", normal),
+                Paragraph(para(job.assigned_to or "—"), normal),
             ],
         ],
         colWidths=["12%", "28%", "12%", "48%"],
@@ -502,8 +501,8 @@ def _build_picking_slip(
 
     # Ship-to address block
     if job.shipping_address or job.ship_to:
-        ship_label = job.ship_to or ""
-        ship_addr = (job.shipping_address or "").replace("\n", "<br/>")
+        ship_label = para(job.ship_to)
+        ship_addr = para(job.shipping_address)
         story.append(
             Paragraph(
                 "<b>SHIP TO:</b>",
@@ -536,12 +535,12 @@ def _build_picking_slip(
     for it in product_items:
         rows.append(
             [
-                Paragraph(it.stock_code or "—", td),
-                Paragraph(it.description or "", td),
+                Paragraph(para(it.stock_code or "—"), td),
+                Paragraph(para(it.description), td),
                 Paragraph("", td),  # location — filled in at warehouse
                 Paragraph(str(it.qty or it.order_qty or 0), td_r),
                 Paragraph("", td),  # blank for warehouse to fill
-                Paragraph(it.item_status or "", td),
+                Paragraph(para(it.item_status), td),
             ]
         )
     # Empty pick rows to give warehouse room to write
@@ -580,7 +579,8 @@ def _build_picking_slip(
         weight_text = f"Order Weight: {weight:.2f} kg"
         if unweighed:
             weight_text += (
-                f"  ({len(unweighed)} item(s) have 0 weight: {', '.join(unweighed)})"
+                f"  ({len(unweighed)} item(s) have 0 weight: "
+                f"{para(', '.join(unweighed))})"
             )
         footer_rows.append([Paragraph(weight_text, bold), ""])
     if job.notes:
@@ -588,7 +588,7 @@ def _build_picking_slip(
             [
                 Paragraph("<b>Notes:</b>", normal),
                 Paragraph(
-                    job.notes.replace("\n", "<br/>"),
+                    para(job.notes),
                     S("fnotes", fontSize=8, textColor=DARK),
                 ),
             ]
@@ -660,7 +660,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "JOB SHEET",
                     ParagraphStyle(
@@ -687,27 +687,27 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
         [
             [
                 Paragraph("JOB #", label),
-                Paragraph(job.id, bold),
+                Paragraph(para(job.id), bold),
                 Paragraph("CUSTOMER", label),
-                Paragraph(job.customer_name or "", bold),
+                Paragraph(para(job.customer_name), bold),
             ],
             [
                 Paragraph("DUE", label),
-                Paragraph(job.due or "—", normal),
+                Paragraph(para(job.due or "—"), normal),
                 Paragraph("TYPE", label),
-                Paragraph(job.type or "Normal", normal),
+                Paragraph(para(job.type or "Normal"), normal),
             ],
             [
                 Paragraph("BRANCH", label),
-                Paragraph(getattr(job, "branch", "") or "HQ", normal),
+                Paragraph(para(getattr(job, "branch", "") or "HQ"), normal),
                 Paragraph("ASSIGNED TO", label),
-                Paragraph(job.assigned_to or "—", normal),
+                Paragraph(para(job.assigned_to or "—"), normal),
             ],
             [
                 Paragraph("DESCRIPTION", label),
-                Paragraph(job.description or "—", normal),
+                Paragraph(para(job.description or "—"), normal),
                 Paragraph("CUST REF", label),
-                Paragraph(job.cust_ref or "—", normal),
+                Paragraph(para(job.cust_ref or "—"), normal),
             ],
         ],
         colWidths=["12%", "28%", "15%", "45%"],
@@ -751,7 +751,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
             rows.append(
                 [
                     Paragraph(
-                        f"<b>{it.description or ''}</b>",
+                        f"<b>{para(it.description)}</b>",
                         ParagraphStyle(
                             "sec_js",
                             fontSize=9,
@@ -766,19 +766,19 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
                 ]
             )
         elif it.display_type == "note":
-            rows.append([Paragraph(it.description or "", small), "", "", "", ""])
+            rows.append([Paragraph(para(it.description), small), "", "", "", ""])
         else:
             dec = it.decoration_type or "None"
             dec_code = (it.emb_code if dec == "EMB" else it.trs_code) or "—"
-            desc = it.description or it.stock_code or "—"
+            desc = para(it.description or it.stock_code or "—")
             if it.stock_code and it.description:
-                desc = f"<b>{it.stock_code}</b><br/>{it.description}"
+                desc = f"<b>{para(it.stock_code)}</b><br/>{para(it.description)}"
             rows.append(
                 [
                     Paragraph(desc, td),
                     Paragraph(str(it.qty or it.order_qty or 0), td_r),
-                    Paragraph(dec, td),
-                    Paragraph(dec_code, td),
+                    Paragraph(para(dec), td),
+                    Paragraph(para(dec_code), td),
                     Paragraph("", td),  # placement notes — filled by production
                 ]
             )
@@ -815,7 +815,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
         story.append(Paragraph("<b>Proof / Artwork Notes:</b>", bold))
         story.append(
             Paragraph(
-                job.proof_notes.replace("\n", "<br/>"),
+                para(job.proof_notes),
                 S("pn", fontSize=8, textColor=DARK, leading=11),
             )
         )
@@ -827,7 +827,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
 
     if job.notes:
         story.append(Paragraph("<b>General Notes:</b>", bold))
-        story.append(Paragraph(job.notes.replace("\n", "<br/>"), small))
+        story.append(Paragraph(para(job.notes), small))
         story.append(
             HRFlowable(
                 width="100%", thickness=0.5, color=BORDER, spaceBefore=4, spaceAfter=4
@@ -899,7 +899,7 @@ def _build_statement(
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "STATEMENT OF ACCOUNT",
                     ParagraphStyle(
@@ -919,13 +919,13 @@ def _build_statement(
     story.append(HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=6))
 
     # Two-column: bill-to + statement meta
-    bill_lines = [Paragraph(f"<b>{customer.name}</b>", bold)]
+    bill_lines = [Paragraph(f"<b>{para(customer.name)}</b>", bold)]
     if customer.address:
-        bill_lines.append(Paragraph(customer.address.replace("\n", "<br/>"), small))
+        bill_lines.append(Paragraph(para(customer.address), small))
     if customer.email:
-        bill_lines.append(Paragraph(customer.email, small))
+        bill_lines.append(Paragraph(para(customer.email), small))
     if customer.abn:
-        bill_lines.append(Paragraph(f"ABN: {customer.abn}", small))
+        bill_lines.append(Paragraph(f"ABN: {para(customer.abn)}", small))
 
     meta_lines = [
         Paragraph(
@@ -933,14 +933,14 @@ def _build_statement(
         ),
     ]
     if date_from or date_to:
-        period = f"{date_from or ''} – {date_to or 'present'}"
+        period = para(f"{date_from or ''} – {date_to or 'present'}")
         meta_lines.append(Paragraph(f"Period: <b>{period}</b>", normal))
     if customer.payment_terms:
         meta_lines.append(
-            Paragraph(f"Payment Terms: <b>{customer.payment_terms}</b>", normal)
+            Paragraph(f"Payment Terms: <b>{para(customer.payment_terms)}</b>", normal)
         )
     if company.abn:
-        meta_lines.append(Paragraph(f"ABN: {company.abn}", small))
+        meta_lines.append(Paragraph(f"ABN: {para(company.abn)}", small))
 
     info_tbl = Table([[bill_lines, meta_lines]], colWidths=["55%", "45%"])
     info_tbl.setStyle(
@@ -980,14 +980,19 @@ def _build_statement(
         bal_style = right_bold if balance > 0 else right
         rows.append(
             [
-                Paragraph(line.get("date") or "—", S("td", fontSize=8, textColor=DARK)),
-                Paragraph(line.get("due") or "—", S("td2", fontSize=8, textColor=DARK)),
                 Paragraph(
-                    line.get("invoice_no") or line.get("job_id") or "—",
+                    para(line.get("date") or "—"), S("td", fontSize=8, textColor=DARK)
+                ),
+                Paragraph(
+                    para(line.get("due") or "—"), S("td2", fontSize=8, textColor=DARK)
+                ),
+                Paragraph(
+                    para(line.get("invoice_no") or line.get("job_id") or "—"),
                     S("td3", fontSize=8, textColor=DARK, fontName="Helvetica-Bold"),
                 ),
                 Paragraph(
-                    line.get("description") or "", S("td4", fontSize=8, textColor=DARK)
+                    para(line.get("description")),
+                    S("td4", fontSize=8, textColor=DARK),
                 ),
                 Paragraph(f"${amount:,.2f}", right),
                 Paragraph(f"${paid:,.2f}", right),
@@ -1072,19 +1077,19 @@ def _build_statement(
     if company.bank_account:
         pay_lines = ["<b>Remittance Details</b>"]
         if company.bank_name:
-            pay_lines.append(f"Bank: {company.bank_name}")
+            pay_lines.append(f"Bank: {para(company.bank_name)}")
         if company.bank_bsb:
-            pay_lines.append(f"BSB: {company.bank_bsb}")
-        pay_lines.append(f"Account: {company.bank_account}")
+            pay_lines.append(f"BSB: {para(company.bank_bsb)}")
+        pay_lines.append(f"Account: {para(company.bank_account)}")
         if company.bank_account_name:
-            pay_lines.append(f"Account Name: {company.bank_account_name}")
+            pay_lines.append(f"Account Name: {para(company.bank_account_name)}")
         for pl in pay_lines:
             story.append(Paragraph(pl, small))
         story.append(Spacer(1, 3 * mm))
 
-    footer_text = f"{company.company_name or 'Total Image'}"
+    footer_text = para(company.company_name or "Total Image")
     if company.abn:
-        footer_text += f"  |  ABN {company.abn}"
+        footer_text += f"  |  ABN {para(company.abn)}"
     story.append(
         Paragraph(
             footer_text,

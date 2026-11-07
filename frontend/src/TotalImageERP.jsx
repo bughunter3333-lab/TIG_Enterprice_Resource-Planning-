@@ -5,6 +5,7 @@ import * as api from './api';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
 import StylesModule from './modules/StylesModule';
+import AnalyticsModule from './modules/AnalyticsModule';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
 import { notify } from './lib/notify';
@@ -1194,6 +1195,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     } catch (e) { setApiError(e.message); }
   };
 
+  const pinJobComment = async (jobId, commentId, pinned) => {
+    try {
+      await api.jobs.pinComment(jobId, commentId, pinned);
+      updatePinnedJob(await api.jobs.get(jobId));
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    } catch (e) { notify(e?.message || 'The comment was not pinned', { type: 'error' }); }
+  };
+
   // Rethrows rather than resolving on failure. The payment modal has to be able
   // to tell a failed record from a successful one: it closes itself on success,
   // and on the Tyro path the card has already been charged by the time this
@@ -1551,7 +1560,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               <>
                 {/* What the job is, what is being said about it, then its facts. */}
                 <JobLinesCard job={activeJob} onOpenPO={openPOById} />
-                <JobCommentsCard job={activeJob} onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)} />
+                <JobCommentsCard
+                  job={activeJob}
+                  onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)}
+                  onPin={offer('POST', '/jobs/{job_id}/comments/{comment_id}/pin')
+                    ? (c, pinned) => pinJobComment(activeJob.id, c.id, pinned)
+                    : undefined}
+                />
                 <JobDetailsCard job={activeJob} />
               </>
             )}
@@ -4111,6 +4126,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
+                {!loading && activeModule === 'analytics'          && <AnalyticsModule />}
                 {!loading && activeModule === 'accounts' && (
                   <AccountingModule suppliers={suppliers} currentUser={currentUser} initialTab={link.tab} initialReport={link.report} />
                 )}

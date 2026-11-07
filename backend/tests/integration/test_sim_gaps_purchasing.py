@@ -284,13 +284,22 @@ class TestThePurchaseOrderDocument:
         # 4 x 15.55 + 2 x 10.00 = 82.20 ex, 8.22 GST, 90.42 inc; stored as 0.
         _po(db, lines=((4, 0, 15.55), (2, 0, 10.00)), total=82.2)
         printed = []
-        real = purchase_order_document._p
 
-        def spy(text, *style):
-            printed.append(str(text))
-            return real(text, *style)
+        def spying(real):
+            def spy(text, *style):
+                printed.append(str(text))
+                return real(text, *style)
 
-        monkeypatch.setattr(purchase_order_document, "_p", spy)
+            return spy
+
+        # Data goes through _p, the document's own markup (the bold total)
+        # through _rich.
+        for helper in ("_p", "_rich"):
+            monkeypatch.setattr(
+                purchase_order_document,
+                helper,
+                spying(getattr(purchase_order_document, helper)),
+            )
         assert client.get("/purchase-orders/PG-1/pdf").status_code == 200
         assert "$82.20" in printed
         assert "$8.22" in printed

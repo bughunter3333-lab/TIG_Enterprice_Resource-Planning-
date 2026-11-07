@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Kanban, List } from 'lucide-react';
 import FilterBar from '../../ui/FilterBar';
 import Button from '../../ui/Button';
@@ -7,9 +7,12 @@ import SegmentedControl from '../../ui/SegmentedControl';
 import DensityToggle from '../../ui/DensityToggle';
 import { fieldChrome } from '../../ui/fieldStyle';
 import JobsList from './JobsList';
+import BulkActionBar from './BulkActionBar';
+import { notify } from '../../lib/notify';
 import JobsBoard from '../../components/jobs/JobsBoard';
 import { filterJobs, buildFilterOptions, mergeJobs, QUICK_FILTERS } from './jobsFilters';
-import { jobs as jobsApi } from '../../api';
+import { jobs as jobsApi, purchaseOrders as purchaseOrdersApi } from '../../api';
+import { useOffer } from '../../lib/useMyAccess';
 import { STATUS_COLORS, T } from '../../ui/tokens';
 
 const SERVER_SEARCH_MIN = 2;
@@ -97,6 +100,56 @@ export default function JobsModule({
     onFilterChange(key, def ? def.inactive : 'all');
   };
 
+  // The jobs ticked in the list (JIM24). Only those still shown are acted on:
+  // a filter changed after ticking must not carry hidden jobs into a batch.
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const [problems, setProblems] = useState([]);
+  const chosen = useMemo(() => filtered.filter(j => selected.has(j.id)).map(j => j.id), [filtered, selected]);
+
+  const runBatch = async (send, done) => {
+    setBusy(true);
+    setProblems([]);
+    try {
+      const result = await send(chosen);
+      const failed = result?.failed ?? [];
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      // What went through is done with; what did not stays ticked, with why.
+      setSelected(new Set(failed.map(f => f.job_id)));
+      setProblems(failed);
+      const said = done(chosen.length, result);
+      if (said) notify(said);
+    } catch (e) {
+      notify(e?.message || 'The selected jobs were not changed', { type: 'error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const plural = (n) => `${n} job${n === 1 ? '' : 's'}`;
+  // A message only when every job went through; otherwise the bar names the
+  // ones that did not.
+  const allWent = (message) => (n, result) => (result?.failed?.length ? null : message(n));
+  const changeStatus = (status) => runBatch(ids => jobsApi.bulkStatus(ids, status), allWent(n => `${plural(n)} moved to ${status}`));
+  const moveDue = (due) => runBatch(ids => jobsApi.bulkDue(ids, due), allWent(n => `${plural(n)} now due ${due}`));
+  // POs for the selected jobs' short lines, one per supplier (JIM24). What
+  // could not be bought — no supplier, not an open order — stays ticked with
+  // why, as a refused status change does.
+  const offer = useOffer();
+  const raisePOs = offer('POST', '/purchase-orders/from-jobs')
+    ? () => runBatch(
+      async ids => {
+        const r = await purchaseOrdersApi.fromJobs(ids);
+        return { ...r, failed: r.skipped ?? [] };
+      },
+      (n, r) => (r.created?.length
+        ? `${r.created.length} PO${r.created.length === 1 ? '' : 's'} raised: ${r.created.map(p => `${p.id} (${p.supplier_name})`).join(', ')}`
+        : r.failed.length ? null : 'Nothing on the selected jobs is waiting to be bought'),
+    )
+    : undefined;
+  const clearSelection = () => { setSelected(new Set()); setProblems([]); };
+
   return (
     <div style={{ fontFamily: T.font }}>
       <div style={{ marginBottom: 12 }}>
@@ -142,9 +195,29 @@ export default function JobsModule({
           }
         />
       </div>
+      {viewMode !== 'board' && chosen.length > 0 && (
+        <BulkActionBar
+          count={chosen.length}
+          busy={busy}
+          problems={problems}
+          onStatus={changeStatus}
+          onDue={moveDue}
+          onRaisePOs={raisePOs}
+          onClear={clearSelection}
+        />
+      )}
       {viewMode === 'board'
         ? <JobsBoard jobs={filtered} onJobClick={onJobClick} />
-        : <JobsList jobs={filtered} onJobClick={onJobClick} lockedStatus={lockedStatus} groupBy={groupBy} />}
+        : (
+          <JobsList
+            jobs={filtered}
+            onJobClick={onJobClick}
+            lockedStatus={lockedStatus}
+            groupBy={groupBy}
+            selected={selected}
+            onSelectedChange={setSelected}
+          />
+        )}
     </div>
   );
 }

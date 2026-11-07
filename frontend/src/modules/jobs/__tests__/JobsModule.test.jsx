@@ -6,7 +6,12 @@ import JobsModule from '../JobsModule';
 import { EMPTY_JOBS_FILTERS } from '../jobsFilters';
 
 // The module asks the server too once a search is typed (F01).
-vi.mock('../../../api', () => ({ jobs: { list: vi.fn() } }));
+// And the person's access, which decides whether the selection bar offers
+// Raise POs.
+vi.mock('../../../api', () => ({
+  jobs: { list: vi.fn() },
+  users: { myAccess: vi.fn(() => Promise.resolve({ role: 'staff', areas: [], allowed: [] })) },
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
