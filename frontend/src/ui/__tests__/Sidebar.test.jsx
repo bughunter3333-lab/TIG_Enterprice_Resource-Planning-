@@ -30,7 +30,7 @@ const access = ({ unreadable = [] } = {}) => ({
 // In sidebar order: Work, Operations, Relationships, Finance, Data. Email and
 // Import are in areas this table does not list, so they stay (see below).
 const ALL = [
-  'Home', 'Jobs', 'Quotes', 'Scheduling',
+  'Home', 'Jobs', 'Quotes', 'Production', 'Scheduling',
   'Purchases', 'Order requirements', 'Suppliers', 'Stock', 'Styles',
   'Customers', 'Card Files', 'Email',
   'Accounts', 'Reports', 'Analytics',
@@ -81,7 +81,7 @@ describe('which modules a role sees', () => {
     open();
     await screen.findByText('Reports');
     expect(items()).toEqual([
-      'Home', 'Jobs', 'Quotes', 'Scheduling', 'Stock', 'Styles',
+      'Home', 'Jobs', 'Quotes', 'Production', 'Scheduling', 'Stock', 'Styles',
       'Customers', 'Card Files', 'Email', 'Reports', 'Analytics', 'Import',
     ]);
   });
@@ -126,6 +126,7 @@ describe('which modules a role sees', () => {
     await screen.findByText('Reports');
     expect(items()).not.toContain('Jobs');
     expect(items()).not.toContain('Quotes');
+    expect(items()).not.toContain('Production');
   });
 
   test('an area the table does not list keeps its module', async () => {

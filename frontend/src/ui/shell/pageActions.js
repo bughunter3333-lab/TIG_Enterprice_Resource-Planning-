@@ -33,6 +33,7 @@ export const MODULE_TITLES = {
   accounts: 'Accounts',
   reports: 'Reports',
   scheduling: 'Scheduling',
+  production: 'Production',
   styles: 'Styles',
   email: 'Email',
   analytics: 'Analytics',

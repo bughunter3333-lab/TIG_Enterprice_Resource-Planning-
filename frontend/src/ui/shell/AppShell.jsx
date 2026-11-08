@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { T } from '../tokens';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import LiveTree from './LiveTree';
 import StatusBar from './StatusBar';
 import { MODULE_TITLES } from './pageActions';
+import { addStep, setPlace } from '../../lib/crashContext';
+import CrashBoundary from '../../modules/crash-reports/CrashBoundary';
 
 const SIDEBAR_KEY = 'tig.treeOpen';
 
@@ -33,6 +35,12 @@ export default function AppShell({
   // Remembered per person in this browser. The key predates the sidebar (it
   // was the nav tree's), so a person who had folded the tree away keeps the
   // sidebar folded.
+  // Every screen opened is a step a crash report can show.
+  useEffect(() => {
+    setPlace({ module: activeModule });
+    addStep('nav', pageTitle(activeModule, adminMode));
+  }, [activeModule, adminMode]);
+
   const [open, setOpen] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_KEY) !== '0'; } catch { return true; }
   });
@@ -87,7 +95,11 @@ export default function AppShell({
           notifCount={notifCount}
         />
         <main style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 28px' }}>
-          {children}
+          {/* A crash takes this screen down, not the app: the sidebar still works,
+              and opening another screen clears it. */}
+          <CrashBoundary variant="screen" resetKey={`${activeModule}:${adminMode ? 'admin' : ''}`}>
+            {children}
+          </CrashBoundary>
         </main>
         <StatusBar currentUser={currentUser} />
       </div>

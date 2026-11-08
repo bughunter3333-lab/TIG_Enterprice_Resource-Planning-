@@ -11,13 +11,23 @@ const KINDS = {
   info: { Icon: Info, color: T.accent },
 };
 
+// Two notices with the same words this close together are one: a failed save
+// is announced by the screen that tried it and, for a server error, by the
+// crash reporter offering to report it.
+const SAME_NOTICE_MS = 5000;
+
 function Toast({ toast, onClose }) {
-  const { id, message, type = 'info' } = toast;
+  const { id, message, type = 'info', action } = toast;
   const { Icon, color } = KINDS[type] ?? KINDS.info;
   return (
     <div className={`ti-toast ti-toast-${type}`} role="alert">
       <Icon size={16} color={color} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
       <div className="ti-toast-message">{message}</div>
+      {action && (
+        <button type="button" className="ti-toast-action" onClick={() => { action.onClick(); onClose(id); }}>
+          {action.label}
+        </button>
+      )}
       <button type="button" className="ti-toast-close" aria-label="Dismiss" onClick={() => onClose(id)}>
         <X size={14} aria-hidden />
       </button>
@@ -29,11 +39,21 @@ export function NotificationProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    const unsub = subscribe(({ message, type = 'info', timeout = 6000 }) => {
-      const id = Date.now() + Math.random();
-      setToasts((t) => [...t, { id, message, type }]);
+    const unsub = subscribe(({ message, type = 'info', timeout = 6000, action }) => {
+      const now = Date.now();
+      const id = now + Math.random();
+      let merged = false;
+      setToasts((t) => {
+        const same = t.find((x) => x.message === message && x.type === type && now - x.at < SAME_NOTICE_MS);
+        if (same) {
+          merged = true;
+          // One notice; it keeps the action whichever of the two brought one.
+          return action && !same.action ? t.map((x) => (x === same ? { ...x, action } : x)) : t;
+        }
+        return [...t, { id, message, type, action, at: now }];
+      });
       if (timeout > 0) {
-        setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), timeout);
+        setTimeout(() => { if (!merged) setToasts((t) => t.filter((x) => x.id !== id)); }, timeout);
       }
     });
     return unsub;
@@ -79,6 +99,12 @@ const toastStyles = `
   background: transparent; border: none; border-radius: 6px; color: ${T.textMuted}; cursor: pointer;
 }
 .ti-toast-close:hover { background: ${T.hairlineSoft}; color: ${T.text}; }
+.ti-toast-action {
+  flex-shrink: 0; height: 26px; padding: 0 10px; border-radius: 6px; cursor: pointer;
+  background: ${T.panel}; color: ${T.accentStrong}; border: 1px solid ${T.hairline};
+  font: inherit; font-weight: 600;
+}
+.ti-toast-action:hover { background: ${T.accentTint}; }
 `;
 
 export default NotificationProvider;

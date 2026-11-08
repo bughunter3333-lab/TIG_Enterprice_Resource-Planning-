@@ -3,6 +3,8 @@ import LoginScreen from './LoginScreen';
 import TotalImageERP from './TotalImageERP';
 import ChoosePasswordScreen from './modules/auth/ChoosePasswordScreen';
 import { auth } from './api';
+import { resetCrashContext, setSignedIn } from './lib/crashContext';
+import { resetRecorded } from './modules/crash-reports/reporter';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -18,6 +20,16 @@ export default function App() {
     window.addEventListener('auth:logout', handleLogout);
     return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
+
+  // Crash reports go only from someone signed in; on sign-out the steps go
+  // too, so the next person on this browser never sends the last one's.
+  useEffect(() => {
+    setSignedIn(!!currentUser);
+    if (!currentUser) {
+      resetCrashContext();
+      resetRecorded();
+    }
+  }, [currentUser]);
 
   const handleLogout = async () => {
     await auth.logout().catch(() => {});

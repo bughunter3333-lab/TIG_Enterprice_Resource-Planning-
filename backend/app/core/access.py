@@ -47,6 +47,7 @@ AREAS = {
     "settings": "System settings",
     "document-templates": "System settings",
     "import": "System settings",
+    "crash-reports": "System settings",
 }
 
 READS = {"GET", "HEAD", "OPTIONS"}

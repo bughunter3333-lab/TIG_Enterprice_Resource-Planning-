@@ -4,6 +4,7 @@ import MigrationWizard from './MigrationWizard';
 import DocumentDesigner from '../../modules/documents/DocumentDesigner';
 import UsersModule from '../../modules/users/UsersModule';
 import SettingsModule from '../../modules/SettingsModule';
+import CrashReportsModule from '../../modules/crash-reports/CrashReportsModule';
 
 const TABS = [
   { id: 'users',       label: 'Users and roles' },
@@ -19,6 +20,8 @@ const TABS = [
   // customer's default level (docs/superpowers/specs/2026-11-06-jim2-parity-roadmap.md).
   { id: 'documents',   label: 'Print Templates' },
   { id: 'migration',   label: 'Jim2 Migration' },
+  // What broke, for whom, with what they saw (docs/superpowers/specs/2026-11-08-crash-reports.md).
+  { id: 'crash-reports', label: 'Crash reports' },
 ];
 
 // `usersFilter` is handed to Users and roles as its opening filter (UsersModule `initialFilter`).
@@ -55,6 +58,7 @@ export default function AdminPanel({ currentUser, usersFilter }) {
         {activeTab === 'company' && <SettingsModule currentUser={currentUser} />}
         {activeTab === 'documents' && <DocumentDesigner />}
         {activeTab === 'migration' && <MigrationWizard />}
+        {activeTab === 'crash-reports' && <CrashReportsModule />}
       </div>
     </div>
   );

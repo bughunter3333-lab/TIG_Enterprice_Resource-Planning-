@@ -1,4 +1,5 @@
 import { localDay } from './lib/localDay';
+import { addStep, SERVER_ERROR } from './lib/crashContext';
 
 const BASE = '/api';
 
@@ -20,13 +21,28 @@ function errorMessage(detail, status, fallback) {
   return fallback;
 }
 
+// A step for the crash report: the path without its query, which can carry
+// what someone searched for.
+const pathOnly = (path) => String(path).split('?')[0];
+
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const method = (options.method || 'GET').toUpperCase();
+  // Sending a crash report is not a step of the crash it reports.
+  const quiet = path.startsWith('/crash-reports');
+  const started = Date.now();
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (e) {
+    if (!quiet) addStep('api', `${method} ${pathOnly(path)} → no answer`);
+    throw e;
+  }
+  if (!quiet) addStep('api', `${method} ${pathOnly(path)} → ${res.status} (${Date.now() - started} ms)`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -38,6 +54,13 @@ async function request(path, options = {}) {
     const error = new Error(errorMessage(detail, res.status, `Request failed: ${res.status}`));
     error.status = res.status;
     error.detail = detail;
+    // The server's id for this request: its log lines carry it too.
+    error.requestId = res.headers?.get?.('X-Request-ID') ?? null;
+    if (res.status >= 500 && !quiet) {
+      window.dispatchEvent(new CustomEvent(SERVER_ERROR, {
+        detail: { message: error.message, requestId: error.requestId, method, path: pathOnly(path) },
+      }));
+    }
     throw error;
   }
   return res.status === 204 ? null : res.json();
@@ -1569,6 +1592,39 @@ export const adminSettings = {
 };
 
 // ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
+
+// Crash reports (docs/superpowers/specs/2026-11-08-crash-reports.md): anyone
+// signed in sends one; admins read them. A screenshot travels as a data URL.
+export const crashReports = {
+  send: (report) => request('/crash-reports', { method: 'POST', body: report }),
+  addDetails: (id, details) => request(`/crash-reports/${id}/details`, { method: 'PATCH', body: details }),
+  list: ({ status, kind } = {}) => {
+    const q = new URLSearchParams();
+    if (status) q.set('status', status);
+    if (kind) q.set('kind', kind);
+    const query = q.toString();
+    return request(`/crash-reports${query ? `?${query}` : ''}`);
+  },
+  get: (id) => request(`/crash-reports/${id}`),
+  review: (id, body) => request(`/crash-reports/${id}`, { method: 'PATCH', body }),
+  remove: (id) => request(`/crash-reports/${id}`, { method: 'DELETE' }),
+  screenshotUrl: (id) => `${BASE}/crash-reports/${id}/screenshot`,
+};
+
+// The production board (docs/superpowers/specs/2026-11-07-production-board.md):
+// work in hand by lane, and handing a job's work at one lane to another lane
+// and optionally a person. A hand-off never changes the job's status.
+// board → { lanes: [{ key, label }], cards: [{ job_id, lane, customer_name,
+// cust_ref, due, priority, order_category, status, holder, since, lines }],
+// holders: [names used before] }
+export const production = {
+  board: () => request('/production-board'),
+  handOff: ({ jobId, fromLane, toLane, holder }) =>
+    request('/production-board/hand-off', {
+      method: 'POST',
+      body: { job_id: jobId, from_lane: fromLane, to_lane: toLane, holder: holder || null },
+    }),
+};
 
 export const dispatchSessions = {
   // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus, again }]

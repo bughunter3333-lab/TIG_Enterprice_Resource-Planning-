@@ -118,7 +118,14 @@ class Job(Base):
 
     __mapper_args__ = {"version_id_col": version}
 
-    items = relationship("JobItem", back_populates="job", cascade="all, delete-orphan")
+    # In the order the job record shows them, so a line's number reads the same
+    # on the record, the documents and the production board.
+    items = relationship(
+        "JobItem",
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="(JobItem.sort, JobItem.id)",
+    )
     comments = relationship(
         "JobComment",
         back_populates="job",
@@ -173,6 +180,13 @@ class JobItem(Base):
     hide = Column(Boolean, default=False)
     tax_type = Column(String(5))
     item_status = Column(String(30))
+    # Where the garment is on the floor, once handed off on the production
+    # board: its lane (picking, embroidery, print, packing, decorator:<id>),
+    # the person given it, and when. Never the job's status (owner decision
+    # 2026-11-07, docs/superpowers/specs/2026-11-07-production-board.md).
+    station = Column(String(40))
+    station_holder = Column(String(50))
+    station_at = Column(DateTime(timezone=True))
     po_no = Column(String(50), index=True)
     po_due = Column(String(20))
     # A decoration line points at the logo it applies; a decoration or an

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { Bell, Lock, Plus, Search, Sparkles } from 'lucide-react';
+import { Bell, Bug, Lock, Plus, Search, Sparkles } from 'lucide-react';
 import { T } from '../tokens';
 import Button from '../Button';
 import { canCall } from '../../lib/access';
 import { useMyAccess } from '../../lib/useMyAccess';
+import { reportProblem } from '../../lib/crashContext';
 
 // The assistant (modules/ai/AIAssistantPanel) owns its open state and opens on
 // this event, so the shell does not have to be wired to it.
@@ -73,6 +74,19 @@ export default function TopBar({
       <Button onClick={() => window.dispatchEvent(new Event(OPEN_ASSISTANT))} title="Ask about jobs, stock and customers">
         <Sparkles size={14} aria-hidden />Ask
       </Button>
+
+      {/* Anything wrong, crash or not: the report dialog, with a picture of this screen. */}
+      <button
+        type="button"
+        aria-label="Report a problem"
+        title="Report a problem"
+        onClick={() => reportProblem({ kind: 'report' })}
+        style={iconButton}
+        onMouseEnter={hoverOn}
+        onMouseLeave={hoverOff}
+      >
+        <Bug size={16} aria-hidden />
+      </button>
 
       <div
         role="status"

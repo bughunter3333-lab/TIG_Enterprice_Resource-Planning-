@@ -15,6 +15,7 @@ from app.core import (
     job_totals,
     job_weight,
     payment_terms,
+    picking,
 )
 from app.core.reservations import (
     COMMITTED_STATUSES,
@@ -1991,7 +1992,7 @@ def auto_pick(
             failed.append({"job_id": job_id, "reason": str(exc.detail)})
             continue
         updated, all_picked = _pick(
-            job, {i.id: int(i.supply_qty or 0) for i in _goods_lines(job)}
+            job, {i.id: int(i.supply_qty or 0) for i in picking.goods_lines(job)}
         )
         db.add(
             JobComment(
@@ -3250,24 +3251,6 @@ def dispatch_job(
     return {**jsonable_encoder(job), "despatched": _despatched(line)}
 
 
-def _pick_target(item: "JobItem") -> int:
-    return item.supply_qty or item.qty or item.order_qty or 0
-
-
-def _fully_picked(item: "JobItem") -> bool:
-    """Picked to what it supplies, with nothing still to come on back-order."""
-    t = _pick_target(item)
-    return t > 0 and (item.qty_pick or 0) >= t and not (item.b_ord or 0)
-
-
-def _goods_lines(job: "Job") -> list:
-    return [
-        i
-        for i in job.items
-        if (i.display_type or "product") == "product" and not i.is_service
-    ]
-
-
 def _pick(job: "Job", picks: dict) -> tuple[int, bool]:
     """Record picked quantities on a job's goods lines; say whether all are picked.
 
@@ -3276,7 +3259,7 @@ def _pick(job: "Job", picks: dict) -> tuple[int, bool]:
     overwritten — picking used to mark an alteration 'Picked' and lose the
     garment it applied to (F19).
     """
-    goods = {i.id: i for i in _goods_lines(job)}
+    goods = {i.id: i for i in picking.goods_lines(job)}
     services = {i.id for i in job.items if i.is_service}
     asked = [item_id for item_id in picks if item_id in services]
     if asked:
@@ -3293,7 +3276,7 @@ def _pick(job: "Job", picks: dict) -> tuple[int, bool]:
         if not item:
             continue
         item.qty_pick = qty
-        if _fully_picked(item):
+        if picking.fully_picked(item):
             item.item_status = "Picked"
         elif qty > 0:
             item.item_status = "Partial"
@@ -3304,7 +3287,7 @@ def _pick(job: "Job", picks: dict) -> tuple[int, bool]:
         # Lines changed off the job form, so the job row is written and its
         # version moves: a form opened before the pick cannot save over it.
         job.updated_at = datetime.now(timezone.utc)
-    all_picked = bool(goods) and all(_fully_picked(i) for i in goods.values())
+    all_picked = bool(goods) and all(picking.fully_picked(i) for i in goods.values())
     return updated, all_picked
 
 

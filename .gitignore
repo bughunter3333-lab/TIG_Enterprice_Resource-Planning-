@@ -61,3 +61,8 @@ ERP_Obsidian/
 # Knowledge graph the graphify skill builds of this repo. Rebuilt with
 # `graphify --update`; never committed — its cache holds copies of every file.
 graphify-out/
+
+# Crash reports pulled from the database (backend/pull_crash_reports.py):
+# they show customers' details, and this repository is public.
+# Anchored: frontend/src/modules/crash-reports/ is code and is committed.
+/crash-reports/

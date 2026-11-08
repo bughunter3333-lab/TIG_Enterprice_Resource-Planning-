@@ -6,6 +6,8 @@ import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
 import StylesModule from './modules/StylesModule';
 import AnalyticsModule from './modules/AnalyticsModule';
+import ProductionModule from './modules/production/ProductionModule';
+import { addStep, setPlace } from './lib/crashContext';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
 import { notify } from './lib/notify';
@@ -812,11 +814,25 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return { ...form, subtotal, tax, total, balanceDue };
   };
 
+  // The job open now, for a crash report: read from what is on screen, so it
+  // is right however the job was opened and cleared once it is closed.
+  useEffect(() => {
+    setPlace({ jobId: showJobDetail && activeJob ? activeJob.id : null });
+  }, [showJobDetail, activeJob]);
+
   // Pinned-job helpers
   const pinJob = (job) => {
+    addStep('job', `Opened job ${job.id}`);
     setPinnedJobs(prev => prev.find(j => j.id === job.id) ? prev.map(j => j.id === job.id ? job : j) : [...prev, job]);
     setActiveJob(job);
     setShowJobDetail(true);
+  };
+
+  // A job named only by its number (the production board): from the loaded
+  // list, else fetched — the list holds the newest 500.
+  const openJobById = async (jobId) => {
+    const job = jobs.find(j => j.id === jobId) ?? await api.jobs.get(jobId).catch((e) => { setApiError(e.message); return null; });
+    if (job) { pinJob(job); setActiveModule('jobs'); }
   };
 
   const unpinJob = (jobId) => {
@@ -4143,6 +4159,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'reports'            && renderReports()}
                 {!loading && activeModule === 'warehouse'          && <WarehouseModule currentUser={currentUser} inventory={inventory} customers={customers} onOpenSku={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }} />}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
+                {!loading && activeModule === 'production'         && <ProductionModule onOpenJob={openJobById} />}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}

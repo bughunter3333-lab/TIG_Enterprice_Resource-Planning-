@@ -1,3 +1,4 @@
+import logging
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -41,6 +42,8 @@ from app.routers import (
     dispatch_sessions,
     rack_sections,
     logos,
+    crash_reports,
+    production_board,
     remittances,
 )
 from app.routers.admin_settings import router as admin_settings_router
@@ -110,6 +113,15 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         token = request_id_var.set(request_id)
         try:
             response = await call_next(request)
+        except Exception:
+            # An unhandled error still answers with its request id — in the
+            # header and the body — so a crash report can name the log lines
+            # that go with it (docs/superpowers/specs/2026-11-08-crash-reports.md).
+            logging.getLogger("app").exception("unhandled error")
+            response = JSONResponse(
+                status_code=500,
+                content={"detail": "Internal Server Error", "request_id": request_id},
+            )
         finally:
             request_id_var.reset(token)
         response.headers["X-Request-ID"] = request_id
@@ -185,3 +197,5 @@ app.include_router(rack_sections.router)
 app.include_router(accounting.router)
 app.include_router(logos.router)
 app.include_router(remittances.router)
+app.include_router(production_board.router)
+app.include_router(crash_reports.router)

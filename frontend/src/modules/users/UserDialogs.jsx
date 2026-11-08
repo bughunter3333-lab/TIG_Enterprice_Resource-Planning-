@@ -38,7 +38,8 @@ function useSave(mutationFn, onDone) {
 function PasswordField({ label, value, onChange, error, autoFocus }) {
   const [shown, setShown] = useState(false);
   return (
-    <div style={{ display: 'grid', gap: 4 }}>
+    // Never in a crash report's picture, shown or not.
+    <div data-sensitive style={{ display: 'grid', gap: 4 }}>
       <Field label={label} type={shown ? 'text' : 'password'} value={value} onChange={onChange} error={error}
         aria-invalid={error ? true : undefined} autoComplete="new-password" autoFocus={autoFocus} maxLength={200} />
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: T.fsSmall, color: T.textMuted, cursor: 'pointer' }}>
