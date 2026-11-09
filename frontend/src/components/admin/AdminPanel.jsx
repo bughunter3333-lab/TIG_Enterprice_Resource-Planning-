@@ -5,6 +5,7 @@ import DocumentDesigner from '../../modules/documents/DocumentDesigner';
 import UsersModule from '../../modules/users/UsersModule';
 import SettingsModule from '../../modules/SettingsModule';
 import CrashReportsModule from '../../modules/crash-reports/CrashReportsModule';
+import StatusTimesSettings from '../../modules/jobs/StatusTimesSettings';
 
 const TABS = [
   { id: 'users',       label: 'Users and roles' },
@@ -18,6 +19,8 @@ const TABS = [
   // DecorationTypes) and return as each is wired: the statuses with the
   // strict workflow, job fields with configurable fields, price levels with a
   // customer's default level (docs/superpowers/specs/2026-11-06-jim2-parity-roadmap.md).
+  // How long a job may sit at each status (docs/superpowers/specs/2026-11-09-status-times.md).
+  { id: 'status-times', label: 'Status times' },
   { id: 'documents',   label: 'Print Templates' },
   { id: 'migration',   label: 'Jim2 Migration' },
   // What broke, for whom, with what they saw (docs/superpowers/specs/2026-11-08-crash-reports.md).
@@ -56,6 +59,7 @@ export default function AdminPanel({ currentUser, usersFilter }) {
       <div>
         {activeTab === 'users' && <UsersModule currentUser={currentUser} initialFilter={usersFilter} />}
         {activeTab === 'company' && <SettingsModule currentUser={currentUser} />}
+        {activeTab === 'status-times' && <StatusTimesSettings />}
         {activeTab === 'documents' && <DocumentDesigner />}
         {activeTab === 'migration' && <MigrationWizard />}
         {activeTab === 'crash-reports' && <CrashReportsModule />}

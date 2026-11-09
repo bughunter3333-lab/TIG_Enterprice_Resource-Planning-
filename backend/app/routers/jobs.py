@@ -1564,6 +1564,9 @@ def _apply_status_transition(
         job.invoice = invoice_numbers.issue(db)
 
     job.status = new_status
+    # How long it has been here is counted from now
+    # (docs/superpowers/specs/2026-11-09-status-times.md).
+    job.status_changed_at = datetime.now(timezone.utc)
     today = datetime.now().strftime("%Y-%m-%d")
 
     was_committed = old_status in COMMITTED_STATUSES

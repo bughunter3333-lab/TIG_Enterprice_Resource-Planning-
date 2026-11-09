@@ -43,6 +43,8 @@ from app.routers import (
     rack_sections,
     logos,
     crash_reports,
+    job_lines,
+    status_times,
     production_board,
     remittances,
 )
@@ -199,3 +201,5 @@ app.include_router(logos.router)
 app.include_router(remittances.router)
 app.include_router(production_board.router)
 app.include_router(crash_reports.router)
+app.include_router(job_lines.router)
+app.include_router(status_times.router)

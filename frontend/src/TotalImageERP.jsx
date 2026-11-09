@@ -31,6 +31,9 @@ import { applyLogo, linkLine, logoMatches, newLineKey, resolveLineLinks } from '
 import { useCustomerLogos } from './modules/jobs/useCustomerLogos';
 import AppliesToSelect from './modules/jobs/AppliesToSelect';
 import JobRecordHeader from './modules/jobs/record/JobRecordHeader';
+import { moveTargets } from './modules/jobs/record/moveLines';
+import { useStatusAllowances } from './lib/useStatusAllowances';
+import Watchout from './modules/jobs/Watchout';
 import JobDetailsCard from './modules/jobs/record/JobDetailsCard';
 import JobLinesCard from './modules/jobs/record/JobLinesCard';
 import JobCommentsCard from './modules/jobs/record/JobCommentsCard';
@@ -147,6 +150,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const queryClient = useQueryClient();
   // What the signed-in role may call — page actions offer only those.
   const offer = useOffer();
+  // How long a job may sit at each status: every list and flag reads it.
+  useStatusAllowances();
   const { data: jobs = [], isLoading: jobsLoading, isPending: jobsPending, isError: jobsFailed } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany, staleTime: 300_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: inventory = [], isLoading: invLoading, isPending: invPending, isError: invFailed } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
@@ -826,6 +831,17 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setPinnedJobs(prev => prev.find(j => j.id === job.id) ? prev.map(j => j.id === job.id ? job : j) : [...prev, job]);
     setActiveJob(job);
     setShowJobDetail(true);
+  };
+
+  // Lines to another of the customer's open jobs; both jobs are read again.
+  const moveJobLines = async (itemIds, toJobId) => {
+    await api.jobs.moveLines(activeJob.id, itemIds, toJobId);
+    const job = await api.jobs.get(activeJob.id);
+    setActiveJob(job);
+    updatePinnedJob(job);
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    notify(`${itemIds.length === 1 ? 'Line' : 'Lines'} moved to job ${toJobId}.`, { type: 'success' });
   };
 
   // A job named only by its number (the production board): from the loaded
@@ -1580,7 +1596,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             {jobDetailTab === 'job' && (
               <>
                 {/* What the job is, what is being said about it, then its facts. */}
-                <JobLinesCard job={activeJob} onOpenPO={openPOById} />
+                <JobLinesCard
+                  job={activeJob}
+                  onOpenPO={openPOById}
+                  moveTargets={moveTargets(jobs, activeJob)}
+                  onMoveLines={offer('POST', '/jobs/{job_id}/move-lines') ? moveJobLines : undefined}
+                />
                 <JobCommentsCard
                   job={activeJob}
                   onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)}
@@ -2130,6 +2151,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="QT-XXXX" />
                     </div>
                   </div>
+
+                  {/* The customer's watchout, as the order is taken. */}
+                  <Watchout text={customers.find(c => c.id === jobForm.customerId)?.watchout} style={{ margin: '8px 10px', fontSize: 12 }} />
 
                   {/* Row 2: References */}
                   <div className="flex divide-x border-b" style={{borderColor: T.hairline}}>

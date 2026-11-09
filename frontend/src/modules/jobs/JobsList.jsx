@@ -3,6 +3,7 @@ import DataGrid from '../../ui/DataGrid';
 import StatusBadge from '../../ui/StatusBadge';
 import { T } from '../../ui/tokens';
 import { statusLabel } from './jobStatuses';
+import OverTime from './OverTime';
 
 const money = (v) => `$${(v ?? 0).toLocaleString('en-AU', { maximumFractionDigits: 0 })}`;
 const decoration = (job) => [...new Set((job.items ?? []).map(i => i.decorationType).filter(d => d && d !== 'None'))][0] ?? '—';
@@ -22,8 +23,11 @@ const COLUMNS = [
     width: 104,
     render: (j) => (j.shipTo ? <span style={{ fontFamily: T.fontMono, fontSize: T.fsSmall, color: T.text }}>{j.shipTo}</span> : dash),
   },
-  // Wide enough for the longest chip (IN PROGRESS, DESP/READY), so none is cut.
-  { key: 'status', label: 'Status', width: 132, render: (j) => <StatusBadge status={j.status} /> },
+  // Wide enough for the longest chip (READY TO INVOICE) and an over-time mark.
+  {
+    key: 'status', label: 'Status', width: 176,
+    render: (j) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><StatusBadge status={j.status} /><OverTime job={j} /></span>,
+  },
   { key: 'dec', label: 'Dec', width: 72, render: (j) => <span style={{ color: T.textMuted }}>{decoration(j)}</span> },
   {
     key: 'priority', label: 'Priority', width: 78,

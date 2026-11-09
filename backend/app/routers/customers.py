@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date
 
@@ -39,6 +39,7 @@ class CustomerCreate(BaseModel):
     customer_group: str = "General"
     territory: Optional[str] = None
     status: str = "Active"
+    watchout: Optional[str] = Field(None, max_length=500)
 
 
 class CustomerUpdate(BaseModel):
@@ -59,6 +60,8 @@ class CustomerUpdate(BaseModel):
     # On hold, the credit check refuses the customer's new orders. It had no
     # writer, so nobody could put a customer on hold.
     credit_hold: Optional[bool] = None
+    # Shown on every job for them; blank clears it.
+    watchout: Optional[str] = Field(None, max_length=500)
 
 
 @router.get("")

@@ -1,7 +1,11 @@
-import { ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRightLeft, ExternalLink } from 'lucide-react';
 import { T } from '../../../ui/tokens';
 import Card from '../../../ui/Card';
+import Button from '../../../ui/Button';
 import { money } from './recordFormat';
+import { movable, whyNotMovable } from './moveLines';
+import MoveLinesDialog from './MoveLinesDialog';
 
 const th = (align = 'left') => ({
   padding: '0 10px', height: 32, textAlign: align, whiteSpace: 'nowrap',
@@ -44,18 +48,51 @@ function Freight({ job }) {
  * What the job is made of: every line, the purchase orders behind them, and
  * the freight. Totals sit at the foot of the table, where an accountant looks
  * for them; the money card beside it carries what is paid and owed.
+ *
+ * Given `moveTargets` (the customer's other open jobs) and `onMoveLines`, its
+ * lines can be ticked and moved to one of them
+ * (docs/superpowers/specs/2026-11-08-move-lines.md).
  */
-export default function JobLinesCard({ job, onOpenPO }) {
+export default function JobLinesCard({ job, onOpenPO, moveTargets = [], onMoveLines }) {
   const items = job.items || [];
+  const canMove = !!onMoveLines && moveTargets.length > 0;
+  const [ticked, setTicked] = useState(() => new Set());
+  const [moving, setMoving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [moveError, setMoveError] = useState(null);
+  const cols = canMove ? 10 : 9;
+  const tick = (id) => setTicked((was) => {
+    const next = new Set(was);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const move = async (toJobId) => {
+    setBusy(true);
+    setMoveError(null);
+    try {
+      await onMoveLines([...ticked], toJobId);
+      setTicked(new Set());
+      setMoving(false);
+    } catch (e) {
+      setMoveError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const lineCount = items.filter((i) => (i.displayType || 'product') === 'product').length;
   const linkedPOs = [...new Set(items.filter((i) => i.poNo).map((i) => i.poNo))];
   return (
     <Card
       title="Lines"
       info={`${lineCount} line${lineCount === 1 ? '' : 's'}`}
-      actions={linkedPOs.length > 0 && (
+      actions={(linkedPOs.length > 0 || (canMove && ticked.size > 0)) && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: T.fsSmall, color: T.textMuted }}>
-          Purchase orders {linkedPOs.map((po) => <PoLink key={po} po={po} onOpen={onOpenPO} />)}
+          {linkedPOs.length > 0 && <>Purchase orders {linkedPOs.map((po) => <PoLink key={po} po={po} onOpen={onOpenPO} />)}</>}
+          {canMove && ticked.size > 0 && (
+            <Button size="sm" onClick={() => { setMoveError(null); setMoving(true); }}>
+              <ArrowRightLeft size={14} aria-hidden />Move {ticked.size} to job…
+            </Button>
+          )}
         </span>
       )}
       padding={16}
@@ -69,6 +106,7 @@ export default function JobLinesCard({ job, onOpenPO }) {
           <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', fontFamily: T.font }}>
             <thead>
               <tr style={{ background: T.panelAlt, boxShadow: T.shadowHeader }}>
+                {canMove && <th style={{ ...th(), width: 32 }}><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Move</span></th>}
                 <th style={th()}>Stock code</th><th style={th()}>Description</th><th style={th()}>Status</th>
                 <th style={th('right')}>Order</th><th style={th('right')}>Supply</th><th style={th('right')}>B/O</th>
                 <th style={th('right')}>Picked</th><th style={th('right')}>Price ex</th><th style={th('right')}>Total</th>
@@ -79,12 +117,12 @@ export default function JobLinesCard({ job, onOpenPO }) {
                 const key = item.id ?? idx;
                 if (item.displayType === 'section') return (
                   <tr key={key} style={{ background: T.panelAlt, borderTop: `1px solid ${T.hairline}` }}>
-                    <td colSpan={9} style={{ ...td(), fontWeight: 600 }}>{item.description}</td>
+                    <td colSpan={cols} style={{ ...td(), fontWeight: 600 }}>{item.description}</td>
                   </tr>
                 );
                 if (item.displayType === 'note') return (
                   <tr key={key} style={{ borderTop: `1px solid ${T.hairlineSoft}` }}>
-                    <td colSpan={9} style={{ ...td(), color: T.textMuted, fontStyle: 'italic' }}>{item.description}</td>
+                    <td colSpan={cols} style={{ ...td(), color: T.textMuted, fontStyle: 'italic' }}>{item.description}</td>
                   </tr>
                 );
                 const short = item.supply < item.order;
@@ -94,6 +132,20 @@ export default function JobLinesCard({ job, onOpenPO }) {
                 ].filter(Boolean);
                 return (
                   <tr key={key} style={{ borderTop: `1px solid ${T.hairlineSoft}` }}>
+                    {canMove && (
+                      <td style={td()}>
+                        {movable(item) && item.id != null ? (
+                          <input
+                            type="checkbox"
+                            aria-label={`Move line ${idx + 1}, ${item.stockCode || item.description}`}
+                            checked={ticked.has(item.id)}
+                            onChange={() => tick(item.id)}
+                          />
+                        ) : (
+                          <span title={whyNotMovable(item) ?? undefined} style={{ color: T.textFaint }}>·</span>
+                        )}
+                      </td>
+                    )}
                     <td style={{ ...td(), fontFamily: T.fontMono, fontSize: T.fsSmall, whiteSpace: 'nowrap' }}>{item.stockCode || dash}</td>
                     <td style={{ ...td(), color: item.hide ? T.textMuted : T.text }}>
                       <div style={{ fontWeight: 500 }}>{item.description}</div>
@@ -127,7 +179,7 @@ export default function JobLinesCard({ job, onOpenPO }) {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: `1px solid ${T.hairline}` }}>
-                <td colSpan={8} style={{ ...td('right'), color: T.textMuted }}>
+                <td colSpan={cols - 1} style={{ ...td('right'), color: T.textMuted }}>
                   Subtotal <strong style={{ color: T.text, fontWeight: 600, margin: '0 16px 0 6px' }}>{money(job.subtotal)}</strong>
                   GST <strong style={{ color: T.text, fontWeight: 600, margin: '0 16px 0 6px' }}>{money(job.tax)}</strong>
                   Total inc GST
@@ -137,6 +189,16 @@ export default function JobLinesCard({ job, onOpenPO }) {
             </tfoot>
           </table>
         </div>
+      )}
+      {moving && (
+        <MoveLinesDialog
+          count={ticked.size}
+          targets={moveTargets}
+          busy={busy}
+          error={moveError}
+          onMove={move}
+          onClose={() => setMoving(false)}
+        />
       )}
     </Card>
   );

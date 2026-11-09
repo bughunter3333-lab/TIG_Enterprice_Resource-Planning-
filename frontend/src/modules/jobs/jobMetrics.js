@@ -63,6 +63,46 @@ export const isQuoteExpiring = (job, today = todayKey()) => {
   return job.status === 'QUOTE' && !!valid && valid >= today && valid <= addDays(today, 7);
 };
 
+// How long a job may sit at each status, in working days (0: no limit) —
+// the server's table (GET /status-allowances), set once the app has it
+// (lib/useStatusAllowances.js). Empty until then: nothing is flagged.
+let allowanceTable = {};
+export const setStatusAllowances = (table) => { allowanceTable = table ?? {}; };
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * Working days (Monday to Friday) since a moment, in this browser's own days:
+ * moved on Monday, it is 2 on Wednesday; moved on Friday, 1 on Monday.
+ */
+export function workingDaysSince(iso, now = new Date()) {
+  const at = iso ? new Date(iso) : null;
+  if (!at || Number.isNaN(at.getTime())) return null;
+  const day = startOfDay(at);
+  const end = startOfDay(now);
+  let days = 0;
+  while (day < end) {
+    day.setDate(day.getDate() + 1);
+    if (day.getDay() !== 0 && day.getDay() !== 6) days += 1;
+  }
+  return days;
+}
+
+/**
+ * How long the job has sat at its status against its allowance: null when
+ * its status has no limit, or it is not known when it got there.
+ */
+export function timeAtStatus(job, { allowances = allowanceTable, now = new Date() } = {}) {
+  const allowed = allowances[job?.status];
+  if (!allowed) return null;
+  const days = workingDaysSince(job.statusChangedAt, now);
+  if (days === null) return null;
+  return { days, allowed, over: days > allowed };
+}
+
+/** Sat at its status longer than its allowance. */
+export const isOverTime = (job, ctx) => !!timeAtStatus(job, ctx)?.over;
+
 /** Being made: ordered through printed. */
 export const isInProduction = (job) => phaseOf(job.status) === 'production';
 
@@ -92,6 +132,7 @@ export const JOB_VIEWS = [
   { id: 'inProgress', label: 'In progress', test: (j) => j.status === 'In Progress' },
   { id: 'notDespatched', label: 'Finished not despatched', test: (j) => isNotDespatched(j) },
   { id: 'quoteExpiring', label: 'Quotes expiring this week', test: (j, { today }) => isQuoteExpiring(j, today) },
+  { id: 'overTime', label: 'Over time at their status', test: (j) => isOverTime(j) },
 ];
 
 const VIEW_BY_ID = Object.fromEntries(JOB_VIEWS.map((v) => [v.id, v]));

@@ -49,6 +49,7 @@ const QUICK_VIEW = {
   inProgress: 'inProgress',
   notDespatched: 'notDespatched',
   quoteExpiring: 'quoteExpiring',
+  overTime: 'overTime',
 };
 
 export const QUICK_FILTERS = [

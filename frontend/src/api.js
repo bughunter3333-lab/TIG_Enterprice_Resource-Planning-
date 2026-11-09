@@ -130,6 +130,8 @@ function normalizeJob(j) {
     commitmentDate: j.commitment_date ?? j.commitmentDate ?? '',
     validityDate: j.validity_date ?? j.validityDate ?? '',
     locked: j.locked ?? false,
+    statusChangedAt: j.status_changed_at ?? j.statusChangedAt ?? null,
+    customerWatchout: j.customer_watchout ?? j.customerWatchout ?? '',
     invoiceStatus: j.invoice_status ?? j.invoiceStatus ?? 'not_invoiced',
     proofStatus: j.proof_status ?? j.proofStatus ?? 'none',
     proofNotes: j.proof_notes ?? j.proofNotes ?? '',
@@ -258,6 +260,7 @@ function normalizeCustomer(c) {
     paymentTerms: c.payment_terms ?? c.paymentTerms ?? 'Net 30',
     creditLimit: parseFloat(c.credit_limit ?? c.creditLimit ?? 0),
     creditHold: Boolean(c.credit_hold ?? c.creditHold ?? false),
+    watchout: c.watchout ?? '',
     balance: parseFloat(c.balance ?? 0),
     totalSpent: parseFloat(c.ytd_sales ?? c.totalSpent ?? 0),
     accountManager: c.account_manager ?? c.accountManager,
@@ -344,6 +347,12 @@ export const jobs = {
   },
 
   get: (id) => request(`/jobs/${id}`).then(normalizeJob),
+
+  // Lines to another open job of the same customer; the stock they reserve
+  // goes with them, a garment takes its decoration
+  // (docs/superpowers/specs/2026-11-08-move-lines.md).
+  moveLines: (jobId, itemIds, toJobId) =>
+    request(`/jobs/${jobId}/move-lines`, { method: 'POST', body: { item_ids: itemIds, to_job_id: toJobId } }),
 
   nextId: () => request('/jobs/next-id'),
 
@@ -812,6 +821,7 @@ export const customers = {
     payment_terms: data.paymentTerms || 'Net 30',
     credit_limit: data.creditLimit || 0,
     account_manager: data.accountManager,
+    watchout: data.watchout || null,
     status: 'Active',
   }}).then(normalizeCustomer),
 
@@ -827,6 +837,7 @@ export const customers = {
     payment_terms: data.paymentTerms,
     credit_limit: data.creditLimit,
     credit_hold: data.creditHold,
+    watchout: data.watchout ?? undefined,
     account_manager: data.accountManager,
     status: data.status,
   }}).then(normalizeCustomer),
@@ -1592,6 +1603,13 @@ export const adminSettings = {
 };
 
 // ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
+
+// How long a job may sit at each status, in working days; 0 is no limit
+// (docs/superpowers/specs/2026-11-09-status-times.md). Anyone reads; admins set.
+export const statusTimes = {
+  get: () => request('/status-allowances'),
+  save: (allowances) => request('/status-allowances', { method: 'PUT', body: { allowances } }),
+};
 
 // Crash reports (docs/superpowers/specs/2026-11-08-crash-reports.md): anyone
 // signed in sends one; admins read them. A screenshot travels as a data URL.

@@ -75,3 +75,9 @@ test('a customer on hold shows as on hold, and is taken off it', () => {
   fireEvent.click(box);
   expect(props.setCustomerForm).toHaveBeenCalledWith({ ...form, creditHold: false });
 });
+
+test('the watchout is typed on the customer, the rest of the form kept', () => {
+  const props = setup();
+  fireEvent.change(screen.getByLabelText('Watchout'), { target: { value: 'Ask if name badges are needed' } });
+  expect(props.setCustomerForm).toHaveBeenCalledWith({ ...form, watchout: 'Ask if name badges are needed' });
+});

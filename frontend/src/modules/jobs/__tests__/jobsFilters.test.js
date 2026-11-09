@@ -185,7 +185,7 @@ test('QUICK_FILTERS exposes the quick filter ids, the saved ones first and uncha
   expect(QUICK_FILTERS.map(q => q.id)).toEqual([
     'overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs',
     'pickPack', 'proof', 'orderNotStarted', 'inProgress', 'notDespatched', 'quoteExpiring',
-    'urgent',
+    'overTime', 'urgent',
   ]);
 });
 

@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronDown, Copy, Edit, Lock, Mail, MoreHorizontal, Print
 import { T } from '../../../ui/tokens';
 import Button from '../../../ui/Button';
 import StatusBadge from '../../../ui/StatusBadge';
+import OverTime from '../OverTime';
+import Watchout from '../Watchout';
 import JobStepper from './JobStepper';
 import { money, dueOf } from './recordFormat';
 
@@ -108,6 +110,7 @@ export default function JobRecordHeader({
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={{ margin: 0, fontSize: T.fsTitle + 2, fontWeight: 600, letterSpacing: '-0.02em', color: T.text }}>{job.customer || 'No customer'}</h1>
         <StatusBadge status={job.status} />
+        <OverTime job={job} long />
         {job.priority === 'Urgent' && (
           <span style={{ fontSize: 11, fontWeight: 600, color: T.danger, background: T.dangerTint, padding: '3px 7px', borderRadius: T.radiusSm }}>Urgent</span>
         )}
@@ -119,6 +122,7 @@ export default function JobRecordHeader({
       </div>
       {job.description && <p style={{ margin: '-8px 0 0', fontSize: T.fsGrid, color: T.textMuted }}>{job.description}</p>}
 
+      <Watchout text={job.customerWatchout} style={{ marginTop: 10 }} />
       <JobStepper status={job.status} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', borderTop: `1px solid ${T.hairlineSoft}`, paddingTop: 12, marginLeft: -20, marginRight: -20 }}>

@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import column_property, relationship
 from app.database import Base
 from app.models.inventory import InventoryItem, charge_condition
+from app.models.customer import Customer
 from app.models.logo import Logo
 
 
@@ -26,6 +27,9 @@ class Job(Base):
     )
     customer_name = Column(String(100))
     status = Column(String(30), nullable=False, default="QUOTE", index=True)
+    # When it came to its status: how long it has sat there is counted from
+    # this (docs/superpowers/specs/2026-11-09-status-times.md).
+    status_changed_at = Column(DateTime(timezone=True))
     invoice = Column(String(20))
     date_in = Column(String(20))
     due = Column(String(40))
@@ -135,6 +139,14 @@ class Job(Base):
     # ship_to (str, above) is the Jim2 ship-to code; ship_to_address is the linked
     # CustomerShipTo record via ship_to_id. Distinct names so neither shadows the other.
     ship_to_address = relationship("CustomerShipTo", foreign_keys=[ship_to_id])
+    # The customer's watchout, read with the job, never copied onto it: a
+    # change on the customer shows on every job for them at once.
+    customer_watchout = column_property(
+        select(Customer.watchout)
+        .where(Customer.id == customer_id)
+        .correlate_except(Customer)
+        .scalar_subquery()
+    )
 
 
 class JobItem(Base):
