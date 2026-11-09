@@ -30,7 +30,7 @@ const access = ({ unreadable = [] } = {}) => ({
 // In sidebar order: Work, Operations, Relationships, Finance, Data. Email and
 // Import are in areas this table does not list, so they stay (see below).
 const ALL = [
-  'Home', 'Jobs', 'Quotes', 'Production', 'Scheduling',
+  'Home', 'Jobs', 'Quotes', 'Production', 'Picking', 'Scheduling',
   'Purchases', 'Order requirements', 'Suppliers', 'Stock', 'Styles',
   'Customers', 'Card Files', 'Email',
   'Accounts', 'Reports', 'Analytics',
@@ -81,7 +81,7 @@ describe('which modules a role sees', () => {
     open();
     await screen.findByText('Reports');
     expect(items()).toEqual([
-      'Home', 'Jobs', 'Quotes', 'Production', 'Scheduling', 'Stock', 'Styles',
+      'Home', 'Jobs', 'Quotes', 'Production', 'Picking', 'Scheduling', 'Stock', 'Styles',
       'Customers', 'Card Files', 'Email', 'Reports', 'Analytics', 'Import',
     ]);
   });

@@ -7,6 +7,7 @@ import EmailModule from './modules/EmailModule';
 import StylesModule from './modules/StylesModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import ProductionModule from './modules/production/ProductionModule';
+import PickingModule from './modules/picking/PickingModule';
 import { addStep, setPlace } from './lib/crashContext';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
@@ -998,33 +999,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       setSelectedJobIds(new Set());
     } else {
       setSelectedJobIds(new Set(jobs.map(j => j.id)));
-    }
-  };
-
-  const bulkStatusChange = async (status) => {
-    const ids = [...selectedJobIds];
-    // One request rather than one per job. Sixty-eight round trips gave no
-    // single answer at the end about what happened; the server judges each job
-    // on its own and reports the ones that would not move.
-    let result;
-    try {
-      result = await api.jobs.bulkStatus(ids, status);
-    } catch (e) {
-      notify(e?.message || 'Bulk status update failed', { type: 'error' });
-      return;
-    }
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    setSelectedJobIds(new Set());
-    setBulkActionOpen(false);
-    if (result.failed?.length) {
-      const detail = result.failed.map(f => `#${f.job_id} ${f.reason}`).join('; ');
-      notify(
-        `${result.moved} of ${ids.length} moved to ${status}. ${result.failed.length} did not — ${detail}`,
-        { type: 'error' },
-      );
-    } else {
-      notify(`${result.moved} job${result.moved === 1 ? '' : 's'} moved to ${status}`);
     }
   };
 
@@ -4184,6 +4158,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'warehouse'          && <WarehouseModule currentUser={currentUser} inventory={inventory} customers={customers} onOpenSku={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }} />}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
                 {!loading && activeModule === 'production'         && <ProductionModule onOpenJob={openJobById} />}
+                {!loading && activeModule === 'picking'            && <PickingModule />}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}

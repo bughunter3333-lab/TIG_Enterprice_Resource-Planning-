@@ -3,19 +3,12 @@ import { ChevronLeft, ChevronRight, Calendar, Users, Clock, AlertCircle } from '
 import { T } from '../ui/tokens';
 import { FINISHED_STATUSES, PRODUCTION_STATUSES, statusLabel } from './jobs/jobStatuses';
 import StatusBadge from '../ui/StatusBadge';
+import { DEC_OPTIONS } from '../lib/decoration';
 
 
-const DEC_COLORS = {
-  EMB:    { dot: 'bg-emphasis',  pill: 'bg-emphasis-tint text-emphasis',  label: 'Embroidery' },
-  TRS:    { dot: 'bg-accent-strong',  pill: 'bg-accent-tint text-accent-strong',  label: 'Transfer' },
-  Screen: { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Screen Print' },
-  DTF:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'DTF' },
-  Laser:  { dot: 'bg-danger',     pill: 'bg-danger-tint text-danger',        label: 'Laser' },
-  Sub:    { dot: 'bg-emphasis',    pill: 'bg-emphasis-tint text-emphasis',      label: 'Sublimation' },
-  Pad:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Pad Print' },
-  Vinyl:  { dot: 'bg-ok',   pill: 'bg-ok-tint text-ok',    label: 'Vinyl Cut' },
-  None:   { dot: 'bg-hairline',    pill: 'bg-panel-alt text-muted',      label: 'None' },
-};
+// The decoration methods are the shared list's (lib/decoration.js): a copy
+// kept here had drifted and had no DTG.
+const DEC_COLORS = Object.fromEntries(DEC_OPTIONS.map((o) => [o.v, { dot: o.dot, pill: o.pill, label: o.l }]));
 
 const PROD_STATUSES = PRODUCTION_STATUSES;
 
@@ -88,7 +81,7 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
       )}
       <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
         {due ? (
-          <span className="text-[10px] font-medium" style={{ color: isOverdue ? T.danger : daysLeft <= 1 ? '#c2410c' : T.textFaint }}>
+          <span className="text-[10px] font-medium" style={{ color: isOverdue ? T.danger : daysLeft <= 1 ? T.warn : T.textFaint }}>
             {isOverdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
           </span>
         ) : <span className="text-[10px]" style={{ color: T.textFaint }}>No due date</span>}
@@ -119,7 +112,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
       className={`flex-1 min-w-0 rounded-xl border-t-4 transition-colors ${dragOver ? 'ring-2 ring-inset' : ''}`}
       style={{
         borderTopColor: isToday ? T.accentStrong : T.hairline,
-        background: isToday ? '#fefce8' : isWeekend ? T.hairlineSoft : T.panel,
+        background: isToday ? T.accentTint : isWeekend ? T.hairlineSoft : T.panel,
         ...(dragOver ? { outlineColor: T.accentStrong } : {}),
       }}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}

@@ -1,6 +1,6 @@
 import {
   BarChart3, Boxes, CalendarDays, ClipboardList, Contact, Factory, FileText, Home, Landmark, ListChecks,
-  Mail, Shirt, ShoppingCart, TrendingUp, Truck, Upload, Users,
+  Mail, ScanLine, Shirt, ShoppingCart, TrendingUp, Truck, Upload, Users,
 } from 'lucide-react';
 import { areaView } from '../../lib/access';
 
@@ -19,6 +19,8 @@ export const MODULE_GROUPS = [
       { id: 'quotes', label: 'Quotes', icon: FileText, badgeKey: 'quoteCount', area: 'Jobs and quotes' },
       // Who has which work on the floor, by lane (docs/superpowers/specs/2026-11-07-production-board.md).
       { id: 'production', label: 'Production', icon: Factory, area: 'Jobs and quotes' },
+      // Picking at the shelf, on a phone (docs/superpowers/specs/2026-11-09-phone-picking.md).
+      { id: 'picking', label: 'Picking', icon: ScanLine, area: 'Jobs and quotes' },
       { id: 'scheduling', label: 'Scheduling', icon: CalendarDays, area: 'Jobs and quotes' },
     ],
   },
