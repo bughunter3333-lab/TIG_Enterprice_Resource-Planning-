@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from app.database import get_db
 from app.core import (
+    credit_notes,
     despatch_documents,
     invoice_numbers,
     job_totals,
@@ -486,7 +487,7 @@ def _owed_once_invoiced(job: "Job") -> float:
     invoicing it will set (`_stamp_invoiced`)."""
     if job.status in _DEPLETED_STATUSES:
         return float(job.balance_due or 0)
-    return max(0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2))
+    return float(credit_notes.owed(job))
 
 
 def _require_role_for(job: "Job", new_status: str, user: "User") -> None:
@@ -611,10 +612,32 @@ def _check_status_change(
     if ladder:
         _validate_transition(job, new_status, by)
     _require_role_for(job, new_status, by)
+    _keep_credited_invoices(job, new_status, db)
     _validate_required_fields(job, new_status)
     _require_approved_proofs(job, new_status)
     if credit and _takes_an_order(job.status, new_status):
         _check_credit_limit(job, db)
+
+
+def _keep_credited_invoices(job: "Job", new_status: str, db: Session) -> None:
+    """An invoice that has been credited stays invoiced.
+
+    Taking it back out — unprinting it, cancelling it — would withdraw the
+    invoice from the ledger and put its stock back, while the credit note still
+    stands against it: credit for a sale that no longer is.
+    """
+    leaving = job.status in _DEPLETED_STATUSES and new_status not in _DEPLETED_STATUSES
+    if not leaving:
+        return
+    number = credit_notes.has_credit_notes(db, job.id)
+    if number:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Job {job.id} has credit note {number} against it — an invoice "
+                "that has been credited stays invoiced."
+            ),
+        )
 
 
 _PRINTED = PRODUCTION_LADDER[PRODUCTION_LADDER.index("PRINT") :]
@@ -1664,10 +1687,8 @@ def _stamp_invoiced(job: "Job", today: str, db: Session) -> None:
     # every consumer of the field believed it -- the credit-limit check at job
     # creation, the customer statement, the sales register and the receivables
     # figures. The invariant is total inc GST less whatever has already been
-    # taken; `record_payment` maintains it from here.
-    job.balance_due = max(
-        0.0, round(float(job.total_inc or 0) - float(job.deposit or 0), 2)
-    )
+    # taken (and any credit applied); `record_payment` maintains it from here.
+    job.balance_due = float(credit_notes.owed(job))
 
 
 def _stamp_terms(job: "Job", db: Session) -> None:
@@ -1714,16 +1735,18 @@ _HEADER_TOTALS = frozenset({"total_ex", "tax", "total_inc"})
 
 
 def _settle_money(job: "Job") -> None:
-    """Re-derive what is owed, and the payment status, from the total and the
-    payments taken -- the invariant `balance_due == total_inc - deposit` that
-    invoicing and `record_payment` already keep."""
-    deposit = float(job.deposit or 0)
-    job.balance_due = max(0.0, round(float(job.total_inc or 0) - deposit, 2))
+    """Re-derive what is owed, and the payment status, from the total, the
+    payments taken and the credit applied -- the invariant
+    `balance_due == total_inc - deposit - credited` that invoicing,
+    `record_payment` and credit notes keep (core/credit_notes.py). A fully
+    credited invoice is paid off, as a payment would pay it."""
+    settled = float(job.deposit or 0) + float(job.credited or 0)
+    job.balance_due = float(credit_notes.owed(job))
     if job.status == "PAID":
         # What the PAID transition says too; the ledger health check lists
         # any PAID job that still owes.
         job.payment_status = "paid"
-    elif deposit <= 0:
+    elif settled <= 0:
         job.payment_status = "unpaid"
     elif job.balance_due <= 0:
         job.payment_status = "paid"
@@ -1744,7 +1767,8 @@ def _recalculate_weight(job: "Job", db: Session) -> None:
 
 
 def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
-    """Recompute customer.balance: what is owed on their invoices.
+    """Recompute customer.balance: what is owed on their invoices, less their
+    credit on account (credit notes not yet applied).
 
     INVOICE and PAID jobs only — the same jobs aged receivables and the ledger
     count. FINISH used to be included, so a customer with goods despatched but
@@ -1764,6 +1788,11 @@ def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
     from sqlalchemy import func as sqlfunc
 
     db.flush()
+    # Locked before it is summed, after the jobs the caller changed (the order
+    # every path takes): two writes for one customer at once — a payment on
+    # one invoice, a credit on another — each sum what the other committed,
+    # rather than the last to finish writing a balance missing the other.
+    db.query(Customer.id).filter(Customer.id == customer_id).with_for_update().first()
 
     total = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0))
@@ -1773,8 +1802,10 @@ def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
         )
         .scalar()
     )
+    # Less their credit not yet used on an invoice: what they owe on account.
+    total = float(total or 0) - float(credit_notes.customer_unapplied(db, customer_id))
     db.query(Customer).filter(Customer.id == customer_id).update(
-        {"balance": float(total or 0)}, synchronize_session=False
+        {"balance": round(total, 2)}, synchronize_session=False
     )
 
 
@@ -2041,13 +2072,40 @@ def sales_register(
     total_ex = sum(float(j.total_ex or 0) for j in result)
     total_inc = sum(float(j.total_inc or 0) for j in result)
     total_tax = sum(float(j.tax or 0) for j in result)
+    # Credit notes dated in the period: listed, and taken off the net sales.
+    credits = credit_notes.in_period(db, date_from, date_to, customer_id)
+    credited = {
+        "ex": round(sum(float(n.total_ex or 0) for n in credits), 2),
+        "tax": round(sum(float(n.tax or 0) for n in credits), 2),
+        "inc": round(sum(float(n.total_inc or 0) for n in credits), 2),
+    }
     return {
         "jobs": result,
+        "credit_notes": [
+            {
+                "id": n.id,
+                "job_id": n.job_id,
+                "customer_id": n.customer_id,
+                "credit_date": n.credit_date,
+                "reason": n.reason,
+                "total_ex": float(n.total_ex or 0),
+                "tax": float(n.tax or 0),
+                "total_inc": float(n.total_inc or 0),
+            }
+            for n in credits
+        ],
         "summary": {
             "count": len(result),
             "total_ex": round(total_ex, 2),
             "total_inc": round(total_inc, 2),
             "total_tax": round(total_tax, 2),
+            "credit_note_count": len(credits),
+            "credited_ex": credited["ex"],
+            "credited_tax": credited["tax"],
+            "credited_inc": credited["inc"],
+            "net_ex": round(total_ex - credited["ex"], 2),
+            "net_tax": round(total_tax - credited["tax"], 2),
+            "net_inc": round(total_inc - credited["inc"], 2),
         },
     }
 
@@ -2313,7 +2371,10 @@ _COST_FIELDS = frozenset({"purchase_price", "margin", "margin_percent"})
 
 
 def _without_cost(job: "Job") -> dict:
+    """A job as the online store sees it: no costs, and not the staff's
+    watchout on the customer — an internal note about them."""
     body = jsonable_encoder(job)
+    body.pop("customer_watchout", None)
     return {
         **body,
         "items": [
@@ -2937,7 +2998,15 @@ def record_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff),
 ):
-    job = db.query(Job).filter(Job.id == job_id).first()
+    # Locked as read: a credit note applied to the job at the same moment
+    # waits, rather than both settling the same balance.
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if body.amount <= 0 or body.amount > float(job.balance_due or 0):
@@ -2982,10 +3051,11 @@ def _take_payment(
     today = now.strftime("%Y-%m-%d")
 
     job.deposit = round(float(job.deposit or 0) + amount, 2)
-    job.balance_due = round(float(job.balance_due or 0) - amount, 2)
+    # Worked out from the total, payments and credit, never decremented: a
+    # balance read before a credit note was applied would be stale.
+    job.balance_due = float(credit_notes.owed(job))
     if job.balance_due <= 0:
         job.payment_status = "paid"
-        job.balance_due = 0
         if not job.payment_date:
             job.payment_date = today
     else:

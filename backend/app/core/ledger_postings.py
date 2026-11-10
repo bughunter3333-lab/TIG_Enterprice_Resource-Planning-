@@ -136,6 +136,97 @@ def sync_payment(
     )
 
 
+# ── Customer credit notes ────────────────────────────────────────────────────
+
+
+def credit_note_lines(db: Session, note) -> Optional[list[Line]]:
+    """The invoice's entry, reversed for what is credited: sales and GST back,
+    and the customer's receivable reduced — as credit on their account
+    (untagged). Fixed once raised: where the credit is used is each
+    application's own entry, so using it later never re-dates this one
+    (docs/superpowers/specs/2026-11-09-returns-credit-notes.md)."""
+    total = money(note.total_inc)
+    if total == ZERO:
+        return None
+    gst = money(note.tax)
+    label = f"Credit note {note.id}"
+    return [
+        Line(
+            account_for(db, "sales"),
+            total - gst,
+            label,
+            "customer",
+            note.customer_id,
+            note.job_id,
+        ),
+        Line(
+            account_for(db, "gst_collected"),
+            gst,
+            f"GST on {label.lower()}",
+            None,
+            None,
+            note.job_id,
+        ),
+        Line(
+            account_for(db, "receivable"),
+            -total,
+            f"{label} — credit on account",
+            "customer",
+            note.customer_id,
+            None,
+        ),
+    ]
+
+
+def sync_credit_note(
+    db: Session, note, created_by: str = SYSTEM
+) -> Optional[JournalEntry]:
+    return sync(
+        db,
+        source_type="credit_note",
+        source_id=note.id,
+        lines=credit_note_lines(db, note),
+        entry_date=parse_date(note.credit_date),
+        memo=f"Credit note {note.id} on invoice {note.job_id}",
+        created_by=created_by,
+    )
+
+
+def credit_application_lines(db: Session, application, note) -> Optional[list[Line]]:
+    """Credit on account used on an invoice: the receivable moves from the
+    customer's account to that invoice. The account balance does not change."""
+    amount = money(application.amount)
+    if amount == ZERO:
+        return None
+    receivable = account_for(db, "receivable")
+    label = f"Credit note {note.id} on {application.job_id}"
+    return [
+        Line(receivable, amount, label, "customer", note.customer_id, None),
+        Line(
+            receivable,
+            -amount,
+            label,
+            "customer",
+            note.customer_id,
+            application.job_id,
+        ),
+    ]
+
+
+def sync_credit_application(
+    db: Session, application, note, created_by: str = SYSTEM
+) -> Optional[JournalEntry]:
+    return sync(
+        db,
+        source_type="credit_application",
+        source_id=str(application.id),
+        lines=credit_application_lines(db, application, note),
+        entry_date=parse_date(application.applied_on),
+        memo=f"Credit note {note.id} applied to {application.job_id}",
+        created_by=created_by,
+    )
+
+
 # ── Supplier bills ───────────────────────────────────────────────────────────
 
 

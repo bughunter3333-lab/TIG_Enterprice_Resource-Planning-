@@ -1035,13 +1035,22 @@ def _import_job_row(
             f"job {data['id']} is cancelled but shows ${paid} paid; a payment "
             "is not taken on a cancelled job"
         )
-    if status == "PAID" and paid != total:
+    # Credit notes applied here settle an invoice as payments do: Jim2 knows
+    # nothing of them, so its paid amount plus this credit must fit the total
+    # (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credited = money(existing.credited) if existing is not None else ZERO
+    if status == "PAID" and paid + credited != total:
         raise ValueError(
-            f"job {data['id']} is PAID but its paid amount (${paid}) is not its "
-            f"total (${total}); import it as INVOICE with what was paid"
+            f"job {data['id']} is PAID but its paid amount (${paid})"
+            + (f" and the ${credited} credited here" if credited else "")
+            + f" is not its total (${total}); import it as INVOICE with what was paid"
         )
-    if paid > total:
-        raise ValueError(f"job {data['id']} shows ${paid} paid on a total of ${total}")
+    if paid + credited > total:
+        raise ValueError(
+            f"job {data['id']} shows ${paid} paid"
+            + (f" and ${credited} is credited here" if credited else "")
+            + f" on a total of ${total}"
+        )
     _require_header_agrees(data)
     if existing is not None and existing.status in _DEPLETED_STATUSES:
         _refuse_rewriting_an_invoice(existing, data)

@@ -47,6 +47,9 @@ ON_HAND_TYPES = frozenset(
         "Stocktake",
         "Transfer In",
         "Transfer Out",
+        # Goods back on a credit note, inspected and restocked
+        # (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+        "Return",
     }
 )
 

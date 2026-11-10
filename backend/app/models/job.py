@@ -47,6 +47,9 @@ class Job(Base):
     total_inc = Column(Numeric(10, 2), default=0)
     deposit = Column(Numeric(10, 2), default=0)
     balance_due = Column(Numeric(10, 2), default=0)
+    # Credit notes applied to this invoice: what is owed is its total less
+    # payments (deposit) less this (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credited = Column(Numeric(10, 2), default=0)
     payment_method = Column(String(50), default="Account")
     shipping_address = Column(Text)
     notes = Column(Text)

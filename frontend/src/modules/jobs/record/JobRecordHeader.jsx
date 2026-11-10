@@ -74,7 +74,9 @@ export default function JobRecordHeader({
   job, onBack, onEdit, editDisabled, editTitle, onClone, onEmail, printItems, moreActions = [], nextStep, onNextStep, nextStepBusy,
 }) {
   const due = dueOf(job);
-  const paid = Math.max(0, (Number(job.total) || 0) - (Number(job.balanceDue) || 0));
+  // Credit notes settle an invoice too, but they are not money received.
+  const credited = Number(job.credited) || 0;
+  const paid = Math.max(0, (Number(job.total) || 0) - (Number(job.balanceDue) || 0) - credited);
   const NextIcon = nextStep?.kind === 'despatch' ? Truck : ArrowRight;
   return (
     <section style={{
@@ -127,7 +129,7 @@ export default function JobRecordHeader({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', borderTop: `1px solid ${T.hairlineSoft}`, paddingTop: 12, marginLeft: -20, marginRight: -20 }}>
         <Figure first label="Total (inc GST)" value={money(job.totalInc || job.total)} />
-        <Figure label="Paid" value={money(paid)} tone={paid > 0 ? T.ok : undefined} />
+        <Figure label="Paid" value={money(paid)} tone={paid > 0 ? T.ok : undefined} note={credited > 0 ? `${money(credited)} credited` : undefined} />
         <Figure label="Balance" value={money(job.balanceDue)} tone={job.balanceDue > 0 ? T.danger : T.ok} />
         <Figure label="Due" value={due.text} tone={due.overdue ? T.danger : undefined} note={due.overdue ? 'Overdue' : undefined} />
         <Figure label="Assigned" value={job.assignedTo} />

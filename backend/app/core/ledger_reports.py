@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.fiscal import get_fiscal_year_bounds
 from app.core.ledger import DEBIT_NORMAL, ZERO, account_for, ensure_chart, money
+from app.models.credit_note import CreditNoteApplication, CustomerCreditNote
 from app.models.job import Job
 from app.models.job_payment import JobPayment
 from app.models.ledger import JournalEntry, JournalLine, LedgerAccount
@@ -270,8 +271,13 @@ def bas(db: Session, date_from: date, date_to: date) -> dict:
 
     receivable = account_for(db, "receivable")
     d, c = _totals(
-        db, date_from=date_from, date_to=date_to, source_types=["invoice"]
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        source_types=["invoice", "credit_note"],
     ).get(receivable.id, (ZERO, ZERO))
+    # Less credit notes in the period: an adjustment note reduces sales as it
+    # reduces the GST collected that 1A reads.
     total_sales = d - c
 
     payable = account_for(db, "payable")
@@ -309,10 +315,22 @@ def health(db: Session) -> dict:
     payable = account_for(db, "payable")
     balances = account_balances(db)
 
-    # Receivables, job by job: invoiced total less payments recorded.
+    # Receivables, job by job: invoiced total less payments recorded, less
+    # credit notes applied; credit not applied is owed back on account.
     paid_by_job: dict[str, Decimal] = {}
     for job_id, amount in db.query(JobPayment.job_id, JobPayment.amount):
         paid_by_job[job_id] = paid_by_job.get(job_id, ZERO) + money(amount)
+    for job_id, amount in db.query(
+        CreditNoteApplication.job_id, CreditNoteApplication.amount
+    ):
+        paid_by_job[job_id] = paid_by_job.get(job_id, ZERO) + money(amount)
+    raised = money(
+        db.query(func.coalesce(func.sum(CustomerCreditNote.total_inc), 0)).scalar()
+    )
+    used = money(
+        db.query(func.coalesce(func.sum(CreditNoteApplication.amount), 0)).scalar()
+    )
+    on_account = raised - used
     ledger_by_job: dict[str, Decimal] = {}
     for job_id, debit, credit in (
         db.query(
@@ -326,10 +344,18 @@ def health(db: Session) -> dict:
         ledger_by_job[job_id] = money(debit) - money(credit)
 
     expected_by_job: dict[str, Decimal] = {}
-    unposted, paid_with_balance, undated = [], [], []
+    unposted, paid_with_balance, undated, overpaid = [], [], [], []
     for job in db.query(Job).filter(Job.status.in_(list(INVOICED_STATUSES))):
         lines = invoice_lines(db, job)
         owed = money(lines[0].amount) if lines else ZERO
+        # Paid and credited past what it owes (the invoice's own figure: an
+        # older invoice with no inclusive total owes ex + GST): what it owes is
+        # clamped at nothing, so the excess shows nowhere else.
+        over = money(job.deposit) + money(job.credited) - owed
+        if lines and over > ZERO:
+            overpaid.append(
+                {"job_id": job.id, "customer": job.customer_name, "over": f(over)}
+            )
         expected_by_job[job.id] = owed - paid_by_job.get(job.id, ZERO)
         if lines and job.id not in ledger_by_job:
             unposted.append(
@@ -363,7 +389,7 @@ def health(db: Session) -> dict:
                 {"job_id": job_id, "expected": f(want), "ledger": f(have)}
             )
 
-    ar_expected = sum(expected_by_job.values(), ZERO)
+    ar_expected = sum(expected_by_job.values(), ZERO) - on_account
     totals_off, balances_off = _documents_disagreeing_with_themselves(db)
     ap_expected = ZERO
     for bill in db.query(SupplierBill):
@@ -386,6 +412,7 @@ def health(db: Session) -> dict:
         "unposted_invoices": unposted,
         "mismatched_jobs": mismatched,
         "paid_with_balance_owing": paid_with_balance,
+        "paid_and_credited_past_total": overpaid,
         "invoiced_without_date": undated,
         "totals_disagree_with_lines": totals_off,
         "balances_disagree_with_invoices": balances_off,
@@ -398,6 +425,7 @@ def health(db: Session) -> dict:
             and balances[payable.id] == ap_expected
             and not unposted
             and not mismatched
+            and not overpaid
         ),
     }
 
@@ -443,6 +471,25 @@ def _documents_disagreeing_with_themselves(db: Session) -> tuple[list, list]:
                     "lines": f(lines),
                 }
             )
+
+    # Less each customer's credit on account (credit notes not yet applied).
+    for customer_id, total in db.query(
+        CustomerCreditNote.customer_id, func.sum(CustomerCreditNote.total_inc)
+    ).group_by(CustomerCreditNote.customer_id):
+        owed_by_customer[customer_id] = owed_by_customer.get(customer_id, ZERO) - money(
+            total
+        )
+    for customer_id, amount in (
+        db.query(CustomerCreditNote.customer_id, func.sum(CreditNoteApplication.amount))
+        .join(
+            CreditNoteApplication,
+            CreditNoteApplication.credit_note_id == CustomerCreditNote.id,
+        )
+        .group_by(CustomerCreditNote.customer_id)
+    ):
+        owed_by_customer[customer_id] = owed_by_customer.get(customer_id, ZERO) + money(
+            amount
+        )
 
     balances_off = []
     for customer in db.query(Customer).order_by(Customer.id):

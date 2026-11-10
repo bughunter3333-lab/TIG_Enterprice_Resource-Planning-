@@ -76,3 +76,12 @@ test('with nowhere to move them, or no right to, the lines have no ticks', () =>
   rerender(<JobLinesCard job={job('1001', { items: [tee] })} onOpenPO={() => {}} moveTargets={[job('1002')]} />);
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
 });
+
+test('ticks belong to the job: another job starts with none', () => {
+  const props = { onOpenPO: () => {}, moveTargets: [job('1003')], onMoveLines: vi.fn() };
+  const { rerender } = render(<JobLinesCard job={job('1001', { items: [tee] })} {...props} />);
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(screen.getByRole('checkbox')).toBeChecked();
+  rerender(<JobLinesCard job={job('1002', { items: [{ ...tee, id: 99 }] })} {...props} />);
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+});

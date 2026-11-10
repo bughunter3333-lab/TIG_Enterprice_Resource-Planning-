@@ -142,3 +142,20 @@ class TestHiddenLinesAreNotPrinted:
 
         _job(db, "DOC-9")
         assert [i.stock_code for i in goods_lines(db.get(Job, "DOC-9"))] == ["POLO-M"]
+
+
+@pytest.mark.integration
+def test_the_job_label_carries_its_number_as_a_barcode_on_one_label(client, db):
+    from reportlab.graphics.barcode.code128 import Code128
+
+    from app.core import despatch_documents
+    from app.models.job import Job
+
+    _job(db, "DOC-BC")
+    job = db.get(Job, "DOC-BC")
+    story = despatch_documents.job_label(job, None)
+    codes = [f for f in story if isinstance(f, Code128)]
+    assert [c.value for c in codes] == ["DOC-BC"]
+    r = client.get("/jobs/DOC-BC/pdf", params={"type": "job-label"})
+    assert r.status_code == 200
+    assert b"/Count 1" in r.content  # still one label, not two pages

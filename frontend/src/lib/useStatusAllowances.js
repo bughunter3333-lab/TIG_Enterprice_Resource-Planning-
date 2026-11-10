@@ -10,8 +10,11 @@ import { setStatusAllowances } from '../modules/jobs/jobMetrics';
  * Handed over as it renders, not in an effect: the views it feeds are worked
  * out in this same render, and an effect would leave them a render behind.
  */
+// One empty table, not a new one each render: lists memoise on it.
+const NONE = Object.freeze({});
+
 export function useStatusAllowances() {
   const { data } = useQuery({ queryKey: ['status-allowances'], queryFn: statusTimes.get, staleTime: 300_000 });
   if (data) setStatusAllowances(data);
-  return data ?? {};
+  return data ?? NONE;
 }

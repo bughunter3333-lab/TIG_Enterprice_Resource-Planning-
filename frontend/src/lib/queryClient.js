@@ -7,12 +7,19 @@ import { QueryCache, QueryClient } from '@tanstack/react-query';
  * ran on a failed load. Version 5 dropped that option and ignores it without a
  * word, so a failed jobs, customers or analytics load showed no notice at all —
  * the list was simply empty. The cache calls each query's own `onError` again,
- * once per failure, so every one of those notices works as written.
+ * so every one of those notices works as written. One kind of failure says
+ * nothing: a poll (a query with a refetchInterval — the jobs, stock and PO
+ * lists, every minute) that fails while its last data is still shown, since a
+ * notice each minute of a short outage is noise, not news. A refresh someone
+ * asked for, or a first load, always says it failed.
  */
 export function createAppQueryClient() {
   return new QueryClient({
     queryCache: new QueryCache({
-      onError: (error, query) => query.options?.onError?.(error),
+      onError: (error, query) => {
+        const quietPoll = query.state.data !== undefined && !!query.options?.refetchInterval;
+        if (!quietPoll) query.options?.onError?.(error);
+      },
     }),
     defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchIntervalInBackground: false } },
   });

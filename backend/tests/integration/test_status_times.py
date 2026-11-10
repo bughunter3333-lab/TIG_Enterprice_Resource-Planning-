@@ -94,3 +94,17 @@ class TestTheAllowances:
         assert (
             client.get("/status-allowances").json() == status_times.DEFAULT_ALLOWANCES
         )
+
+
+@pytest.mark.parametrize(
+    "stored",
+    ["[]", "5", "null", '"x"', '{"ORDER": -3}', '{"ORDER": 999}', '{"ORDER": true}'],
+)
+def test_a_setting_that_is_not_a_table_of_days_falls_back(client, db, stored):
+    from app.models.admin_setting import AdminSetting
+
+    db.add(AdminSetting(key=status_times.SETTING_KEY, value=stored))
+    db.commit()
+    r = client.get("/status-allowances")
+    assert r.status_code == 200
+    assert r.json()["ORDER"] == status_times.DEFAULT_ALLOWANCES["ORDER"]

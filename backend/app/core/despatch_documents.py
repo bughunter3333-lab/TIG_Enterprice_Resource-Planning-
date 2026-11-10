@@ -13,6 +13,7 @@ No prices on any of them: they travel with the goods.
 import io
 from typing import Optional
 
+from reportlab.graphics.barcode.code128 import Code128
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -303,8 +304,16 @@ def ship_labels(job, company, despatch: Optional[dict] = None) -> list:
 
 
 def job_label(job, company) -> list:
+    """The label on a job's goods: its number, as text and as a Code 128 the
+    phone picking screen scans to open the job."""
+    barcode = Code128(
+        job.id, barHeight=10 * mm, barWidth=0.35 * mm, humanReadable=False
+    )
+    barcode.hAlign = "CENTER"
     return [
         _p(job.id, ParagraphStyle("dd_jl", parent=_big, alignment=TA_CENTER)),
+        barcode,
+        Spacer(1, 2 * mm),
         _p(
             job.customer_name or "",
             ParagraphStyle("dd_jc", parent=_bold, alignment=TA_CENTER),

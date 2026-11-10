@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import date
 from app.database import get_db
 from app.models.job import Job, JobItem
+from app.models.credit_note import CreditNoteApplication, CustomerCreditNote
 from app.models.job_payment import JobPayment
 from app.models.inventory import InventoryItem
 from app.models.customer import Customer
@@ -12,7 +13,7 @@ from app.models.purchase_order import PurchaseOrder
 from app.models.settings import CompanySettings
 from app.models.supplier import Supplier
 from app.models.supplier_bill import SupplierBill
-from app.core import bill_matching, po_totals
+from app.core import bill_matching, credit_notes, po_totals, shop_day
 from app.core.dependencies import require_any, require_staff
 from app.core.fiscal import current_fiscal_year
 from app.core.ledger import money
@@ -102,9 +103,15 @@ def gst_report(
         q = q.filter(Job.invoice_date <= date_to)
     jobs = q.all()
 
-    total_sales_inc = sum(float(j.total_inc or 0) for j in jobs)
-    total_sales_ex = sum(float(j.total_ex or 0) for j in jobs)
-    gst_collected = sum(float(j.tax or 0) for j in jobs)
+    # Credit notes dated in the period take their sales and GST back off it
+    # (an adjustment note: docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credits = credit_notes.in_period(db, date_from, date_to)
+    credited_inc = sum(float(n.total_inc or 0) for n in credits)
+    credited_ex = sum(float(n.total_ex or 0) for n in credits)
+    credited_gst = sum(float(n.tax or 0) for n in credits)
+    total_sales_inc = sum(float(j.total_inc or 0) for j in jobs) - credited_inc
+    total_sales_ex = sum(float(j.total_ex or 0) for j in jobs) - credited_ex
+    gst_collected = sum(float(j.tax or 0) for j in jobs) - credited_gst
     invoice_count = len(jobs)
 
     # Month-by-month breakdown keyed on invoice_date (fall back to date_in for old records)
@@ -112,17 +119,19 @@ def gst_report(
     for j in jobs:
         month = (j.invoice_date or j.date_in or "")[:7] or "Unknown"
         if month not in monthly:
-            monthly[month] = {
-                "month": month,
-                "invoices": 0,
-                "sales_inc": 0.0,
-                "sales_ex": 0.0,
-                "gst": 0.0,
-            }
+            monthly[month] = _gst_month(month)
         monthly[month]["invoices"] += 1
         monthly[month]["sales_inc"] += float(j.total_inc or 0)
         monthly[month]["sales_ex"] += float(j.total_ex or 0)
         monthly[month]["gst"] += float(j.tax or 0)
+    for n in credits:
+        month = n.credit_date[:7]
+        if month not in monthly:
+            monthly[month] = _gst_month(month)
+        monthly[month]["credit_notes"] += 1
+        monthly[month]["sales_inc"] -= float(n.total_inc or 0)
+        monthly[month]["sales_ex"] -= float(n.total_ex or 0)
+        monthly[month]["gst"] -= float(n.tax or 0)
 
     rows = sorted(monthly.values(), key=lambda x: x["month"])
     for r in rows:
@@ -136,10 +145,24 @@ def gst_report(
             "G1_total_sales_ex_gst": round(total_sales_ex, 2),
             "1A_gst_collected": round(gst_collected, 2),
             "invoice_count": invoice_count,
+            "credit_note_count": len(credits),
+            "credited_inc_gst": round(credited_inc, 2),
+            "credited_gst": round(credited_gst, 2),
         },
         "monthly_breakdown": rows,
         "date_from": date_from,
         "date_to": date_to,
+    }
+
+
+def _gst_month(month: str) -> dict:
+    return {
+        "month": month,
+        "invoices": 0,
+        "credit_notes": 0,
+        "sales_inc": 0.0,
+        "sales_ex": 0.0,
+        "gst": 0.0,
     }
 
 
@@ -191,7 +214,8 @@ def aged_receivables(
     Buckets: current (not yet due), then 1-30, 31-60, 61-90 and over 90 days
     overdue. Each customer row and each of its lines carries all five.
     """
-    as_at_date = date.fromisoformat(as_at) if as_at else date.today()
+    # The shop's today: a credit note dated in Sydney's morning is not left out.
+    as_at_date = date.fromisoformat(as_at) if as_at else shop_day.today()
     query = db.query(Job).filter(Job.status.in_(["INVOICE", "PAID"]))
     if not as_at:
         query = query.filter(Job.balance_due > 0)
@@ -204,6 +228,13 @@ def aged_receivables(
         .group_by(JobPayment.job_id)
         .all()
     )
+    # And credit applied after it, likewise.
+    for job_id, amount in (
+        db.query(CreditNoteApplication.job_id, func.sum(CreditNoteApplication.amount))
+        .filter(CreditNoteApplication.applied_on > as_at_date.isoformat())
+        .group_by(CreditNoteApplication.job_id)
+    ):
+        paid_after[job_id] = float(paid_after.get(job_id) or 0) + float(amount or 0)
     settings = db.query(CompanySettings).first()
     default_terms = settings.payment_terms_default if settings else None
     customer_ids = {j.customer_id for j in jobs}
@@ -259,6 +290,8 @@ def aged_receivables(
             }
         )
 
+    _credit_on_account(db, by_customer, as_at_date)
+
     rows = sorted(by_customer.values(), key=lambda x: -x["total"])
     for r in rows:
         for k in (*AGING_BUCKETS, "total"):
@@ -268,6 +301,54 @@ def aged_receivables(
 
     totals = {k: round(sum(r[k] for r in rows), 2) for k in (*AGING_BUCKETS, "total")}
     return {"rows": rows, "totals": totals, "as_at": str(as_at_date)}
+
+
+def _credit_on_account(db: Session, by_customer: dict, as_at: date) -> None:
+    """Credit notes not yet used on an invoice, as at the day: a credit line in
+    `current` on the customer's row, taking it down by what they are owed."""
+    day = as_at.isoformat()
+    notes = (
+        db.query(CustomerCreditNote)
+        .options(selectinload(CustomerCreditNote.applications))
+        .filter(CustomerCreditNote.credit_date <= day)
+        .all()
+    )
+    names = {}
+    for note in notes:
+        used = sum(
+            float(a.amount or 0) for a in note.applications if a.applied_on <= day
+        )
+        left = round(float(note.total_inc or 0) - used, 2)
+        if left <= 0:
+            continue
+        cid = note.customer_id
+        if cid not in by_customer:
+            if not names:
+                names = dict(db.query(Customer.id, Customer.name).all())
+            by_customer[cid] = {
+                "customer_id": cid,
+                "customer_name": names.get(cid) or cid,
+                **{bucket: 0.0 for bucket in AGING_BUCKETS},
+                "total": 0.0,
+                "oldest_due": None,
+                "lines": [],
+            }
+        row = by_customer[cid]
+        row["total"] -= left
+        row["current"] -= left
+        row["lines"].append(
+            {
+                "job_id": note.job_id,
+                "invoice": note.id,
+                "credit_note": note.id,
+                "invoice_date": note.credit_date,
+                "due_date": note.credit_date,
+                "days_overdue": 0,
+                "total_inc": -float(note.total_inc or 0),
+                "balance_due": -left,
+                **{b: (-left if b == "current" else 0.0) for b in AGING_BUCKETS},
+            }
+        )
 
 
 @router.get("/aged-payables")
@@ -471,12 +552,7 @@ def customer_statement(
     jobs = q.order_by(Job.invoice_date, Job.date_in).all()
 
     lines = []
-    running_balance = 0.0
     for j in jobs:
-        total_inc = float(j.total_inc or 0)
-        paid = float(j.deposit or 0)
-        balance = float(j.balance_due or 0)
-        running_balance += total_inc - paid
         lines.append(
             {
                 "job_id": j.id,
@@ -484,15 +560,26 @@ def customer_statement(
                 "date": j.invoice_date or j.date_in,
                 "due": j.due,
                 "description": j.description or j.customer_name or "",
-                "total_inc": round(total_inc, 2),
-                "paid": round(paid, 2),
-                "balance": round(balance, 2),
+                "total_inc": round(float(j.total_inc or 0), 2),
+                "paid": round(float(j.deposit or 0), 2),
+                # Credit notes applied to it: amount less paid less credited
+                # is its balance.
+                "credited": round(float(j.credited or 0), 2),
+                "balance": round(float(j.balance_due or 0), 2),
                 "status": j.status,
             }
         )
+    # Each credit note as a credit; what is left of it is credit on account.
+    credits = [
+        credit_notes.statement_line(n)
+        for n in credit_notes.in_period(db, date_from, date_to, customer_id)
+    ]
+    lines = sorted(lines + credits, key=lambda line: line["date"] or "")
 
-    total_invoiced = sum(l["total_inc"] for l in lines)
-    total_paid = sum(l["paid"] for l in lines)
+    invoices = [l for l in lines if l["status"] != "CREDIT"]
+    total_invoiced = sum(l["total_inc"] for l in invoices)
+    total_paid = sum(l["paid"] for l in invoices)
+    total_credited = -sum(l["total_inc"] for l in credits)
     total_outstanding = sum(l["balance"] for l in lines)
 
     return {
@@ -508,6 +595,7 @@ def customer_statement(
         "totals": {
             "invoiced": round(total_invoiced, 2),
             "paid": round(total_paid, 2),
+            "credited": round(total_credited, 2),
             "outstanding": round(total_outstanding, 2),
         },
         "as_at": str(date.today()),
@@ -869,8 +957,12 @@ def bas_summary(
         .all()
     )
 
-    G1 = round(sum(float(j.total_inc or 0) for j in jobs), 2)
-    one_A = round(sum(float(j.tax or 0) for j in jobs), 2)
+    # Less the credit notes dated in the period, as the ledger's BAS takes them.
+    credits = credit_notes.in_period(db, date_from, date_to)
+    credited_inc = round(sum(float(n.total_inc or 0) for n in credits), 2)
+    credited_gst = round(sum(float(n.tax or 0) for n in credits), 2)
+    G1 = round(sum(float(j.total_inc or 0) for j in jobs) - credited_inc, 2)
+    one_A = round(sum(float(j.tax or 0) for j in jobs) - credited_gst, 2)
 
     # Invoiced jobs with no invoice date cannot be placed in any period, so the
     # figures above leave them out. That used to happen in silence; it is
@@ -901,6 +993,11 @@ def bas_summary(
         "1A": one_A,
         "1B": one_B,
         "period": {"date_from": date_from, "date_to": date_to},
+        "credit_notes": {
+            "count": len(credits),
+            "total_inc": credited_inc,
+            "gst": credited_gst,
+        },
         "undated_invoices": {
             "count": len(undated),
             "sales_inc_gst": round(sum(float(j.total_inc or 0) for j in undated), 2),

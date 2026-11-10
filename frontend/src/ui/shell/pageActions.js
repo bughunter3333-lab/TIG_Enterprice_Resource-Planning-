@@ -35,6 +35,7 @@ export const MODULE_TITLES = {
   scheduling: 'Scheduling',
   production: 'Production',
   picking: 'Picking',
+  returns: 'Returns',
   styles: 'Styles',
   email: 'Email',
   analytics: 'Analytics',

@@ -62,6 +62,10 @@ def _oldest_first(db: Session, customer_id: str, amount) -> list:
             Job.balance_due > 0,
         )
         .order_by(Job.invoice_date.asc().nullslast(), Job.id.asc())
+        # Locked as read: a payment or credit applied at the same moment
+        # waits, rather than both settling the same balance (credit notes).
+        .with_for_update()
+        .populate_existing()
         .all()
     )
     owed = sum((money(j.balance_due) for j in owing), ZERO)
@@ -101,8 +105,15 @@ def _as_given(db: Session, customer_id: str, amount, allocations: list) -> list:
             allocation.amount
         )
     plan = []
-    for job_id, share in shares.items():
-        job = db.get(Job, job_id)
+    # In one order, locked as read (see `_oldest_first`).
+    for job_id, share in sorted(shares.items()):
+        job = (
+            db.query(Job)
+            .filter(Job.id == job_id)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
         if job is None or job.customer_id != customer_id:
             raise HTTPException(
                 status_code=422,

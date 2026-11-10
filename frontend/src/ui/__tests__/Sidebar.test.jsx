@@ -31,7 +31,7 @@ const access = ({ unreadable = [] } = {}) => ({
 // Import are in areas this table does not list, so they stay (see below).
 const ALL = [
   'Home', 'Jobs', 'Quotes', 'Production', 'Picking', 'Scheduling',
-  'Purchases', 'Order requirements', 'Suppliers', 'Stock', 'Styles',
+  'Purchases', 'Order requirements', 'Suppliers', 'Stock', 'Returns', 'Styles',
   'Customers', 'Card Files', 'Email',
   'Accounts', 'Reports', 'Analytics',
   'Import',
@@ -81,7 +81,7 @@ describe('which modules a role sees', () => {
     open();
     await screen.findByText('Reports');
     expect(items()).toEqual([
-      'Home', 'Jobs', 'Quotes', 'Production', 'Picking', 'Scheduling', 'Stock', 'Styles',
+      'Home', 'Jobs', 'Quotes', 'Production', 'Picking', 'Scheduling', 'Stock', 'Returns', 'Styles',
       'Customers', 'Card Files', 'Email', 'Reports', 'Analytics', 'Import',
     ]);
   });

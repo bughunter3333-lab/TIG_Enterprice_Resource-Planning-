@@ -11,15 +11,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.core.branches import DEFAULT_BRANCH
 from app.core.dependencies import require_staff
 from app.core.reservations import COMMITTED_STATUSES, FINISHED_STATUSES
 from app.database import get_db
 from app.models.job import Job, JobItem
 from app.models.user import User
 from app.routers.jobs import (
+    _cap_supply_at_free,
+    _check_credit_limit,
     _is_stock_line,
     _post_reservation,
+    _recalculate_weight,
     _require_mutable,
+    _reserved_by_sku,
+    _settle_money,
     _system_comment,
     _total_from_lines,
 )
@@ -86,11 +92,17 @@ def _lines_to_move(job: Job, asked: set[int]) -> list[JobItem]:
         item = by_id[item_id]
         target = item.applies_to_item_id
         if target is not None and target not in moving:
+            # An older row may point at a line on another job (before F19).
+            where = (
+                f"line {numbers[target]}, which stays"
+                if target in numbers
+                else "a line that is not on this job"
+            )
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    f"Line {numbers[item_id]} applies to line {numbers[target]}, which "
-                    "stays — move the garment and its decoration goes with it."
+                    f"Line {numbers[item_id]} applies to {where} — move the garment "
+                    "and its decoration goes with it."
                 ),
             )
         if item.po_no and (item.b_ord or 0) > 0:
@@ -148,14 +160,15 @@ def move_lines(
     held = _reserved(moving)
 
     # Released where it was held, reserved where it goes, each at its own
-    # branch — posted only when the reservation actually changes hands.
+    # branch — posted only when the reservation actually changes hands. A
+    # blank branch is HQ, as `post_movement` reads it.
     source_holds = source.status in COMMITTED_STATUSES
     target_holds = target.status in COMMITTED_STATUSES
-    same_place = (source.branch or None) == (target.branch or None)
-    if source_holds and not (target_holds and same_place):
+    same_place = (source.branch or DEFAULT_BRANCH) == (target.branch or DEFAULT_BRANCH)
+    handed_over = source_holds and target_holds and same_place
+    if source_holds and not handed_over:
         _post_reservation(source, db, {sku: -qty for sku, qty in held.items()})
-    if target_holds and not (source_holds and same_place):
-        _post_reservation(target, db, held)
+    target_before = _reserved_by_sku(target) if target_holds else None
 
     last = max((item.sort or 0 for item in target.items), default=-1)
     for n, item in enumerate(moving, 1):
@@ -163,11 +176,37 @@ def move_lines(
         item.sort = last + n
         target.items.append(item)
     db.flush()
+    if target_holds and not handed_over:
+        # Lines arriving with a quote's supply hold only what is free to the
+        # order now — the rest back-ordered, as a save or a confirmation would
+        # split them (S2-03); then reserved. Lines an order already held (from
+        # another branch) keep what they hold: they were counted, and may be
+        # picked already.
+        allowed = dict(target_before)
+        if source_holds:
+            for sku, qty in held.items():
+                allowed[sku] = allowed.get(sku, 0) + qty
+        _cap_supply_at_free(target, db, allowed)
+        now_held = _reserved_by_sku(target)
+        _post_reservation(
+            target,
+            db,
+            {
+                sku: now_held.get(sku, 0) - target_before.get(sku, 0)
+                for sku in {*target_before, *now_held}
+            },
+        )
 
     now = datetime.now(timezone.utc)
     for job in (source, target):
         _total_from_lines(job, emptied=not job.items)
+        _settle_money(job)
+        _recalculate_weight(job, db)
         job.updated_at = now
+    if target_holds and not source_holds:
+        # An open order made bigger by lines no order held asks for more
+        # credit, as a save does (F27).
+        _check_credit_limit(target, db)
     to_numbers = [_numbers(target)[i.id] for i in moving]
     db.add(
         _system_comment(

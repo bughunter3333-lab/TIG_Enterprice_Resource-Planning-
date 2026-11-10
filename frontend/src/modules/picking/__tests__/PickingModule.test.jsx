@@ -95,3 +95,42 @@ test('a job number that is not one says so', async () => {
   scan('999');
   expect(await screen.findByText('No job 999.')).toBeInTheDocument();
 });
+
+test('a charge such as freight is not picked off a shelf, nor sent with the picks', async () => {
+  api.jobs.get.mockResolvedValue({ ...JOB, items: [...JOB.items, line(15, 'FREIGHT', 1, { isCharge: true })] });
+  const pick = vi.spyOn(api.jobs, 'pick').mockResolvedValue({ allPicked: false, job: JOB });
+  renderWithQuery(<PickingModule />);
+  scan('1218774');
+  const job = await screen.findByRole('region', { name: 'Picking job 1218774' });
+  expect(within(job).queryByText('FREIGHT')).not.toBeInTheDocument();
+  scan('CAP-BLK');
+  fireEvent.click(await screen.findByRole('button', { name: 'Save picks' }));
+  await waitFor(() => expect(pick).toHaveBeenCalled());
+  expect(pick.mock.calls[0][1].map((p) => p.item_id)).not.toContain(15);
+});
+
+test('marked picked, the lines stay on the screen', async () => {
+  vi.spyOn(api.jobs, 'pick').mockResolvedValue({ allPicked: true, job: JOB });
+  vi.spyOn(api.jobs, 'updateStatus').mockResolvedValue({ id: '1218774', status: 'Picked', items: [] });
+  renderWithQuery(<PickingModule />);
+  scan('1218774');
+  await screen.findByRole('region', { name: 'Picking job 1218774' });
+  scan('9312345000017');
+  scan('9312345000017');
+  scan('CAP-BLK');
+  fireEvent.click(await screen.findByRole('button', { name: 'Save and mark picked' }));
+  const job = await screen.findByRole('region', { name: 'Picking job 1218774' });
+  await waitFor(() => expect(within(job).getAllByText('POLO-NAV-M').length).toBeGreaterThan(0));
+  expect(within(job).queryByText('Nothing on this job is picked off a shelf.')).not.toBeInTheDocument();
+});
+
+test("a scanner's typing after a tap on + goes to the scan field, not the button", async () => {
+  renderWithQuery(<PickingModule />);
+  scan('1218774');
+  await screen.findByRole('region', { name: 'Picking job 1218774' });
+  const more = screen.getByRole('button', { name: 'One more CAP-BLK' });
+  more.focus();
+  fireEvent.click(more);
+  fireEvent.keyDown(more, { key: '9' });
+  expect(document.activeElement).toBe(screen.getByRole('textbox'));
+});

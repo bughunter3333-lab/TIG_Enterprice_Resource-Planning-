@@ -30,6 +30,7 @@ ON_HAND_MOVEMENT_TYPES = frozenset(
         "Stocktake",
         "Transfer In",
         "Transfer Out",
+        "Return",
     }
 )
 

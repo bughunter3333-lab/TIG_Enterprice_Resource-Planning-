@@ -238,3 +238,108 @@ class TestWhatDoesNotMove:
         a, b = _make(client, db), _make(client, db)
         floor = client_as("overseas_staff")
         assert _move(floor, a["id"], _item_ids(a, "MV-CAP"), b["id"]).status_code == 403
+
+
+class TestWhatTheReviewFound:
+    """Review of 2026-11-09: a move is held to what a save or a confirmation is."""
+
+    def test_from_a_quote_an_order_holds_only_what_is_free(self, client, db):
+        _setup(db)
+        db.query(InventoryItem).filter_by(sku="MV-TEE").one().stock = 10
+        db.commit()
+        quote = _make(
+            client,
+            db,
+            status="QUOTE",
+            lines=[
+                {"sort": 0, "stock_code": "MV-TEE", "order_qty": 10, "price_ex": 10}
+            ],
+        )
+        taken = _make(
+            client,
+            db,
+            lines=[
+                {"sort": 0, "stock_code": "MV-TEE", "order_qty": 10, "price_ex": 10}
+            ],
+        )
+        order = _make(
+            client,
+            db,
+            lines=[{"sort": 0, "stock_code": "MV-CAP", "order_qty": 1, "price_ex": 8}],
+        )
+        assert taken["items"][0]["supply_qty"] == 10
+        r = _move(client, quote["id"], _item_ids(quote, "MV-TEE"), order["id"])
+        assert r.status_code == 200, r.text
+        moved = next(
+            i
+            for i in client.get(f"/jobs/{order['id']}").json()["items"]
+            if i["stock_code"] == "MV-TEE"
+        )
+        assert (moved["supply_qty"], moved["b_ord"]) == (0, 10)
+        assert _committed(db, "MV-TEE") == 10
+
+    def test_both_jobs_owe_their_new_totals(self, client, db):
+        a, b = _make(client, db), _make(client, db)
+        _move(client, a["id"], _item_ids(a, "MV-CAP"), b["id"])
+        db.expire_all()
+        for job_id in (a["id"], b["id"]):
+            job = db.get(Job, job_id)
+            assert float(job.balance_due) == float(job.total_inc) - float(
+                job.deposit or 0
+            )
+
+    def test_an_order_on_credit_hold_takes_no_lines_from_a_quote(self, client, db):
+        quote = _make(client, db, status="QUOTE")
+        order = _make(client, db)
+        db.get(Customer, "MV-C").credit_hold = True
+        db.commit()
+        r = _move(client, quote["id"], _item_ids(quote, "MV-TEE"), order["id"])
+        assert r.status_code == 422
+        assert "credit hold" in r.json()["detail"]
+
+    def test_a_blank_branch_is_hq_so_nothing_changes_hands(self, client, db):
+        from app.models.inventory import StockMovement
+
+        a, b = _make(client, db), _make(client, db)
+        client.patch(f"/jobs/{a['id']}", json={"branch": None})
+        client.patch(f"/jobs/{b['id']}", json={"branch": "HQ"})
+        before = db.query(StockMovement).count()
+        _move(client, a["id"], _item_ids(a, "MV-CAP"), b["id"])
+        assert db.query(StockMovement).count() == before
+
+    def test_a_line_applying_to_another_jobs_line_is_refused_not_a_crash(
+        self, client, db
+    ):
+        a, b = _make(client, db), _make(client, db)
+        alteration = db.get(JobItem, _item_ids(a, "MV-CAP")[0])
+        alteration.applies_to_item_id = _item_ids(b, "MV-TEE")[0]
+        db.commit()
+        r = _move(client, a["id"], [alteration.id], b["id"])
+        assert r.status_code == 422
+        assert "not on this job" in r.json()["detail"]
+
+    def test_lines_an_order_held_keep_it_when_they_move(self, client, db):
+        _setup(db)
+        db.query(InventoryItem).filter_by(sku="MV-TEE").one().stock = 20
+        db.commit()
+        tee = [{"sort": 0, "stock_code": "MV-TEE", "order_qty": 10, "price_ex": 10}]
+        _make(client, db, lines=tee)  # another order holds 10
+        source = _make(client, db, lines=tee)
+        client.patch(f"/jobs/{source['id']}", json={"branch": "MELB"})
+        target = _make(
+            client,
+            db,
+            lines=[{"sort": 0, "stock_code": "MV-CAP", "order_qty": 1, "price_ex": 8}],
+        )
+        # A count finds only 10: the two orders now hold more than there is.
+        db.query(InventoryItem).filter_by(sku="MV-TEE").one().stock = 10
+        db.commit()
+        r = _move(client, source["id"], _item_ids(source, "MV-TEE"), target["id"])
+        assert r.status_code == 200, r.text
+        moved = next(
+            i
+            for i in client.get(f"/jobs/{target['id']}").json()["items"]
+            if i["stock_code"] == "MV-TEE"
+        )
+        # Held already, and maybe picked: not cut by the move.
+        assert (moved["supply_qty"], moved["b_ord"]) == (10, 0)

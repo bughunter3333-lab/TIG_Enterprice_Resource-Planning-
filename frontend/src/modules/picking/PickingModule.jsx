@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, Minus, Plus } from 'lucide-react';
 import { inventory as inventoryApi, jobs as jobsApi } from '../../api';
@@ -41,6 +41,22 @@ export default function PickingModule() {
   const stock = useMemo(() => bySku(stockList), [stockList]);
 
   const lines = useMemo(() => (job ? walkOrder(pickableLines(job), stock) : []), [job, stock]);
+
+  // A hardware scanner types like a keyboard into whatever has focus. After a
+  // tap on + or −, or a save, that is a button or nothing — and the scan's
+  // Enter pressed the button again. Typing outside a field goes to the scan
+  // field instead; the field is not focused after each tap, which on a phone
+  // would bring the keyboard up every time.
+  useEffect(() => {
+    const toScanField = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+      scanField.current?.focus();
+    };
+    document.addEventListener('keydown', toScanField, true);
+    return () => document.removeEventListener('keydown', toScanField, true);
+  }, []);
   const pickedOf = useCallback((line) => (draft[line.id] !== undefined ? draft[line.id] : (line.qtyPick || 0)), [draft]);
   const setPicked = (line, qty) => setDraft((d) => ({ ...d, [line.id]: Math.max(0, Math.min(pickTarget(line), qty)) }));
   const dirty = lines.some((l) => draft[l.id] !== undefined && draft[l.id] !== (l.qtyPick || 0));
@@ -86,16 +102,22 @@ export default function PickingModule() {
 
   const save = async (thenMove) => {
     setBusy(true);
+    let saved = null;
     try {
       const picks = lines.map((l) => ({ item_id: l.id, qty_pick: pickedOf(l) }));
-      let { job: saved } = await jobsApi.pick(job.id, picks);
-      if (thenMove) saved = await jobsApi.updateStatus(job.id, thenMove);
+      ({ job: saved } = await jobsApi.pick(job.id, picks));
       setJob(saved);
       setDraft({});
+      if (thenMove) {
+        // The status answer carries the job without its lines: keep the
+        // lines the picks came back with.
+        const moved = await jobsApi.updateStatus(job.id, thenMove);
+        setJob({ ...saved, ...moved, items: saved.items });
+      }
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       notify(thenMove ? `Job ${job.id} is ${statusLabel(thenMove)}.` : 'Picks saved.', { type: 'success' });
     } catch (e) {
-      notify(e.message, { type: 'error' });
+      notify(saved && thenMove ? `Picks saved; could not mark it ${statusLabel(thenMove)}: ${e.message}` : e.message, { type: 'error' });
     } finally {
       setBusy(false);
     }

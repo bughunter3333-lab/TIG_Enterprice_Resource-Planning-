@@ -306,3 +306,12 @@ class TestIntakeWritesTheTrail:
         r = client.post(f"/jobs/{job_id}/comments", json={"comment": "Rang the site"})
         assert r.json()["comment"]["comment"] == "Rang the site"
         assert r.json()["comment"]["initials"]
+
+
+@pytest.mark.integration
+def test_the_store_is_never_shown_the_staffs_watchout(portal, db):
+    db.get(Customer, "CFG").watchout = "Slow payer - COD only"
+    db.commit()
+    r = portal.post("/jobs", json=_order())
+    assert r.status_code == 200, r.text
+    assert "customer_watchout" not in r.json()

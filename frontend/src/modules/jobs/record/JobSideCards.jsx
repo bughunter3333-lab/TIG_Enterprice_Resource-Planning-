@@ -77,12 +77,14 @@ function Row({ label, value, strong, tone }) {
   );
 }
 
-/** The job's money, once: what it comes to, what is paid, what is owed. */
+/** The job's money, once: what it comes to, what is paid, what is credited, what is owed. */
 export function JobMoneyCard({ job, onRecordPayment }) {
   const total = Number(job.totalInc || job.total) || 0;
   const balance = Number(job.balanceDue) || 0;
-  const paid = Math.max(0, total - balance);
-  const pct = total > 0 ? Math.max(0, Math.min(100, (paid / total) * 100)) : 0;
+  // Credit notes applied settle the invoice but are not money received.
+  const credited = Number(job.credited) || 0;
+  const paid = Math.max(0, total - balance - credited);
+  const pct = total > 0 ? Math.max(0, Math.min(100, ((paid + credited) / total) * 100)) : 0;
   return (
     <Card
       title="Money"
@@ -92,6 +94,7 @@ export function JobMoneyCard({ job, onRecordPayment }) {
       <Row label="GST" value={money(job.tax)} />
       <Row label="Total (inc GST)" value={money(total)} strong />
       <Row label="Paid" value={money(paid)} tone={paid > 0 ? T.ok : T.textMuted} />
+      {credited > 0 && <Row label="Credited" value={money(credited)} tone={T.ok} />}
       <Row label="Balance" value={money(balance)} tone={balance > 0 ? T.danger : T.ok} />
       {total > 0 && (
         <div style={{ marginTop: 8 }}>
@@ -99,7 +102,7 @@ export function JobMoneyCard({ job, onRecordPayment }) {
             style={{ height: 6, borderRadius: 3, background: T.hairlineSoft, overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: T.ok, borderRadius: 3, transition: `width ${T.spring}` }} />
           </div>
-          <div style={{ fontSize: 11, color: T.textFaint, textAlign: 'right', marginTop: 3 }}>{pct.toFixed(0)}% paid</div>
+          <div style={{ fontSize: 11, color: T.textFaint, textAlign: 'right', marginTop: 3 }}>{pct.toFixed(0)}% {credited > 0 ? 'settled' : 'paid'}</div>
         </div>
       )}
       {balance > 0 && onRecordPayment && (

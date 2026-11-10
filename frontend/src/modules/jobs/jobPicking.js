@@ -1,12 +1,13 @@
 /**
  * Which of a job's lines are picked off a shelf: goods only. A section or note
- * is layout, and a decoration or alteration line is work done to a garment —
- * the server refuses to record a pick against one (POST /jobs/{id}/pick, 422),
- * so sending it would fail the whole save.
+ * is layout, a decoration or alteration line is work done to a garment, and a
+ * charge (freight, a fee) is money — the server refuses to record a pick
+ * against any of them (POST /jobs/{id}/pick, 422), so sending one would fail
+ * the whole save.
  */
 export function pickableLines(job) {
   return (job?.items || []).filter(
-    (item) => (item.displayType || 'product') === 'product' && !item.isService,
+    (item) => (item.displayType || 'product') === 'product' && !item.isService && !item.isCharge,
   );
 }
 

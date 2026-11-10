@@ -16,10 +16,16 @@ export const cameraScanAvailable = () =>
  * The phone's camera as a scanner: no app to install, no library — the
  * browser's own barcode reader. Each code read is handed to `onCode`; the
  * camera stops the moment this closes.
+ *
+ * The camera starts once and runs until it closes. `onCode` changes with
+ * every pick counted, and restarting the camera on each one reset the
+ * same-code guard, so one garment held up was counted again and again.
  */
 export default function CameraScanner({ onCode, onClose }) {
   const video = useRef(null);
+  const latest = useRef(onCode);
   const [problem, setProblem] = useState(null);
+  useEffect(() => { latest.current = onCode; }, [onCode]);
 
   useEffect(() => {
     let stream;
@@ -28,10 +34,13 @@ export default function CameraScanner({ onCode, onClose }) {
     let stopped = false;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        if (stopped) return;
+        const got = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        // Closed while the browser asked: let go of the camera at once.
+        if (stopped) { got.getTracks().forEach((track) => track.stop()); return; }
+        stream = got;
         video.current.srcObject = stream;
         await video.current.play();
+        if (stopped) return; // the cleanup has stopped the tracks
         const detector = new window.BarcodeDetector({ formats: FORMATS });
         timer = setInterval(async () => {
           try {
@@ -41,10 +50,11 @@ export default function CameraScanner({ onCode, onClose }) {
             if (found.rawValue === last.code && now - last.at < SAME_CODE_MS) return;
             last = { code: found.rawValue, at: now };
             navigator.vibrate?.(60);
-            onCode(found.rawValue);
+            latest.current(found.rawValue);
           } catch { /* a frame it could not read; the next one may */ }
         }, LOOK_EVERY_MS);
       } catch (e) {
+        if (stopped) return;
         setProblem(e?.name === 'NotAllowedError'
           ? 'The camera was not allowed. Allow it in the browser, or use a scanner or type the code.'
           : 'The camera could not be started. Use a scanner or type the code.');
@@ -55,7 +65,7 @@ export default function CameraScanner({ onCode, onClose }) {
       clearInterval(timer);
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, [onCode]);
+  }, []);
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>

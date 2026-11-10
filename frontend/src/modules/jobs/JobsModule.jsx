@@ -44,6 +44,9 @@ const CHIP_DEFS = [
 export default function JobsModule({
   jobs, filters, onFilterChange, onClearFilters,
   viewMode, onViewModeChange, currentUser, onJobClick, lockedStatus,
+  // The allowance per status (lib/useStatusAllowances.js): a dependency of the
+  // lists, so "over time" is worked out again when it arrives or changes.
+  statusAllowances,
 }) {
   const effectiveFilters = useMemo(
     () => (lockedStatus ? { ...filters, status: lockedStatus } : filters),
@@ -62,7 +65,8 @@ export default function JobsModule({
     () => mergeJobs(jobs ?? [], term.length >= SERVER_SEARCH_MIN ? found : undefined),
     [jobs, found, term],
   );
-  const filtered = useMemo(() => filterJobs(pool, effectiveFilters, currentUser), [pool, effectiveFilters, currentUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- statusAllowances is read through jobMetrics
+  const filtered = useMemo(() => filterJobs(pool, effectiveFilters, currentUser), [pool, effectiveFilters, currentUser, statusAllowances]);
   const options = useMemo(() => buildFilterOptions(jobs ?? []), [jobs]);
 
   const chips = CHIP_DEFS

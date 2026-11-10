@@ -106,6 +106,10 @@ function normalizeJob(j) {
     total: totalInc,
     invoicePaid: parseFloat(j.deposit ?? j.invoicePaid ?? 0),
     balanceDue: parseFloat(j.balance_due ?? j.balanceDue ?? 0),
+    // Credit notes applied to the invoice: total less paid less this is owed.
+    credited: parseFloat(j.credited ?? 0),
+    // The day it was invoiced (server-owned): a credit note is never dated before it.
+    invoiceDate: j.invoice_date ?? j.invoiceDate ?? '',
     paymentMethod: j.payment_method ?? j.paymentMethod ?? 'Account',
     shippingAddress: j.shipping_address ?? j.shippingAddress ?? '',
     notes: j.notes,
@@ -182,6 +186,8 @@ function normalizeJobItem(i) {
     discount: parseFloat(i.discount ?? 0),
     priceEx: parseFloat(i.price_ex ?? i.priceEx ?? 0),
     priceInc: parseFloat(i.price_inc ?? i.priceInc ?? 0),
+    // Priced inc GST (the online store's shelf price): totals its inc price.
+    pricedInc: !!(i.priced_inc ?? i.pricedInc),
     total: parseFloat(i.total ?? 0),
     hide: i.hide ?? false,
     taxType: i.tax_type ?? i.taxType ?? '',
@@ -197,6 +203,9 @@ function normalizeJobItem(i) {
     logoProofStatus: i.logo_proof_status ?? i.logoProofStatus ?? null,
     appliesToItemId: i.applies_to_item_id ?? i.appliesToItemId ?? null,
     isService: (i.logo_id ?? i.logoId ?? null) != null || (i.applies_to_item_id ?? i.appliesToItemId ?? null) != null,
+    // A charge (freight, a set-up, a fee): a stock code kept for money, not
+    // goods (S2-05, backend JobItem.is_charge) — never picked or shipped.
+    isCharge: !!(i.is_charge ?? i.isCharge),
   };
 }
 
@@ -1603,6 +1612,38 @@ export const adminSettings = {
 };
 
 // ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
+
+// Customer credit notes and returns (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+// Managers and admins raise and apply; staff read and inspect; the returns list
+// carries no money. Bodies go as the server names them.
+export const creditNotes = {
+  forJob: (jobId) => request(`/jobs/${encodeURIComponent(jobId)}/credit-notes`),
+  // Lines of the invoice, or an amount inc GST — one or the other.
+  raise: (jobId, { lines, amount, reason, creditDate }) => request(`/jobs/${encodeURIComponent(jobId)}/credit-notes`, {
+    method: 'POST',
+    body: {
+      ...(lines ? { lines: lines.map((l) => ({ item_id: l.itemId, qty: l.qty, goods_back: !!l.goodsBack })) } : {}),
+      ...(amount != null ? { amount } : {}),
+      reason,
+      ...(creditDate ? { credit_date: creditDate } : {}),
+    },
+  }),
+  list: ({ customerId, withCredit } = {}) => {
+    const q = new URLSearchParams();
+    if (customerId) q.set('customer_id', customerId);
+    if (withCredit) q.set('with_credit', 'true');
+    const query = q.toString();
+    return request(`/credit-notes${query ? `?${query}` : ''}`);
+  },
+  apply: (noteId, jobId, amount) => request(`/credit-notes/${encodeURIComponent(noteId)}/apply`, {
+    method: 'POST', body: { job_id: jobId, amount },
+  }),
+  inspect: (noteId, lineId, outcome) => request(`/credit-notes/${encodeURIComponent(noteId)}/lines/${lineId}/inspect`, {
+    method: 'POST', body: { outcome },
+  }),
+  returns: (status = 'waiting') => request(`/returns?status=${encodeURIComponent(status)}`),
+  pdfUrl: (noteId) => `${BASE}/credit-notes/${encodeURIComponent(noteId)}/pdf`,
+};
 
 // How long a job may sit at each status, in working days; 0 is no limit
 // (docs/superpowers/specs/2026-11-09-status-times.md). Anyone reads; admins set.

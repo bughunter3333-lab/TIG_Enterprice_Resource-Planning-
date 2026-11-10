@@ -8,6 +8,8 @@ import StylesModule from './modules/StylesModule';
 import AnalyticsModule from './modules/AnalyticsModule';
 import ProductionModule from './modules/production/ProductionModule';
 import PickingModule from './modules/picking/PickingModule';
+import ReturnsModule from './modules/returns/ReturnsModule';
+import CreditNotesCard from './modules/credit-notes/CreditNotesCard';
 import { addStep, setPlace } from './lib/crashContext';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
@@ -152,7 +154,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // What the signed-in role may call — page actions offer only those.
   const offer = useOffer();
   // How long a job may sit at each status: every list and flag reads it.
-  useStatusAllowances();
+  const statusAllowances = useStatusAllowances();
   const { data: jobs = [], isLoading: jobsLoading, isPending: jobsPending, isError: jobsFailed } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany, staleTime: 300_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: inventory = [], isLoading: invLoading, isPending: invPending, isError: invFailed } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
@@ -1482,6 +1484,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
         {!showJobDetail && (
           <JobsModule
             jobs={jobs}
+            statusAllowances={statusAllowances}
             filters={{
               searchTerm,
               status: filterStatus,
@@ -1576,6 +1579,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   moveTargets={moveTargets(jobs, activeJob)}
                   onMoveLines={offer('POST', '/jobs/{job_id}/move-lines') ? moveJobLines : undefined}
                 />
+                <CreditNotesCard job={activeJob} onChanged={() => api.jobs.get(activeJob.id).then(updatePinnedJob).catch((e) => notify(`The credit note is raised; job ${activeJob.id} could not be reloaded: ${e.message}`, { type: 'warning' }))} />
                 <JobCommentsCard
                   job={activeJob}
                   onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)}
@@ -4159,6 +4163,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
                 {!loading && activeModule === 'production'         && <ProductionModule onOpenJob={openJobById} />}
                 {!loading && activeModule === 'picking'            && <PickingModule />}
+                {!loading && activeModule === 'returns'            && <ReturnsModule />}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}

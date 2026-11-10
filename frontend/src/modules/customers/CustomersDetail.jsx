@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Edit, Printer, Trash2, Users, X } from 'lucide-react';
 import CustomersModule from '../../modules/customers/CustomersModule';
-import { custOutstanding as outstandingOf, custRevenue as revenueOf, invoicedJobs } from './customerAggregates';
+import { custOutstanding as outstandingOf, custRevenue as revenueOf } from './customerAggregates';
 import { useOffer } from '../../lib/useMyAccess';
 import { reports } from '../../api';
 import LogosTab from './LogosTab';
 import SitesTab from './SitesTab';
 import RemittanceForm from './RemittanceForm';
+import CustomerCredit from './CustomerCredit';
+import CustomerStatement from './CustomerStatement';
 import StatusBadge from '../../ui/StatusBadge';
-import { statusLabel } from '../jobs/jobStatuses';
 
 const AGING_BUCKETS = [
   ['current', 'Current', 'green'],
@@ -175,6 +176,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
 
                 <div className="p-5">
                   {/* Overview Tab */}
+                  {custDetailTab === 'overview' && <div className="mb-4"><CustomerCredit customer={c} /></div>}
                   {custDetailTab === 'overview' && (
                     <div className="grid grid-cols-2 gap-6 text-sm">
                       <div className="space-y-3">
@@ -245,40 +247,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                           <button onClick={() => window.print()} className="text-xs bg-accent-strong text-white px-3 py-1.5 rounded hover:bg-accent-strong flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
                         </div>
                       </div>
-                      <table className="w-full text-xs border-collapse">
-                        <thead className="bg-panel-alt"><tr>
-                          <th className="text-left px-3 py-2 border-b">Date</th>
-                          <th className="text-left px-3 py-2 border-b">Job #</th>
-                          <th className="text-left px-3 py-2 border-b">Description</th>
-                          <th className="text-right px-3 py-2 border-b">Charges</th>
-                          <th className="text-right px-3 py-2 border-b">Payments</th>
-                          <th className="text-right px-3 py-2 border-b">Balance</th>
-                        </tr></thead>
-                        <tbody>
-                          {(() => {
-                            // Invoiced jobs only — a quote or an open order is not a charge.
-                            let running = 0;
-                            return [...invoicedJobs(c, jobs)].sort((a,b)=>a.dateIn?.localeCompare(b.dateIn||'')||0).map(j => {
-                              running += parseFloat(j.total||0);
-                              const paid = parseFloat(j.deposit||j.invoicePaid||0);
-                              running -= paid;
-                              return (
-                                <tr key={j.id} className="border-b hover:bg-panel-alt">
-                                  <td className="px-3 py-2 text-muted">{j.dateIn}</td>
-                                  <td className="px-3 py-2 font-mono font-bold text-accent-strong">#{j.id}</td>
-                                  <td className="px-3 py-2">{statusLabel(j.status)} {j.custRef?`· Ref: ${j.custRef}`:''}</td>
-                                  <td className="px-3 py-2 text-right">${(j.total||0).toFixed(2)}</td>
-                                  <td className="px-3 py-2 text-right text-ok">{paid > 0 ? `-$${paid.toFixed(2)}` : '—'}</td>
-                                  <td className={`px-3 py-2 text-right font-semibold ${running>0?'text-danger':'text-ok'}`}>${running.toFixed(2)}</td>
-                                </tr>
-                              );
-                            });
-                          })()}
-                        </tbody>
-                        <tfoot>
-                          <tr className="bg-hairline-soft font-bold border-t-2"><td colSpan={3} className="px-3 py-2">Total Outstanding</td><td className="px-3 py-2 text-right">${invoicedJobs(c, jobs).reduce((s, j) => s + parseFloat(j.total || 0), 0).toFixed(2)}</td><td className="px-3 py-2 text-right text-ok">-${invoicedJobs(c, jobs).reduce((s, j) => s + parseFloat(j.deposit || j.invoicePaid || 0), 0).toFixed(2)}</td><td className={`px-3 py-2 text-right ${outstanding>0?'text-danger':'text-ok'}`}>${outstanding.toFixed(2)}</td></tr>
-                        </tfoot>
-                      </table>
+                      <CustomerStatement customer={c} />
                     </div>
                   )}
                 </div>

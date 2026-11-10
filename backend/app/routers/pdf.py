@@ -27,7 +27,7 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 from app.database import get_db
-from app.core import despatch_documents, payment_terms
+from app.core import credit_notes, despatch_documents, payment_terms
 from app.core.dependencies import require_any, require_staff
 from app.core.job_weight import order_weight, unweighed_lines
 from app.core.ledger_postings import INVOICED_STATUSES
@@ -966,7 +966,7 @@ def _build_statement(
                 "Invoice #",
                 "Description",
                 "Amount",
-                "Paid",
+                "Paid/Credit",
                 "Balance",
             ]
         ]
@@ -974,7 +974,8 @@ def _build_statement(
     running = 0.0
     for line in lines:
         amount = float(line.get("total_inc", 0))
-        paid = float(line.get("paid", 0))
+        # Settled by payments and by credit notes applied.
+        paid = float(line.get("paid", 0)) + float(line.get("credited", 0))
         balance = float(line.get("balance", 0))
         running += balance
         bal_style = right_bold if balance > 0 else right
@@ -1040,6 +1041,17 @@ def _build_statement(
             Paragraph("Total Paid:", right),
             Paragraph(f"${float(totals.get('paid', 0)):,.2f}", right),
         ],
+        *(
+            [
+                [
+                    "",
+                    Paragraph("Total Credited:", right),
+                    Paragraph(f"${float(totals['credited']):,.2f}", right),
+                ]
+            ]
+            if float(totals.get("credited") or 0)
+            else []
+        ),
         [
             "",
             Paragraph("<b>AMOUNT DUE:</b>", right_bold),
@@ -1144,14 +1156,24 @@ def customer_statement_pdf(
                 "description": j.description or "",
                 "total_inc": float(j.total_inc or 0),
                 "paid": float(j.deposit or 0),
+                "credited": float(j.credited or 0),
                 "balance": float(j.balance_due or 0),
                 "status": j.status,
             }
         )
+    # Each credit note as a credit; what is left of it is credit on account
+    # (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credits = [
+        credit_notes.statement_line(n)
+        for n in credit_notes.in_period(db, date_from, date_to, customer_id)
+    ]
+    invoices = lines
+    lines = sorted(lines + credits, key=lambda line: line["date"] or "")
 
     totals = {
-        "invoiced": round(sum(l["total_inc"] for l in lines), 2),
-        "paid": round(sum(l["paid"] for l in lines), 2),
+        "invoiced": round(sum(l["total_inc"] for l in invoices), 2),
+        "paid": round(sum(l["paid"] for l in invoices), 2),
+        "credited": round(-sum(l["total_inc"] for l in credits), 2),
         "outstanding": round(sum(l["balance"] for l in lines), 2),
     }
 

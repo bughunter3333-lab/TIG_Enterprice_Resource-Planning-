@@ -37,6 +37,8 @@ AREAS = {
     "open-freight": "Freight",
     "accounts_payable": "Accounts",
     "accounting": "Accounts",
+    "credit-notes": "Accounts",
+    "returns": "Stock",
     "reports": "Reports",
     "analytics": "Reports",
     "email": "Email",

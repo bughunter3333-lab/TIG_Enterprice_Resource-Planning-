@@ -1,6 +1,6 @@
 import {
   BarChart3, Boxes, CalendarDays, ClipboardList, Contact, Factory, FileText, Home, Landmark, ListChecks,
-  Mail, ScanLine, Shirt, ShoppingCart, TrendingUp, Truck, Upload, Users,
+  Mail, ScanLine, Shirt, ShoppingCart, TrendingUp, Truck, Undo2, Upload, Users,
 } from 'lucide-react';
 import { areaView } from '../../lib/access';
 
@@ -31,6 +31,8 @@ export const MODULE_GROUPS = [
       { id: 'order-requirements', label: 'Order requirements', icon: ListChecks, area: 'Purchasing' },
       { id: 'suppliers', label: 'Suppliers', icon: Truck, area: 'Purchasing' },
       { id: 'inventory', label: 'Stock', icon: Boxes, area: 'Stock' },
+      // Goods back on credit notes, waiting at RET (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+      { id: 'returns', label: 'Returns', icon: Undo2, area: 'Stock' },
       { id: 'styles', label: 'Styles', icon: Shirt, area: 'Stock' },
     ],
   },

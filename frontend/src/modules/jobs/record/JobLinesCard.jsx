@@ -60,6 +60,15 @@ export default function JobLinesCard({ job, onOpenPO, moveTargets = [], onMoveLi
   const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [moveError, setMoveError] = useState(null);
+  // Ticks belong to one job: switching to another pinned job starts clean,
+  // rather than offering to move job A's lines from job B.
+  const [tickedFor, setTickedFor] = useState(job.id);
+  if (tickedFor !== job.id) {
+    setTickedFor(job.id);
+    setTicked(new Set());
+    setMoving(false);
+    setMoveError(null);
+  }
   const cols = canMove ? 10 : 9;
   const tick = (id) => setTicked((was) => {
     const next = new Set(was);

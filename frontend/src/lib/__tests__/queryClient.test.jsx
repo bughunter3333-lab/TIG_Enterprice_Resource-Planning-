@@ -19,3 +19,27 @@ test('a query with no onError of its own fails quietly, as before', async () => 
   render(<QueryClientProvider client={createAppQueryClient()}><Loader /></QueryClientProvider>);
   await new Promise((r) => setTimeout(r, 20));
 });
+
+function Poller({ onError }) {
+  useQuery({ queryKey: ['will-fail'], queryFn: async () => { throw new Error('down'); }, retry: false, refetchInterval: 60_000, onError });
+  return null;
+}
+
+test('a poll that fails while its data is shown says nothing', async () => {
+  const onError = vi.fn();
+  const client = createAppQueryClient();
+  client.setQueryData(['will-fail'], ['the last jobs']);
+  render(<QueryClientProvider client={client}><Poller onError={onError} /></QueryClientProvider>);
+  await client.refetchQueries({ queryKey: ['will-fail'] });
+  await new Promise((r) => setTimeout(r, 20));
+  expect(onError).not.toHaveBeenCalled();
+});
+
+test('a refresh someone asked for says it failed, data shown or not', async () => {
+  const onError = vi.fn();
+  const client = createAppQueryClient();
+  client.setQueryData(['will-fail'], ['the last report']);
+  render(<QueryClientProvider client={client}><Loader onError={onError} /></QueryClientProvider>);
+  await client.refetchQueries({ queryKey: ['will-fail'] });
+  await waitFor(() => expect(onError).toHaveBeenCalled());
+});

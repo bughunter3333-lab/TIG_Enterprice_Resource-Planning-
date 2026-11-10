@@ -42,14 +42,21 @@ def allowances(db: Session) -> dict[str, int]:
             stored = json.loads(row.value)
         except ValueError:
             stored = {}  # an unreadable setting falls back, never breaks a screen
+    if not isinstance(stored, Mapping):
+        stored = {}  # valid JSON that is not a table (the generic settings PUT)
     return {
-        status: (
-            int(stored.get(status, days))
-            if isinstance(stored.get(status, days), int)
-            else days
-        )
+        status: (stored[status] if _a_day_count(stored.get(status)) else days)
         for status, days in DEFAULT_ALLOWANCES.items()
     }
+
+
+def _a_day_count(value) -> bool:
+    """A whole number of working days in range — bools are not numbers here."""
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value <= MAX_DAYS
+    )
 
 
 def save(db: Session, changes: Mapping[str, int]) -> dict[str, int]:
