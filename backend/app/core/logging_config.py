@@ -4,7 +4,6 @@ import sys
 from contextvars import ContextVar
 from datetime import datetime, timezone
 
-
 # ── Request-scoped context ────────────────────────────────────────────────────
 # Set by RequestIDMiddleware in main.py; read by _JSONFormatter below.
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
