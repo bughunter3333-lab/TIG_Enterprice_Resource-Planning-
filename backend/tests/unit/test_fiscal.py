@@ -8,7 +8,6 @@ Tests define the interface for core/fiscal.py (Phase 2a).
 import pytest
 from datetime import date
 
-
 # These imports will fail until Phase 2a creates the module.
 # That is intentional — tests drive the implementation.
 try:
