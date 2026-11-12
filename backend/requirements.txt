@@ -14,5 +14,5 @@ python-dotenv==1.2.3
 pydantic[email]==2.13.5
 pydantic-settings==2.15.0
 slowapi==0.1.9
-anthropic>=0.97.0
+anthropic>=2.6.0
 reportlab==5.0.1
