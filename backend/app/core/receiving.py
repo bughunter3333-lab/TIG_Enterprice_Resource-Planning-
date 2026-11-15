@@ -21,7 +21,7 @@ from app.core.stock_ledger import post_movement
 from app.models.inventory import InventoryItem
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
-from app.core import shop_day
+from app.core import row_locks, shop_day
 
 # The movement types that are goods arriving from a supplier: a goods receipt,
 # and the quick receive on a purchase order.
@@ -43,6 +43,36 @@ def lock_po(db: Session, po_id: str) -> Optional[PurchaseOrder]:
             PurchaseOrderItem.order_id == po_id
         ).populate_existing().all()
     return po
+
+
+def lock_for_receipt(
+    db: Session, skus: Iterable[Optional[str]], po: Optional[PurchaseOrder]
+) -> None:
+    """Lock the jobs a delivery may give its stock to, then that stock.
+
+    In the one order (app/core/row_locks.py): jobs before stock. A receipt
+    shelved the stock and then filled the jobs waiting for it, while a status
+    move on one of those jobs locks the job and then its stock — each waited
+    on the other. The jobs are the PO lines' own (bought for them) and every
+    open order back-ordered on these SKUs (`fill_back_orders` gives to those).
+    """
+    skus = sorted({sku for sku in skus if sku})
+    waiting = (
+        db.query(JobItem.job_id)
+        .join(Job, Job.id == JobItem.job_id)
+        .filter(
+            JobItem.stock_code.in_(skus),
+            JobItem.b_ord > 0,
+            Job.status.in_(list(COMMITTED_STATUSES)),
+        )
+        .distinct()
+        .all()
+        if skus
+        else []
+    )
+    po_jobs = [line.job_id for line in po.items] if po is not None else []
+    row_locks.lock_jobs(db, [*po_jobs, *(job_id for (job_id,) in waiting)])
+    row_locks.lock_stock(db, skus)
 
 
 def check_receivable(po: PurchaseOrder) -> None:

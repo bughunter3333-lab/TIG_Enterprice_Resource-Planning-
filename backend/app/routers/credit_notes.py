@@ -15,7 +15,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, selectinload
 
-from app.core import credit_notes, shop_day
+from app.core import credit_notes, invoice_numbers, row_locks, shop_day
 from app.core.credit_note_document import adjustment_note_pdf
 from app.core.branches import DEFAULT_BRANCH
 from app.core.dependencies import require_any, require_manager, require_staff
@@ -79,13 +79,7 @@ def _today() -> str:
 
 
 def _locked_job(db: Session, job_id: str) -> Job:
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .with_for_update()
-        .populate_existing()
-        .first()
-    )
+    job = row_locks.locked_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     return job
@@ -94,7 +88,7 @@ def _locked_job(db: Session, job_id: str) -> Job:
 def _note(db: Session, note_id: str, lock: bool = False) -> CustomerCreditNote:
     q = db.query(CustomerCreditNote).filter(CustomerCreditNote.id == note_id)
     if lock:
-        q = q.with_for_update().populate_existing()
+        q = q.with_for_update(key_share=True).populate_existing()
     note = q.first()
     if not note:
         raise HTTPException(status_code=404, detail=f"Credit note {note_id} not found")
@@ -197,6 +191,9 @@ def raise_credit_note(
     """Credit lines of an invoice, or an amount; applied to it up to what it
     owes, the rest on the customer's account. Plain goods coming back wait at
     RET for inspection."""
+    # The number sequence before the job (app/core/row_locks.py): raising the
+    # note issues its CN number.
+    invoice_numbers._lock_sequence(db)
     job = _locked_job(db, job_id)
     by = _who(user)
     note = credit_notes.raise_note(

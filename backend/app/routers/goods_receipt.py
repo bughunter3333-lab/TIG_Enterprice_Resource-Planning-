@@ -301,6 +301,7 @@ def accept_receipt(
     po = receiving.lock_po(db, gr.po_id) if gr.po_id else None
     if po is not None:
         receiving.check_receivable(po)
+    receiving.lock_for_receipt(db, [ln.sku for ln in received], po)
     reference = f"GR-{gr.id}" + (f" / {gr.po_id}" if gr.po_id else "")
     notes = f"Goods receipt from {gr.supplier_name or 'supplier'}"
     prefer_jobs: dict[str, list] = {}

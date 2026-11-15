@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -107,6 +109,39 @@ async def _invalid_request(
 
 
 app.add_exception_handler(RequestValidationError, _invalid_request)
+
+# Postgres stops one of two requests that waited on each other: a deadlock, a
+# serialization failure, a wait past lock_timeout. A job another request saved
+# first fails its version check. Nothing of it was saved, and the next attempt
+# meets nothing — a conflict to try again, not a server error and a crash
+# report. The lock order (app/core/row_locks.py) keeps the known paths from
+# meeting at all; this is for whatever still does.
+_TRY_AGAIN_PGCODES = frozenset({"40P01", "40001", "55P03"})
+
+
+async def _try_again(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, OperationalError):
+        if getattr(exc.orig, "pgcode", None) not in _TRY_AGAIN_PGCODES:
+            raise exc
+    logging.getLogger(__name__).warning(
+        "Two requests met on the same rows: %s %s: %s",
+        request.method,
+        request.url.path,
+        str(exc).splitlines()[0],
+    )
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": (
+                "Someone else changed the same records at the same moment, so "
+                "nothing was saved. Try again."
+            )
+        },
+    )
+
+
+app.add_exception_handler(OperationalError, _try_again)
+app.add_exception_handler(StaleDataError, _try_again)
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):

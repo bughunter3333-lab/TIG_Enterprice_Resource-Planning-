@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.core import row_locks
 from app.core.branches import DEFAULT_BRANCH
 from app.core.dependencies import require_staff
 from app.core.reservations import COMMITTED_STATUSES, FINISHED_STATUSES
@@ -44,13 +45,7 @@ class MoveLines(BaseModel):
 
 
 def _open_job(db: Session, job_id: str) -> Job:
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .with_for_update()
-        .populate_existing()
-        .first()
-    )
+    job = row_locks.locked_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     if job.status in _NOT_OPEN:
@@ -156,6 +151,10 @@ def move_lines(
             ),
         )
     moving = _lines_to_move(source, set(body.item_ids))
+    # The customer and the stock next, before either is written: the one
+    # order (app/core/row_locks.py) is jobs, customers, stock.
+    row_locks.lock_customers(db, [source.customer_id])
+    row_locks.lock_stock(db, [item.stock_code for item in moving])
     from_numbers = [_numbers(source)[i.id] for i in moving]
     held = _reserved(moving)
 

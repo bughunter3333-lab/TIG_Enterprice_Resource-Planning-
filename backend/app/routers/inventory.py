@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.stock_location import StockLocation
+from app.core import row_locks
 from app.core.bin_codes import box_code as _box_code
 from app.core.bin_codes import parse_box_code, same_bin as _same_bin, tidy
 from app.core.racking import box_problem, checked_bin, layout_for
@@ -126,7 +127,8 @@ class PutAway(BaseModel):
 class TransferRequest(BaseModel):
     from_sku: str
     to_sku: Optional[str] = None
-    quantity: int
+    # Units moved: a transfer of nothing, or of less than nothing, is not one.
+    quantity: int = Field(gt=0)
     from_location: Optional[str] = None
     to_location: Optional[str] = None
     # Branch is the stock-position axis (HQ/MELB/...). Kept separate from the
@@ -628,7 +630,8 @@ def _scrap_from_job(db: Session, sku: str, body: StockAdjust) -> str:
             status_code=422,
             detail="Only a write-off is made against a job — a negative adjustment",
         )
-    job = db.get(Job, body.job_id)
+    # Locked before its stock is written (app/core/row_locks.py).
+    job = row_locks.locked_job(db, body.job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job {body.job_id} not found")
     if job.status not in COMMITTED_STATUSES:
@@ -1392,6 +1395,9 @@ def transfer_stock(
     _: User = Depends(require_staff),
 ):
     """Move quantity from one SKU/location to another, creating movement records for both."""
+    # Both SKUs locked first, by SKU (app/core/row_locks.py): two transfers
+    # the opposite way between two codes otherwise crossed.
+    row_locks.lock_stock(db, [body.from_sku, body.to_sku])
     from_item = (
         db.query(InventoryItem).filter(InventoryItem.sku == body.from_sku).first()
     )
@@ -1501,6 +1507,10 @@ def stocktake(
     _: User = Depends(require_staff),
 ):
     """Reconcile physical counts against system stock, creating adjustment movements."""
+    # Every counted SKU locked first, by SKU (app/core/row_locks.py), so the
+    # variance is worked from the figure as it stands and the writes cannot
+    # cross another request's in the order the count was keyed.
+    row_locks.lock_stock(db, [entry.sku for entry in body.items])
     ref = body.reference or f"STKTK-{shop_day.wall_clock().strftime('%Y%m%d%H%M')}"
     now = shop_day.today().strftime("%d/%m/%Y")
     results = []

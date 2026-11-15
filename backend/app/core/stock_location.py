@@ -10,12 +10,22 @@ stay true. `location_summary` exposes the drift honestly rather than pretending
 legacy stock already has a home.
 """
 
+from sqlalchemy import case, func, insert, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.inventory import InventoryItem
 from app.models.stock_location import StockLocation
 
 DEFAULT_BRANCH = "HQ"
+
+QUANTITIES = ("qty_on_hand", "committed_qty", "on_po_qty", "backorder_qty")
+
+
+def floored(column, delta: int):
+    """`column + delta` in SQL, never below zero."""
+    value = func.coalesce(column, 0) + delta
+    return case((value < 0, 0), else_=value)
 
 
 def adjust_location(
@@ -33,26 +43,67 @@ def adjust_location(
     Quantities are floored at zero: a mis-sequenced movement should leave a
     position at nothing rather than going negative, which would then poison
     every downstream available/projected figure.
+
+    Applied in SQL — `qty = qty + delta` — never read, added to and written
+    back: two requests moving one position at once each wrote the figure it
+    had read, and one of the two movements was lost.
     """
     branch = branch or DEFAULT_BRANCH
-    row = db.query(StockLocation).filter_by(sku=sku, branch=branch).first()
-    if row is None:
-        row = StockLocation(
-            sku=sku,
-            branch=branch,
-            qty_on_hand=0,
-            committed_qty=0,
-            backorder_qty=0,
-            on_po_qty=0,
-        )
-        db.add(row)
-        db.flush()  # so repeated adjustments in one request hit the same row
-
-    row.qty_on_hand = max(0, (row.qty_on_hand or 0) + on_hand)
-    row.committed_qty = max(0, (row.committed_qty or 0) + committed)
-    row.on_po_qty = max(0, (row.on_po_qty or 0) + on_po)
-    row.backorder_qty = max(0, (row.backorder_qty or 0) + backorder)
+    # The item first, then its position — the order every request takes stock
+    # in (app/core/row_locks.py), whoever calls: a position written before its
+    # item crossed a movement that writes the item first.
+    db.query(InventoryItem.sku).filter(InventoryItem.sku == sku).with_for_update(
+        key_share=True
+    ).first()
+    deltas = dict(zip(QUANTITIES, (on_hand, committed, on_po, backorder), strict=True))
+    where = (StockLocation.sku == sku, StockLocation.branch == branch)
+    row = db.query(StockLocation).filter(*where).first()
+    if row is None and _new_position(db, sku, branch, deltas):
+        return db.query(StockLocation).filter(*where).one()
+    if row is None:  # another request made it first
+        row = db.query(StockLocation).filter(*where).one()
+    changed = {
+        name: floored(getattr(StockLocation, name), d)
+        for name, d in deltas.items()
+        if d
+    }
+    if not changed:
+        return row
+    if not _update(db, where, changed):
+        # Deleted by another request since it was read: made again with this
+        # movement in it, so the units still land at their branch rather than
+        # reading unlocated — or, made again meanwhile by yet another, updated.
+        db.expunge(row)
+        if not _new_position(db, sku, branch, deltas):
+            _update(db, where, changed)
+        return db.query(StockLocation).filter(*where).one()
+    db.expire(row, list(changed))
     return row
+
+
+def _update(db: Session, where: tuple, changed: dict) -> int:
+    """Apply the deltas in SQL; how many positions it changed (0 or 1)."""
+    return db.execute(
+        update(StockLocation)
+        .where(*where)
+        .values(**changed)
+        .execution_options(synchronize_session=False)
+    ).rowcount
+
+
+def _new_position(db: Session, sku: str, branch: str, deltas: dict) -> bool:
+    """Insert the position with these deltas as its figures; False if another
+    request inserted it first (it is then there to be updated)."""
+    try:
+        with db.begin_nested():
+            db.execute(
+                insert(StockLocation).values(
+                    sku=sku, branch=branch, **{n: max(0, d) for n, d in deltas.items()}
+                )
+            )
+    except IntegrityError:
+        return False
+    return True
 
 
 def position_qty(db: Session, sku: str, branch: str) -> int:

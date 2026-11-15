@@ -5,6 +5,7 @@
 - Check `docs/superpowers/plans/` and `docs/superpowers/specs/` before changing a module. The plans carry verified API shapes and line references — trust them rather than re-deriving.
 - Follow the shape of `frontend/src/modules/stock/` when building a module: `<Name>Module.jsx`, a list, a pure filters module, `__tests__/`.
 - Route stock changes through the shared paths. Anything that changes `InventoryItem.stock` must also call `adjust_location`; every `StockMovement` must be constructed with `location_branch` (the value is already in scope — it is what the adjacent `adjust_location` uses); and anything that changes a job's status must go through `_apply_status_transition`. Each has been forgotten on an individual path before, and each time it corrupted the ledger silently.
+- Take row locks in the one order (`app/core/row_locks.py`; spec `docs/superpowers/specs/2026-11-15-lock-order.md`): the number sequence, a document header, jobs by id, customers by id, stock by SKU — and change stock figures in SQL (`stock = stock + q`), never read-add-write. Two requests that lock in opposite orders deadlock; a figure read and written back loses the other's movement. SQLite ignores locks: check a new locking path with `tests/postgres` (`TEST_POSTGRES_URL`).
 - Run the validation gate below before reporting work as done.
 
 ## Never
@@ -132,6 +133,7 @@ Tests live in `backend/tests/`. All tests use SQLite in-memory — no PostgreSQL
 
 - `tests/unit/` — pure logic tests (ABN, fiscal year, model helpers)
 - `tests/integration/` — full HTTP round-trips via FastAPI `TestClient`
+- `tests/postgres/` — two requests at once on real Postgres (lost updates, deadlocks), run where `TEST_POSTGRES_URL` names a migrated database (CI's Migrations job); skipped elsewhere
 
 ## Australian compliance notes
 

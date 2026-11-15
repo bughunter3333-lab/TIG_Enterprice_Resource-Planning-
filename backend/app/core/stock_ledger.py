@@ -29,9 +29,10 @@ entails.
 
 from typing import Optional
 
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
-from app.core.stock_location import DEFAULT_BRANCH, adjust_location
+from app.core.stock_location import DEFAULT_BRANCH, adjust_location, floored
 from app.models.inventory import InventoryItem, StockMovement
 from app.core import shop_day
 
@@ -90,10 +91,12 @@ def post_movement(
 
     branch = branch or DEFAULT_BRANCH
 
+    changed = {}
     if quantity:
-        item.stock = (item.stock or 0) + quantity
+        changed["stock"] = func.coalesce(InventoryItem.stock, 0) + quantity
     if committed:
-        item.committed_qty = max(0, (item.committed_qty or 0) + committed)
+        changed["committed_qty"] = floored(InventoryItem.committed_qty, committed)
+    _apply(db, item, changed)
 
     adjust_location(db, sku, branch, on_hand=quantity, committed=committed)
 
@@ -111,6 +114,21 @@ def post_movement(
     )
     db.add(movement)
     return movement
+
+
+def _apply(db: Session, item: InventoryItem, changed: dict) -> None:
+    """Write the item's new figures in SQL — `stock = stock + q` — never as a
+    figure read and added to: two requests moving one SKU at once each wrote
+    back what it had read, and one movement went missing from the total."""
+    if not changed:
+        return
+    db.execute(
+        update(InventoryItem)
+        .where(InventoryItem.sku == item.sku)
+        .values(**changed)
+        .execution_options(synchronize_session=False)
+    )
+    db.expire(item, list(changed))
 
 
 def post_relocation(
@@ -135,8 +153,12 @@ def post_relocation(
     if item is None:
         return None
 
-    adjust_location(db, sku, from_branch, on_hand=-quantity)
-    adjust_location(db, sku, to_branch, on_hand=quantity)
+    # The two positions in branch order, as every request takes them
+    # (app/core/row_locks.py), so two moves the opposite way cannot cross. A
+    # move within one branch leaves its position as it is.
+    if quantity > 0 and from_branch != to_branch:
+        for branch, delta in sorted([(from_branch, -quantity), (to_branch, quantity)]):
+            adjust_location(db, sku, branch, on_hand=delta)
 
     movement = StockMovement(
         sku=sku,
@@ -171,13 +193,16 @@ def reverse_job_movements(
     movements = (
         db.query(StockMovement)
         .filter(StockMovement.job_id == job_id, StockMovement.type == movement_type)
+        .order_by(StockMovement.sku, StockMovement.id)  # by SKU: the lock order
         .all()
     )
     for movement in movements:
         item = db.query(InventoryItem).filter(InventoryItem.sku == movement.sku).first()
         if item is not None:
             quantity = -(movement.quantity or 0)
-            item.stock = (item.stock or 0) + quantity
+            _apply(
+                db, item, {"stock": func.coalesce(InventoryItem.stock, 0) + quantity}
+            )
             adjust_location(
                 db,
                 movement.sku,

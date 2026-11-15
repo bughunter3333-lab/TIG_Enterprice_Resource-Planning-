@@ -652,6 +652,10 @@ def receive_items(
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
     receiving.check_receivable(po)
+    wanted = {r.id for r in body.items}
+    receiving.lock_for_receipt(
+        db, [item.sku for item in po.items if item.id in wanted], po
+    )
 
     receive_map = {r.id: r.qty_received for r in body.items}
     today = shop_day.today().isoformat()

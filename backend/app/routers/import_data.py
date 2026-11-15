@@ -1124,9 +1124,14 @@ async def import_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_staff),
 ):
+    from app.core import invoice_numbers
+
     rows = parse_csv(await _read_csv_file(file))
     inserted = updated = skipped = 0
     errors: list[dict] = []
+    # The number sequence once, first: rows that invoice take it after their
+    # job otherwise (app/core/row_locks.py). An import is run on its own.
+    invoice_numbers._lock_sequence(db)
 
     for i, row in enumerate(rows, 1):
         raw_vals = list(row.values())

@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.core import row_locks
 from app.core.dependencies import require_staff
 from app.core.ledger import ZERO, money
 from app.core.ledger_postings import INVOICED_STATUSES
@@ -53,18 +54,27 @@ def _dollars(amount) -> str:
     return f"${amount:,.2f}"
 
 
+def _owing(db: Session, customer_id: str):
+    return db.query(Job).filter(
+        Job.customer_id == customer_id,
+        Job.status.in_(list(INVOICED_STATUSES)),
+        Job.balance_due > 0,
+    )
+
+
 def _oldest_first(db: Session, customer_id: str, amount) -> list:
+    # Locked before they are read for the plan: a payment or credit applied at
+    # the same moment waits, rather than both settling the same balance. By
+    # id, the order every request takes jobs in (app/core/row_locks.py) — in
+    # invoice-date order, the one this pays them in, an older invoice with a
+    # higher number was taken first here and last by a remittance allocated
+    # by hand, and the two deadlocked.
+    row_locks.lock_jobs(
+        db, [job_id for (job_id,) in _owing(db, customer_id).with_entities(Job.id)]
+    )
     owing = (
-        db.query(Job)
-        .filter(
-            Job.customer_id == customer_id,
-            Job.status.in_(list(INVOICED_STATUSES)),
-            Job.balance_due > 0,
-        )
+        _owing(db, customer_id)
         .order_by(Job.invoice_date.asc().nullslast(), Job.id.asc())
-        # Locked as read: a payment or credit applied at the same moment
-        # waits, rather than both settling the same balance (credit notes).
-        .with_for_update()
         .populate_existing()
         .all()
     )
@@ -107,13 +117,7 @@ def _as_given(db: Session, customer_id: str, amount, allocations: list) -> list:
     plan = []
     # In one order, locked as read (see `_oldest_first`).
     for job_id, share in sorted(shares.items()):
-        job = (
-            db.query(Job)
-            .filter(Job.id == job_id)
-            .with_for_update()
-            .populate_existing()
-            .first()
-        )
+        job = row_locks.locked_job(db, job_id)
         if job is None or job.customer_id != customer_id:
             raise HTTPException(
                 status_code=422,

@@ -17,6 +17,7 @@ from app.core import (
     job_weight,
     payment_terms,
     picking,
+    row_locks,
     shop_day,
 )
 from app.core.reservations import (
@@ -530,7 +531,7 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
     customer = (
         db.query(Customer)
         .filter(Customer.id == job.customer_id)
-        .with_for_update()
+        .with_for_update(key_share=True)
         .first()
     )
     if not customer:
@@ -807,7 +808,8 @@ def _deplete_on_hand(job: "Job", db: Session, day: str) -> None:
     )
     if already:
         return
-    for item in job.items:
+    # SKU by SKU in order, as every request takes stock (app/core/row_locks.py).
+    for item in sorted(job.items, key=lambda line: line.stock_code or ""):
         if not _is_stock_line(item):
             continue
         qty = item.supply_qty or 0  # only what was actually supplied from stock ships
@@ -1523,6 +1525,28 @@ def _on_hand_shortfalls(job: "Job", db: Session) -> dict:
     }
 
 
+def _locked_for_moves(
+    db: Session, job_ids: List[str], *, may_invoice: bool
+) -> dict[str, "Job"]:
+    """The jobs, read under their locks, with all a status move will lock.
+
+    In the one order (app/core/row_locks.py): the number sequence when a job
+    may be invoiced, the jobs, their customers, their stock. Taken before any
+    savepoint: a lock taken inside one that is rolled back is let go, and a
+    batch's jobs would each lock their customer and stock in the order the
+    jobs came — crossing another request's order.
+    """
+    if may_invoice:
+        invoice_numbers._lock_sequence(db)
+    row_locks.lock_jobs(db, job_ids)
+    jobs = (
+        db.query(Job).filter(Job.id.in_(list(set(job_ids)))).populate_existing().all()
+    )
+    row_locks.lock_customers(db, [job.customer_id for job in jobs])
+    row_locks.lock_stock(db, [item.stock_code for job in jobs for item in job.items])
+    return {job.id: job for job in jobs}
+
+
 def _apply_status_transition(
     job: "Job",
     new_status: str,
@@ -1561,14 +1585,22 @@ def _apply_status_transition(
     old_status = job.status
     if old_status == new_status:
         return
+    entering_depleted = (
+        old_status not in _DEPLETED_STATUSES and new_status in _DEPLETED_STATUSES
+    )
+    # Locked before the checks lock the customer and the moves write stock, in
+    # the one order (app/core/row_locks.py): the number sequence when a number
+    # is to be issued, then the job, then its customer. A caller that took
+    # them already (`_locked_for_moves`) takes them again for nothing.
+    if entering_depleted and not (job.invoice or "").strip():
+        invoice_numbers._lock_sequence(db)
+    row_locks.lock_jobs(db, [job.id])
+    row_locks.lock_customers(db, [job.customer_id])
 
     # Checked before anything is mutated. Raising after `job.status` has been
     # reassigned leaves the job holding a status the caller was refused, and
     # any later commit in the same session persists it.
     _check_status_change(job, new_status, db, by, ladder=ladder, credit=credit)
-    entering_depleted = (
-        old_status not in _DEPLETED_STATUSES and new_status in _DEPLETED_STATUSES
-    )
     shortfalls = _on_hand_shortfalls(job, db) if entering_depleted else {}
     if shortfalls and not allow_negative_stock:
         detail = ", ".join(
@@ -1787,12 +1819,14 @@ def _recalculate_customer_balance(customer_id: str, db: Session) -> None:
         return
     from sqlalchemy import func as sqlfunc
 
+    # Locked before it is summed: two writes for one customer at once — a
+    # payment on one invoice, a credit on another — each sum what the other
+    # committed, rather than the last to finish writing a balance missing the
+    # other. And before the flush, which writes the caller's stock: the
+    # customer comes after the jobs (the caller holds them) and before stock
+    # (app/core/row_locks.py).
+    row_locks.lock_customers(db, [customer_id])
     db.flush()
-    # Locked before it is summed, after the jobs the caller changed (the order
-    # every path takes): two writes for one customer at once — a payment on
-    # one invoice, a credit on another — each sum what the other committed,
-    # rather than the last to finish writing a balance missing the other.
-    db.query(Customer.id).filter(Customer.id == customer_id).with_for_update().first()
 
     total = (
         db.query(sqlfunc.coalesce(sqlfunc.sum(Job.balance_due), 0))
@@ -1864,7 +1898,21 @@ def list_jobs(
 JOB_ID_START = 110000
 
 
+# Held while a job number is given out and saved (`_next_job_id`).
+_JOB_NUMBER_LOCK = int.from_bytes(
+    hashlib.sha256(b"job-number").digest()[:8], "big", signed=True
+)
+
+
 def _next_job_id(db: Session) -> str:
+    # Two jobs booked at once both read the highest number and took the next:
+    # the second was refused as a job that already exists. The number is given
+    # out under a lock held until this transaction ends (Postgres only; SQLite
+    # has one writer at a time already).
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"), {"key": _JOB_NUMBER_LOCK}
+        )
     # Single MAX() aggregate — O(log N) via primary key index.
     # regexp_match limits to 6-digit IDs so legacy 7-digit random IDs are excluded.
     result = (
@@ -1908,8 +1956,12 @@ def bulk_status(
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
 
     moved, failed = 0, []
+    # All the batch will lock, locked first and in order (`_locked_for_moves`).
+    jobs = _locked_for_moves(
+        db, body.job_ids, may_invoice=body.status in _DEPLETED_STATUSES
+    )
     for job_id in body.job_ids:
-        job = db.query(Job).filter(Job.id == job_id).first()
+        job = jobs.get(job_id)
         if not job:
             failed.append({"job_id": job_id, "reason": "Job not found"})
             continue
@@ -2498,6 +2550,10 @@ def create_job(
     if from_portal:
         _portal_rules(body)
     item_no = PORTAL_ITEM_NO if from_portal else body.item_no
+    # The number sequence first when the job may be invoiced at once: before
+    # the order-number lock (app/core/row_locks.py).
+    if body.invoice or body.status in _DEPLETED_STATUSES:
+        invoice_numbers._lock_sequence(db)
     _require_not_a_repeat(db, body.customer_id, item_no, body.serial_no)
     job_id = body.id or _next_job_id(db)
     if db.query(Job).filter(Job.id == job_id).first():
@@ -2585,7 +2641,12 @@ def update_job(
     current_user: User = Depends(require_staff),
     if_match: Optional[str] = Header(default=None, alias="If-Match"),
 ):
-    job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
+    # In the one lock order (app/core/row_locks.py): the number sequence when
+    # a number may be typed or issued, the job, then — after the repeat
+    # check's order-number lock — its customers and stock.
+    if body.invoice is not None or body.status in _DEPLETED_STATUSES:
+        invoice_numbers._lock_sequence(db)
+    job = row_locks.locked_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     _require_current_version(job, if_match)
@@ -2633,6 +2694,12 @@ def update_job(
     )
     if "branch" in body.model_fields_set and body.branch is None:
         update_data["branch"] = None  # blank: HQ, stored as null (F14)
+    row_locks.lock_customers(db, [job.customer_id, body.customer_id])
+    row_locks.lock_stock(
+        db,
+        [item.stock_code for item in job.items]
+        + [item.stock_code for item in body.items or []],
+    )
     total_before = float(job.total_inc or 0)
     customer_before = job.customer_id
     if "branch" in update_data and job.status in COMMITTED_STATUSES:
@@ -2713,7 +2780,9 @@ def update_status(
 ):
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
-    job = db.query(Job).filter(Job.id == job_id).first()
+    job = _locked_for_moves(
+        db, [job_id], may_invoice=body.status in _DEPLETED_STATUSES
+    ).get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -3003,13 +3072,7 @@ def record_payment(
 ):
     # Locked as read: a credit note applied to the job at the same moment
     # waits, rather than both settling the same balance.
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .with_for_update()
-        .populate_existing()
-        .first()
-    )
+    job = row_locks.locked_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if body.amount <= 0 or body.amount > float(job.balance_due or 0):
@@ -3298,7 +3361,9 @@ def dispatch_job(
     current_user: User = Depends(require_staff),
 ):
     """Despatch one job: a Dispatch # of one line, the same as a batch of one."""
-    job = db.query(Job).filter(Job.id == job_id).first()
+    job = _locked_for_moves(db, [job_id], may_invoice=bool(body.advance_status)).get(
+        job_id
+    )
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     savepoint = db.begin_nested()
@@ -3413,7 +3478,7 @@ def unprint_job(
     current_user: User = Depends(require_staff),
 ):
     """Revert an INVOICE or PAID job back to FINISH (unprint / recall invoice)."""
-    job = db.query(Job).filter(Job.id == job_id).first()
+    job = _locked_for_moves(db, [job_id], may_invoice=False).get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in ("INVOICE", "PAID"):

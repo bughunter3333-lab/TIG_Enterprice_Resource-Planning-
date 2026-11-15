@@ -69,6 +69,29 @@ class TestTransferMovesBetweenBranches:
         assert db.query(InventoryItem).filter_by(sku="TR9").one().stock == 40
         assert location_summary(db, "TR9")["in_sync"] is True
 
+    @pytest.mark.parametrize("quantity", [0, -5])
+    def test_a_transfer_of_nothing_or_less_is_refused(
+        self, client, db, make_inventory, quantity
+    ):
+        """A move of -5 within one branch floored the shelf at nothing and then
+        added 5: the branch held 5 more than the item, out of thin air."""
+        make_inventory(sku="TR8", stock=2)
+        adjust_location(db, "TR8", "HQ", on_hand=2)
+        db.commit()
+        r = client.post(
+            "/inventory/transfer",
+            json={
+                "from_sku": "TR8",
+                "quantity": quantity,
+                "from_branch": "HQ",
+                "to_branch": "HQ",
+                "to_location": "B-01-01",
+            },
+        )
+        assert r.status_code == 422
+        db.expire_all()
+        assert _loc(db, "TR8", "HQ").qty_on_hand == 2
+
     def test_cross_sku_transfer_tracks_both_items(self, client, db, make_inventory):
         make_inventory(sku="TR2", stock=10)
         make_inventory(sku="TR3", stock=0)

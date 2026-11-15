@@ -16,12 +16,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.core.dependencies import require_staff
 from app.models.dispatch_session import DispatchSession, DispatchSessionLine
-from app.models.job import Job
 from app.models.user import User
 from app.routers.jobs import (
     _KNOWN_FIELDS_ONLY,
     NothingToSend,
     _despatched,
+    _locked_for_moves,
     _record_despatch,
     despatch_day,
 )
@@ -91,13 +91,12 @@ def create_dispatch_session(
             status_code=400,
             detail=f"Job(s) named more than once in the batch: {', '.join(twice)}",
         )
-    jobs = {
-        j.id: j
-        for j in db.query(Job)
-        .options(joinedload(Job.items))
-        .filter(Job.id.in_([ln.job_id for ln in body.lines]))
-        .all()
-    }
+    # Locked first and in order — the jobs, their customers, their stock, and
+    # the number sequence if any is invoiced — before the batch's savepoint
+    # (`_locked_for_moves`, app/core/row_locks.py).
+    jobs = _locked_for_moves(
+        db, named, may_invoice=any(ln.advance_status for ln in body.lines)
+    )
     missing = [ln.job_id for ln in body.lines if ln.job_id not in jobs]
     if missing:
         raise HTTPException(
