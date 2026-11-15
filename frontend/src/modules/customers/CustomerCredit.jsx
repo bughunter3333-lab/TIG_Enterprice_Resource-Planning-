@@ -69,7 +69,7 @@ function NoteRow({ note, invoices, mayApply, onApply, busy }) {
  * applied to one of their open invoices here (managers and admins).
  * docs/superpowers/specs/2026-11-09-returns-credit-notes.md
  */
-export default function CustomerCredit({ customer }) {
+export default function CustomerCredit({ customer, onJobChanged }) {
   const offer = useOffer();
   const queryClient = useQueryClient();
   const shown = offer('GET', '/credit-notes');
@@ -89,6 +89,8 @@ export default function CustomerCredit({ customer }) {
       for (const key of [['credit-notes'], ['jobs'], ['customers'], ['customer-statement']]) {
         queryClient.invalidateQueries({ queryKey: key });
       }
+      // A job open on the side is a copy, not a query: its owner reads it again.
+      onJobChanged?.(jobId);
       notify(`${money(amount)} of ${note.id} applied to job ${jobId}.`, { type: 'success' });
     },
     onError: (e) => notify(e.message, { type: 'error' }),

@@ -2,7 +2,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from html import escape
 from email.mime.text import MIMEText
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
@@ -14,6 +13,7 @@ from app.core.dependencies import require_any, require_staff
 from app.core.config import settings as app_settings
 from app.core.encryption import decrypt_value
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -190,7 +190,7 @@ def _send_and_log(
         error_text = str(e)
     finally:
         log = EmailLog(
-            sent_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            sent_at=shop_day.wall_clock().strftime("%Y-%m-%d %H:%M:%S"),
             to_email=log_data["to_email"],
             subject=log_data["subject"],
             job_id=log_data.get("job_id"),

@@ -21,6 +21,7 @@ import calendar
 import re
 from datetime import date, timedelta
 from typing import Optional
+from app.core import shop_day
 
 DEFAULT_TERMS = "Net 30"
 
@@ -57,7 +58,7 @@ def terms_in_force(terms: Optional[str], default: Optional[str] = None) -> str:
 
     What an invoice prints as its terms, so the words agree with the date."""
     for candidate in (terms, default):
-        if _read(date.today(), candidate) is not None:
+        if _read(shop_day.today(), candidate) is not None:
             return " ".join(candidate.split())
     return DEFAULT_TERMS
 

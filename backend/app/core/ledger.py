@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.models.admin_setting import AdminSetting
 from app.models.ledger import JournalEntry, JournalLine, LedgerAccount
+from app.core import shop_day
 
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -175,7 +176,7 @@ def open_date(db: Session, wanted: Optional[date]) -> date:
     month was closed, say — posts on today's date instead of being refused. The
     period stays closed, and the shop can still invoice.
     """
-    today = date.today()
+    today = shop_day.today()
     wanted = wanted or today
     locked = lock_date(db)
     if locked and wanted <= locked:
@@ -312,7 +313,7 @@ def reverse(
         memo += f": {reason}"
     mirror = post(
         db,
-        entry_date=entry_date or date.today(),
+        entry_date=entry_date or shop_day.today(),
         memo=memo,
         lines=[
             Line(

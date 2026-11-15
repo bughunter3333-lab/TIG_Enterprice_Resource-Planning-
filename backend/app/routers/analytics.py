@@ -12,6 +12,7 @@ from app.models.job import Job
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
+from app.core import shop_day
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -112,7 +113,7 @@ def get_overdue_jobs(db: Session) -> list:
     return [
         j
         for j in get_active_jobs(db)
-        if (d := parse_date(j.due or "")) and d < date.today()
+        if (d := parse_date(j.due or "")) and d < shop_day.today()
     ]
 
 
@@ -145,7 +146,7 @@ def get_overview(db: Session = Depends(get_db), _: User = Depends(require_staff)
     )
 
     # Calculate Stagnant active jobs (open > 30 days)
-    today = date.today()
+    today = shop_day.today()
     stagnant_count = len(
         [
             j
@@ -209,7 +210,7 @@ def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_staff)
     ols_pred = max(0.0, m_ols * len(ys) + b_ols)
     ensemble = 0.6 * holt_pred + 0.4 * ols_pred
 
-    today = date.today()
+    today = shop_day.today()
     next_month_dt = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
     forecast_month = next_month_dt.strftime("%B %Y")
 
@@ -259,7 +260,7 @@ def get_dso(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     )
 
     # Revenue in the last 90 days
-    today = date.today()
+    today = shop_day.today()
     total_rev_90 = sum(
         float(j.total_inc or 0)
         for j in all_jobs
@@ -388,7 +389,7 @@ def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_staf
                 j.total_inc or 0
             )
 
-    today = date.today()
+    today = shop_day.today()
     high_risk, at_risk, never = [], [], []
     for c in customers:
         last = last_order.get(c.id)
@@ -528,7 +529,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
     rating = "Fast" if avg_days <= 5 else "Moderate" if avg_days <= 10 else "Slow"
 
     active = get_active_jobs(db)
-    today = date.today()
+    today = shop_day.today()
     ages = []
     at_risk_jobs = []
 
@@ -693,7 +694,7 @@ def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_staff
 
     # Stuck/stagnant jobs (>30 days open)
     active_jobs = get_active_jobs(db)
-    today = date.today()
+    today = shop_day.today()
     stagnant_jobs = []
     for j in active_jobs:
         d = parse_date(j.date_in or "")

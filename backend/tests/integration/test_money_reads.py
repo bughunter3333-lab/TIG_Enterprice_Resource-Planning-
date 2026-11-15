@@ -27,7 +27,6 @@ MONEY = [
     "/ap/bills/{bill_id}",
     "/ap/summary",
     "/customers/{customer_id}/statement.pdf",
-    "/customers/{customer_id}/statement",
     "/analytics/overview",
     "/analytics/forecast",
     "/analytics/dso",

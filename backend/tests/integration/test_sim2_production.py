@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.core import despatch_documents
+from app.core import despatch_documents, shop_day
 from app.models.customer import Customer
 from app.models.job import Job, JobItem
 from app.models.logo import Logo
@@ -167,7 +167,7 @@ class TestTheDespatchDate:
     """B1-07: a consignment after the carrier's cut-off goes the next day."""
 
     def test_a_batch_dated_tomorrow_goes_tomorrow(self, client, db):
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        tomorrow = (shop_day.today() + timedelta(days=1)).isoformat()
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         r = client.post(
             "/dispatch-sessions",
@@ -178,33 +178,42 @@ class TestTheDespatchDate:
         db.expire_all()
         assert db.get(Job, job["id"]).dispatched_at == tomorrow
 
-    def test_undated_it_goes_today(self, client, db):
+    # 20:00 UTC on 9 November is 7am on the 10th in Sydney: the API's own
+    # date is a day behind the shop's.
+    MORNING = "2026-11-09 20:00"
+    SHOPS_DAY = date(2026, 11, 10)
+
+    def test_undated_it_goes_on_the_shops_day(self, client, db, shop_clock):
+        shop_clock(self.MORNING)
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         r = _despatch(client, job["id"])
-        assert r.json()["lines"][0]["despatch_date"] == date.today().isoformat()
+        assert r.json()["lines"][0]["despatch_date"] == "2026-11-10"
 
-    @pytest.mark.parametrize("days", [-31, 15])
-    def test_the_browsers_day_ahead_of_the_servers_is_taken(self, client, db, days):
-        # Sydney is a day ahead of the API's UTC until 10 or 11 am: the
-        # screen's furthest date, a day further on the server, is not refused.
+    @pytest.mark.parametrize("days", [-30, 14])
+    def test_the_screens_furthest_dates_are_taken(self, client, db, shop_clock, days):
+        # The screen offers 30 days back to 14 ahead of the browser's day.
+        shop_clock(self.MORNING)
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         r = client.post(
             "/dispatch-sessions",
             json={
                 "lines": [{"job_id": job["id"]}],
-                "despatch_date": (date.today() + timedelta(days=days)).isoformat(),
+                "despatch_date": (self.SHOPS_DAY + timedelta(days=days)).isoformat(),
             },
         )
         assert r.status_code == 200, r.text
 
-    @pytest.mark.parametrize("days", [-32, 16])
-    def test_a_date_far_off_is_refused_and_nothing_goes(self, client, db, days):
+    @pytest.mark.parametrize("days", [-31, 15])
+    def test_a_date_far_off_is_refused_and_nothing_goes(
+        self, client, db, shop_clock, days
+    ):
+        shop_clock(self.MORNING)
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         r = client.post(
             "/dispatch-sessions",
             json={
                 "lines": [{"job_id": job["id"]}],
-                "despatch_date": (date.today() + timedelta(days=days)).isoformat(),
+                "despatch_date": (self.SHOPS_DAY + timedelta(days=days)).isoformat(),
             },
         )
         assert r.status_code == 422
@@ -212,7 +221,7 @@ class TestTheDespatchDate:
         assert db.get(Job, job["id"]).dispatched_at is None
 
     def test_one_job_despatched_on_its_own_takes_a_date_too(self, client, db):
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        tomorrow = (shop_day.today() + timedelta(days=1)).isoformat()
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         r = client.post(
             f"/jobs/{job['id']}/dispatch",
@@ -222,7 +231,7 @@ class TestTheDespatchDate:
         assert r.json()["dispatched_at"] == tomorrow
 
     def test_the_delivery_note_prints_it(self, client, db, monkeypatch):
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        tomorrow = (shop_day.today() + timedelta(days=1)).isoformat()
         job = _packed(client, {"stock_code": "TOP-M", "order_qty": 2, "price_ex": 20})
         client.post(
             "/dispatch-sessions",

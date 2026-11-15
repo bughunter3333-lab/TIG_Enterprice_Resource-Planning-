@@ -10,7 +10,7 @@ job the PO line had been raised for (F18); and the quick receive filled no
 back-orders at all. Both now come through here.
 """
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Iterable, Optional
 
 from fastapi import HTTPException
@@ -21,6 +21,7 @@ from app.core.stock_ledger import post_movement
 from app.models.inventory import InventoryItem
 from app.models.job import Job, JobItem
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
+from app.core import shop_day
 
 # The movement types that are goods arriving from a supplier: a goods receipt,
 # and the quick receive on a purchase order.
@@ -269,7 +270,7 @@ def fill_back_orders(
             movement_type="Committed",
             branch=job.branch,
             committed=fill,
-            date=date.today().isoformat(),
+            date=shop_day.today().isoformat(),
             reference=job.id,
             job_id=job.id,
             notes=f"Committed for Job {job.id} — back-order filled",

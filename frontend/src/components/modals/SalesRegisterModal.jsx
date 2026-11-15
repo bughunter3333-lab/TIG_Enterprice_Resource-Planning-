@@ -3,6 +3,7 @@ import * as api from '../../api';
 import DraggableModal from '../../ui/DraggableModal';
 import { T } from '../../ui/tokens';
 import { statusLabel } from '../../modules/jobs/jobStatuses';
+import { localDay } from '../../lib/localDay';
 
 export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) {
   if (!salesRegModal.open) return null;
@@ -30,7 +31,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sales-register-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `sales-register-${localDay()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

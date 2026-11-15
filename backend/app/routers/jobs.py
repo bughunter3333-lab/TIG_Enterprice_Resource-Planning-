@@ -17,6 +17,7 @@ from app.core import (
     job_weight,
     payment_terms,
     picking,
+    shop_day,
 )
 from app.core.reservations import (
     COMMITTED_STATUSES,
@@ -397,18 +398,16 @@ DESPATCH_DATE_AHEAD_DAYS = 14
 def despatch_day(value: Optional[date]) -> str:
     """The ISO day a despatch goes: today unless given, and within range.
 
-    The screens send the browser's day. The API keeps UTC, which is a day
-    behind Sydney until 10 or 11 in the morning, so the range allows a day
-    either side of the server's today: a date the screen offers is never
-    refused for it.
+    "Today" is the shop's (`shop_day`), as the screens send the browser's
+    day: the API's UTC clock is a day behind Sydney each morning.
     """
-    today = date.today()
+    today = shop_day.today()
     if value is None:
         return today.isoformat()
     if not (
-        today - timedelta(days=DESPATCH_DATE_BACK_DAYS + 1)
+        today - timedelta(days=DESPATCH_DATE_BACK_DAYS)
         <= value
-        <= today + timedelta(days=DESPATCH_DATE_AHEAD_DAYS + 1)
+        <= today + timedelta(days=DESPATCH_DATE_AHEAD_DAYS)
     ):
         raise HTTPException(
             status_code=422,
@@ -578,7 +577,7 @@ def _check_credit_limit(job: "Job", db: Session) -> None:
 
 def _system_comment(job: "Job", text: str, by: Optional["User"] = None) -> "JobComment":
     """A line on the job's trail, by a person or by the system ('SYS')."""
-    now = datetime.now()
+    now = shop_day.wall_clock()
     return JobComment(
         job_id=job.id,
         date=now.strftime("%d/%m/%Y"),
@@ -752,7 +751,7 @@ def _reserved_by_sku(job: "Job") -> dict[str, int]:
 
 def _post_reservation(job: "Job", db: Session, changes: dict[str, int]) -> None:
     """Post signed reservation changes, one movement per SKU."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = shop_day.today().isoformat()
     for sku, delta in sorted(changes.items()):
         if not delta:
             continue
@@ -797,9 +796,10 @@ def _release_job_stock(job: "Job", db: Session) -> None:
     )
 
 
-def _deplete_on_hand(job: "Job", db: Session) -> None:
+def _deplete_on_hand(job: "Job", db: Session, day: str) -> None:
     """Goods physically leave on-hand stock when the job is invoiced (Jim2 model).
-    Idempotent per job: a "Sale" movement already on the ledger means done."""
+    Idempotent per job: a "Sale" movement already on the ledger means done.
+    `day` is the invoice's, so the Sale and the invoice never disagree."""
     already = (
         db.query(StockMovement)
         .filter(StockMovement.job_id == job.id, StockMovement.type == "Sale")
@@ -807,7 +807,6 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
     )
     if already:
         return
-    today = datetime.now().strftime("%Y-%m-%d")
     for item in job.items:
         if not _is_stock_line(item):
             continue
@@ -821,7 +820,7 @@ def _deplete_on_hand(job: "Job", db: Session) -> None:
             movement_type="Sale",
             branch=job.branch,
             quantity=-qty,
-            date=today,
+            date=day,
             reference=job.id,
             job_id=job.id,
             notes=f"Invoiced — shipped on Job {job.id}",
@@ -1590,7 +1589,7 @@ def _apply_status_transition(
     # How long it has been here is counted from now
     # (docs/superpowers/specs/2026-11-09-status-times.md).
     job.status_changed_at = datetime.now(timezone.utc)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = shop_day.today().isoformat()
 
     was_committed = old_status in COMMITTED_STATUSES
     now_committed = new_status in COMMITTED_STATUSES
@@ -1611,7 +1610,7 @@ def _apply_status_transition(
         # exist, and that decision belongs in the job's history rather than
         # only in a stock figure that has quietly gone negative.
         if shortfalls:
-            now = datetime.now()
+            now = shop_day.wall_clock()
             db.add(
                 JobComment(
                     job_id=job.id,
@@ -1630,7 +1629,8 @@ def _apply_status_transition(
                     ),
                 )
             )
-        _deplete_on_hand(job, db)
+        # On the day the invoice carries: its own, kept from an import, else today.
+        _deplete_on_hand(job, db, (job.invoice_date or today)[:10])
     elif was_depleted and not now_depleted:
         _restore_on_hand(job, db)
         # Recalled: it is no longer invoiced, and when it is invoiced again it
@@ -1919,7 +1919,7 @@ def bulk_status(
         # its own.
         savepoint = db.begin_nested()
         try:
-            now = datetime.now()
+            now = shop_day.wall_clock()
             _apply_status_transition(
                 job,
                 body.status,
@@ -2009,7 +2009,7 @@ def auto_pick(
     — is reported without stopping the rest.
     """
     picked, failed = [], []
-    now = datetime.now()
+    now = shop_day.wall_clock()
     for job_id in body.job_ids:
         job = (
             db.query(Job)
@@ -2518,6 +2518,9 @@ def create_job(
                 None if body.serial_no is None else _order_number(body.serial_no)
             ),
             "created_by_user_id": current_user.id,
+            # Booked in today unless the caller says (the online store never
+            # does): undated, the job is missing from date-ranged registers.
+            "date_in": body.date_in or shop_day.today().isoformat(),
         }
     )
     _name_from_customer(job, db)
@@ -2714,7 +2717,7 @@ def update_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    now = datetime.now()
+    now = shop_day.wall_clock()
     _apply_status_transition(
         job,
         body.status,
@@ -2796,7 +2799,7 @@ def duplicate_job(
         id=_next_job_id(db),
         status="QUOTE",
         created_by_user_id=current_user.id,
-        date_in=datetime.now().strftime("%Y-%m-%d"),
+        date_in=shop_day.today().isoformat(),
         # The copy's total is its lines' (`_HEADER_TOTALS`).
         total_ex=0,
         tax=0,
@@ -2902,7 +2905,7 @@ def add_comment(
         current_user.role == "portal" and job.created_by_user_id != current_user.id
     ):
         raise HTTPException(status_code=404, detail="Job not found")
-    now = datetime.now()
+    now = shop_day.wall_clock()
     comment = JobComment(
         job_id=job_id,
         date=now.strftime("%d/%m/%Y"),
@@ -2973,7 +2976,7 @@ def toggle_lock(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     job.locked = body.locked
-    now = datetime.now()
+    now = shop_day.wall_clock()
     action = "locked" if body.locked else "unlocked"
     comment = JobComment(
         job_id=job_id,
@@ -3047,8 +3050,7 @@ def _take_payment(
     the customer's balance once it has taken all it is taking — one payment on
     a job, or a remittance spread over several (`routers/remittances.py`).
     """
-    now = datetime.now()
-    today = now.strftime("%Y-%m-%d")
+    received = received_date or shop_day.today().isoformat()
 
     job.deposit = round(float(job.deposit or 0) + amount, 2)
     # Worked out from the total, payments and credit, never decremented: a
@@ -3057,7 +3059,8 @@ def _take_payment(
     if job.balance_due <= 0:
         job.payment_status = "paid"
         if not job.payment_date:
-            job.payment_date = today
+            # The day the money came, which a backdated payment says.
+            job.payment_date = received
     else:
         job.payment_status = "partial"
 
@@ -3066,7 +3069,7 @@ def _take_payment(
         amount=amount,
         method=method,
         reference=reference,
-        received_date=received_date or today,
+        received_date=received,
         received_by=by.full_name or by.username,
         notes=notes,
     )
@@ -3236,7 +3239,7 @@ def _record_despatch(
     if advance and job.status in FINISHED_STATUSES:
         _apply_status_transition(job, "INVOICE", db, by=by)
 
-    now = datetime.now()
+    now = shop_day.wall_clock()
     if not job.dispatched_at:
         job.dispatched_at = day
     if ship_via:
@@ -3385,7 +3388,7 @@ def pick_job_items(
 
     updated, all_picked = _pick(job, {p.item_id: p.qty_pick for p in body.picks})
 
-    now = datetime.now()
+    now = shop_day.wall_clock()
     db.add(
         JobComment(
             job_id=job_id,
@@ -3423,7 +3426,7 @@ def unprint_job(
     # it too. Doing that by hand here is what left committed understated.
     # Off the ladder: PAID to FINISH is not a step anyone picks, it is a recall.
     _apply_status_transition(job, "FINISH", db, by=current_user, ladder=False)
-    now = datetime.now()
+    now = shop_day.wall_clock()
     comment = JobComment(
         job_id=job_id,
         date=now.strftime("%d/%m/%Y"),

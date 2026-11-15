@@ -5,6 +5,7 @@ import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
 import { statusLabel } from './jobs/jobStatuses';
+import { localDay } from '../lib/localDay';
 
 const EMAIL_TYPES = [
   { value: 'invoice', label: 'Tax Invoice' },
@@ -53,7 +54,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
   const log = logData || [];
 
   // Warn if this job was already emailed today
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const alreadySentToday = form.job_id
     ? log.filter(e => e.job_id === form.job_id && e.status === 'sent' && e.sent_at?.startsWith(today))
     : [];

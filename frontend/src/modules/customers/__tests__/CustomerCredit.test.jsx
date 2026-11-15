@@ -37,6 +37,14 @@ test('credit left is shown and applied, at most what the invoice owes', async ()
   expect(api.creditNotes.list).toHaveBeenCalledWith({ customerId: 'C1', withCredit: true });
 });
 
+test('the job the credit went to is named, so an open copy of it is read again', async () => {
+  vi.spyOn(api.creditNotes, 'apply').mockResolvedValue({});
+  const onJobChanged = vi.fn();
+  renderWithQuery(<CustomerCredit customer={CUSTOMER} onJobChanged={onJobChanged} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Apply' }));
+  await waitFor(() => expect(onJobChanged).toHaveBeenCalledWith('200'));
+});
+
 test('more than may be applied is not offered', async () => {
   renderWithQuery(<CustomerCredit customer={CUSTOMER} />);
   fireEvent.change(await screen.findByLabelText('Amount of CN-0003 to apply'), { target: { value: '20' } });

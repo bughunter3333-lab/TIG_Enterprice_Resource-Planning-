@@ -256,11 +256,6 @@ class TestAStatementIsWhatHasBeenInvoiced:
         assert [line["job_id"] for line in body["lines"]] == ["ST-INV"]
         assert body["totals"]["outstanding"] == 110.0
 
-    def test_the_customers_statement(self, client, invoiced_and_finished):
-        body = client.get(f"/customers/{CUSTOMER}/statement").json()
-        assert [line["job_id"] for line in body["lines"]] == ["ST-INV"]
-        assert body["totals"]["outstanding"] == 110.0
-
     def test_the_statement_pdf(self, client, invoiced_and_finished, monkeypatch):
         from app.routers import pdf
 
@@ -275,16 +270,6 @@ class TestAStatementIsWhatHasBeenInvoiced:
         assert r.status_code == 200, r.text
         assert [line["job_id"] for line in seen["lines"]] == ["ST-INV"]
         assert seen["totals"]["outstanding"] == 110.0
-
-
-@pytest.mark.integration
-class TestTheStatementIsAMoneyRead:
-    def test_overseas_staff_are_refused_and_staff_answered(self, client_as, db):
-        _customer(db)
-        with client_as("overseas_staff") as c:
-            assert c.get(f"/customers/{CUSTOMER}/statement").status_code == 403
-        with client_as("staff") as c:
-            assert c.get(f"/customers/{CUSTOMER}/statement").status_code == 200
 
 
 # ── The invoice / quote email ────────────────────────────────────────────────

@@ -31,6 +31,7 @@ from app.models.job_payment import JobPayment
 from app.models.ledger import JournalEntry, JournalLine, LedgerAccount
 from app.models.supplier_bill import SupplierBill
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(prefix="/accounting", tags=["accounting"])
 
@@ -93,7 +94,7 @@ def list_accounts(
     db: Session = Depends(get_db),
     _: User = Depends(require_manager),
 ):
-    balances = ledger_reports.account_balances(db, _day(as_at, date.today()))
+    balances = ledger_reports.account_balances(db, _day(as_at, shop_day.today()))
     accounts = db.query(LedgerAccount).order_by(LedgerAccount.code).all()
     db.commit()  # keeps the chart if this was the first read and it was seeded
     return [_account(a, balances.get(a.id)) for a in accounts]
@@ -232,9 +233,9 @@ def list_journals(
         joinedload(JournalEntry.lines).joinedload(JournalLine.account)
     )
     if date_from:
-        q = q.filter(JournalEntry.entry_date >= _day(date_from, date.today()))
+        q = q.filter(JournalEntry.entry_date >= _day(date_from, shop_day.today()))
     if date_to:
-        q = q.filter(JournalEntry.entry_date <= _day(date_to, date.today()))
+        q = q.filter(JournalEntry.entry_date <= _day(date_to, shop_day.today()))
     if source_type:
         q = q.filter(JournalEntry.source_type == source_type)
     if source_id:
@@ -310,7 +311,7 @@ def post_manual_journal(
     try:
         entry = ledger.post(
             db,
-            entry_date=_day(body.entry_date, date.today()),
+            entry_date=_day(body.entry_date, shop_day.today()),
             memo=body.memo,
             lines=lines,
             created_by=current_user.full_name or current_user.username,
@@ -363,7 +364,7 @@ def reverse_manual_journal(
 
 def _fy_range(date_from: Optional[str], date_to: Optional[str]) -> tuple[date, date]:
     fy_start, fy_end = current_fiscal_year()
-    return _day(date_from, fy_start), _day(date_to, min(fy_end, date.today()))
+    return _day(date_from, fy_start), _day(date_to, min(fy_end, shop_day.today()))
 
 
 @router.get("/reports/trial-balance")
@@ -372,7 +373,7 @@ def trial_balance(
     db: Session = Depends(get_db),
     _: User = Depends(require_manager),
 ):
-    return ledger_reports.trial_balance(db, _day(as_at, date.today()))
+    return ledger_reports.trial_balance(db, _day(as_at, shop_day.today()))
 
 
 @router.get("/reports/profit-loss")
@@ -391,7 +392,7 @@ def balance_sheet(
     db: Session = Depends(get_db),
     _: User = Depends(require_manager),
 ):
-    return ledger_reports.balance_sheet(db, _day(as_at, date.today()))
+    return ledger_reports.balance_sheet(db, _day(as_at, shop_day.today()))
 
 
 @router.get("/reports/general-ledger/{account_id}")
@@ -442,8 +443,8 @@ def put_lock_date(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    value = _day(body.lock_date, date.today()) if body.lock_date else None
-    if value is not None and value >= date.today():
+    value = _day(body.lock_date, shop_day.today()) if body.lock_date else None
+    if value is not None and value >= shop_day.today():
         # A lock that covers today stops the shop invoicing, taking payments
         # and entering bills — every automatic entry would be refused.
         raise HTTPException(

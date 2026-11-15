@@ -4,9 +4,10 @@ import { Plus, Edit, Trash2, DollarSign, AlertCircle, Clock, CheckCircle, X, Dow
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
+import { localDay } from '../lib/localDay';
 
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDay();
 
 const STATUS_STYLES = {
   pending:  'bg-accent-tint text-accent-strong border-accent',

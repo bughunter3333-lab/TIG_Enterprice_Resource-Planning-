@@ -24,7 +24,7 @@ from app.routers.email_router import _send_and_log, smtp_config
 from app.routers.jobs import _total_from_lines
 from app.core.stock_location import DEFAULT_BRANCH
 from app.models.user import User
-from datetime import datetime
+from app.core import shop_day
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase_orders"])
 
@@ -262,7 +262,7 @@ def create_po_from_requirements(
         supplier_id=body.supplier_id,
         supplier_name=body.supplier_name,
         status="Draft",
-        order_date=datetime.now().strftime("%d/%m/%Y"),
+        order_date=shop_day.today().strftime("%d/%m/%Y"),
         expected_date=body.expected_date,
         notes=body.notes,
     )
@@ -291,7 +291,7 @@ class POFromJobs(BaseModel):
 
 def _new_po_id(db: Session) -> str:
     """The next free `PO-YYYYMMDD-n` for today."""
-    prefix = f"PO-{datetime.now():%Y%m%d}-"
+    prefix = f"PO-{shop_day.today():%Y%m%d}-"
     n = db.query(PurchaseOrder).filter(PurchaseOrder.id.like(f"{prefix}%")).count()
     while db.get(PurchaseOrder, f"{prefix}{n + 1}") is not None:
         n += 1
@@ -459,7 +459,7 @@ def create_po_from_back_orders(
         supplier_id=body.supplier_id,
         supplier_name=body.supplier_name,
         status="Draft",
-        order_date=datetime.now().strftime("%Y-%m-%d"),
+        order_date=shop_day.today().isoformat(),
         expected_date=body.expected_date,
         notes=body.notes,
     )
@@ -626,7 +626,7 @@ def update_po(
     if body.status is not None and body.status != po.status:
         _check_status_change(po, body.status)
         if body.status == "Received":
-            po.received_date = po.received_date or datetime.now().strftime("%Y-%m-%d")
+            po.received_date = po.received_date or shop_day.today().isoformat()
         if body.status in ("Received", "Cancelled"):
             _release_waiting_lines(db, po, body.status)
     if body.add_items:
@@ -654,7 +654,7 @@ def receive_items(
     receiving.check_receivable(po)
 
     receive_map = {r.id: r.qty_received for r in body.items}
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = shop_day.today().isoformat()
     prefer_jobs: dict[str, list] = {}
 
     for item in po.items:

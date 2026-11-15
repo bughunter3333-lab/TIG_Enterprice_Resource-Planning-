@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import date
 
 from app.database import get_db
 from app.models.customer import Customer
@@ -161,69 +160,3 @@ def delete_customer(
     db.delete(customer)
     db.commit()
     return {"ok": True}
-
-
-@router.get("/{customer_id}/statement")
-def customer_statement(
-    customer_id: str,
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    # Money: staff and above, like its copies in reports.py and pdf.py.
-    _: User = Depends(require_staff),
-):
-    """AR statement for a customer — outstanding invoices and payment history."""
-    from app.core.ledger_postings import INVOICED_STATUSES
-    from app.models.job import Job
-    from app.models.job_payment import JobPayment
-
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    as_at = date_to or date.today().isoformat()
-    # Invoices only, as the customer's balance and aged receivables count:
-    # a FINISH job has no invoice yet, and nothing is owed on it (F06).
-    q = db.query(Job).filter(
-        Job.customer_id == customer_id,
-        Job.status.in_(list(INVOICED_STATUSES)),
-    )
-    if date_from:
-        q = q.filter(Job.invoice_date >= date_from)
-    if date_to:
-        q = q.filter(Job.invoice_date <= date_to)
-    jobs = q.order_by(Job.invoice_date).all()
-
-    lines = []
-    running_balance = 0.0
-    for j in jobs:
-        total_inc = float(j.total_inc or 0)
-        payments = db.query(JobPayment).filter(JobPayment.job_id == j.id).all()
-        total_paid = sum(float(p.amount) for p in payments)
-        balance = round(total_inc - total_paid, 2)
-        running_balance += balance
-        lines.append(
-            {
-                "job_id": j.id,
-                "invoice_no": j.invoice or "",
-                "invoice_date": j.invoice_date or j.date_in or "",
-                "description": j.description or "",
-                "total_inc": round(total_inc, 2),
-                "paid": round(total_paid, 2),
-                "balance": balance,
-                "payment_status": j.payment_status or "unpaid",
-            }
-        )
-
-    return {
-        "customer_id": customer_id,
-        "customer_name": customer.name,
-        "abn": customer.abn or "",
-        "as_at": as_at,
-        "lines": lines,
-        "totals": {
-            "invoiced": round(sum(l["total_inc"] for l in lines), 2),
-            "paid": round(sum(l["paid"] for l in lines), 2),
-            "outstanding": round(running_balance, 2),
-        },
-    }

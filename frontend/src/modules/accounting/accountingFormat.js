@@ -7,6 +7,7 @@
  */
 
 import { addDays, todayKey } from '../../lib/dates';
+import { localDay } from '../../lib/localDay';
 
 const AUD = new Intl.NumberFormat('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -42,7 +43,7 @@ export const SOURCE_LABELS = {
 };
 
 export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localDay();
 }
 
 /** The Australian financial year containing `iso` — 1 July to 30 June. */

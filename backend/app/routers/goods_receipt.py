@@ -1,4 +1,3 @@
-from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +11,7 @@ from app.core.stock_ledger import post_movement
 from app.models.goods_receipt import GoodsReceipt, GoodsReceiptLine, GoodsReceiptCharge
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.inventory import InventoryItem
+from app.core import shop_day
 
 router = APIRouter(prefix="/goods-receipts", tags=["goods-receipts"])
 
@@ -266,7 +266,7 @@ def accept_receipt(
     if gr.status == "Rejected":
         raise HTTPException(status_code=409, detail="Cannot accept a rejected receipt")
 
-    today = date.today().isoformat()
+    today = shop_day.today().isoformat()
 
     # Apportion landed costs (freight/duty/customs) across the received lines so
     # COG reflects what the stock actually cost to land, not just the supplier

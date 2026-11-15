@@ -22,7 +22,7 @@ first job exists. Load it on a database seed_data.py has not been run on.
 """
 
 import sys
-from datetime import date, timedelta
+from datetime import timedelta
 
 from app.models.customer import Customer
 from app.models.customer_ship_to import CustomerShipTo
@@ -31,6 +31,7 @@ from app.models.job import Job
 from app.models.logo import Logo
 from app.models.stock_pricing import StockPriceLevel
 from app.models.supplier import Supplier
+from app.core import shop_day
 
 # The data reads as tables, a record a row.
 # fmt: off
@@ -121,7 +122,7 @@ class SeedError(RuntimeError):
 
 
 def day(offset: int) -> str:
-    return (date.today() + timedelta(days=offset)).isoformat()
+    return (shop_day.today() + timedelta(days=offset)).isoformat()
 
 
 def call(client, method: str, path: str, body=None, params=None):

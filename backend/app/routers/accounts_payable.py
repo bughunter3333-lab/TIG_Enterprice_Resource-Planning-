@@ -21,6 +21,7 @@ from app.core.ledger_postings import (
     withdraw_supplier_payment,
 )
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(prefix="/ap", tags=["accounts_payable"])
 
@@ -210,7 +211,7 @@ def list_bills(
             SupplierBill.applied_to_bill_id.is_(None),
         )
     if overdue_only:
-        today = date.today().isoformat()
+        today = shop_day.today().isoformat()
         q = q.filter(
             SupplierBill.due_date < today,
             SupplierBill.status.in_(OPEN_STATUSES),
@@ -399,7 +400,7 @@ def pay_bill(
         )
     payment = SupplierBillPayment(
         amount=amount,
-        paid_date=(data.paid_date or date.today()).isoformat(),
+        paid_date=(data.paid_date or shop_day.today()).isoformat(),
         reference=data.reference,
         paid_by=_who(current_user),
     )
@@ -525,7 +526,7 @@ def ap_summary(
     db: Session = Depends(get_db),
     _: User = Depends(require_staff),
 ):
-    today = date.today().isoformat()
+    today = shop_day.today().isoformat()
     all_open = (
         db.query(SupplierBill).filter(SupplierBill.status.in_(OPEN_STATUSES)).all()
     )

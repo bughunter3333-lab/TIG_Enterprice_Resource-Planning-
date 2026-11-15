@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.inventory import InventoryItem, StockMovement
@@ -46,6 +46,7 @@ from app.core.stock_audit import (
     snapshot_location,
 )
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -1180,14 +1181,15 @@ def get_stock_stats(
         raise HTTPException(status_code=404, detail="Item not found")
 
     movements = db.query(StockMovement).filter(StockMovement.sku == sku).all()
-    now = datetime.now()
+    # Ages are instants apart: the stored time is UTC, with its zone or not.
+    now = datetime.now(timezone.utc)
 
     def age_days(m: StockMovement):
         dt = m.created_at
         if dt is None:
             return None
-        if dt.tzinfo is not None:
-            dt = dt.replace(tzinfo=None)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         return (now - dt).total_seconds() / 86400.0
 
     scored = [(age_days(m), m) for m in movements]
@@ -1395,7 +1397,7 @@ def transfer_stock(
     )
     if not from_item:
         raise HTTPException(status_code=404, detail=f"SKU '{body.from_sku}' not found")
-    now_date = datetime.now().strftime("%d/%m/%Y")
+    now_date = shop_day.today().strftime("%d/%m/%Y")
     from_branch = normalize_branch(body.from_branch)
     dest_branch = normalize_branch(body.to_branch or body.from_branch)
 
@@ -1499,8 +1501,8 @@ def stocktake(
     _: User = Depends(require_staff),
 ):
     """Reconcile physical counts against system stock, creating adjustment movements."""
-    ref = body.reference or f"STKTK-{datetime.now().strftime('%Y%m%d%H%M')}"
-    now = datetime.now().strftime("%d/%m/%Y")
+    ref = body.reference or f"STKTK-{shop_day.wall_clock().strftime('%Y%m%d%H%M')}"
+    now = shop_day.today().strftime("%d/%m/%Y")
     results = []
     for entry in body.items:
         item = db.query(InventoryItem).filter(InventoryItem.sku == entry.sku).first()
@@ -1559,7 +1561,6 @@ def stocktake(
 @router.post("/auto-reorder")
 def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Find all low-stock items and create draft purchase orders grouped by supplier."""
-    from datetime import date
 
     # Against the projected position, so running this two days running does not
     # raise a second order for something the first one already covered.
@@ -1579,7 +1580,7 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
         key = item.supplier or "Unassigned"
         by_supplier.setdefault(key, []).append(item)
 
-    today = date.today().strftime("%Y-%m-%d")
+    today = shop_day.today().strftime("%Y-%m-%d")
     created_ids = []
 
     for idx, (supplier_name, items) in enumerate(by_supplier.items(), 1):
@@ -1589,7 +1590,7 @@ def auto_reorder(db: Session = Depends(get_db), _: User = Depends(require_staff)
         )
         supplier_id = supplier_rec.id if supplier_rec else None
 
-        po_id = f"AR-{date.today().strftime('%Y%m%d')}-{idx:03d}"
+        po_id = f"AR-{shop_day.today().strftime('%Y%m%d')}-{idx:03d}"
         # Avoid duplicate IDs if run multiple times per day
         suffix = 0
         base_id = po_id

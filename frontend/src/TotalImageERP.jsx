@@ -78,7 +78,8 @@ import { creditUse } from './modules/customers/customerAggregates';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
-import { todayKey } from './lib/dates';
+import { isoDay, todayKey } from './lib/dates';
+import { dueFromTerms } from './modules/jobs/dueFromTerms';
 import { useOffer } from './lib/useMyAccess';
 import { FINISHED_STATUSES, JOB_STATUSES, ORDER_CATEGORIES, PRODUCTION_STATUSES, statusLabel } from './modules/jobs/jobStatuses';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
@@ -865,6 +866,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setActiveJob(cur => (cur?.id === updated.id ? updated : cur));
   };
 
+  // A job changed from another screen (credit applied on the customer): an
+  // open or pinned copy of it is read again, else it shows what it owed
+  // before. Always read: whether it is open is known only when the answer
+  // comes (updatePinnedJob leaves a job that is neither alone).
+  const refreshPinnedJob = (jobId) => {
+    api.jobs.get(jobId).then(updatePinnedJob)
+      .catch((e) => notify(`Job ${jobId} could not be reloaded: ${e.message}`, { type: 'warning' }));
+  };
+
   // CRUD operations
   const saveJob = async () => {
     if (!jobForm.customerId) {
@@ -927,23 +937,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     localStorage.setItem('tig_job_templates', JSON.stringify(updated));
   };
 
-  // ── Payment terms → due date ───────────────────────────────────────────────
-  const calcDueFromTerms = (terms, fromDate) => {
-    const base = fromDate ? new Date(fromDate) : new Date();
-    const days = terms?.startsWith('Net ') ? parseInt(terms.replace('Net ', ''), 10)
-                 : terms === 'COD' || terms === 'On Receipt' ? 0
-                 : terms === 'EOM' ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + 1, 0); return Math.floor((d - base) / 86400000); })()
-                 : 30;
-    const due = new Date(base);
-    due.setDate(due.getDate() + (isNaN(days) ? 30 : days));
-    return due.toISOString().split('T')[0];
-  };
-
   const applyCustomerToJobForm = (c) => ({
     customer: c.name,
     customerId: c.id || '',
     shippingAddress: c.address || '',
-    due: calcDueFromTerms(c.paymentTerms),
+    due: dueFromTerms(c.paymentTerms),
     nameContact: c.contact || '',
   });
 
@@ -1235,7 +1233,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
   // Dashboard calculations
   const dashboardStats = (() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = isoDay(now);
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1283,7 +1281,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       if ([...FINISHED_STATUSES,'PAID','CANCEL'].includes(j.status)) return false;
       const d = parseJobDate(j.due);
       if (!d) return false;
-      const ds = d.toISOString().split('T')[0];
+      const ds = isoDay(d);
       return ds > todayStr && d <= in48h;
     });
 
@@ -4155,7 +4153,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     initialChip={link.chip}
                   />
                 ))}
-                {!loading && activeModule === 'customers'          && <CustomersDetail customers={customers} deleteCustomer={deleteCustomer} exportToCSV={exportToCSV} jobs={jobs} openModal={openModal} pinJob={pinJob} searchTerm={searchTerm} setActiveModule={setActiveModule} setFilterCustomer={setFilterCustomer} setSearchTerm={setSearchTerm} />}
+                {!loading && activeModule === 'customers'          && <CustomersDetail customers={customers} deleteCustomer={deleteCustomer} exportToCSV={exportToCSV} jobs={jobs} onJobChanged={refreshPinnedJob} openModal={openModal} pinJob={pinJob} searchTerm={searchTerm} setActiveModule={setActiveModule} setFilterCustomer={setFilterCustomer} setSearchTerm={setSearchTerm} />}
                 {!loading && activeModule === 'suppliers'          && <SuppliersModule deleteSupplier={deleteSupplier} exportToCSV={exportToCSV} inventory={inventory} openModal={openModal} purchaseOrders={purchaseOrders} searchTerm={searchTerm} setActiveModule={setActiveModule} setSearchTerm={setSearchTerm} suppliers={suppliers} />}
                 {!loading && activeModule === 'purchase-orders'    && (poListModal.open ? <POListPage deleteJobList={deleteJobList} openModal={openModal} poListModal={poListModal} purchaseOrders={purchaseOrders} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setPoListModal={setPoListModal} setSelectedPO={setSelectedPO} updateListFilter={updateListFilter} /> : <PurchaseOrdersDetail exportToCSV={exportToCSV} openModal={openModal} poStatusFilter={poStatusFilter} purchaseOrders={purchaseOrders} receivePO={receivePO} receiveQtys={receiveQtys} searchTerm={searchTerm} selectedPO={selectedPO} setPoStatusFilter={setPoStatusFilter} setReceiveQtys={setReceiveQtys} setSearchTerm={setSearchTerm} setSelectedPO={setSelectedPO} updatePOStatus={updatePOStatus} />)}
                 {!loading && activeModule === 'reports'            && renderReports()}

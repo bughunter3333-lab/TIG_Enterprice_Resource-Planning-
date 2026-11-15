@@ -30,7 +30,14 @@ from app.models.job import Job
 from app.models.ledger import JournalEntry, JournalLine, LedgerAccount
 from app.models.purchase_order import PurchaseOrder
 
-TODAY = date.today()
+TODAY = date(2026, 11, 10)
+
+
+# The shop's day, pinned: 21:00 UTC on 9 November is 8am on the 10th in Sydney,
+# while the API's own date is still the 9th.
+@pytest.fixture(autouse=True)
+def _on_the_shops_day(shop_clock):
+    shop_clock("2026-11-09 21:00")
 
 
 def _job(

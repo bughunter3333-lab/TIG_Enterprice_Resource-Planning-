@@ -13,6 +13,7 @@ import { countNeedingReorder } from './stock/lowStock';
 import { offers } from '../lib/access';
 import { useMyAccess } from '../lib/useMyAccess';
 import { FINISHED_STATUSES, statusLabel } from './jobs/jobStatuses';
+import { localDay } from '../lib/localDay';
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const fmt$ = (v) => `$${parseFloat(v || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -78,7 +79,7 @@ function TotalsBar({ totals, fields }) {
 
 // ── Sales Summary ─────────────────────────────────────────────────────────────
 function SalesSummaryTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
   const [range, setRange] = useState({ from: firstOfYear, to: today });
 
@@ -161,7 +162,7 @@ function SalesSummaryTab() {
 
 // ── GST Report ────────────────────────────────────────────────────────────────
 function GSTTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
   const [range, setRange] = useState({ from: firstOfYear, to: today });
 
@@ -536,7 +537,7 @@ function InventoryValuationTab() {
 
 // ── Job Profitability ─────────────────────────────────────────────────────────
 function JobProfitabilityTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
   const [range, setRange] = useState({ from: firstOfYear, to: today });
 
@@ -620,7 +621,7 @@ function JobProfitabilityTab() {
 
 // ── On-Time Delivery ──────────────────────────────────────────────────────────
 function OnTimeDeliveryTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
   const [range, setRange] = useState({ from: firstOfYear, to: today });
 
@@ -1052,7 +1053,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
 // ── Decoration Performance ────────────────────────────────────────────────────
 function DecorationPerformanceTab() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const firstOfYear = `${new Date().getFullYear()}-01-01`;
   const [range, setRange] = useState({ from: firstOfYear, to: today });
 

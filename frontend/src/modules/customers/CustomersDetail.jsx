@@ -56,7 +56,7 @@ function AgedReceivablesTab({ customerId }) {
   );
 }
 
-export default function CustomersDetail({ customers, deleteCustomer, exportToCSV, jobs, openModal, pinJob, searchTerm, setActiveModule, setFilterCustomer, setSearchTerm }) {
+export default function CustomersDetail({ customers, deleteCustomer, exportToCSV, jobs, onJobChanged, openModal, pinJob, searchTerm, setActiveModule, setFilterCustomer, setSearchTerm }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [custDetailTab, setCustDetailTab] = useState('overview');
   const offer = useOffer();
@@ -176,7 +176,7 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
 
                 <div className="p-5">
                   {/* Overview Tab */}
-                  {custDetailTab === 'overview' && <div className="mb-4"><CustomerCredit customer={c} /></div>}
+                  {custDetailTab === 'overview' && <div className="mb-4"><CustomerCredit customer={c} onJobChanged={onJobChanged} /></div>}
                   {custDetailTab === 'overview' && (
                     <div className="grid grid-cols-2 gap-6 text-sm">
                       <div className="space-y-3">

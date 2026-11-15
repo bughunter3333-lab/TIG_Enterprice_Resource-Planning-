@@ -38,6 +38,7 @@ from app.routers.jobs import _despatch_address
 from app.models.customer import Customer
 from app.models.settings import CompanySettings
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(tags=["pdf"])
 
@@ -126,7 +127,7 @@ def _build_pdf(
     doc_date = (
         (job.invoice_date if is_invoice else None)
         or job.date_in
-        or date.today().isoformat()
+        or shop_day.today().isoformat()
     )
 
     story = []
@@ -929,7 +930,7 @@ def _build_statement(
 
     meta_lines = [
         Paragraph(
-            f"Statement Date: <b>{date.today().strftime('%d/%m/%Y')}</b>", normal
+            f"Statement Date: <b>{shop_day.today().strftime('%d/%m/%Y')}</b>", normal
         ),
     ]
     if date_from or date_to:
@@ -1182,7 +1183,7 @@ def customer_statement_pdf(
     )
     pdf_bytes = _build_statement(customer, lines, totals, company, date_from, date_to)
 
-    filename = f"statement_{customer_id}_{date.today().isoformat()}.pdf"
+    filename = f"statement_{customer_id}_{shop_day.today().isoformat()}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

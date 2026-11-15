@@ -14,6 +14,7 @@
 - Never mock `../api` with a partial object literal in a component test. Use `renderWithQuery` from `src/test/renderWithQuery.jsx` — TanStack Query turns a missing method into an empty render, so the test passes while covering nothing.
 - Never leave a second Alembic head. A deploy runs `upgrade head` and applies one branch only.
 - Never add a *new* surface to `frontend/src/TotalImageERP.jsx`. Carve it into `frontend/src/modules/<name>/` instead; the monolith is shrinking, not growing.
+- Never take a business day from a UTC clock. The API runs in UTC and the shop is in Sydney, so `date.today()` and a naive `datetime.now()` are yesterday until 10 or 11am — an invoice issued on 1 July was dated 30 June. Read the day through `app/core/shop_day.py` (`today()`, `wall_clock()` for a time people read, `day_of()` for a stored instant); on screen use `localDay()` or `isoDay(date)`, never `toISOString().slice(0, 10)`. Both are enforced by scans (`tests/unit/test_shop_day_convention.py`, `src/lib/__tests__/localDay.test.js`); pin the clock in a test with the `shop_clock` fixture.
 
 ## Ask First
 

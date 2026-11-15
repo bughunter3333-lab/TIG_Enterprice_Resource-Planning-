@@ -4,6 +4,7 @@ import { BRANCHES, DEFAULT_BRANCH } from '../../branches';
 import { notify } from '../../lib/notify';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../../api';
+import { localDay } from '../../lib/localDay';
 
 export default function POGoodsReceiptsPanel({ po }) {
   const queryClient = useQueryClient();
@@ -26,7 +27,7 @@ export default function POGoodsReceiptsPanel({ po }) {
   const [grNotes, setGrNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
 
   function openForm() {
     // A row is a PO line, not a SKU: on a PO bought for several jobs one SKU

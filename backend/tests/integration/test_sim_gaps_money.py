@@ -19,8 +19,6 @@ The decided fix for each is in docs/superpowers/plans/2026-10-26-simulation-gap-
   re-invoicing such a job left it reading not invoiced.
 """
 
-from datetime import datetime
-
 import pytest
 from sqlalchemy import event
 
@@ -30,7 +28,15 @@ from app.models.logo import Logo
 from app.models.settings import CompanySettings
 from app.models.stock_location import StockLocation
 
-TODAY = datetime.now().strftime("%Y-%m-%d")
+TODAY = "2026-11-10"
+
+
+# The shop's day, pinned: 21:00 UTC on 9 November is 8am on the 10th in Sydney,
+# while the API's own date is still the 9th.
+@pytest.fixture(autouse=True)
+def _on_the_shops_day(shop_clock):
+    shop_clock("2026-11-09 21:00")
+
 
 pytestmark = pytest.mark.integration
 

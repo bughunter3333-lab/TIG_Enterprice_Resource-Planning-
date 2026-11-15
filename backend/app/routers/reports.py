@@ -374,7 +374,7 @@ def aged_payables(
     billed: its received value against what is billed for it. A part-received
     PO is still committed spend, which already counts its received part.
     """
-    as_at_date = date.fromisoformat(as_at) if as_at else date.today()
+    as_at_date = date.fromisoformat(as_at) if as_at else shop_day.today()
     bills = (
         db.query(SupplierBill)
         .filter(SupplierBill.status.in_(["pending", "approved"]))
@@ -598,7 +598,7 @@ def customer_statement(
             "credited": round(total_credited, 2),
             "outstanding": round(total_outstanding, 2),
         },
-        "as_at": str(date.today()),
+        "as_at": str(shop_day.today()),
         "date_from": date_from,
         "date_to": date_to,
     }
@@ -774,7 +774,7 @@ def on_time_delivery(
             no_due_date += 1
             by_customer[cid]["no_due_date"] += 1
         else:
-            compare_date = out or date.today()
+            compare_date = out or shop_day.today()
             if compare_date <= due:
                 on_time += 1
                 by_customer[cid]["on_time"] += 1

@@ -433,3 +433,27 @@ def make_purchase_order(test_db_session, make_supplier):
         return po
 
     return _factory
+
+
+# ---------------------------------------------------------------------------
+# The shop's clock
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shop_clock(monkeypatch):
+    """Set the server's UTC clock as the API reads it: `shop_clock("2026-06-30 22:00")`.
+
+    Production runs in UTC and the shop is in Sydney, so for ten or eleven hours
+    a day the server's date is the day before the shop's. This machine is in
+    Sydney, so a test that does not set the clock never sees the difference.
+    """
+    from datetime import datetime, timezone
+
+    from app.core import shop_day
+
+    def set_utc(utc: str) -> None:
+        at = datetime.strptime(utc, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        monkeypatch.setattr(shop_day, "_utc_now", lambda: at)
+
+    return set_utc

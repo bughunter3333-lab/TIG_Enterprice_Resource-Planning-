@@ -33,3 +33,28 @@ def test_sydneys_rule(utc, sydney):
 def test_today_is_sydneys_date():
     now = datetime(2026, 11, 9, 20, 0, tzinfo=timezone.utc)
     assert shop_day.today(now).isoformat() == "2026-11-10"
+
+
+def test_the_clock_is_one_place_a_test_can_set(monkeypatch):
+    # 22:00 UTC on 30 June is 8am on 1 July in Sydney: a new financial year.
+    at = datetime(2026, 6, 30, 22, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(shop_day, "_utc_now", lambda: at)
+    assert shop_day.today().isoformat() == "2026-07-01"
+
+
+def test_the_shops_wall_clock_is_sydneys(monkeypatch):
+    at = datetime(2026, 6, 30, 22, 5, tzinfo=timezone.utc)
+    monkeypatch.setattr(shop_day, "_utc_now", lambda: at)
+    assert shop_day.wall_clock() == datetime(2026, 7, 1, 8, 5)
+
+
+@pytest.mark.parametrize(
+    "instant",
+    [
+        datetime(2026, 11, 9, 21, 0, tzinfo=timezone.utc),
+        # As SQLite hands a stored UTC time back: no zone, still UTC.
+        datetime(2026, 11, 9, 21, 0),
+    ],
+)
+def test_the_shops_day_an_instant_fell_on(instant):
+    assert shop_day.day_of(instant).isoformat() == "2026-11-10"

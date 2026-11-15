@@ -27,13 +27,13 @@ Callers still decide *what* happened and *where*. This decides what recording it
 entails.
 """
 
-from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.core.stock_location import DEFAULT_BRANCH, adjust_location
 from app.models.inventory import InventoryItem, StockMovement
+from app.core import shop_day
 
 # Movement types that move physical stock, as opposed to reserving it or
 # relocating it. Kept here because the invariant "on-hand changed by exactly the
@@ -55,7 +55,7 @@ ON_HAND_TYPES = frozenset(
 
 
 def _today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return shop_day.today().isoformat()
 
 
 def post_movement(

@@ -31,6 +31,7 @@ from reportlab.platypus import (
 from sqlalchemy import func
 from sqlalchemy.orm import object_session
 
+from app.core import shop_day
 from app.core.pdf_text import para
 from app.models.dispatch_session import DispatchLineItem, DispatchSessionLine
 
@@ -181,7 +182,7 @@ def delivery_note(job, company, despatch: Optional[dict] = None) -> list:
     latest = _latest_consignment(job)
     went = latest.session.created_at if latest is not None else None
     when = (latest.despatch_date if latest is not None else None) or (
-        went.strftime("%Y-%m-%d") if went else job.dispatched_at
+        shop_day.day_of(went).isoformat() if went else job.dispatched_at
     )
     details = [
         f"Job: <b>{para(job.id)}</b>",
