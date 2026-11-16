@@ -156,3 +156,38 @@ class TestBankDetailsAreAdminOnly:
     def test_staff_can_still_read_them(self, staff_client):
         """Read is fine — the invoice template needs them."""
         assert staff_client.get("/settings/company").status_code == 200
+
+
+@pytest.mark.integration
+class TestTheMaskedSmtpPasswordIsNotSavedBack:
+    """GET masks the SMTP password; the settings screen sends its whole form
+    back on Save. Storing what came back replaced the real password with the
+    mask, so changing the company phone number stopped email being sent."""
+
+    def _stored_password(self, db):
+        from app.core.config import settings as app_settings
+        from app.core.encryption import decrypt_value
+
+        db.expire_all()
+        stored = db.query(CompanySettings).one().smtp_password
+        return decrypt_value(stored, app_settings.SECRET_KEY) if stored else None
+
+    def test_saving_the_form_as_read_keeps_the_password(self, client, db):
+        client.put("/settings/company", json={"smtp_password": "real-app-password"})
+        form = client.get("/settings/company").json()
+        assert form["smtp_password"] != "real-app-password"
+
+        form["phone"] = "02 9000 0001"
+        assert client.put("/settings/company", json=form).status_code == 200
+
+        assert self._stored_password(db) == "real-app-password"
+
+    def test_a_new_password_still_replaces_it(self, client, db):
+        client.put("/settings/company", json={"smtp_password": "first"})
+        client.put("/settings/company", json={"smtp_password": "second"})
+        assert self._stored_password(db) == "second"
+
+    def test_an_empty_password_still_clears_it(self, client, db):
+        client.put("/settings/company", json={"smtp_password": "first"})
+        client.put("/settings/company", json={"smtp_password": ""})
+        assert self._stored_password(db) is None

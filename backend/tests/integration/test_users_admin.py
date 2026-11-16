@@ -10,7 +10,11 @@ their own access.
 import pytest
 from starlette.testclient import TestClient
 
-from app.core.dependencies import ROLES, get_current_user, get_signed_in_user
+from app.core.dependencies import (
+    ALL_ROLES as ROLES,
+    get_current_user,
+    get_signed_in_user,
+)
 from app.core.security import hash_password, verify_password
 from app.database import get_db
 from app.main import app
@@ -138,7 +142,8 @@ class TestAddingAnAccount:
         r = client.post("/users", json={**NEW, "role": "Admin"})
         assert r.status_code == 400
         assert r.json()["detail"] == (
-            "Unknown role 'Admin'. The roles are: admin, manager, staff, overseas_staff"
+            "Unknown role 'Admin'. The roles are: admin, manager, staff, "
+            "overseas_staff, portal"
         )
         assert db.query(User).filter(User.username == "j.smith").first() is None
 

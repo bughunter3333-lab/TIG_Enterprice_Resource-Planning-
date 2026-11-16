@@ -10,3 +10,6 @@ dist/
 
 dev_local.db
 *.db
+
+.vercel
+.env*

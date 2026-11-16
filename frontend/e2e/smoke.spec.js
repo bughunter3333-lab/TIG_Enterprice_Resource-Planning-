@@ -43,11 +43,11 @@ test.describe('authenticated core flow', () => {
     await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // Land on either the 2FA challenge or the module bar (Jobs is the default surface).
+    // Land on either the 2FA challenge or Home, the default surface.
     await expect(
       page
         .getByRole('heading', { name: 'Verify' })
-        .or(page.getByText('Jobs').first()),
+        .or(page.getByRole('heading', { name: 'Home', exact: true })),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

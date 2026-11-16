@@ -10,7 +10,7 @@
  */
 import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
-import { accounting, supplierBills } from '../../../api';
+import { accounting, supplierBills, users } from '../../../api';
 import AccountingModule from '../AccountingModule';
 import NewJournalModal, { journalProblems } from '../NewJournalModal';
 import ReportsTab from '../ReportsTab';
@@ -41,7 +41,11 @@ vi.mock('../../../api', () => ({
     create: vi.fn(),
     update: vi.fn(),
   },
+  users: { myAccess: vi.fn() },
 }));
+
+// Payables shows to a role that may read the bills (overseas staff may not).
+const MAY_PAY = { role: 'staff', areas: [], allowed: ['GET /ap/bills', 'GET /ap/summary'] };
 
 const ACCOUNTS = [
   { id: 1, code: '1000', name: 'Business Bank Account', category: 'asset', role: 'bank', is_active: true, balance: 500 },
@@ -75,6 +79,7 @@ beforeEach(() => {
   supplierBills.list.mockResolvedValue([]);
   supplierBills.summary.mockResolvedValue({});
   supplierBills.create.mockResolvedValue({});
+  users.myAccess.mockResolvedValue(MAY_PAY);
 });
 
 describe('journalProblems', () => {
@@ -137,6 +142,15 @@ describe('ReportsTab', () => {
     expect(screen.getByText('(200.00)')).toBeInTheDocument();
   });
 
+  test('opens on the report and range it is given', async () => {
+    accounting.bas.mockResolvedValue({ G1: 0, G11: 0, '1A': 0, '1B': 40, net_gst: -40 });
+    renderWithQuery(<ReportsTab initialReport="bas" initialFrom="2026-07-01" initialTo="2026-09-30" />);
+    expect(await screen.findByText('GST refund due from the ATO')).toBeInTheDocument();
+    expect(accounting.bas).toHaveBeenCalledWith('2026-07-01', '2026-09-30');
+    expect(screen.getByLabelText('From')).toHaveValue('2026-07-01');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-09-30');
+  });
+
   test('the balance sheet says whether it balances', async () => {
     accounting.balanceSheet.mockResolvedValue({
       as_at: '2026-09-25', financial_year_start: '2026-07-01',
@@ -160,6 +174,19 @@ describe('SetupTab', () => {
     expect(await screen.findByText(/does not agree/)).toBeInTheDocument();
     expect(screen.getByText('1207509')).toBeInTheDocument();
     expect(screen.getByText(/Record the payment on the job/)).toBeInTheDocument();
+  });
+
+  test('an invoice that is not its lines, and a balance that is not its invoices, are listed', async () => {
+    accounting.health.mockResolvedValue({
+      ...HEALTHY,
+      totals_disagree_with_lines: [{ job_id: '110002', customer: 'Outback Mining', header: 142, lines: 151.95 }],
+      balances_disagree_with_invoices: [{ customer_id: 'CFG', customer: 'CFG Mining', balance: 551.05, invoices: 138.6 }],
+    });
+    renderWithQuery(<SetupTab currentUser={{ role: 'manager' }} />);
+    expect(await screen.findByText(/Invoice total is not the sum of its lines/)).toBeInTheDocument();
+    expect(screen.getByText('110002')).toBeInTheDocument();
+    expect(screen.getByText(/Customer balance is not what they were invoiced/)).toBeInTheDocument();
+    expect(screen.getByText('CFG')).toBeInTheDocument();
   });
 
   test('a manager sees the health check but not the controls', async () => {
@@ -211,18 +238,56 @@ describe('JournalsTab', () => {
 describe('AccountingModule', () => {
   test('staff see payables and nothing of the ledger', async () => {
     renderWithQuery(<AccountingModule currentUser={{ role: 'staff' }} />);
-    const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
-    expect(tabs).toEqual(['Payables']);
+    expect(await screen.findByRole('tab', { name: 'Payables' })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Payables']);
   });
 
   test('a manager lands on the reports', async () => {
     renderWithQuery(<AccountingModule currentUser={{ role: 'manager' }} />);
+    await screen.findByRole('tab', { name: 'Payables' });
     // The first tablist is the module's; the Reports tab has its own inside it.
     const moduleTabs = within(screen.getAllByRole('tablist')[0]).getAllByRole('tab');
     expect(moduleTabs.map((t) => t.textContent)).toEqual(
       ['Payables', 'Reports', 'Journals', 'Chart of Accounts', 'Ledger Health'],
     );
     expect(await screen.findByText('Net Profit')).toBeInTheDocument();
+  });
+
+  test('a role that may not read the bills is not offered Payables', async () => {
+    users.myAccess.mockResolvedValue({ role: 'overseas_staff', areas: [], allowed: ['GET /jobs'] });
+    const { client } = renderWithQuery(<AccountingModule currentUser={{ role: 'overseas_staff' }} />);
+    await waitFor(() => expect(client.getQueryState(['my-access'])?.status).toBe('success'));
+    expect(screen.queryAllByRole('tab')).toEqual([]);
+    expect(supplierBills.list).not.toHaveBeenCalled();
+    expect(supplierBills.summary).not.toHaveBeenCalled();
+  });
+
+  test('opens on the tab it is given', async () => {
+    renderWithQuery(<AccountingModule currentUser={{ role: 'manager' }} initialTab="setup" />);
+    expect(await screen.findByText(/agrees with the jobs and bills/)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Ledger Health' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('opens Payables when given it', async () => {
+    renderWithQuery(<AccountingModule currentUser={{ role: 'manager' }} initialTab="payables" />);
+    await waitFor(() => expect(supplierBills.summary).toHaveBeenCalled());
+    expect(screen.getByRole('tab', { name: 'Payables' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('a ledger tab is not opened for a role that cannot read the ledger', async () => {
+    renderWithQuery(<AccountingModule currentUser={{ role: 'staff' }} initialTab="setup" />);
+    expect(await screen.findByRole('tab', { name: 'Payables' })).toHaveAttribute('aria-selected', 'true');
+    expect(accounting.health).not.toHaveBeenCalled();
+  });
+
+  test('opens the Reports tab on the report and range it is given', async () => {
+    accounting.bas.mockResolvedValue({ G1: 1100, G11: 0, '1A': 100, '1B': 0, net_gst: 100 });
+    renderWithQuery(
+      <AccountingModule currentUser={{ role: 'manager' }} initialTab="reports" initialReport={{ report: 'bas', from: '2026-10-01', to: '2026-12-31' }} />,
+    );
+    expect(await screen.findByText('GST payable to the ATO')).toBeInTheDocument();
+    expect(accounting.bas).toHaveBeenCalledWith('2026-10-01', '2026-12-31');
+    expect(screen.getByRole('tab', { name: 'BAS' })).toHaveAttribute('aria-selected', 'true');
   });
 });
 

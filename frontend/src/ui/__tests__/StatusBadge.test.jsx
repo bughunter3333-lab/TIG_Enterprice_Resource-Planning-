@@ -10,6 +10,13 @@ test('StatusBadge renders status in its semantic colour (uppercased via CSS)', (
   expect(el).toHaveStyle({ textTransform: 'uppercase' });
 });
 
+test("StatusBadge says TIG's name for a status, never colour alone", () => {
+  render(<><StatusBadge status="New" /><StatusBadge status="ORDER" /><StatusBadge status="Ready" /></>);
+  expect(screen.getByText('Booked')).toBeInTheDocument();
+  expect(screen.getByText('Confirmed')).toBeInTheDocument();
+  expect(screen.getByText('Ready to invoice')).toHaveStyle({ color: STATUS_COLORS.Ready });
+});
+
 test('Button fires onClick and respects disabled', () => {
   const onClick = vi.fn();
   const { rerender } = render(<Button onClick={onClick}>Save</Button>);

@@ -109,9 +109,7 @@ class TestPatchRunsStockEffects:
         _job(db, "J-SP3", "SP3", 7, status="ORDER")
         before = _inv(db, "SP3").committed_qty
 
-        assert (
-            client.patch("/jobs/J-SP3", json={"po_number": "PO-9"}).status_code == 200
-        )
+        assert client.patch("/jobs/J-SP3", json={"cust_ref": "PO-9"}).status_code == 200
 
         db.expire_all()
         assert _inv(db, "SP3").committed_qty == before

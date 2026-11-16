@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.customer import Customer
+from app.models.job import Job
 from app.models.customer_ship_to import CustomerShipTo
 from app.core.dependencies import require_staff, require_any
 
@@ -125,6 +126,17 @@ def delete_ship_to(
     )
     if not ship_to:
         raise HTTPException(status_code=404, detail="Ship-to address not found")
+    # A job points at its site (a foreign key): deleting one in use failed
+    # with a server error on Postgres. The jobs keep their delivery address.
+    in_use = db.query(Job).filter(Job.ship_to_id == ship_to_id).count()
+    if in_use:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Site '{ship_to.code}' is the delivery address of {in_use} "
+                f"job{'s' if in_use != 1 else ''}, so it is kept. Edit it instead."
+            ),
+        )
     db.delete(ship_to)
     db.commit()
     return {"ok": True}

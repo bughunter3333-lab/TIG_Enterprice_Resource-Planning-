@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
 import bcrypt
 import pyotp
 import qrcode
@@ -9,7 +9,6 @@ import io
 import base64
 
 from app.core.config import settings
-
 
 # bcrypt reads at most this many bytes of a password and ignores the rest.
 MAX_PASSWORD_BYTES = 72
@@ -93,7 +92,7 @@ def create_pre_mfa_token(user_id: int, token_version: int = 0) -> str:
 def decode_token(token: str) -> Optional[dict]:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 

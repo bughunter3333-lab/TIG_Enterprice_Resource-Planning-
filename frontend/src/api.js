@@ -1,3 +1,6 @@
+import { localDay } from './lib/localDay';
+import { addStep, SERVER_ERROR } from './lib/crashContext';
+
 const BASE = '/api';
 
 // A gateway, a proxy or a host that has stopped serving answers with HTML, not
@@ -18,13 +21,28 @@ function errorMessage(detail, status, fallback) {
   return fallback;
 }
 
+// A step for the crash report: the path without its query, which can carry
+// what someone searched for.
+const pathOnly = (path) => String(path).split('?')[0];
+
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const method = (options.method || 'GET').toUpperCase();
+  // Sending a crash report is not a step of the crash it reports.
+  const quiet = path.startsWith('/crash-reports');
+  const started = Date.now();
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (e) {
+    if (!quiet) addStep('api', `${method} ${pathOnly(path)} → no answer`);
+    throw e;
+  }
+  if (!quiet) addStep('api', `${method} ${pathOnly(path)} → ${res.status} (${Date.now() - started} ms)`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -36,6 +54,13 @@ async function request(path, options = {}) {
     const error = new Error(errorMessage(detail, res.status, `Request failed: ${res.status}`));
     error.status = res.status;
     error.detail = detail;
+    // The server's id for this request: its log lines carry it too.
+    error.requestId = res.headers?.get?.('X-Request-ID') ?? null;
+    if (res.status >= 500 && !quiet) {
+      window.dispatchEvent(new CustomEvent(SERVER_ERROR, {
+        detail: { message: error.message, requestId: error.requestId, method, path: pathOnly(path) },
+      }));
+    }
     throw error;
   }
   return res.status === 204 ? null : res.json();
@@ -73,6 +98,7 @@ function normalizeJob(j) {
     out: j.out,
     quote: j.quote,
     priority: j.priority,
+    orderCategory: j.order_category ?? j.orderCategory ?? 'Normal',
     type: j.type,
     assignedTo: j.assigned_to ?? j.assignedTo,
     subtotal: totalEx,
@@ -80,6 +106,10 @@ function normalizeJob(j) {
     total: totalInc,
     invoicePaid: parseFloat(j.deposit ?? j.invoicePaid ?? 0),
     balanceDue: parseFloat(j.balance_due ?? j.balanceDue ?? 0),
+    // Credit notes applied to the invoice: total less paid less this is owed.
+    credited: parseFloat(j.credited ?? 0),
+    // The day it was invoiced (server-owned): a credit note is never dated before it.
+    invoiceDate: j.invoice_date ?? j.invoiceDate ?? '',
     paymentMethod: j.payment_method ?? j.paymentMethod ?? 'Account',
     shippingAddress: j.shipping_address ?? j.shippingAddress ?? '',
     notes: j.notes,
@@ -104,11 +134,16 @@ function normalizeJob(j) {
     commitmentDate: j.commitment_date ?? j.commitmentDate ?? '',
     validityDate: j.validity_date ?? j.validityDate ?? '',
     locked: j.locked ?? false,
+    statusChangedAt: j.status_changed_at ?? j.statusChangedAt ?? null,
+    customerWatchout: j.customer_watchout ?? j.customerWatchout ?? '',
     invoiceStatus: j.invoice_status ?? j.invoiceStatus ?? 'not_invoiced',
     proofStatus: j.proof_status ?? j.proofStatus ?? 'none',
     proofNotes: j.proof_notes ?? j.proofNotes ?? '',
     // Production / dispatch fields
     dispatchedAt: j.dispatched_at ?? j.dispatchedAt ?? '',
+    // Written on the job when it is despatched (it used to live in a comment).
+    shipVia: j.ship_via ?? '',
+    connote: j.connote ?? '',
     branch: j.branch ?? 'HQ',
     shipToId: j.ship_to_id ?? j.shipToId ?? null,
     weightTotal: parseFloat(j.weight_total ?? j.weightTotal ?? 0),
@@ -151,6 +186,8 @@ function normalizeJobItem(i) {
     discount: parseFloat(i.discount ?? 0),
     priceEx: parseFloat(i.price_ex ?? i.priceEx ?? 0),
     priceInc: parseFloat(i.price_inc ?? i.priceInc ?? 0),
+    // Priced inc GST (the online store's shelf price): totals its inc price.
+    pricedInc: !!(i.priced_inc ?? i.pricedInc),
     total: parseFloat(i.total ?? 0),
     hide: i.hide ?? false,
     taxType: i.tax_type ?? i.taxType ?? '',
@@ -158,6 +195,17 @@ function normalizeJobItem(i) {
     poNo: i.po_no ?? i.poNo ?? '',
     poDue: i.po_due ?? i.poDue ?? '',
     weightKg: parseFloat(i.weight_kg ?? i.weightKg ?? 0),
+    // A decoration (a logo) or an alteration is work done to a garment line,
+    // not goods: never picked, held or shipped (backend JobItem.is_service).
+    logoId: i.logo_id ?? i.logoId ?? null,
+    // The proof is the logo's, held once for every job that carries it (F31).
+    logoCode: i.logo_code ?? i.logoCode ?? '',
+    logoProofStatus: i.logo_proof_status ?? i.logoProofStatus ?? null,
+    appliesToItemId: i.applies_to_item_id ?? i.appliesToItemId ?? null,
+    isService: (i.logo_id ?? i.logoId ?? null) != null || (i.applies_to_item_id ?? i.appliesToItemId ?? null) != null,
+    // A charge (freight, a set-up, a fee): a stock code kept for money, not
+    // goods (S2-05, backend JobItem.is_charge) — never picked or shipped.
+    isCharge: !!(i.is_charge ?? i.isCharge),
   };
 }
 
@@ -220,6 +268,8 @@ function normalizeCustomer(c) {
     accountType: c.account_type ?? c.accountType,
     paymentTerms: c.payment_terms ?? c.paymentTerms ?? 'Net 30',
     creditLimit: parseFloat(c.credit_limit ?? c.creditLimit ?? 0),
+    creditHold: Boolean(c.credit_hold ?? c.creditHold ?? false),
+    watchout: c.watchout ?? '',
     balance: parseFloat(c.balance ?? 0),
     totalSpent: parseFloat(c.ytd_sales ?? c.totalSpent ?? 0),
     accountManager: c.account_manager ?? c.accountManager,
@@ -307,6 +357,12 @@ export const jobs = {
 
   get: (id) => request(`/jobs/${id}`).then(normalizeJob),
 
+  // Lines to another open job of the same customer; the stock they reserve
+  // goes with them, a garment takes its decoration
+  // (docs/superpowers/specs/2026-11-08-move-lines.md).
+  moveLines: (jobId, itemIds, toJobId) =>
+    request(`/jobs/${jobId}/move-lines`, { method: 'POST', body: { item_ids: itemIds, to_job_id: toJobId } }),
+
   nextId: () => request('/jobs/next-id'),
 
   create: (data) => request('/jobs', { method: 'POST', body: {
@@ -319,6 +375,7 @@ export const jobs = {
     out: data.out,
     quote: data.quote,
     priority: data.priority || 'Normal',
+    order_category: data.orderCategory || 'Normal',
     type: data.type || 'Normal',
     assigned_to: data.assignedTo,
     payment_method: data.paymentMethod || 'Account',
@@ -390,6 +447,10 @@ export const jobs = {
       item_status: i.itemStatus || '',
       po_no: i.poNo || '',
       po_due: i.poDue || '',
+      // The garment a decoration or alteration is done to: a saved line by its
+      // id, a line sent in this same request by its position (F02, F19).
+      applies_to_item_id: i.appliesToItemId ?? null,
+      ...(i.appliesToLine != null ? { applies_to_line: i.appliesToLine } : {}),
     })),
   }}).then(normalizeJob),
 
@@ -404,6 +465,7 @@ export const jobs = {
     quote: data.quote,
     status: data.status,
     priority: data.priority,
+    order_category: data.orderCategory,
     assigned_to: data.assignedTo,
     due: data.due,
     out: data.out,
@@ -476,6 +538,8 @@ export const jobs = {
       item_status: i.itemStatus || '',
       po_no: i.poNo || '',
       po_due: i.poDue || '',
+      applies_to_item_id: i.appliesToItemId ?? null,
+      ...(i.appliesToLine != null ? { applies_to_line: i.appliesToLine } : {}),
     })) : undefined,
   }}).then(normalizeJob),
 
@@ -488,6 +552,11 @@ export const jobs = {
       method: 'POST',
       body: { job_ids: jobIds, status, allow_negative_stock: allowNegativeStock },
     }),
+
+  // Jim2's "Change Jobs Date Due" on the job list (JIM24): one date for every
+  // job selected. `due` is a YYYY-MM-DD day. Answers { changed, failed }.
+  bulkDue: (jobIds, due) =>
+    request('/jobs/bulk-due', { method: 'POST', body: { job_ids: jobIds, due } }),
 
   // Jim2's "Create Similar". Carries the order; leaves the source job's own
   // fulfilment behind. Overrides let a multi-site rollout point each copy at
@@ -510,8 +579,16 @@ export const jobs = {
   patchDue: (id, due) =>
     request(`/jobs/${id}`, { method: 'PATCH', body: { due } }).then(normalizeJob),
 
+  // Picks every goods line of each job to what it supplies (Jim2 Auto Pick).
+  // Each job is judged on its own: { jobs: [{ job_id, all_picked }], failed }.
+  autoPick: (jobIds) => request('/jobs/auto-pick', { method: 'POST', body: { job_ids: jobIds } }),
+
   addComment: (id, comment, isInternal = false) =>
     request(`/jobs/${id}/comments`, { method: 'POST', body: { comment, is_internal: isInternal } }),
+
+  // Pin a comment to the top of the job's trail, or let it go (Jim2 v4.6).
+  pinComment: (id, commentId, pinned) =>
+    request(`/jobs/${id}/comments/${commentId}/pin`, { method: 'POST', body: { pinned } }),
 
   toggleLock: (id, locked) =>
     request(`/jobs/${id}/lock`, { method: 'POST', body: { locked } }).then(normalizeJob),
@@ -529,6 +606,11 @@ export const jobs = {
       cartons: data.cartons || 1,
       notes: data.notes || null,
       advance_status: data.advanceStatus || false,
+      // A job that has gone already is refused unless this is a further
+      // consignment (e.g. back-ordered sizes) — F22.
+      again: !!data.again,
+      // The browser's day, not the API's UTC one (B1-07).
+      despatch_date: data.despatchDate || localDay(),
     }}).then(normalizeJob),
 
   unprint: (id) =>
@@ -566,6 +648,7 @@ export const inventory = {
     sell_price: data.unitPrice || 0,
     location: data.location,
     status: data.status || 'Active',
+    weight_kg: data.weight_kg || 0,
   }}).then(normalizeInventory),
 
   update: (sku, data) => request(`/inventory/${sku}`, { method: 'PATCH', body: {
@@ -587,6 +670,7 @@ export const inventory = {
     desc_extended: data.desc_extended,
     desc_web: data.desc_web,
     desc_care: data.desc_care,
+    weight_kg: data.weight_kg,
   }}).then(normalizeInventory),
 
   adjust: (sku, adjustment, reason) =>
@@ -720,6 +804,14 @@ export const customers = {
   // The backend has served these since the ship-to work; nothing on this side
   // ever asked for them, so a customer's sites were unreachable from the app.
   shipTos: (customerId) => request(`/customers/${customerId}/ship-tos`),
+  // A site's code is set once; edits change the rest. A site jobs deliver to
+  // is refused deletion (409, saying how many jobs).
+  createShipTo: (customerId, site) =>
+    request(`/customers/${customerId}/ship-tos`, { method: 'POST', body: site }),
+  updateShipTo: (customerId, siteId, site) =>
+    request(`/customers/${customerId}/ship-tos/${siteId}`, { method: 'PATCH', body: site }),
+  deleteShipTo: (customerId, siteId) =>
+    request(`/customers/${customerId}/ship-tos/${siteId}`, { method: 'DELETE' }),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/customers${q ? `?${q}` : ''}`).then(r => r.map(normalizeCustomer));
@@ -738,6 +830,7 @@ export const customers = {
     payment_terms: data.paymentTerms || 'Net 30',
     credit_limit: data.creditLimit || 0,
     account_manager: data.accountManager,
+    watchout: data.watchout || null,
     status: 'Active',
   }}).then(normalizeCustomer),
 
@@ -752,11 +845,97 @@ export const customers = {
     account_type: data.accountType,
     payment_terms: data.paymentTerms,
     credit_limit: data.creditLimit,
+    credit_hold: data.creditHold,
+    watchout: data.watchout ?? undefined,
     account_manager: data.accountManager,
     status: data.status,
   }}).then(normalizeCustomer),
 
   delete: (id) => request(`/customers/${id}`, { method: 'DELETE' }),
+
+  // One remittance paying several invoices. Without allocations, the server
+  // pays the customer's oldest invoices first; it must all be allocated.
+  recordRemittance: (customerId, { amount, method, reference, receivedDate, allocations }) =>
+    request(`/customers/${customerId}/remittances`, { method: 'POST', body: {
+      amount,
+      method: method || 'EFT',
+      reference: reference || null,
+      received_date: receivedDate || null,
+      ...(allocations ? { allocations: allocations.map(a => ({ job_id: a.jobId, amount: a.amount })) } : {}),
+    }}),
+};
+
+// ── Logos ────────────────────────────────────────────────────────────────────
+// A customer's logo, held once: method, stitch count, price and cost per
+// application, who does it (in-house or a named decorator), and its proof.
+
+const normalizeLogo = (g) => ({
+  id: g.id,
+  code: g.code,
+  customerId: g.customer_id ?? null,
+  name: g.name ?? '',
+  decorationType: g.decoration_type ?? '',
+  position: g.position ?? '',
+  stitchCount: g.stitch_count ?? null,
+  colorCount: g.color_count ?? null,
+  priceEx: parseFloat(g.price_ex ?? 0),
+  costEx: parseFloat(g.cost_ex ?? 0),
+  madeBy: g.made_by ?? 'in_house',
+  supplierId: g.supplier_id ?? null,
+  proofStatus: g.proof_status ?? 'none',
+  proofNotes: g.proof_notes ?? '',
+  approvedBy: g.approved_by ?? null,
+  isActive: g.is_active ?? true,
+  jobs: g.jobs ?? [],
+});
+
+// Only the fields the caller names, so an edit of the price never sends the
+// stitch count back (a changed stitch count reopens the logo's proof, F31).
+const logoChanges = (data) => {
+  const body = {};
+  if ('position' in data) body.position = data.position || null;
+  if ('stitchCount' in data) body.stitch_count = data.stitchCount === '' || data.stitchCount == null ? null : Number(data.stitchCount);
+  if ('priceEx' in data) body.price_ex = Number(data.priceEx) || 0;
+  if ('costEx' in data) body.cost_ex = Number(data.costEx) || 0;
+  if ('madeBy' in data) body.made_by = data.madeBy;
+  if ('supplierId' in data) body.supplier_id = data.supplierId || null;
+  if ('isActive' in data) body.is_active = Boolean(data.isActive);
+  return body;
+};
+
+export const logos = {
+  // Active logos only, unless asked: an inactive one is not applied to new lines.
+  list: (customerId, { includeInactive = false } = {}) => {
+    const q = new URLSearchParams();
+    if (customerId) q.set('customer_id', customerId);
+    if (includeInactive) q.set('include_inactive', 'true');
+    const qs = q.toString();
+    return request(`/logos${qs ? `?${qs}` : ''}`).then(r => r.map(normalizeLogo));
+  },
+  update: (id, data) => request(`/logos/${id}`, { method: 'PATCH', body: logoChanges(data) }).then(normalizeLogo),
+  create: (data) => request('/logos', { method: 'POST', body: {
+    code: data.code,
+    customer_id: data.customerId || null,
+    name: data.name || null,
+    decoration_type: data.decorationType,
+    position: data.position || null,
+    stitch_count: data.stitchCount === '' || data.stitchCount == null ? null : Number(data.stitchCount),
+    price_ex: Number(data.priceEx) || 0,
+    cost_ex: Number(data.costEx) || 0,
+    made_by: data.madeBy || 'in_house',
+    supplier_id: data.madeBy === 'subcontract' ? (data.supplierId || null) : null,
+  }}).then(normalizeLogo),
+  proof: (id, status, notes) =>
+    request(`/logos/${id}/proof`, { method: 'POST', body: { status, notes: notes || null } }).then(normalizeLogo),
+};
+
+// ── Documents printed by the server ──────────────────────────────────────────
+
+export const documents = {
+  // One PDF for many jobs — delivery notes, ship labels or job labels, a page
+  // (or label) each. Opened in a new tab: the session cookie goes with it.
+  jobsUrl: (type, jobIds) =>
+    `${BASE}/job-documents?${new URLSearchParams([['type', type], ...jobIds.map(id => ['job_id', id])])}`,
 };
 
 // ── Suppliers ────────────────────────────────────────────────────────────────
@@ -793,6 +972,11 @@ export const suppliers = {
 // ── Purchase Orders ───────────────────────────────────────────────────────────
 
 export const purchaseOrders = {
+  // Jim2's "Auto Create Purchase Orders" from the job list (JIM24): one PO per
+  // supplier for the selected jobs' short lines. Answers { created: [{ id,
+  // supplier_name, items }], skipped: [{ job_id, sku, reason }] }.
+  fromJobs: (jobIds) =>
+    request('/purchase-orders/from-jobs', { method: 'POST', body: { job_ids: jobIds } }),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request(`/purchase-orders${q ? `?${q}` : ''}`).then(r => r.map(normalizePO));
@@ -820,6 +1004,16 @@ export const purchaseOrders = {
 
   receive: (id, items) =>
     request(`/purchase-orders/${id}/receive`, { method: 'POST', body: { items } }).then(normalizePO),
+
+  // The order as the supplier is sent it, and sending it: emailing a Draft
+  // makes it Sent. The supplier's own address unless another is given.
+  pdfUrl: (id) => `${BASE}/purchase-orders/${encodeURIComponent(id)}/pdf`,
+  email: (id, { toEmail, cc, message } = {}) =>
+    request(`/purchase-orders/${encodeURIComponent(id)}/email`, { method: 'POST', body: {
+      to_email: toEmail || null,
+      cc: cc || null,
+      message: message || null,
+    }}),
 
   createFromRequirements: (data) => request('/purchase-orders/from-requirements', { method: 'POST', body: {
     id: data.id,
@@ -904,6 +1098,7 @@ function normalizeGR(gr) {
       unitCost: parseFloat(ln.unit_cost || 0),
       condition: ln.condition || 'Good',
       notes: ln.notes,
+      poItemId: ln.po_item_id ?? null,
     })),
     charges: (gr.charges || []).map(c => ({
       id: c.id,
@@ -941,6 +1136,9 @@ export const goodsReceipts = {
       unit_cost: ln.unitCost || 0,
       condition: ln.condition || 'Good',
       notes: ln.notes || null,
+      // Which PO line this is: without it the server credits the first open
+      // line of the SKU, which on a PO bought for several jobs fills the wrong job (F18).
+      po_item_id: ln.poItemId ?? null,
     })),
     // Landed costs (freight/duty/customs) — apportioned into COG on accept.
     charges: (data.charges || [])
@@ -1177,8 +1375,28 @@ function normalizeBill(b) {
     status: b.status ?? 'pending',
     paidDate: b.paid_date ?? '',
     paidAmount: parseFloat(b.paid_amount ?? 0),
+    // Still owed: the bill's total less every payment recorded against it.
+    outstanding: parseFloat(b.outstanding ?? (b.amount_inc ?? 0) - (b.paid_amount ?? 0)),
+    // Against a PO: what was ordered, what arrived against it, and whether the bills come to that.
+    poMatch: b.po_match ? {
+      orderedInc: parseFloat(b.po_match.ordered_inc ?? 0),
+      receivedInc: parseFloat(b.po_match.received_inc ?? 0),
+      billedInc: parseFloat(b.po_match.billed_inc ?? 0),
+      difference: parseFloat(b.po_match.difference ?? 0),
+      matches: !!b.po_match.matches,
+    } : null,
+    payments: (b.payments ?? []).map(p => ({
+      id: p.id,
+      amount: parseFloat(p.amount ?? 0),
+      paidDate: p.paid_date ?? '',
+      reference: p.reference ?? '',
+      paidBy: p.paid_by ?? '',
+    })),
     notes: b.notes ?? '',
     accountId: b.account_id ?? null,
+    // A credit note applied against one of the supplier's bills (S2-09).
+    appliedToBillId: b.applied_to_bill_id ?? null,
+    appliedToBillNumber: b.applied_to_bill_number ?? null,
     createdAt: b.created_at,
   };
 }
@@ -1263,10 +1481,21 @@ export const supplierBills = {
     ...('accountId' in data ? { account_id: data.accountId ?? null } : {}),
   }}).then(normalizeBill),
 
-  pay: (id, paidAmount, paidDate) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {
+  // Records one payment — added to what is already paid. A bill is 'paid' once
+  // its payments cover it.
+  pay: (id, paidAmount, paidDate, reference) => request(`/ap/bills/${id}/pay`, { method: 'POST', body: {
     paid_amount: paidAmount,
     paid_date: paidDate || null,
+    reference: reference || null,
   }}).then(normalizeBill),
+
+  deletePayment: (id, paymentId) =>
+    request(`/ap/bills/${id}/payments/${paymentId}`, { method: 'DELETE' }).then(normalizeBill),
+
+  // A credit note (a bill below zero) is applied to one of the supplier's
+  // bills, never paid; answers with that bill, now owed that much less.
+  applyCredit: (creditId, billId) =>
+    request(`/ap/bills/${creditId}/apply`, { method: 'POST', body: { bill_id: billId } }).then(normalizeBill),
 
   delete: (id) => request(`/ap/bills/${id}`, { method: 'DELETE' }),
 
@@ -1312,6 +1541,9 @@ export const users = {
   list: () => request('/users'),
   // What each role can do, counted from the gates on the server's own routes.
   access: () => request('/users/access'),
+  // The signed-in person's own role: its column of that table, and every
+  // route ("METHOD /path") the role may call.
+  myAccess: () => request('/users/me/access'),
   create: (data) => request('/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/users/${id}`, { method: 'PATCH', body: data }),
   delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),
@@ -1381,12 +1613,91 @@ export const adminSettings = {
 
 // ── Dispatch sessions (Jim2 'Dispatch #': recorded despatch batches) ─────────
 
+// Customer credit notes and returns (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+// Managers and admins raise and apply; staff read and inspect; the returns list
+// carries no money. Bodies go as the server names them.
+export const creditNotes = {
+  forJob: (jobId) => request(`/jobs/${encodeURIComponent(jobId)}/credit-notes`),
+  // Lines of the invoice, or an amount inc GST — one or the other.
+  raise: (jobId, { lines, amount, reason, creditDate }) => request(`/jobs/${encodeURIComponent(jobId)}/credit-notes`, {
+    method: 'POST',
+    body: {
+      ...(lines ? { lines: lines.map((l) => ({ item_id: l.itemId, qty: l.qty, goods_back: !!l.goodsBack })) } : {}),
+      ...(amount != null ? { amount } : {}),
+      reason,
+      ...(creditDate ? { credit_date: creditDate } : {}),
+    },
+  }),
+  list: ({ customerId, withCredit } = {}) => {
+    const q = new URLSearchParams();
+    if (customerId) q.set('customer_id', customerId);
+    if (withCredit) q.set('with_credit', 'true');
+    const query = q.toString();
+    return request(`/credit-notes${query ? `?${query}` : ''}`);
+  },
+  apply: (noteId, jobId, amount) => request(`/credit-notes/${encodeURIComponent(noteId)}/apply`, {
+    method: 'POST', body: { job_id: jobId, amount },
+  }),
+  inspect: (noteId, lineId, outcome) => request(`/credit-notes/${encodeURIComponent(noteId)}/lines/${lineId}/inspect`, {
+    method: 'POST', body: { outcome },
+  }),
+  returns: (status = 'waiting') => request(`/returns?status=${encodeURIComponent(status)}`),
+  pdfUrl: (noteId) => `${BASE}/credit-notes/${encodeURIComponent(noteId)}/pdf`,
+};
+
+// How long a job may sit at each status, in working days; 0 is no limit
+// (docs/superpowers/specs/2026-11-09-status-times.md). Anyone reads; admins set.
+export const statusTimes = {
+  get: () => request('/status-allowances'),
+  save: (allowances) => request('/status-allowances', { method: 'PUT', body: { allowances } }),
+};
+
+// Crash reports (docs/superpowers/specs/2026-11-08-crash-reports.md): anyone
+// signed in sends one; admins read them. A screenshot travels as a data URL.
+export const crashReports = {
+  send: (report) => request('/crash-reports', { method: 'POST', body: report }),
+  addDetails: (id, details) => request(`/crash-reports/${id}/details`, { method: 'PATCH', body: details }),
+  list: ({ status, kind } = {}) => {
+    const q = new URLSearchParams();
+    if (status) q.set('status', status);
+    if (kind) q.set('kind', kind);
+    const query = q.toString();
+    return request(`/crash-reports${query ? `?${query}` : ''}`);
+  },
+  get: (id) => request(`/crash-reports/${id}`),
+  review: (id, body) => request(`/crash-reports/${id}`, { method: 'PATCH', body }),
+  remove: (id) => request(`/crash-reports/${id}`, { method: 'DELETE' }),
+  screenshotUrl: (id) => `${BASE}/crash-reports/${id}/screenshot`,
+};
+
+// The production board (docs/superpowers/specs/2026-11-07-production-board.md):
+// work in hand by lane, and handing a job's work at one lane to another lane
+// and optionally a person. A hand-off never changes the job's status.
+// board → { lanes: [{ key, label }], cards: [{ job_id, lane, customer_name,
+// cust_ref, due, priority, order_category, status, holder, since, lines }],
+// holders: [names used before] }
+export const production = {
+  board: () => request('/production-board'),
+  handOff: ({ jobId, fromLane, toLane, holder }) =>
+    request('/production-board/hand-off', {
+      method: 'POST',
+      body: { job_id: jobId, from_lane: fromLane, to_lane: toLane, holder: holder || null },
+    }),
+};
+
 export const dispatchSessions = {
-  // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus }]
-  create: (lines) =>
+  // lines: [{ jobId, shipVia, shipRef, cartons, advanceStatus, again }]
+  // `again`: a job that has gone already is sent as a further consignment (F22).
+  // `despatchDate` (YYYY-MM-DD): the day the batch goes — after the carrier's
+  // cut-off, the next collection (B1-07). Today, the browser's, unless given:
+  // the API's own today is UTC's, yesterday in a Sydney morning.
+  create: (lines, { despatchDate } = {}) =>
     request('/dispatch-sessions', {
       method: 'POST',
-      body: { lines: lines.map(l => ({ job_id: l.id, ship_via: l.shipVia, ship_ref: l.shipRef, cartons: l.cartons, advance_status: l.advanceStatus })) },
+      body: {
+        lines: lines.map(l => ({ job_id: l.id, ship_via: l.shipVia, ship_ref: l.shipRef, cartons: l.cartons, advance_status: l.advanceStatus, again: !!l.again })),
+        despatch_date: despatchDate || localDay(),
+      },
     }),
   list: () => request('/dispatch-sessions'),
   get: (id) => request(`/dispatch-sessions/${id}`),

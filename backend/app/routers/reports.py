@@ -1,18 +1,32 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
 from typing import Optional
-from datetime import date, timedelta
+from datetime import date
 from app.database import get_db
 from app.models.job import Job, JobItem
+from app.models.credit_note import CreditNoteApplication, CustomerCreditNote
+from app.models.job_payment import JobPayment
 from app.models.inventory import InventoryItem
 from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
+from app.models.settings import CompanySettings
+from app.models.supplier import Supplier
 from app.models.supplier_bill import SupplierBill
-from app.core.dependencies import require_any
+from app.core import bill_matching, credit_notes, po_totals, shop_day
+from app.core.dependencies import require_any, require_staff
 from app.core.fiscal import current_fiscal_year
+from app.core.ledger import money
+from app.core.ledger_postings import INVOICED_STATUSES, bill_outstanding, bill_owed
+from app.core.payment_terms import due_date
+from app.core.reservations import COMMITTED_STATUSES, FINISHED_STATUSES
 from app.models.user import User
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+# A report with money in it — amounts, costs, values — is for staff and above;
+# overseas staff read the ones that only count jobs and days (owner decision,
+# 2026-10-19).
 
 
 @router.get("/sales-summary")
@@ -21,7 +35,7 @@ def sales_summary(
     date_to: Optional[str] = Query(None),
     customer_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """Sales summary report - revenue by customer for a period."""
     q = db.query(Job).filter(Job.status.in_(["INVOICE", "PAID"]))
@@ -75,7 +89,7 @@ def gst_report(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """GST report for BAS lodgement — summarises G1/G2 sales and 1A/1B credits.
 
@@ -89,9 +103,15 @@ def gst_report(
         q = q.filter(Job.invoice_date <= date_to)
     jobs = q.all()
 
-    total_sales_inc = sum(float(j.total_inc or 0) for j in jobs)
-    total_sales_ex = sum(float(j.total_ex or 0) for j in jobs)
-    gst_collected = sum(float(j.tax or 0) for j in jobs)
+    # Credit notes dated in the period take their sales and GST back off it
+    # (an adjustment note: docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credits = credit_notes.in_period(db, date_from, date_to)
+    credited_inc = sum(float(n.total_inc or 0) for n in credits)
+    credited_ex = sum(float(n.total_ex or 0) for n in credits)
+    credited_gst = sum(float(n.tax or 0) for n in credits)
+    total_sales_inc = sum(float(j.total_inc or 0) for j in jobs) - credited_inc
+    total_sales_ex = sum(float(j.total_ex or 0) for j in jobs) - credited_ex
+    gst_collected = sum(float(j.tax or 0) for j in jobs) - credited_gst
     invoice_count = len(jobs)
 
     # Month-by-month breakdown keyed on invoice_date (fall back to date_in for old records)
@@ -99,17 +119,19 @@ def gst_report(
     for j in jobs:
         month = (j.invoice_date or j.date_in or "")[:7] or "Unknown"
         if month not in monthly:
-            monthly[month] = {
-                "month": month,
-                "invoices": 0,
-                "sales_inc": 0.0,
-                "sales_ex": 0.0,
-                "gst": 0.0,
-            }
+            monthly[month] = _gst_month(month)
         monthly[month]["invoices"] += 1
         monthly[month]["sales_inc"] += float(j.total_inc or 0)
         monthly[month]["sales_ex"] += float(j.total_ex or 0)
         monthly[month]["gst"] += float(j.tax or 0)
+    for n in credits:
+        month = n.credit_date[:7]
+        if month not in monthly:
+            monthly[month] = _gst_month(month)
+        monthly[month]["credit_notes"] += 1
+        monthly[month]["sales_inc"] -= float(n.total_inc or 0)
+        monthly[month]["sales_ex"] -= float(n.total_ex or 0)
+        monthly[month]["gst"] -= float(n.tax or 0)
 
     rows = sorted(monthly.values(), key=lambda x: x["month"])
     for r in rows:
@@ -123,10 +145,24 @@ def gst_report(
             "G1_total_sales_ex_gst": round(total_sales_ex, 2),
             "1A_gst_collected": round(gst_collected, 2),
             "invoice_count": invoice_count,
+            "credit_note_count": len(credits),
+            "credited_inc_gst": round(credited_inc, 2),
+            "credited_gst": round(credited_gst, 2),
         },
         "monthly_breakdown": rows,
         "date_from": date_from,
         "date_to": date_to,
+    }
+
+
+def _gst_month(month: str) -> dict:
+    return {
+        "month": month,
+        "invoices": 0,
+        "credit_notes": 0,
+        "sales_inc": 0.0,
+        "sales_ex": 0.0,
+        "gst": 0.0,
     }
 
 
@@ -144,63 +180,101 @@ def _parse_date(date_str: str, fallback: date) -> date:
         return fallback
 
 
+# How far past its due date an invoice is: not yet due, then 30-day steps.
+AGING_BUCKETS = ("current", "days_1_30", "days_31_60", "days_61_90", "over_90")
+
+
+def _aging_bucket(days_overdue: int) -> str:
+    if days_overdue <= 0:
+        return "current"
+    if days_overdue <= 30:
+        return "days_1_30"
+    if days_overdue <= 60:
+        return "days_31_60"
+    if days_overdue <= 90:
+        return "days_61_90"
+    return "over_90"
+
+
 @router.get("/aged-receivables")
 def aged_receivables(
     as_at: Optional[str] = Query(None, description="ISO date, defaults to today"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
-    """Aged receivables — outstanding balance bucketed by 0-30, 31-60, 61-90, 90+ days.
+    """Aged receivables — outstanding balance by how many days overdue it is.
 
-    Aging is calculated from the payment due date (job.due), falling back to
-    invoice_date + 30 days then date_in + 30 days. Using due date is the
-    correct basis for credit control (days overdue, not days since invoiced).
+    An invoice falls due on the customer's payment terms counted from the
+    invoice date (the date the job came in, for an older invoice that carries
+    none), or on the company's default terms when the customer has none
+    (app.core.payment_terms). Not on the job's due date: that is when the goods
+    were promised, and aging by it counted an invoice raised a month after
+    delivery as a month overdue the day it was sent.
+
+    Buckets: current (not yet due), then 1-30, 31-60, 61-90 and over 90 days
+    overdue. Each customer row and each of its lines carries all five.
     """
-    as_at_date = date.fromisoformat(as_at) if as_at else date.today()
-    jobs = (
-        db.query(Job)
-        .filter(
-            Job.balance_due > 0,
-            Job.status.in_(["INVOICE", "PAID"]),
-        )
+    # The shop's today: a credit note dated in Sydney's morning is not left out.
+    as_at_date = date.fromisoformat(as_at) if as_at else shop_day.today()
+    query = db.query(Job).filter(Job.status.in_(["INVOICE", "PAID"]))
+    if not as_at:
+        query = query.filter(Job.balance_due > 0)
+    jobs = query.all()
+    # As at a past date an invoice paid since was still owed (S2-13): what is
+    # owed then is what is owed now plus what has been taken after it.
+    paid_after = dict(
+        db.query(JobPayment.job_id, func.sum(JobPayment.amount))
+        .filter(JobPayment.received_date > as_at_date.isoformat())
+        .group_by(JobPayment.job_id)
+        .all()
+    )
+    # And credit applied after it, likewise.
+    for job_id, amount in (
+        db.query(CreditNoteApplication.job_id, func.sum(CreditNoteApplication.amount))
+        .filter(CreditNoteApplication.applied_on > as_at_date.isoformat())
+        .group_by(CreditNoteApplication.job_id)
+    ):
+        paid_after[job_id] = float(paid_after.get(job_id) or 0) + float(amount or 0)
+    settings = db.query(CompanySettings).first()
+    default_terms = settings.payment_terms_default if settings else None
+    customer_ids = {j.customer_id for j in jobs}
+    terms_of = dict(
+        db.query(Customer.id, Customer.payment_terms)
+        .filter(Customer.id.in_(customer_ids))
         .all()
     )
 
     by_customer: dict = {}
     for j in jobs:
+        invoiced = _parse_date(j.invoice_date or j.date_in or "", as_at_date)
+        if invoiced > as_at_date:
+            continue  # raised after the date asked about
+        bal = round(float(j.balance_due or 0) + float(paid_after.get(j.id) or 0), 2)
+        if bal <= 0:
+            continue
         cid = j.customer_id or "UNKNOWN"
         if cid not in by_customer:
             by_customer[cid] = {
                 "customer_id": cid,
                 "customer_name": j.customer_name or "Unknown",
-                "current": 0.0,
-                "days_31_60": 0.0,
-                "days_61_90": 0.0,
-                "over_90": 0.0,
+                **{bucket: 0.0 for bucket in AGING_BUCKETS},
                 "total": 0.0,
                 "oldest_due": None,
                 "lines": [],
             }
-        # Use due date for aging; fall back to invoice_date+30 then date_in+30
-        if j.due:
-            due_dt = _parse_date(j.due, as_at_date)
-        elif j.invoice_date:
-            due_dt = _parse_date(j.invoice_date, as_at_date) + timedelta(days=30)
-        else:
-            due_dt = _parse_date(j.date_in or "", as_at_date) + timedelta(days=30)
+        # The due date it was issued with; worked out only for an invoice
+        # issued before invoices carried one.
+        due_dt = (
+            _parse_date(j.invoice_due_date, invoiced)
+            if j.invoice_due_date
+            else due_date(invoiced, terms_of.get(j.customer_id), default_terms)
+        )
 
         days_overdue = (as_at_date - due_dt).days
-        bal = float(j.balance_due or 0)
+        bucket = _aging_bucket(days_overdue)
         row = by_customer[cid]
         row["total"] += bal
-        if days_overdue <= 0:
-            row["current"] += bal
-        elif days_overdue <= 30:
-            row["days_31_60"] += bal
-        elif days_overdue <= 60:
-            row["days_61_90"] += bal
-        else:
-            row["over_90"] += bal
+        row[bucket] += bal
         if row["oldest_due"] is None or due_dt < row["oldest_due"]:
             row["oldest_due"] = due_dt
         row["lines"].append(
@@ -212,107 +286,241 @@ def aged_receivables(
                 "days_overdue": max(0, days_overdue),
                 "total_inc": float(j.total_inc or 0),
                 "balance_due": bal,
+                **{b: (bal if b == bucket else 0.0) for b in AGING_BUCKETS},
             }
         )
 
+    _credit_on_account(db, by_customer, as_at_date)
+
     rows = sorted(by_customer.values(), key=lambda x: -x["total"])
     for r in rows:
-        for k in ("current", "days_31_60", "days_61_90", "over_90", "total"):
+        for k in (*AGING_BUCKETS, "total"):
             r[k] = round(r[k], 2)
         if r["oldest_due"]:
             r["oldest_due"] = str(r["oldest_due"])
 
-    totals = {
-        "current": round(sum(r["current"] for r in rows), 2),
-        "days_31_60": round(sum(r["days_31_60"] for r in rows), 2),
-        "days_61_90": round(sum(r["days_61_90"] for r in rows), 2),
-        "over_90": round(sum(r["over_90"] for r in rows), 2),
-        "total": round(sum(r["total"] for r in rows), 2),
-    }
+    totals = {k: round(sum(r[k] for r in rows), 2) for k in (*AGING_BUCKETS, "total")}
     return {"rows": rows, "totals": totals, "as_at": str(as_at_date)}
+
+
+def _credit_on_account(db: Session, by_customer: dict, as_at: date) -> None:
+    """Credit notes not yet used on an invoice, as at the day: a credit line in
+    `current` on the customer's row, taking it down by what they are owed."""
+    day = as_at.isoformat()
+    notes = (
+        db.query(CustomerCreditNote)
+        .options(selectinload(CustomerCreditNote.applications))
+        .filter(CustomerCreditNote.credit_date <= day)
+        .all()
+    )
+    names = {}
+    for note in notes:
+        used = sum(
+            float(a.amount or 0) for a in note.applications if a.applied_on <= day
+        )
+        left = round(float(note.total_inc or 0) - used, 2)
+        if left <= 0:
+            continue
+        cid = note.customer_id
+        if cid not in by_customer:
+            if not names:
+                names = dict(db.query(Customer.id, Customer.name).all())
+            by_customer[cid] = {
+                "customer_id": cid,
+                "customer_name": names.get(cid) or cid,
+                **{bucket: 0.0 for bucket in AGING_BUCKETS},
+                "total": 0.0,
+                "oldest_due": None,
+                "lines": [],
+            }
+        row = by_customer[cid]
+        row["total"] -= left
+        row["current"] -= left
+        row["lines"].append(
+            {
+                "job_id": note.job_id,
+                "invoice": note.id,
+                "credit_note": note.id,
+                "invoice_date": note.credit_date,
+                "due_date": note.credit_date,
+                "days_overdue": 0,
+                "total_inc": -float(note.total_inc or 0),
+                "balance_due": -left,
+                **{b: (-left if b == "current" else 0.0) for b in AGING_BUCKETS},
+            }
+        )
 
 
 @router.get("/aged-payables")
 def aged_payables(
     as_at: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
-    """Aged payables — outstanding PO balances owed to suppliers, bucketed by age."""
-    as_at_date = date.fromisoformat(as_at) if as_at else date.today()
-    pos = (
-        db.query(PurchaseOrder)
-        .filter(
-            PurchaseOrder.status.notin_(["Cancelled", "Received"]),
-            PurchaseOrder.total_inc > 0,
-        )
+    """Aged payables — what is owed on supplier bills, by days overdue.
+
+    Bills, not purchase orders (finding F25): an order is a promise to buy, and
+    the debt is the bill the supplier sends for it. Each unpaid bill counts what
+    is still owed on it — a part-paid bill its balance — and falls due on its
+    own due date, or else on the supplier's payment terms counted from the bill
+    date (Net 30 when the supplier has none): the same rule and the same buckets
+    as aged receivables.
+
+    Open purchase orders are listed beside it as committed spend: what is on
+    order and not yet billed, so a PO's billed part is not counted twice.
+
+    A PO received in full leaves committed spend, and until its bill is typed
+    the goods are owed but on no bill — so it is listed as received, not
+    billed: its received value against what is billed for it. A part-received
+    PO is still committed spend, which already counts its received part.
+    """
+    as_at_date = date.fromisoformat(as_at) if as_at else shop_day.today()
+    bills = (
+        db.query(SupplierBill)
+        .filter(SupplierBill.status.in_(["pending", "approved"]))
+        .all()
+    )
+    supplier_ids = {b.supplier_id for b in bills if b.supplier_id}
+    terms_of = dict(
+        db.query(Supplier.id, Supplier.payment_terms)
+        .filter(Supplier.id.in_(supplier_ids))
         .all()
     )
 
     by_supplier: dict = {}
-    for po in pos:
-        sid = po.supplier_id or "UNKNOWN"
+    for bill in bills:
+        # Net of the credit notes applied to it; a credit note not yet applied
+        # is listed below zero, as the ledger has it (S2-09).
+        owing = float(bill_outstanding(bill))
+        if owing == 0:
+            continue
+        sid = bill.supplier_id or bill.supplier_name or "UNKNOWN"
         if sid not in by_supplier:
             by_supplier[sid] = {
                 "supplier_id": sid,
-                "supplier_name": getattr(po, "supplier_name", None) or sid,
-                "current": 0.0,
-                "days_31_60": 0.0,
-                "days_61_90": 0.0,
-                "over_90": 0.0,
+                "supplier_name": bill.supplier_name or sid,
+                **{bucket: 0.0 for bucket in AGING_BUCKETS},
                 "total": 0.0,
                 "lines": [],
             }
-        due_dt = _parse_date(
-            getattr(po, "due_date", None) or po.order_date or "", as_at_date
-        )
-        if due_dt == as_at_date and po.order_date:
-            due_dt = _parse_date(po.order_date, as_at_date) + timedelta(days=30)
-        days_overdue = (as_at_date - due_dt).days
-        amt = float(po.total_inc or 0)
-        row = by_supplier[sid]
-        row["total"] += amt
-        if days_overdue <= 0:
-            row["current"] += amt
-        elif days_overdue <= 30:
-            row["days_31_60"] += amt
-        elif days_overdue <= 60:
-            row["days_61_90"] += amt
+        if bill.due_date:
+            due_dt = _parse_date(bill.due_date, as_at_date)
         else:
-            row["over_90"] += amt
+            billed = _parse_date(bill.bill_date or "", as_at_date)
+            due_dt = due_date(billed, terms_of.get(bill.supplier_id))
+        days_overdue = (as_at_date - due_dt).days
+        # Money owed back is never overdue.
+        bucket = _aging_bucket(days_overdue) if owing > 0 else "current"
+        row = by_supplier[sid]
+        row["total"] += owing
+        row[bucket] += owing
         row["lines"].append(
             {
-                "po_id": po.id,
-                "po_number": po.po_number,
-                "order_date": po.order_date,
+                "bill_id": bill.id,
+                "bill_number": bill.bill_number,
+                "po_id": bill.po_id,
+                "bill_date": bill.bill_date,
                 "due_date": str(due_dt),
-                "days_overdue": max(0, days_overdue),
-                "total_inc": amt,
-                "status": po.status,
+                "days_overdue": max(0, days_overdue) if owing > 0 else 0,
+                "amount_inc": float(bill_owed(bill)),
+                "paid": float(money(bill.paid_amount)),
+                "outstanding": owing,
+                **{b: (owing if b == bucket else 0.0) for b in AGING_BUCKETS},
             }
         )
 
     rows = sorted(by_supplier.values(), key=lambda x: -x["total"])
     for r in rows:
-        for k in (
-            "current",
-            "days_31_60",
-            "days_61_60",
-            "days_61_90",
-            "over_90",
-            "total",
-        ):
-            if k in r:
-                r[k] = round(r[k], 2)
+        for k in (*AGING_BUCKETS, "total"):
+            r[k] = round(r[k], 2)
 
-    totals = {
-        "current": round(sum(r["current"] for r in rows), 2),
-        "days_31_60": round(sum(r["days_31_60"] for r in rows), 2),
-        "days_61_90": round(sum(r["days_61_90"] for r in rows), 2),
-        "over_90": round(sum(r["over_90"] for r in rows), 2),
-        "total": round(sum(r["total"] for r in rows), 2),
+    committed = _committed_spend(db)
+    received = _received_not_billed(db)
+    totals = {k: round(sum(r[k] for r in rows), 2) for k in (*AGING_BUCKETS, "total")}
+    totals["committed"] = round(sum(c["unbilled"] for c in committed), 2)
+    totals["received_not_billed"] = round(
+        sum(r["outstanding_inc"] for r in received), 2
+    )
+    return {
+        "rows": rows,
+        "committed": committed,
+        "received_not_billed": received,
+        "totals": totals,
+        "as_at": str(as_at_date),
     }
-    return {"rows": rows, "totals": totals, "as_at": str(as_at_date)}
+
+
+def _po_value(po: PurchaseOrder):
+    """A PO's lines inc GST — the stored total only for a PO with no lines.
+
+    Auto-reorder used to store no inc-GST total (F15), and committed spend read
+    those orders as nothing; a header-only PO has only its header to go on.
+    """
+    if po.items:
+        return po_totals.from_lines(po.items).inc
+    return money(po.total_inc)
+
+
+def _committed_spend(db: Session) -> list:
+    """Open purchase orders, less what has already been billed against them."""
+    pos = (
+        db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
+        .filter(PurchaseOrder.status.notin_(["Cancelled", "Received"]))
+        .order_by(PurchaseOrder.id)
+        .all()
+    )
+    billed = bill_matching.billed_by_po(db, [po.id for po in pos])
+    committed = []
+    for po in pos:
+        total_inc = _po_value(po)
+        unbilled = total_inc - billed[po.id]
+        if unbilled <= 0:
+            continue
+        committed.append(
+            {
+                "po_id": po.id,
+                "supplier_id": po.supplier_id,
+                "supplier_name": po.supplier_name,
+                "order_date": po.order_date,
+                "status": po.status,
+                "total_inc": float(total_inc),
+                "unbilled": float(unbilled),
+            }
+        )
+    return committed
+
+
+def _received_not_billed(db: Session) -> list:
+    """Received POs whose goods are worth more than is billed for them (F25)."""
+    pos = (
+        db.query(PurchaseOrder)
+        .filter(PurchaseOrder.status == "Received")
+        .order_by(PurchaseOrder.id)
+        .all()
+    )
+    po_ids = [po.id for po in pos]
+    values = bill_matching.po_values(db, po_ids)
+    billed = bill_matching.billed_by_po(db, po_ids)
+    out = []
+    for po in pos:
+        received_inc = values[po.id]["received_inc"]
+        outstanding = received_inc - billed[po.id]
+        if outstanding <= 0:
+            continue
+        out.append(
+            {
+                "po_id": po.id,
+                "supplier_id": po.supplier_id,
+                "supplier_name": po.supplier_name,
+                "order_date": po.order_date,
+                "status": po.status,
+                "received_inc": float(received_inc),
+                "billed_inc": float(billed[po.id]),
+                "outstanding_inc": float(outstanding),
+            }
+        )
+    return out
 
 
 @router.get("/customers/{customer_id}/statement")
@@ -321,7 +529,7 @@ def customer_statement(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """Statement of account for a customer — all invoices, payments, running balance."""
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
@@ -330,9 +538,11 @@ def customer_statement(
 
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # Invoices only, as the customer's balance and aged receivables count:
+    # a FINISH job has no invoice yet, and nothing is owed on it (F06).
     q = db.query(Job).filter(
         Job.customer_id == customer_id,
-        Job.status.in_(["INVOICE", "PAID", "FINISH"]),
+        Job.status.in_(list(INVOICED_STATUSES)),
     )
     if date_from:
         q = q.filter((Job.invoice_date >= date_from) | (Job.date_in >= date_from))
@@ -342,12 +552,7 @@ def customer_statement(
     jobs = q.order_by(Job.invoice_date, Job.date_in).all()
 
     lines = []
-    running_balance = 0.0
     for j in jobs:
-        total_inc = float(j.total_inc or 0)
-        paid = float(j.deposit or 0)
-        balance = float(j.balance_due or 0)
-        running_balance += total_inc - paid
         lines.append(
             {
                 "job_id": j.id,
@@ -355,15 +560,26 @@ def customer_statement(
                 "date": j.invoice_date or j.date_in,
                 "due": j.due,
                 "description": j.description or j.customer_name or "",
-                "total_inc": round(total_inc, 2),
-                "paid": round(paid, 2),
-                "balance": round(balance, 2),
+                "total_inc": round(float(j.total_inc or 0), 2),
+                "paid": round(float(j.deposit or 0), 2),
+                # Credit notes applied to it: amount less paid less credited
+                # is its balance.
+                "credited": round(float(j.credited or 0), 2),
+                "balance": round(float(j.balance_due or 0), 2),
                 "status": j.status,
             }
         )
+    # Each credit note as a credit; what is left of it is credit on account.
+    credits = [
+        credit_notes.statement_line(n)
+        for n in credit_notes.in_period(db, date_from, date_to, customer_id)
+    ]
+    lines = sorted(lines + credits, key=lambda line: line["date"] or "")
 
-    total_invoiced = sum(l["total_inc"] for l in lines)
-    total_paid = sum(l["paid"] for l in lines)
+    invoices = [l for l in lines if l["status"] != "CREDIT"]
+    total_invoiced = sum(l["total_inc"] for l in invoices)
+    total_paid = sum(l["paid"] for l in invoices)
+    total_credited = -sum(l["total_inc"] for l in credits)
     total_outstanding = sum(l["balance"] for l in lines)
 
     return {
@@ -379,9 +595,10 @@ def customer_statement(
         "totals": {
             "invoiced": round(total_invoiced, 2),
             "paid": round(total_paid, 2),
+            "credited": round(total_credited, 2),
             "outstanding": round(total_outstanding, 2),
         },
-        "as_at": str(date.today()),
+        "as_at": str(shop_day.today()),
         "date_from": date_from,
         "date_to": date_to,
     }
@@ -390,7 +607,7 @@ def customer_statement(
 @router.get("/inventory-valuation")
 def inventory_valuation(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """Inventory valuation — stock on hand x unit cost, grouped by category."""
     items = db.query(InventoryItem).all()
@@ -429,7 +646,7 @@ def job_profitability(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """Job profitability — revenue vs cost per job."""
     from sqlalchemy.orm import joinedload
@@ -437,19 +654,38 @@ def job_profitability(
     q = (
         db.query(Job)
         .options(joinedload(Job.items))
-        .filter(Job.status.in_(["INVOICE", "PAID", "FINISH"]))
+        .filter(Job.status.in_(["INVOICE", "PAID", *FINISHED_STATUSES]))
     )
     if date_from:
         q = q.filter(Job.date_in >= date_from)
     if date_to:
         q = q.filter(Job.date_in <= date_to)
     jobs = q.all()
+    # A stocked line with no purchase price of its own costs what the stock
+    # does (S2-18): read only from the line, every line taken from the shelf
+    # cost $0 and the job showed a 100% margin.
+    skus = {
+        it.stock_code
+        for j in jobs
+        for it in j.items
+        if it.stock_code and not float(it.purchase_price or 0)
+    }
+    stock_cost = (
+        dict(
+            db.query(InventoryItem.sku, InventoryItem.unit_cost).filter(
+                InventoryItem.sku.in_(skus)
+            )
+        )
+        if skus
+        else {}
+    )
 
     rows = []
     for j in jobs:
         product_items = [it for it in j.items if it.display_type == "product"]
         cost = sum(
-            float(it.purchase_price or 0) * int(it.order_qty or 0)
+            float(it.purchase_price or stock_cost.get(it.stock_code) or 0)
+            * int(it.order_qty or 0)
             for it in product_items
         )
         revenue = float(j.total_ex or 0)
@@ -495,7 +731,7 @@ def on_time_delivery(
     _: User = Depends(require_any),
 ):
     """On-time delivery rate — % of completed jobs dispatched on or before due date."""
-    q = db.query(Job).filter(Job.status.in_(["FINISH", "INVOICE", "PAID"]))
+    q = db.query(Job).filter(Job.status.in_([*FINISHED_STATUSES, "INVOICE", "PAID"]))
     if date_from:
         q = q.filter(Job.date_in >= date_from)
     if date_to:
@@ -538,7 +774,7 @@ def on_time_delivery(
             no_due_date += 1
             by_customer[cid]["no_due_date"] += 1
         else:
-            compare_date = out or date.today()
+            compare_date = out or shop_day.today()
             if compare_date <= due:
                 on_time += 1
                 by_customer[cid]["on_time"] += 1
@@ -571,15 +807,20 @@ def on_time_delivery(
 @router.get("/back-orders")
 def back_orders(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
-    """Back order report — job items with b_ord > 0 aggregated by SKU."""
+    """Back order report — job items with b_ord > 0 aggregated by SKU.
 
-    EXCLUDE_STATUSES = ["CANCEL", "PAID", "QUOTE"]
+    Open orders, the same set the buying list reads (F13).
+    """
     rows_raw = (
         db.query(JobItem, Job)
         .join(Job, JobItem.job_id == Job.id)
-        .filter(~Job.status.in_(EXCLUDE_STATUSES), JobItem.b_ord > 0)
+        .filter(
+            Job.status.in_(list(COMMITTED_STATUSES)),
+            JobItem.b_ord > 0,
+            ~JobItem.is_charge,  # freight, set-up, fees (S2-05)
+        )
         .all()
     )
 
@@ -644,7 +885,7 @@ def decoration_performance(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """Revenue and margin breakdown by decoration type."""
     from sqlalchemy.orm import joinedload
@@ -652,7 +893,7 @@ def decoration_performance(
     q = (
         db.query(Job)
         .options(joinedload(Job.items))
-        .filter(Job.status.in_(["INVOICE", "PAID", "FINISH"]))
+        .filter(Job.status.in_(["INVOICE", "PAID", *FINISHED_STATUSES]))
     )
     if date_from:
         q = q.filter(Job.date_in >= date_from)
@@ -698,7 +939,7 @@ def bas_summary(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    _: User = Depends(require_staff),
 ):
     """BAS summary — G1 (total sales inc GST), 1A (GST collected), 1B (GST on purchases)."""
     if not date_from or not date_to:
@@ -716,8 +957,12 @@ def bas_summary(
         .all()
     )
 
-    G1 = round(sum(float(j.total_inc or 0) for j in jobs), 2)
-    one_A = round(sum(float(j.tax or 0) for j in jobs), 2)
+    # Less the credit notes dated in the period, as the ledger's BAS takes them.
+    credits = credit_notes.in_period(db, date_from, date_to)
+    credited_inc = round(sum(float(n.total_inc or 0) for n in credits), 2)
+    credited_gst = round(sum(float(n.tax or 0) for n in credits), 2)
+    G1 = round(sum(float(j.total_inc or 0) for j in jobs) - credited_inc, 2)
+    one_A = round(sum(float(j.tax or 0) for j in jobs) - credited_gst, 2)
 
     # Invoiced jobs with no invoice date cannot be placed in any period, so the
     # figures above leave them out. That used to happen in silence; it is
@@ -748,6 +993,11 @@ def bas_summary(
         "1A": one_A,
         "1B": one_B,
         "period": {"date_from": date_from, "date_to": date_to},
+        "credit_notes": {
+            "count": len(credits),
+            "total_inc": credited_inc,
+            "gst": credited_gst,
+        },
         "undated_invoices": {
             "count": len(undated),
             "sales_inc_gst": round(sum(float(j.total_inc or 0) for j in undated), 2),

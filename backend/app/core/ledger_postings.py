@@ -12,6 +12,7 @@ invoice states, and the income is the difference. The GST figure — the one BAS
 reads — is therefore always exactly what the document says.
 """
 
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -135,6 +136,97 @@ def sync_payment(
     )
 
 
+# ── Customer credit notes ────────────────────────────────────────────────────
+
+
+def credit_note_lines(db: Session, note) -> Optional[list[Line]]:
+    """The invoice's entry, reversed for what is credited: sales and GST back,
+    and the customer's receivable reduced — as credit on their account
+    (untagged). Fixed once raised: where the credit is used is each
+    application's own entry, so using it later never re-dates this one
+    (docs/superpowers/specs/2026-11-09-returns-credit-notes.md)."""
+    total = money(note.total_inc)
+    if total == ZERO:
+        return None
+    gst = money(note.tax)
+    label = f"Credit note {note.id}"
+    return [
+        Line(
+            account_for(db, "sales"),
+            total - gst,
+            label,
+            "customer",
+            note.customer_id,
+            note.job_id,
+        ),
+        Line(
+            account_for(db, "gst_collected"),
+            gst,
+            f"GST on {label.lower()}",
+            None,
+            None,
+            note.job_id,
+        ),
+        Line(
+            account_for(db, "receivable"),
+            -total,
+            f"{label} — credit on account",
+            "customer",
+            note.customer_id,
+            None,
+        ),
+    ]
+
+
+def sync_credit_note(
+    db: Session, note, created_by: str = SYSTEM
+) -> Optional[JournalEntry]:
+    return sync(
+        db,
+        source_type="credit_note",
+        source_id=note.id,
+        lines=credit_note_lines(db, note),
+        entry_date=parse_date(note.credit_date),
+        memo=f"Credit note {note.id} on invoice {note.job_id}",
+        created_by=created_by,
+    )
+
+
+def credit_application_lines(db: Session, application, note) -> Optional[list[Line]]:
+    """Credit on account used on an invoice: the receivable moves from the
+    customer's account to that invoice. The account balance does not change."""
+    amount = money(application.amount)
+    if amount == ZERO:
+        return None
+    receivable = account_for(db, "receivable")
+    label = f"Credit note {note.id} on {application.job_id}"
+    return [
+        Line(receivable, amount, label, "customer", note.customer_id, None),
+        Line(
+            receivable,
+            -amount,
+            label,
+            "customer",
+            note.customer_id,
+            application.job_id,
+        ),
+    ]
+
+
+def sync_credit_application(
+    db: Session, application, note, created_by: str = SYSTEM
+) -> Optional[JournalEntry]:
+    return sync(
+        db,
+        source_type="credit_application",
+        source_id=str(application.id),
+        lines=credit_application_lines(db, application, note),
+        entry_date=parse_date(application.applied_on),
+        memo=f"Credit note {note.id} applied to {application.job_id}",
+        created_by=created_by,
+    )
+
+
 # ── Supplier bills ───────────────────────────────────────────────────────────
 
 
@@ -182,45 +274,87 @@ def sync_bill(db: Session, bill, created_by: str = SYSTEM) -> Optional[JournalEn
     )
 
 
-def bill_payment_lines(db: Session, bill) -> Optional[list[Line]]:
-    if bill.status != "paid":
-        return None
-    amount = money(bill.paid_amount)
+def bill_owed(bill):
+    """What a bill is for, including GST — ex + GST when the total was never set."""
+    owed, _ = _customer_total(bill.amount_inc, bill.amount_ex, bill.tax)
+    return owed
+
+
+def bill_outstanding(bill, paid: Optional[Decimal] = None) -> Decimal:
+    """What is still owed on a bill: its total less what has been paid
+    (`paid`, else its paid amount) and the credit notes applied to it (S2-09).
+
+    A credit note applied to a bill is spent, and owes nothing. One not yet
+    applied is what the supplier owes back: below zero. Aged payables used to
+    pass credit notes over, so a supplier who had credited $110 read as owed
+    it for ever after the net was paid.
+    """
+    if bill.applied_to_bill_id is not None:
+        return ZERO
+    credited = sum((bill_owed(c) for c in bill.credits), ZERO)
+    taken = money(bill.paid_amount) if paid is None else paid
+    return bill_owed(bill) + credited - taken
+
+
+def supplier_payment_lines(db: Session, payment, bill) -> Optional[list[Line]]:
+    amount = money(payment.amount)
     if amount == ZERO:
         return None
-    label = f"Payment of bill {bill.bill_number or bill.id}"
+    how = f" {payment.reference}" if payment.reference else ""
+    label = f"Payment of bill {bill.bill_number or bill.id}{how}"
     return [
         Line(account_for(db, "payable"), amount, label, "supplier", _supplier(bill)),
         Line(account_for(db, "bank"), -amount, label, "supplier", _supplier(bill)),
     ]
 
 
-def sync_bill_payment(
-    db: Session, bill, created_by: str = SYSTEM
+def sync_supplier_payment(
+    db: Session, payment, bill, created_by: str = SYSTEM
 ) -> Optional[JournalEntry]:
+    """One entry per payment, on the date it was made.
+
+    A bill paid in two runs is two movements of money out of the bank; one
+    entry for the bill re-dated to the last run would put the first payment in
+    the wrong week — or the wrong BAS quarter.
+    """
     return sync(
         db,
-        source_type="bill_payment",
-        source_id=str(bill.id),
-        lines=bill_payment_lines(db, bill),
-        entry_date=parse_date(bill.paid_date),
+        source_type="supplier_payment",
+        source_id=str(payment.id),
+        lines=supplier_payment_lines(db, payment, bill),
+        entry_date=parse_date(payment.paid_date),
         memo=f"Paid bill {bill.bill_number or bill.id}",
+        created_by=created_by,
+    )
+
+
+def withdraw_supplier_payment(
+    db: Session, payment, bill, created_by: str = SYSTEM
+) -> None:
+    sync(
+        db,
+        source_type="supplier_payment",
+        source_id=str(payment.id),
+        lines=None,
+        entry_date=None,
+        memo=f"Payment of bill {bill.bill_number or bill.id}",
         created_by=created_by,
     )
 
 
 def withdraw_bill(db: Session, bill, created_by: str = SYSTEM) -> None:
     """Reverse everything a bill posted, before the bill itself is deleted."""
-    for source_type in ("bill_payment", "bill"):
-        sync(
-            db,
-            source_type=source_type,
-            source_id=str(bill.id),
-            lines=None,
-            entry_date=None,
-            memo=f"Bill {bill.bill_number or bill.id}",
-            created_by=created_by,
-        )
+    for payment in bill.payments:
+        withdraw_supplier_payment(db, payment, bill, created_by=created_by)
+    sync(
+        db,
+        source_type="bill",
+        source_id=str(bill.id),
+        lines=None,
+        entry_date=None,
+        memo=f"Bill {bill.bill_number or bill.id}",
+        created_by=created_by,
+    )
 
 
 def has_posted_invoice(db: Session, job_id: str) -> bool:

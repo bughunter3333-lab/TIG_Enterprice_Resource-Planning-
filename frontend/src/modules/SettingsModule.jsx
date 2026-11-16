@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Building2, CreditCard, Mail, Save, CheckCircle, AlertCircle, RefreshCw, Wifi, Terminal } from 'lucide-react';
+import { Building2, CreditCard, Mail, Save, CheckCircle, AlertCircle, RefreshCw, Wifi, Terminal } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
@@ -148,6 +148,13 @@ export default function SettingsModule({ currentUser }) {
             </FieldRow>
             <FieldRow label="Invoice Prefix">
               <TextInput value={form.invoice_prefix} onChange={v => set('invoice_prefix', v)} placeholder="INV" disabled={!isAdmin} />
+            </FieldRow>
+            {/* Invoicing a job with no number issues prefix + this, then counts up.
+                Empty carries on from the highest number already used. */}
+            <FieldRow label="Next Invoice Number">
+              <TextInput value={form.invoice_next_number ?? ''} type="number"
+                onChange={v => set('invoice_next_number', v === '' ? null : parseInt(v, 10))}
+                placeholder="carries on from the last one used" disabled={!isAdmin} />
             </FieldRow>
             <FieldRow label="Quote Prefix">
               <TextInput value={form.quote_prefix} onChange={v => set('quote_prefix', v)} placeholder="QT" disabled={!isAdmin} />

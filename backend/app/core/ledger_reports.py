@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.fiscal import get_fiscal_year_bounds
 from app.core.ledger import DEBIT_NORMAL, ZERO, account_for, ensure_chart, money
+from app.models.credit_note import CreditNoteApplication, CustomerCreditNote
 from app.models.job import Job
 from app.models.job_payment import JobPayment
 from app.models.ledger import JournalEntry, JournalLine, LedgerAccount
@@ -270,8 +271,13 @@ def bas(db: Session, date_from: date, date_to: date) -> dict:
 
     receivable = account_for(db, "receivable")
     d, c = _totals(
-        db, date_from=date_from, date_to=date_to, source_types=["invoice"]
+        db,
+        date_from=date_from,
+        date_to=date_to,
+        source_types=["invoice", "credit_note"],
     ).get(receivable.id, (ZERO, ZERO))
+    # Less credit notes in the period: an adjustment note reduces sales as it
+    # reduces the GST collected that 1A reads.
     total_sales = d - c
 
     payable = account_for(db, "payable")
@@ -309,10 +315,22 @@ def health(db: Session) -> dict:
     payable = account_for(db, "payable")
     balances = account_balances(db)
 
-    # Receivables, job by job: invoiced total less payments recorded.
+    # Receivables, job by job: invoiced total less payments recorded, less
+    # credit notes applied; credit not applied is owed back on account.
     paid_by_job: dict[str, Decimal] = {}
     for job_id, amount in db.query(JobPayment.job_id, JobPayment.amount):
         paid_by_job[job_id] = paid_by_job.get(job_id, ZERO) + money(amount)
+    for job_id, amount in db.query(
+        CreditNoteApplication.job_id, CreditNoteApplication.amount
+    ):
+        paid_by_job[job_id] = paid_by_job.get(job_id, ZERO) + money(amount)
+    raised = money(
+        db.query(func.coalesce(func.sum(CustomerCreditNote.total_inc), 0)).scalar()
+    )
+    used = money(
+        db.query(func.coalesce(func.sum(CreditNoteApplication.amount), 0)).scalar()
+    )
+    on_account = raised - used
     ledger_by_job: dict[str, Decimal] = {}
     for job_id, debit, credit in (
         db.query(
@@ -326,10 +344,18 @@ def health(db: Session) -> dict:
         ledger_by_job[job_id] = money(debit) - money(credit)
 
     expected_by_job: dict[str, Decimal] = {}
-    unposted, paid_with_balance, undated = [], [], []
+    unposted, paid_with_balance, undated, overpaid = [], [], [], []
     for job in db.query(Job).filter(Job.status.in_(list(INVOICED_STATUSES))):
         lines = invoice_lines(db, job)
         owed = money(lines[0].amount) if lines else ZERO
+        # Paid and credited past what it owes (the invoice's own figure: an
+        # older invoice with no inclusive total owes ex + GST): what it owes is
+        # clamped at nothing, so the excess shows nowhere else.
+        over = money(job.deposit) + money(job.credited) - owed
+        if lines and over > ZERO:
+            overpaid.append(
+                {"job_id": job.id, "customer": job.customer_name, "over": f(over)}
+            )
         expected_by_job[job.id] = owed - paid_by_job.get(job.id, ZERO)
         if lines and job.id not in ledger_by_job:
             unposted.append(
@@ -363,12 +389,14 @@ def health(db: Session) -> dict:
                 {"job_id": job_id, "expected": f(want), "ledger": f(have)}
             )
 
-    ar_expected = sum(expected_by_job.values(), ZERO)
+    ar_expected = sum(expected_by_job.values(), ZERO) - on_account
+    totals_off, balances_off = _documents_disagreeing_with_themselves(db)
     ap_expected = ZERO
     for bill in db.query(SupplierBill):
         owed = money(bill.amount_inc) or money(bill.amount_ex) + money(bill.tax)
-        settled = money(bill.paid_amount) if bill.status == "paid" else ZERO
-        ap_expected += owed - settled
+        # Every payment counts, a part-payment included: each one posted its
+        # own entry, so the ledger has already taken it off what is owed.
+        ap_expected += owed - money(bill.paid_amount)
 
     return {
         "receivables": {
@@ -384,11 +412,164 @@ def health(db: Session) -> dict:
         "unposted_invoices": unposted,
         "mismatched_jobs": mismatched,
         "paid_with_balance_owing": paid_with_balance,
+        "paid_and_credited_past_total": overpaid,
         "invoiced_without_date": undated,
+        "totals_disagree_with_lines": totals_off,
+        "balances_disagree_with_invoices": balances_off,
+        "po_totals_disagree_with_lines": _purchase_orders_disagreeing_with_their_lines(
+            db
+        ),
+        "portal_orders_booked_twice": _portal_orders_booked_twice(db),
         "in_agreement": (
             balances[receivable.id] == ar_expected
             and balances[payable.id] == ap_expected
             and not unposted
             and not mismatched
+            and not overpaid
         ),
     }
+
+
+def _documents_disagreeing_with_themselves(db: Session) -> tuple[list, list]:
+    """Invoices whose header is not their lines; customers whose balance is not
+    their invoices.
+
+    Both are kept true by construction now — the server totals a job from its
+    lines (`app/core/job_totals.py`), and the balance is recalculated on every
+    move across the invoiced boundary — but neither was ever checked, and both
+    were found broken (F04, F06). Older records may still disagree; listing
+    them is how they get looked at, rather than being trusted.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.core import job_totals
+    from app.core.ledger_postings import INVOICED_STATUSES
+    from app.models.customer import Customer
+
+    totals_off = []
+    owed_by_customer: dict[str, Decimal] = {}
+    invoiced = (
+        db.query(Job)
+        .options(selectinload(Job.items))
+        .filter(Job.status.in_(list(INVOICED_STATUSES)))
+        .order_by(Job.id)
+    )
+    for job in invoiced:
+        if job.customer_id:
+            owed_by_customer[job.customer_id] = owed_by_customer.get(
+                job.customer_id, ZERO
+            ) + money(job.balance_due)
+        if not job.items:
+            continue  # a header-only import: there are no lines to disagree with
+        lines = job_totals.from_lines(job.items).ex
+        if lines != money(job.total_ex):
+            totals_off.append(
+                {
+                    "job_id": job.id,
+                    "customer": job.customer_name,
+                    "header": f(job.total_ex),
+                    "lines": f(lines),
+                }
+            )
+
+    # Less each customer's credit on account (credit notes not yet applied).
+    for customer_id, total in db.query(
+        CustomerCreditNote.customer_id, func.sum(CustomerCreditNote.total_inc)
+    ).group_by(CustomerCreditNote.customer_id):
+        owed_by_customer[customer_id] = owed_by_customer.get(customer_id, ZERO) - money(
+            total
+        )
+    for customer_id, amount in (
+        db.query(CustomerCreditNote.customer_id, func.sum(CreditNoteApplication.amount))
+        .join(
+            CreditNoteApplication,
+            CreditNoteApplication.credit_note_id == CustomerCreditNote.id,
+        )
+        .group_by(CustomerCreditNote.customer_id)
+    ):
+        owed_by_customer[customer_id] = owed_by_customer.get(customer_id, ZERO) + money(
+            amount
+        )
+
+    balances_off = []
+    for customer in db.query(Customer).order_by(Customer.id):
+        balance = money(customer.balance)
+        invoices = owed_by_customer.get(customer.id, ZERO)
+        if balance != invoices:
+            balances_off.append(
+                {
+                    "customer_id": customer.id,
+                    "customer": customer.name,
+                    "balance": f(balance),
+                    "invoices": f(invoices),
+                }
+            )
+    return totals_off, balances_off
+
+
+def _purchase_orders_disagreeing_with_their_lines(db: Session) -> list:
+    """POs whose stored totals are not their lines (F15).
+
+    Every PO write totals its lines now (`app/core/po_totals.py`), but
+    auto-reorder used to set only an ex-GST `total`, leaving the GST and
+    inc-GST totals that payables and committed spend read at zero. Those POs
+    are still in the data; listed, they get looked at instead of trusted.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from app.core import po_totals
+    from app.models.purchase_order import PurchaseOrder
+
+    off = []
+    for po in (
+        db.query(PurchaseOrder)
+        .options(selectinload(PurchaseOrder.items))
+        .order_by(PurchaseOrder.id)
+    ):
+        if not po.items:
+            continue  # no lines to disagree with
+        lines = po_totals.from_lines(po.items)
+        stored = (money(po.total_ex), money(po.tax_total), money(po.total_inc))
+        if stored != tuple(lines):
+            off.append(
+                {
+                    "po_id": po.id,
+                    "supplier": po.supplier_name,
+                    "header": f(money(po.total_inc)),
+                    "lines": f(lines.inc),
+                }
+            )
+    return off
+
+
+def _portal_orders_booked_twice(db: Session) -> list:
+    """Online-store orders booked as more than one job (F01).
+
+    A retry is refused now, but a repeat booked before that is still in the
+    data, and a unique index on the order number would fail the deploy on it.
+    Same customer and order number, not cancelled — the order number read the
+    way the refusal reads it, so this lists what it would have refused.
+    """
+    from app.routers.jobs import PORTAL_ITEM_NO, _order_number
+
+    by_order: dict[tuple, list] = {}
+    for job in (
+        db.query(Job)
+        .filter(Job.item_no == PORTAL_ITEM_NO, Job.status != "CANCEL")
+        .order_by(Job.id)
+    ):
+        number = _order_number(job.serial_no)
+        if number:
+            by_order.setdefault((job.customer_id, number.lower()), []).append(
+                (job, number)
+            )
+    return [
+        {
+            "customer_id": jobs[0][0].customer_id,
+            "customer": jobs[0][0].customer_name,
+            "order_no": jobs[0][1],
+            "job_ids": [job.id for job, _ in jobs],
+        }
+        for jobs in by_order.values()
+        if len(jobs) > 1
+    ]

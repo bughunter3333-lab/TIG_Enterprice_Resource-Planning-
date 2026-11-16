@@ -13,44 +13,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { T } from '../tokens';
+import Button from '../Button';
 
-const base = {
-  display: 'inline-flex', alignItems: 'center', gap: 6, height: 30, padding: '0 12px',
-  borderRadius: T.radius, fontFamily: T.font, fontSize: T.fsBase, fontWeight: 600,
-  cursor: 'pointer', whiteSpace: 'nowrap', transition: `background ${T.transition}, color ${T.transition}`,
-};
-const STYLES = {
-  primary: { ...base, background: T.accent, color: T.panel, border: `1px solid ${T.accent}` },
-  primaryHover: { background: T.accentStrong, borderColor: T.accentStrong },
-  plain: { ...base, background: 'transparent', color: T.accentStrong, border: '1px solid transparent' },
-  plainHover: { background: T.hairlineSoft },
-};
-
+// The page's primary action is the one blue button; the rest are quiet white
+// buttons, so the eye finds what the page is for.
 function ActionButton({ action, onOpenMenu, menuOpen }) {
-  const [hover, setHover] = useState(false);
   const Icon = action.icon;
-  const kind = action.primary ? 'primary' : 'plain';
-  const style = {
-    ...STYLES[kind],
-    ...(hover && !action.disabled ? STYLES[`${kind}Hover`] : null),
-    ...(action.disabled ? { opacity: 0.4, cursor: 'not-allowed' } : null),
-  };
   return (
-    <button
-      type="button"
-      style={style}
+    <Button
+      variant={action.primary ? 'primary' : 'secondary'}
       disabled={action.disabled}
       title={action.title}
       aria-haspopup={action.items ? 'menu' : undefined}
       aria-expanded={action.items ? menuOpen : undefined}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       onClick={action.items ? onOpenMenu : action.onClick}
     >
-      {Icon && <Icon size={15} aria-hidden />}
+      {Icon && <Icon size={14} aria-hidden />}
       {action.label}
-      {action.items && <ChevronDown size={14} aria-hidden />}
-    </button>
+      {action.items && <ChevronDown size={13} aria-hidden />}
+    </Button>
   );
 }
 
@@ -79,11 +60,11 @@ function Menu({ items, onClose, label }) {
 
   return (
     <div ref={ref} role="menu" aria-label={label} style={{
-      position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 60, minWidth: 240, padding: '4px 0',
-      background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radius, boxShadow: T.shadowMd,
+      position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 60, minWidth: 240, padding: 4,
+      background: T.panel, border: `1px solid ${T.hairline}`, borderRadius: T.radiusLg, boxShadow: T.shadowPress,
     }}>
       {items.map((item, i) => (item === null
-        ? <div key={`sep-${i}`} role="separator" style={{ borderTop: `1px solid ${T.hairline}`, margin: '4px 0' }} />
+        ? <div key={`sep-${i}`} role="separator" style={{ borderTop: `1px solid ${T.hairlineSoft}`, margin: '4px 0' }} />
         : (
           <button
             key={item.label}
@@ -91,8 +72,8 @@ function Menu({ items, onClose, label }) {
             role="menuitem"
             onClick={() => { onClose(); item.onClick(); }}
             style={{
-              display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none',
-              background: 'transparent', fontFamily: T.font, fontSize: T.fsBase, color: T.text, cursor: 'pointer',
+              display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', borderRadius: T.radius - 2,
+              background: 'transparent', fontFamily: T.font, fontSize: T.fsGrid, color: T.text, cursor: 'pointer',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = T.hairlineSoft; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -109,13 +90,15 @@ function Menu({ items, onClose, label }) {
 export default function ActionBar({ title, actions = [] }) {
   const [openKey, setOpenKey] = useState(null);
   return (
+    // On the page's own ground, not a white bar: the title belongs to the page,
+    // and the cards below are the surfaces.
     <header style={{
-      display: 'flex', alignItems: 'center', gap: 16, minHeight: 52, padding: '8px 20px',
-      background: T.panel, borderBottom: `1px solid ${T.hairline}`, flexShrink: 0, fontFamily: T.font,
+      display: 'flex', alignItems: 'center', gap: 16, minHeight: 40, margin: '0 0 16px',
+      flexShrink: 0, fontFamily: T.font,
     }}>
-      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.text, whiteSpace: 'nowrap' }}>{title}</h1>
+      <h1 style={{ margin: 0, fontSize: T.fsTitle + 2, fontWeight: 600, letterSpacing: '-0.02em', color: T.text, whiteSpace: 'nowrap' }}>{title}</h1>
       <div style={{ flex: 1 }} />
-      <div role="toolbar" aria-label={`${title} actions`} style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <div role="toolbar" aria-label={`${title} actions`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         {actions.map((a) => (
           <div key={a.key} style={{ position: 'relative' }}>
             <ActionButton action={a} menuOpen={openKey === a.key} onOpenMenu={() => setOpenKey((k) => (k === a.key ? null : a.key))} />

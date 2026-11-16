@@ -2,13 +2,19 @@ import {  screen, fireEvent } from '@testing-library/react';
 import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockModule from '../StockModule';
 
-vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]) } }));
+vi.mock('../../../api', () => ({ stock: { locations: vi.fn().mockResolvedValue([]), pricing: vi.fn().mockResolvedValue({ levels: [] }), transactions: vi.fn().mockResolvedValue([]), committed: vi.fn().mockResolvedValue([]) }, inventory: { update: vi.fn() }, users: { myAccess: vi.fn().mockResolvedValue({ role: 'staff', areas: [], allowed: [] }) } }));
 
 const wrap = renderWithQuery;
 const inventory = [
   { sku: 'MR.PS60.NAV', name: 'Navy Polo', category: 'Apparel', stock: 50, committed_qty: 10, reorderLevel: 20 },
   { sku: 'CAP.BLK', name: 'Black Cap', category: 'Headwear', stock: 0, committed_qty: 0, reorderLevel: 15 },
 ];
+
+test('opens the list on the chip it is given', () => {
+  wrap(<StockModule inventory={inventory} onNavigateJob={() => {}} onNavigatePO={() => {}} initialChip="reorder" />);
+  expect(screen.getByText('Black Cap')).toBeInTheDocument();
+  expect(screen.queryByText('Navy Polo')).not.toBeInTheDocument();
+});
 
 test('shows the empty detail prompt until a row is selected, then the item', () => {
   wrap(<StockModule inventory={inventory} onNavigateJob={() => {}} onNavigatePO={() => {}} />);

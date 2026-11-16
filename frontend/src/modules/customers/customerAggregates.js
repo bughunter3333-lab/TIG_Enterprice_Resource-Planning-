@@ -12,9 +12,29 @@ const customerJobs = (c, jobs) => (jobs || []).filter(j => j.customerId === c.id
 export const invoicedJobs = (c, jobs) =>
   customerJobs(c, jobs).filter(j => phaseOf(j.status) === 'billing');
 
-/** What invoiced jobs still owe (inc GST). */
-export const custOutstanding = (c, jobs) =>
-  invoicedJobs(c, jobs).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
+/**
+ * What the customer owes (inc GST): the balance the server keeps from their
+ * invoices, the figure aged receivables and the credit check read. It used to
+ * be summed over the loaded jobs, which are only the newest 500, so an older
+ * unpaid invoice dropped out of the balance and the over-credit count (F06).
+ */
+export const custOutstanding = (c) => Number(c.balance) || 0;
+
+/**
+ * How much of their credit limit a customer is using, for the job form's
+ * banner: null where they have no limit. It reads the server's balance, as
+ * custOutstanding does; the banner used to sum balanceDue over the loaded jobs,
+ * quotes and cancelled jobs included, and disagreed with the credit check (F06).
+ */
+export function creditUse(c) {
+  if (!c || !c.creditLimit) return null;
+  const outstanding = custOutstanding(c);
+  return {
+    outstanding,
+    overLimit: outstanding > c.creditLimit,
+    util: Math.min(100, (outstanding / c.creditLimit) * 100),
+  };
+}
 
 /** Invoiced sales, excluding GST. */
 export const custRevenue = (c, jobs) =>

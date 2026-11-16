@@ -132,6 +132,14 @@ jobs:
       - name: Models match the migrated schema
         run: python -m alembic check
 
+      # Row locks, lost updates and deadlocks. SQLite ignores FOR UPDATE, so
+      # only here do two requests really meet (tests/postgres, and the lock
+      # order in app/core/row_locks.py).
+      - name: Two requests at once on real Postgres
+        env:
+          TEST_POSTGRES_URL: postgresql://ci:ci@localhost:5432/ci
+        run: python -m pytest tests/postgres --no-cov -q
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

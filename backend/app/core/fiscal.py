@@ -1,5 +1,6 @@
 import calendar
 from datetime import date
+from app.core import shop_day
 
 
 def get_fiscal_year_bounds(d: date, start_month: int = 7) -> tuple[date, date]:
@@ -22,4 +23,4 @@ def fiscal_year_label(d: date, start_month: int = 7) -> str:
 
 
 def current_fiscal_year(start_month: int = 7) -> tuple[date, date]:
-    return get_fiscal_year_bounds(date.today(), start_month)
+    return get_fiscal_year_bounds(shop_day.today(), start_month)

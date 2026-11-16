@@ -22,7 +22,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Chrome — the shell bar (white in SAP Horizon).
+        // Chrome — the top bar, white with dark text.
         ink: {
           DEFAULT: palette.ink,
           raised: palette.inkRaised,
@@ -31,10 +31,14 @@ export default {
           muted: palette.inkTextMuted,
         },
 
+        // The sidebar: a second neutral, a step off the page.
+        rail: { DEFAULT: palette.rail, hover: palette.railHover },
+
         // Ground and surfaces.
         paper: palette.paper,
         panel: { DEFAULT: palette.panel, alt: palette.panelAlt },
         hairline: { DEFAULT: palette.hairline, soft: palette.hairlineSoft },
+        field: { DEFAULT: palette.fieldBorder, hover: palette.fieldBorderHover },
 
         // Text. `fg` rather than `text` so the utility reads `text-fg` instead
         // of the nonsense `text-text`.
@@ -43,7 +47,7 @@ export default {
         faint: palette.faint,
         header: palette.headerText,
 
-        // Accent — Horizon brand blue; `accent-strong` (5.2:1) carries words.
+        // Accent — the one blue (5.1:1); `accent-strong` (6.8:1) for hover.
         accent: {
           DEFAULT: palette.accent,
           strong: palette.accentStrong,
@@ -64,17 +68,16 @@ export default {
       },
 
       fontFamily: {
-        // Quoted: a family name that starts with a digit is not a valid CSS
-        // identifier, and an unquoted `72` would void the whole declaration.
-        sans: ['"72"', '"72full"', 'Arial', 'Helvetica', 'sans-serif'],
-        mono: ['"72Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        // Geist and Geist Mono, self-hosted (src/ui/fonts.css).
+        sans: ['"Geist Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
       // Figures in a column have to line up, or the eye cannot compare them.
       fontVariantNumeric: { tabular: 'tabular-nums' },
 
       boxShadow: {
-        // SAP Horizon's shadows (palette.js `elevation`).
+        // palette.js `elevation`: faint for resting cards, deep for overlays.
         sm: elevation.shadowSm,
         DEFAULT: elevation.shadowMd,
         header: elevation.shadowHeader,

@@ -1,6 +1,7 @@
 import { parseD } from '../../ui/dates';
 import { todayKey } from '../../lib/dates';
 import { inView, viewLabel } from './jobMetrics';
+import { FINISHED_STATUSES } from './jobStatuses';
 
 // Jim2 "Auto Pick Stock": allocate on-hand stock FIFO down the list order —
 // each job claims stock for its product lines before later jobs get any.
@@ -42,12 +43,25 @@ const QUICK_VIEW = {
   inProduction: 'inProduction',
   needsInvoice: 'toInvoice',
   myJobs: 'mine',
+  pickPack: 'pickPack',
+  proof: 'proof',
+  orderNotStarted: 'orderNotStarted',
+  inProgress: 'inProgress',
+  notDespatched: 'notDespatched',
+  quoteExpiring: 'quoteExpiring',
+  overTime: 'overTime',
 };
 
 export const QUICK_FILTERS = [
   ...Object.entries(QUICK_VIEW).map(([id, view]) => ({ id, label: viewLabel(view) })),
   { id: 'urgent', label: 'Urgent' },
 ];
+
+// The module a quick list opens in. Only quotes differ: a quote is opened from
+// the Quotes list, which is the same jobs list locked to QUOTE.
+const QUICK_MODULE = { quoteExpiring: 'quotes' };
+
+export const quickListModule = (quick) => QUICK_MODULE[quick] ?? 'jobs';
 
 export const EMPTY_JOBS_FILTERS = {
   searchTerm: '',
@@ -70,9 +84,11 @@ export const EMPTY_JOBS_FILTERS = {
 // ticked the job only has to match one of them (OR within the checked set).
 export const JOB_LIST_CLASSES = {
   quote: (s) => s === 'QUOTE',
-  active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'].includes(s),
-  ready: (s) => s === 'Pick/Pack',
-  finish: (s) => s === 'FINISH',
+  active: (s) => ['New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt', 'Pick/Pack'].includes(s),
+  // Packed: Pick/Pack, and Desp/Ready — waiting for the carrier.
+  ready: (s) => ['Pick/Pack', 'Desp/Ready'].includes(s),
+  // Gone: FINISH, and FINISH checked and Ready to invoice.
+  finish: (s) => FINISHED_STATUSES.includes(s),
   invoiced: (s) => ['INVOICE', 'PAID'].includes(s),
 };
 
@@ -87,7 +103,7 @@ const _inRange = (raw, from, to) => {
   return true;
 };
 
-const _FINISHED = ['FINISH', 'INVOICE', 'PAID', 'CANCEL'];
+const _FINISHED = [...FINISHED_STATUSES, 'INVOICE', 'PAID', 'CANCEL'];
 
 // The saved/advanced "Job List" predicate. Every field is optional, so an empty
 // object (or null) matches everything; only populated fields constrain results.
@@ -144,17 +160,29 @@ export function buildFilterOptions(jobs) {
   return { uniqueCustomers, uniqueAssignees, uniqueShipCodes, uniqueGroups };
 }
 
+// What the search box looks in. A portal order is known by its order number
+// (serial no.), whoever ordered it and, once gone, its connote — the same
+// fields the server's `GET /jobs?search=` reads (F01).
+const SEARCHED = ['customer', 'customerId', 'invoice', 'custRef', 'ourRef', 'shipTo',
+  'serialNo', 'nameContact', 'requestedBy', 'exJobRef', 'connote'];
+
+// The list holds the newest jobs only; a search also asks the server, and what
+// it finds beyond them joins the list. A loaded job keeps its loaded copy.
+export function mergeJobs(loaded, found) {
+  if (!found?.length) return loaded;
+  const have = new Set(loaded.map(j => String(j.id)));
+  const extra = found.filter(j => !have.has(String(j.id)));
+  return extra.length ? [...loaded, ...extra] : loaded;
+}
+
 export function filterJobs(jobs, f, currentUser, now = new Date()) {
   return jobs.filter(job => {
     const term = (f.searchTerm || '').toLowerCase();
+    // And the PO number on its lines, as the server's search reads it (JIM26).
     const matchesSearch = !term ||
       String(job.id).toLowerCase().includes(term) ||
-      (job.customer || '').toLowerCase().includes(term) ||
-      (job.customerId || '').toLowerCase().includes(term) ||
-      (job.invoice || '').toLowerCase().includes(term) ||
-      (job.custRef || '').toLowerCase().includes(term) ||
-      (job.ourRef || '').toLowerCase().includes(term) ||
-      (job.shipTo || '').toLowerCase().includes(term);
+      SEARCHED.some(key => String(job[key] || '').toLowerCase().includes(term)) ||
+      (job.items || []).some(i => String(i.poNo || '').toLowerCase().includes(term));
 
     const matchesStatus = f.status === 'all' || job.status === f.status;
     const matchesPriority = f.priority === 'all' || job.priority === f.priority;

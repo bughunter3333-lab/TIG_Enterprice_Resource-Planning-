@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, DateTime, Boolean, func
+from sqlalchemy import Boolean, Column, DateTime, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -23,6 +23,9 @@ class Customer(Base):
     customer_group = Column(String(50), default="General")
     territory = Column(String(50))
     credit_hold = Column(Boolean, default=False)
+    # A note for whoever takes this customer's orders, shown on every job for
+    # them ("always ask if name badges are needed"). Roadmap watchouts.
+    watchout = Column(Text)
     gst_registered = Column(Boolean, default=True)
     status = Column(String(20), default="Active", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

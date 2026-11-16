@@ -15,7 +15,7 @@ import * as api from '../../api';
 import { T } from '../../ui/tokens';
 import Button from '../../ui/Button';
 import { ROLES, ROLE_LABELS } from '../../roles';
-import { allowed, filterUsers, userCounts } from './userRules';
+import { allowed, filterUsers, needsAttention, userCounts } from './userRules';
 import { AddUserDialog, ConfirmUserDialog, EditUserDialog, ResetPasswordDialog } from './UserDialogs';
 import AccessTable from './AccessTable';
 
@@ -49,10 +49,13 @@ function RoleTag({ role }) {
   );
 }
 
-export default function UsersModule({ currentUser }) {
+// `initialFilter` 'attention' opens it on the accounts that need attention
+// (userRules needsAttention) — where Home's tile of that name links to.
+export default function UsersModule({ currentUser, initialFilter }) {
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('all');
   const [status, setStatus] = useState('all');
+  const [attention, setAttention] = useState(initialFilter === 'attention');
   // The dialog that is open: { kind, user }.
   const [open, setOpen] = useState(null);
   const opener = useRef(null);
@@ -63,7 +66,8 @@ export default function UsersModule({ currentUser }) {
 
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const counts = useMemo(() => userCounts(users), [users]);
-  const shown = useMemo(() => filterUsers(users, { query, role, status }), [users, query, role, status]);
+  const shown = useMemo(() => filterUsers(users, { query, role, status, attention }), [users, query, role, status, attention]);
+  const attentionCount = useMemo(() => users.filter(needsAttention).length, [users]);
 
   // A dialog hands the keyboard back to the button that opened it.
   const show = (kind, user) => (e) => { opener.current = e.currentTarget; setOpen({ kind, user }); };
@@ -108,6 +112,7 @@ export default function UsersModule({ currentUser }) {
             <Chip key={value} active={status === value} onClick={() => setStatus(value)}>{label}</Chip>
           ))}
         </div>
+        <Chip active={attention} onClick={() => setAttention((on) => !on)}>Needs attention {attentionCount}</Chip>
       </div>
 
       {usersQuery.isError && (

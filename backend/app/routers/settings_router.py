@@ -1,7 +1,7 @@
 import smtplib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from app.database import get_db
 from app.models.settings import CompanySettings
@@ -21,7 +21,9 @@ class CompanySettingsUpdate(BaseModel):
     email: Optional[str] = None
     website: Optional[str] = None
     gst_rate: Optional[float] = None
-    invoice_prefix: Optional[str] = None
+    invoice_prefix: Optional[str] = Field(None, max_length=10)
+    # The number the next issued invoice gets — where Jim2's sequence stopped.
+    invoice_next_number: Optional[int] = Field(None, ge=1)
     quote_prefix: Optional[str] = None
     bank_name: Optional[str] = None
     bank_bsb: Optional[str] = None
@@ -49,10 +51,13 @@ def _get_or_create_settings(db: Session) -> CompanySettings:
     return s
 
 
+SMTP_PASSWORD_MASK = "••••••••"
+
+
 def _safe_response(s: CompanySettings) -> dict:
     """Return settings as a dict, replacing the stored smtp_password with a mask."""
     d = {c.name: getattr(s, c.name) for c in s.__table__.columns}
-    d["smtp_password"] = "••••••••" if s.smtp_password else None
+    d["smtp_password"] = SMTP_PASSWORD_MASK if s.smtp_password else None
     return d
 
 
@@ -76,6 +81,10 @@ def update_company_settings(
 ):
     s = _get_or_create_settings(db)
     data = body.model_dump(exclude_none=True)
+    # The settings screen sends back the whole form it read, mask included;
+    # the mask means "unchanged", not a new password.
+    if data.get("smtp_password") == SMTP_PASSWORD_MASK:
+        data.pop("smtp_password")
     if "smtp_password" in data:
         raw_pw = data.pop("smtp_password")
         data["smtp_password"] = (

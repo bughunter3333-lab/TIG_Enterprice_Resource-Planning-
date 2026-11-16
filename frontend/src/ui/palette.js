@@ -12,122 +12,141 @@
  * `tokens.js` builds the `T` object from the same values for the inline-style
  * call sites. One change, one effect, everywhere.
  *
- * ── The direction ─────────────────────────────────────────────────────────
+ * ── The direction (2026-10-25) ────────────────────────────────────────────
  *
- * SAP S/4HANA — the SAP Fiori "Horizon" theme (2026-10-10, the owner's call:
- * "we do not need any backdated looking ERP"). Every value below is taken from
- * SAP's own open-source theme package, @sap-theming/theming-base-content
- * (Apache-2.0), file content/Base/baseLib/sap_horizon/css_variables.css; the
- * SAP variable each one comes from is named beside it, so a later Horizon
- * release can be followed by diffing that file. No SAP logos or marks are used.
+ * A calm, modern product look (the owner's references: Humaplus, FlowAI, the
+ * spline.one system) over Fiori's page structure, which stays. Spec:
+ * docs/superpowers/specs/2026-10-25-calm-product-look.md.
  *
- * The key names are the app's own and predate this theme (`ink` is the shell,
- * `paper` the page). They are kept because ~3,000 call sites read them; what
- * changed is what they hold.
+ *   - A near-neutral ground, white surfaces drawn with hairlines rather than
+ *     shadows, and one blue that means "act" or "you are here".
+ *   - Colour carries state, never decoration: the traffic light and the job's
+ *     phase are the only other hues on a screen.
+ *   - Geist for every word, Geist Mono for codes and IDs, tabular figures
+ *     everywhere so a column of numbers lines up.
  *
- *   ink     the shell bar — white in Horizon, with dark text
+ * It replaces the SAP Horizon values (2026-10-10). The key names are the app's
+ * own and are kept because ~3,000 call sites read them; what changed is what
+ * they hold.
+ *
+ *   ink     the top bar — white, with dark text
+ *   rail    the sidebar: a second neutral, a step off the page
  *   paper   the page background behind cards and tables
- *   panel   cards, tables, object pages
- *   accent  the brand blue; links, primary buttons, selection
- *   emphasis a second, deeper blue for the occasional highlight
- *
- * Semantic colour stays separate from brand colour: `ok`, `warn` and `danger`
- * are Fiori's positive / critical / negative and mean the same on every
- * surface. The *text* variants are used, because Horizon's critical orange
- * (#e76500) is only 3:1 on white and cannot carry small words.
+ *   panel   cards, tables, record pages
+ *   accent  the one blue; primary actions, links, selection, focus
+ *   emphasis a deeper blue for the occasional single highlight
  *
  * ── Contrast (against white) ──────────────────────────────────────────────
  *
- *   text #131e29 16:1 · muted #556b82 5.4:1 · faint #5b738b 4.9:1
- *   accentStrong #0064d9 5.2:1 · accent #0070f2 4.6:1
- *   ok #256f3a 6.3:1 · warn #b44f00 4.9:1 · danger #aa0808 8.2:1
- *   focus #0032a5 9.8:1 — the old cyan ring was 1.8:1 and failed WCAG 2.2.
+ *   text #111114 18.9:1 · muted #55575f 7.2:1 · faint #6e7079 4.9:1
+ *   accent #0b63f6 5.1:1 · accentStrong #0a52cc 6.8:1
+ *   ok #15803d 5.0:1 · warn #b45309 5.0:1 · danger #c0262d 5.9:1
+ *
+ * Every chip pairs one of those text colours with its own pale tint, so the
+ * word passes 4.5:1 on the chip as well.
  */
 
 export const palette = {
-  // ── Shell bar ──────────────────────────────────────────────────────────
-  ink: '#ffffff',          // sapShellColor
-  inkRaised: '#f5f6f7',    // sapBackgroundColor
-  inkHover: '#eaecee',     // sapButton_Hover_Background
-  inkText: '#131e29',      // sapShell_TextColor
-  inkTextMuted: '#556b82', // sapContent_LabelColor
+  // ── Top bar ────────────────────────────────────────────────────────────
+  ink: '#ffffff',
+  inkRaised: '#f7f7f8',
+  inkHover: '#f0f0f2',
+  inkText: '#111114',
+  inkTextMuted: '#5d5f67',
+
+  // ── Sidebar: the second neutral layer ──────────────────────────────────
+  rail: '#fafafa',
+  railHover: '#f0f0f2',
 
   // ── Ground and surfaces ────────────────────────────────────────────────
-  paper: '#f5f6f7',        // sapBackgroundColor
-  panel: '#ffffff',        // sapBaseColor / sapTile_Background
-  panelAlt: '#f5f6f7',     // sapList_AlternatingBackground
-  hairline: '#d9d9d9',     // sapGroup_ContentBorderColor
-  hairlineSoft: '#eaecee', // sapList_Hover_Background
+  paper: '#f5f5f6',
+  panel: '#ffffff',
+  panelAlt: '#fafafb',
+  hairline: '#e4e4e7',
+  hairlineSoft: '#efeff1',
+  // A field's edge: a step darker than a card's, so an empty input still
+  // reads as a place to type.
+  fieldBorder: '#cfd0d5',
+  fieldBorderHover: '#a1a3ab',
 
   // ── Text ───────────────────────────────────────────────────────────────
-  text: '#131e29',         // sapTextColor
-  muted: '#556b82',        // sapContent_LabelColor
-  faint: '#5b738b',        // sapAccentColor10
-  headerText: '#131e29',   // sapGroup_TitleTextColor
+  text: '#111114',
+  muted: '#55575f',
+  faint: '#6e7079',
+  headerText: '#111114',
 
-  // ── Accent: brand blue ─────────────────────────────────────────────────
-  accent: '#0070f2',       // sapBrandColor
-  accentStrong: '#0064d9', // sapLinkColor / sapHighlightColor
-  accentTint: '#ebf8ff',   // sapList_SelectionBackgroundColor
-  accentFocus: '#0032a5',  // sapContent_FocusColor
+  // ── Accent: the one blue ───────────────────────────────────────────────
+  accent: '#0b63f6',
+  accentStrong: '#0a52cc',
+  accentTint: '#eef4ff',
+  accentFocus: '#0a52cc',
 
   // ── Emphasis: a deeper blue, sparingly ─────────────────────────────────
-  emphasis: '#0057d2',     // sapAccentColor6
-  emphasisTint: '#d1efff', // sapAccentBackgroundColor6
+  emphasis: '#0a52cc',
+  emphasisTint: '#e3ecff',
 
   // ── Semantic ───────────────────────────────────────────────────────────
-  ok: '#256f3a',           // sapPositiveTextColor
-  okTint: '#f5fae5',       // sapSuccessBackground
-  warn: '#b44f00',         // sapCriticalTextColor
-  warnTint: '#fff8d6',     // sapWarningBackground
-  danger: '#aa0808',       // sapNegativeTextColor
-  dangerTint: '#ffeaf4',   // sapErrorBackground
+  ok: '#15803d',
+  okTint: '#ecf8f0',
+  warn: '#b45309',
+  warnTint: '#fff5e8',
+  danger: '#c0262d',
+  dangerTint: '#fdeeee',
 
-  // Editable grid cell. Fiori fields are white with a border; this faint
-  // blue keeps borderless in-grid cells recognisably typeable.
-  editable: '#f2f8ff',
+  // Editable grid cell: a faint blue keeps borderless in-grid cells
+  // recognisably typeable.
+  editable: '#f5f8ff',
+
+  // Selected text: the browser draws it, but it is still part of the design.
+  selection: '#d6e4ff',
 };
 
 /**
- * Density — Fiori "compact", the desktop content density S/4HANA uses: 2rem
- * rows, 1.625rem fields. Corners follow Horizon: .5rem for buttons and most
- * controls (sapButton_BorderCornerRadius), .75rem for cards and panels
- * (sapElement_BorderCornerRadius), .25rem for input fields.
+ * Density. Work grids are compact by default (32px rows) with a comfortable
+ * step (40px) a person can switch to; fields are 32px, the size a pointer hits
+ * without aiming. One corner language: 8px for controls and fields, 12px for
+ * cards and panels, 6px for chips.
  */
 export const density = {
   rowHeight: 32,
-  inputHeight: 26,
+  rowHeightComfortable: 40,
+  inputHeight: 32,
   radius: 8,
   radiusLg: 12,
-  radiusField: 4,
+  radiusField: 8,
+  radiusSm: 6,
 };
 
 /**
- * Type — SAP 72 for everything, 72 Mono where figures and codes must align.
- * Sizes follow Fiori: 14px body (sapFontSize), 12px small (sapFontSmallSize),
- * and nothing anyone reads below 12px.
+ * Type — Geist for everything, Geist Mono where codes and IDs must align.
+ * A tight scale (about 1.2 between steps): product screens have many type
+ * elements, and wide contrast between them reads as noise.
  */
 export const type = {
-  font: "'72', '72full', Arial, Helvetica, sans-serif",
-  fontMono: "'72Mono', ui-monospace, SFMono-Regular, monospace",
+  font: "'Geist Variable', ui-sans-serif, system-ui, sans-serif",
+  fontMono: "'Geist Mono Variable', ui-monospace, SFMono-Regular, monospace",
   fsBase: 14,
   fsGrid: 13,
   fsHeader: 12,
   fsSmall: 12,
+  fsSection: 15,
+  fsTitle: 20,
+  fsKpi: 28,
 };
 
 /**
- * Elevation — Horizon's shadows, tinted with its slate (rgba(34,53,72)).
+ * Elevation. Surfaces are drawn with hairlines; shadow is kept for what sits
+ * above the page — a card's faint resting lift, a menu, a dialog.
  */
 export const elevation = {
-  shadowSm: '0 0 0.125rem 0 rgba(34,53,72,.2), 0 0.125rem 0.25rem 0 rgba(34,53,72,.2)',      // sapContent_Shadow0
-  shadowMd: '0 0 0 0.0625rem rgba(34,53,72,.48), 0 0.125rem 0.5rem 0 rgba(34,53,72,.3)',     // sapContent_Shadow1
-  shadowHeader: '0 0.125rem 0.125rem 0 rgba(34,53,72,.05), inset 0 -0.0625rem 0 0 #d9d9d9',   // sapContent_HeaderShadow
-  shadowChrome: '0 0.125rem 0.125rem 0 rgba(34,53,72,.15)',                                    // shell bar
-  shadowPress: '0 0 0 0.0625rem rgba(34,53,72,.48), 0 0.625rem 1.875rem 0 rgba(34,53,72,.25)', // sapContent_Shadow2
+  shadowSm: '0 1px 2px rgba(17,17,20,.05)',
+  shadowMd: '0 1px 2px rgba(17,17,20,.06), 0 4px 12px rgba(17,17,20,.06)',
+  shadowHeader: 'inset 0 -1px 0 0 #e4e4e7',
+  shadowChrome: 'inset 0 -1px 0 0 #e4e4e7',
+  shadowPress: '0 2px 6px rgba(17,17,20,.08), 0 12px 32px rgba(17,17,20,.14)',
 };
 
 export const motion = {
-  transition: '120ms cubic-bezier(.4,0,.2,1)',
-  spring: '340ms cubic-bezier(.32,.72,0,1)',
+  transition: '150ms cubic-bezier(.2,0,0,1)',
+  spring: '240ms cubic-bezier(.16,1,.3,1)',
 };

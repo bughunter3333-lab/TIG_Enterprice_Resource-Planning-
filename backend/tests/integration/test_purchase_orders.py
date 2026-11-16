@@ -7,7 +7,6 @@ Covers: CRUD, GST calculation on create, GST on receive.
 import pytest
 from app.models.customer import Customer
 
-
 PO_BASE = {
     "id": "PO-TEST1",
     "supplier_id": "SUP001",

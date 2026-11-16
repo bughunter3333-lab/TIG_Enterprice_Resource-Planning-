@@ -22,6 +22,23 @@ test('search filters by sku/name/category', () => {
   expect(screen.queryByText('Navy Polo')).not.toBeInTheDocument();
 });
 
+test('Needs reorder chip is the shared rule: at or below minimum, counting orders and commitments', () => {
+  const stocked = [
+    ...items,
+    // Short on hand, but an order covers it.
+    { sku: 'HOOD.GRY', name: 'Grey Hood', stock: 2, on_order_qty: 40, reorderLevel: 20 },
+  ];
+  render(<StockList items={stocked} selectedSku={null} onSelect={() => {}} initialChip="reorder" />);
+  expect(screen.getByRole('button', { name: 'Needs reorder' })).toBeInTheDocument();
+  // Navy Polo: 50 - 10 committed = 40 > 20. Black Cap: 0 <= 15. White Tee: 8 - 2 = 6 <= 20.
+  expect(screen.getByText('Black Cap')).toBeInTheDocument();
+  expect(screen.getByText('White Tee')).toBeInTheDocument();
+  expect(screen.queryByText('Navy Polo')).not.toBeInTheDocument();
+  expect(screen.queryByText('Grey Hood')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'All' }));
+  expect(screen.getByText('Grey Hood')).toBeInTheDocument();
+});
+
 test('Out chip shows only zero-stock; Low chip shows below-reorder in-stock', () => {
   render(<StockList items={items} selectedSku={null} onSelect={() => {}} />);
   fireEvent.click(screen.getByText(/Out/));

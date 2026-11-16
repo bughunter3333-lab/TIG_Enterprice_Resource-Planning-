@@ -19,11 +19,14 @@ from app.core.access import (
     access_table,
     api_routes,
     declared,
+    role_access,
     route_roles,
     served_routes,
 )
 from app.core.dependencies import (
+    ALL_ROLES,
     ROLES,
+    SERVICE_ROLES,
     get_current_user,
     get_signed_in_user,
     require_admin,
@@ -102,17 +105,52 @@ class TestOnlyWhoAmIAsksNoMore:
 class TestSeniority:
     def test_no_route_lets_a_role_in_while_refusing_one_senior_to_it(self):
         """ROLES runs from most to least senior. Whoever a route admits has to
-        be an unbroken run from the top: admin; admin and manager; and so on."""
+        be an unbroken run from the top: admin; admin and manager; and so on.
+
+        A service role (the portal) is outside the run: it is let in only by a
+        gate that names it, alongside an unbroken run of people."""
         broken = [
             f"{method} {path} admits {roles}"
             for method, path, roles in _routes()
-            if roles is not None and tuple(roles) != ROLES[: len(roles)]
+            if roles is not None
+            and (
+                (people := tuple(r for r in roles if r in ROLES))
+                != ROLES[: len(people)]
+                or not set(roles) - set(people) <= set(SERVICE_ROLES)
+            )
         ]
         assert not broken, broken
 
+    def test_a_service_role_is_never_let_in_without_staff(self):
+        """No route answers the portal that the people who run it cannot use."""
+        alone = [
+            f"{method} {path}"
+            for method, path, roles in _routes()
+            if roles is not None
+            and set(roles) & set(SERVICE_ROLES)
+            and "staff" not in roles
+        ]
+        assert not alone, alone
+
+    def test_the_portal_is_let_in_to_booking_and_commenting_only(self):
+        portal = {
+            (method, path)
+            for method, path, roles in _routes()
+            if roles is not None
+            and "portal" in roles
+            and method not in ("HEAD", "OPTIONS")
+        }
+        # Who am I, and what may I do: every account asks those.
+        assert portal == {
+            ("GET", "/users/me"),
+            ("GET", "/users/me/access"),
+            ("POST", "/jobs"),
+            ("POST", "/jobs/{job_id}/comments"),
+        }
+
     def test_so_the_table_never_shows_a_senior_role_with_less(self):
         table = access_table(app)
-        assert table["roles"] == list(ROLES)
+        assert table["roles"] == list(ALL_ROLES)
         for area in table["areas"]:
             for kind in ("view", "change"):
                 allowed = [area[kind][role][0] for role in ROLES]
@@ -130,7 +168,7 @@ class TestTheAccessTable:
         total = users["change"]["admin"][1]
         assert total >= 4
         assert users["change"]["admin"] == [total, total]
-        for role in ROLES[1:]:
+        for role in ALL_ROLES[1:]:
             assert users["change"][role] == [0, total]
 
     def test_everyone_signed_in_can_look_at_stock_but_not_everyone_can_change_it(self):
@@ -151,6 +189,46 @@ class TestTheAccessTable:
         names = [a["area"] for a in access_table(app)["areas"]]
         assert "Auth" not in names and "Health" not in names
         assert len(names) == len(set(names))
+
+
+@pytest.mark.unit
+class TestOneRolesOwnAccess:
+    """`role_access`: one role's column of the table, and the routes it passes."""
+
+    @pytest.mark.parametrize("role", ALL_ROLES)
+    def test_its_areas_are_that_roles_column_of_the_table(self, role):
+        table = access_table(app)
+        mine = role_access(app, role)
+        assert mine["role"] == role
+        assert [a["area"] for a in mine["areas"]] == [a["area"] for a in table["areas"]]
+        for own, full in zip(mine["areas"], table["areas"]):
+            assert own == {
+                "area": full["area"],
+                "view": full["view"][role],
+                "change": full["change"][role],
+            }
+
+    @pytest.mark.parametrize("role", ALL_ROLES)
+    def test_its_routes_are_the_ones_whose_gate_lets_the_role_through(self, role):
+        expected = sorted(
+            {
+                f"{method} {path}"
+                for method, path, roles in _routes()
+                if roles is not None and role in roles
+                if method not in ("HEAD", "OPTIONS")
+            }
+        )
+        assert role_access(app, role)["allowed"] == expected
+
+    def test_a_senior_role_may_call_everything_a_junior_one_may(self):
+        allowed = [set(role_access(app, role)["allowed"]) for role in ROLES]
+        for senior, junior in zip(allowed, allowed[1:]):
+            assert junior <= senior
+
+    def test_the_routes_that_answer_before_sign_in_are_nobodys_to_list(self):
+        allowed = set(role_access(app, "admin")["allowed"])
+        assert not {f"{method} {path}" for method, path in PUBLIC} & allowed
+        assert "GET /users/me" in allowed and "GET /users/me/access" in allowed
 
 
 @pytest.mark.unit

@@ -1,39 +1,51 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Package, Users, User, FileText, BarChart3, Plus, Edit, Trash2, DollarSign, AlertCircle, X, Printer, Bell, Save, Mail, Phone, MapPin, CreditCard, Box, Truck, FileSpreadsheet, ClipboardList, Layers, ChevronDown, Tag, CheckSquare, BookOpen, Weight, Ruler, Settings, ExternalLink, Copy, Clock } from 'lucide-react';
+import { Search, Package, Users, User, FileText, Plus, Edit, Trash2, AlertCircle, X, Printer, Save, Mail, Phone, Box, Truck, Layers, ChevronDown, CheckSquare, BookOpen, Weight, Ruler, Settings, Clock } from 'lucide-react';
 import * as api from './api';
-import { PieChart as ResponsiveContainer } from 'recharts';
 import ReportsModule from './modules/ReportsModule';
 import EmailModule from './modules/EmailModule';
-import SettingsModule from './modules/SettingsModule';
 import StylesModule from './modules/StylesModule';
+import AnalyticsModule from './modules/AnalyticsModule';
+import ProductionModule from './modules/production/ProductionModule';
+import PickingModule from './modules/picking/PickingModule';
+import ReturnsModule from './modules/returns/ReturnsModule';
+import CreditNotesCard from './modules/credit-notes/CreditNotesCard';
+import { addStep, setPlace } from './lib/crashContext';
 import SchedulingModule from './modules/SchedulingModule';
 import AccountingModule from './modules/accounting/AccountingModule';
-import AnalyticsModule from './modules/AnalyticsModule';
 import { notify } from './lib/notify';
 import AppShell from './ui/shell/AppShell';
 import { T } from './ui/tokens';
-import Button from './ui/Button';
 import { DEFAULT_BRANCH } from './branches';
 import StatusBadge from './ui/StatusBadge';
-import Dashboard from './components/dashboard/Dashboard';
-import JobsBoard from './components/jobs/JobsBoard';
+import HomeModule from './modules/home/HomeModule';
 import JobsModule from './modules/jobs/JobsModule';
-import JobListBuilder from './modules/jobs/JobListBuilder';
 import DispatchList from './modules/jobs/DispatchList';
-import { matchJobList } from './modules/jobs/jobsFilters';
+import { matchJobList, quickListModule } from './modules/jobs/jobsFilters';
 import { jobsInView } from './modules/jobs/jobMetrics';
 import StockModule from './modules/stock/StockModule';
-import StockListBuilder from './modules/stock/StockListBuilder';
 import { matchStockList, EMPTY_STOCK_LIST } from './modules/stock/stockListFilters';
-import POListBuilder from './modules/purchase-orders/POListBuilder';
 import { matchPOList, EMPTY_PO_LIST } from './modules/purchase-orders/poListFilters';
-import POModule from './modules/purchase-orders/POModule';
-import CustomersModule from './modules/customers/CustomersModule';
 import CardFilesModule from './modules/card-files/CardFilesModule';
 import AdminPanel from './components/admin/AdminPanel';
 import { isJobEditable, jobLockReason } from './modules/jobs/jobEditability';
-import { countNeedingReorder, needsReorder } from './modules/stock/lowStock';
+import { linePickedInFull, pickableLines, pickMoveFor, pickTarget } from './modules/jobs/jobPicking';
+import { applyLogo, linkLine, logoMatches, newLineKey, resolveLineLinks } from './modules/jobs/lineLinks';
+import { useCustomerLogos } from './modules/jobs/useCustomerLogos';
+import AppliesToSelect from './modules/jobs/AppliesToSelect';
+import JobRecordHeader from './modules/jobs/record/JobRecordHeader';
+import { moveTargets } from './modules/jobs/record/moveLines';
+import { useStatusAllowances } from './lib/useStatusAllowances';
+import Watchout from './modules/jobs/Watchout';
+import JobDetailsCard from './modules/jobs/record/JobDetailsCard';
+import JobLinesCard from './modules/jobs/record/JobLinesCard';
+import JobCommentsCard from './modules/jobs/record/JobCommentsCard';
+import { JobCustomerCard, JobMoneyCard } from './modules/jobs/record/JobSideCards';
+import { nextStepFor } from './modules/jobs/record/lifecycle';
+import { offeredPrintItems } from './modules/jobs/record/printItems';
+import JobDocumentsTab from './modules/jobs/record/JobDocumentsTab';
+import Tabs from './ui/Tabs';
+import { countNeedingReorder } from './modules/stock/lowStock';
 import DraggableModal from './ui/DraggableModal';
 import ActionBar from './ui/shell/ActionBar';
 import { pageActions } from './ui/shell/pageActions';
@@ -57,17 +69,19 @@ import CardFileFormModal from './modules/card-files/CardFileFormModal';
 import DuplicateToSites from './modules/jobs/DuplicateToSites';
 import WarehouseModule from './modules/warehouse/WarehouseModule';
 import { WAREHOUSE_ZONES } from './modules/warehouse/zones';
-import SupplierPriceListPanel from './modules/suppliers/SupplierPriceListPanel';
 import SizeColourMatrixPopup from './components/jobs/SizeColourMatrixPopup';
 import ProofPanel from './components/jobs/ProofPanel';
-import POGoodsReceiptsPanel from './modules/purchase-orders/POGoodsReceiptsPanel';
 import EmailJobModal from './components/modals/EmailJobModal';
 import SuppliersModule from './modules/suppliers/SuppliersModule';
 import CustomersDetail from './modules/customers/CustomersDetail';
+import { creditUse } from './modules/customers/customerAggregates';
 import PurchaseOrdersDetail from './modules/purchase-orders/PurchaseOrdersDetail';
 import AIAssistantPanel from './modules/ai/AIAssistantPanel';
 import { DEC_OPTIONS, DEC_POSITIONS } from './lib/decoration';
-import { parseD, todayKey } from './lib/dates';
+import { isoDay, todayKey } from './lib/dates';
+import { dueFromTerms } from './modules/jobs/dueFromTerms';
+import { useOffer } from './lib/useMyAccess';
+import { FINISHED_STATUSES, JOB_STATUSES, ORDER_CATEGORIES, PRODUCTION_STATUSES, statusLabel } from './modules/jobs/jobStatuses';
 import OrderRequirementsModule from './modules/order-requirements/OrderRequirementsModule';
 import POListPage from './modules/saved-lists/POListPage';
 import StockListPage from './modules/saved-lists/StockListPage';
@@ -84,8 +98,15 @@ const EMPTY_JOB_LIST = {
 };
 
 const TotalImageERP = ({ currentUser, onLogout }) => {
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState('home');
   const [adminMode, setAdminMode] = useState(false);
+  // Where a Home tile opened, beyond its module: a tab, a filter, a range
+  // (modules/home/homeSections.js). It holds while that screen is up, so
+  // reaching the module any other way opens it as it always has.
+  const [homeLink, setHomeLink] = useState(null);
+  useEffect(() => {
+    if (homeLink && (homeLink.module !== activeModule || !!homeLink.admin !== adminMode)) setHomeLink(null);
+  }, [homeLink, activeModule, adminMode]);
   const [pinnedJobs, setPinnedJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,7 +126,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [filterCustomerGroup, setFilterCustomerGroup] = useState('all');
   const [filterOpenFreight, setFilterOpenFreight] = useState(false);
   const [filterQuick, setFilterQuick] = useState(null);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [confirmModal, setConfirmModal] = useState({ show: false, message: '', onConfirm: null });
   const [dupSitesJob, setDupSitesJob] = useState(null);
   const [paymentModal, setPaymentModal] = useState({ show: false, jobId: null, maxAmount: 0, amount: '', method: 'Credit Card' });
@@ -121,7 +141,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [categoryDropdown, setCategoryDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [locationDropdown, setLocationDropdown] = useState({ open: false, query: '', highlighted: 0 });
   const [supplierDropdown, setSupplierDropdown] = useState({ open: false, query: '', highlighted: 0 });
-  const [searchSuggestOpen, setSearchSuggestOpen] = useState(false);
   // Column set and order follow Jim2's job line grid exactly:
   // Status · PO# · PO Due · Stock Code · Description · Order · Supply · B. Ord ·
   // Qty Pick · Price Ex. · Price Inc. · Tax · Hide · Total.
@@ -133,9 +152,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [apiError, setApiError] = useState('');
 
   const queryClient = useQueryClient();
-  const { data: jobs = [], isLoading: jobsLoading } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  // What the signed-in role may call — page actions offer only those.
+  const offer = useOffer();
+  // How long a job may sit at each status: every list and flag reads it.
+  const statusAllowances = useStatusAllowances();
+  const { data: jobs = [], isLoading: jobsLoading, isPending: jobsPending, isError: jobsFailed } = useQuery({ queryKey: ['jobs'], queryFn: api.jobs.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   useQuery({ queryKey: ['settings/company'], queryFn: api.settings.getCompany, staleTime: 300_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
-  const { data: inventory = [], isLoading: invLoading } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: inventory = [], isLoading: invLoading, isPending: invPending, isError: invFailed } = useQuery({ queryKey: ['inventory'], queryFn: api.inventory.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   // Admin-managed custom decoration methods (added via the line-item picker's "+ Add method").
@@ -153,10 +176,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     }
     return name;
   };
-  const { data: purchaseOrders = [] } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
+  const { data: purchaseOrders = [], isPending: posPending, isError: posFailed } = useQuery({ queryKey: ['purchaseOrders'], queryFn: api.purchaseOrders.list, refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: garmentReqs = [], refetch: refetchGarmentReqs } = useQuery({ queryKey: ['orderRequirements', 'garment'], queryFn: () => api.jobs.orderRequirements('garment'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: decorationReqs = [], refetch: refetchDecorationReqs } = useQuery({ queryKey: ['orderRequirements', 'decoration'], queryFn: () => api.jobs.orderRequirements('decoration'), enabled: activeModule === 'order-requirements', staleTime: 0, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
-  const { data: stockMovements = [] } = useQuery({ queryKey: ['stockMovements'], queryFn: () => api.inventory.movements({ limit: 50 }), refetchInterval: 60_000, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const { data: cardFiles = [] } = useQuery({ queryKey: ['cardFiles'], queryFn: api.cardFiles.list, onError: (e) => { const m = e?.message || String(e); setApiError(m); notify(m, { type: 'error' }); } });
   const loading = (jobsLoading && !jobs.length) || (invLoading && !inventory.length);
   const [cardFileModal, setCardFileModal] = useState({ open: false, editing: null });
@@ -207,11 +229,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Warehouse bin map
 
-  // Inventory module view state
-  const [invTab, setInvTab] = useState('stock');
-  const [invCatFilter, setInvCatFilter] = useState('all');
-  const [invStatusFilter, setInvStatusFilter] = useState('all');
-
   // Suppliers module
 
   // Purchase Orders module
@@ -234,8 +251,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Jim2-style UI state
   const [tigMenuOpen, setTigMenuOpen] = useState(false);
-  const [navExpanded, setNavExpanded] = useState({ jobs: true });
-  const [navTreeTab, setNavTreeTab] = useState('navigation');
 
   // New ribbon action modals
   const [dispatchModal, setDispatchModal] = useState({ open: false, job: null, shipVia: '', shipRef: '', cartons: 1, notes: '', advanceStatus: false, loading: false, error: '' });
@@ -244,7 +259,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [transferModal, setTransferModal] = useState({ open: false, fromSku: '', toSku: '', toLocation: '', quantity: 1, fromBranch: DEFAULT_BRANCH, toBranch: DEFAULT_BRANCH, reference: '', notes: '', loading: false, error: '' });
   const [stocktakeModal, setStocktakeModal] = useState({ open: false, method: 'Informed', branch: DEFAULT_BRANCH, reference: '', items: [], loading: false, error: '', results: null });
   const [stockFlowModal, setStockFlowModal] = useState({ open: false, loading: false, data: null, search: '' });
-  const [pickPackModal, setPickPackModal] = useState({ open: false, job: null });
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const globalSearchRef = useRef(null);
@@ -288,14 +302,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       setSavedJobLists(prev => prev.map(l => l.id === id ? { ...l, filter } : l));
     } catch (e) { notify(e.message || 'Could not update list', { type: 'error' }); }
   };
-  // Returns true if saved, false if the node is already at the 25-list cap.
-  const saveJobList = (name, filter, node = 'jobs') => {
-    const sameNode = listsForNode(node);
-    if (sameNode.length >= JOB_LIST_MAX) return false;
-    const clean = (name || '').trim() || `Job List ${sameNode.length + 1}`;
-    createListOnServer({ id: `JL-${Date.now()}`, name: clean, filter, node });
-    return true;
-  };
   const deleteJobList = async (id) => {
     try {
       await api.savedLists.delete(id);
@@ -338,14 +344,19 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Jim2 Dispatch list: batch-dispatch ready + invoiced jobs
   const [dispatchListOpen, setDispatchListOpen] = useState(false);
   const [dispatchListBusy, setDispatchListBusy] = useState(false);
-  const dispatchBatch = async (batch) => {
+  const dispatchBatch = async (batch, options) => {
     setDispatchListBusy(true);
     try {
       // One transactional session (Jim2 Dispatch #) instead of N separate calls.
-      const session = await api.dispatchSessions.create(batch);
+      const session = await api.dispatchSessions.create(batch, options);
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      notify(`Dispatch #${session.id} recorded — ${session.line_count} job${session.line_count === 1 ? '' : 's'}`, { type: 'success' });
-      setDispatchListOpen(false);
+      // The list stays open and ends on what was recorded (DispatchList's
+      // Despatched view), so no toast says it a second time. A job the batch
+      // passed over — nothing left to send — is not in that view, so say so.
+      if (session?.skipped?.length) {
+        notify(`Not sent — nothing left to send: ${session.skipped.map(s => s.job_id).join(', ')}`, { type: 'error' });
+      }
+      return session;
     } catch (e) {
       notify(e.message || 'Dispatch failed', { type: 'error' });
     } finally {
@@ -369,8 +380,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   // Job detail tabs
   const [jobDetailTab, setJobDetailTab] = useState('job');
   const [pickState, setPickState] = useState({});
-  const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
-  const [jobsSort, setJobsSort] = useState({ col: 'dateIn', dir: 'desc' });
 
   // Customer detail
 
@@ -385,9 +394,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [emailModalJob, setEmailModalJob] = useState(null);
   const [matrixPopup, setMatrixPopup] = useState(null); // { idx } when open
 
-  // Notifications panel
-  const [notifOpen, setNotifOpen] = useState(false);
-
   // User settings
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [changePasswordForm, setChangePasswordForm] = useState({ current: '', newPass: '', confirm: '' });
@@ -396,17 +402,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
 
   // Bulk selection
   const [selectedJobIds, setSelectedJobIds] = useState(new Set());
-  const [bulkActionOpen, setBulkActionOpen] = useState(false);
-
-  // Calendar view state
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-
-  // Dashboard quick notes
-  const [dashNotes, setDashNotes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tig_dash_notes') || '[]'); } catch { return []; }
-  });
-  const [dashNoteInput, setDashNoteInput] = useState('');
+  const [, setBulkActionOpen] = useState(false);
 
   // Job templates (persisted in localStorage)
   const [jobTemplates, setJobTemplates] = useState(() => {
@@ -457,7 +453,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       if (e.altKey) {
         if (e.key === 'j' || e.key === 'J') { e.preventDefault(); setActiveModule('jobs'); setTimeout(() => jobSearchRef.current?.focus(), 50); }
         if (e.key === 'i' || e.key === 'I') { e.preventDefault(); setActiveModule('inventory'); }
-        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('dashboard'); }
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); setActiveModule('home'); }
         if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setActiveModule('customers'); }
         if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setActiveModule('reports'); }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (activeModule === 'jobs' || activeModule === 'quotes') openModal('job'); else if (activeModule === 'inventory') openModal('inventory'); else if (activeModule === 'customers') openModal('customer'); }
@@ -483,56 +479,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     api.openFreight.getAccount().then(acc => setOfAccount(acc)).catch(() => {});
   }, [ofModalOpen]);
 
-  // Derive notifications from live data (useMemo avoids setState-in-effect infinite loop)
-  const notifications = useMemo(() => {
-    const now = new Date();
-    const lowStockItems = inventory.filter(needsReorder);
-    const overdueJobs = jobsInView(jobs, 'overdue');
-
-    const in7Days = new Date(now); in7Days.setDate(in7Days.getDate() + 7);
-    const expiringQuotes = jobs.filter(j => {
-      if (j.status !== 'QUOTE' || !j.validityDate) return false;
-      const d = parseD(j.validityDate);
-      return d && d >= now && d <= in7Days;
-    });
-
-    const dueTodayJobs = jobsInView(jobs, 'dueToday');
-
-    const creditBreaches = customers.filter(c => {
-      if (!c.creditLimit || c.creditLimit <= 0) return false;
-      const outstanding = jobs.filter(j => j.customerId === c.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-      return outstanding > c.creditLimit;
-    });
-
-    return [
-      ...dueTodayJobs.map(job => ({
-        id: `today-${job.id}`, type: 'warning', title: 'Due Today',
-        message: `Job #${job.id} for ${job.customer} is due today — ${job.status}`,
-        time: 'Today'
-      })),
-      ...overdueJobs.map(job => ({
-        id: `overdue-${job.id}`, type: 'error', title: 'Overdue Job',
-        message: `Job #${job.id} for ${job.customer} is overdue. Due: ${job.due}`,
-        time: 'Now'
-      })),
-      ...expiringQuotes.map(job => ({
-        id: `quote-exp-${job.id}`, type: 'warning', title: 'Quote Expiring',
-        message: `Quote #${job.id} for ${job.customer} expires ${job.validityDate} — follow up needed`,
-        time: 'Soon'
-      })),
-      ...creditBreaches.map(c => ({
-        id: `credit-${c.id}`, type: 'error', title: 'Credit Limit Exceeded',
-        message: `${c.name} has exceeded their credit limit of $${Number(c.creditLimit).toLocaleString('en-AU')}`,
-        time: 'Now'
-      })),
-      ...lowStockItems.map(item => ({
-        id: `low-${item.sku}`, type: 'warning', title: 'Low Stock Alert',
-        message: `${item.name} (${item.sku}) is below reorder level. Current: ${item.stock}, Min: ${item.reorderLevel}`,
-        time: 'Now'
-      })),
-    ];
-  }, [inventory, jobs, customers]);
-
   useEffect(() => {
     if (!tigMenuOpen) return;
     const close = () => setTigMenuOpen(false);
@@ -552,8 +498,9 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const [jobForm, setJobForm] = useState({
     customer: '',
     customerId: '',
-    status: 'ORDER',
+    status: 'New',
     priority: 'Normal',
+    orderCategory: 'Normal',
     type: 'Standard',
     quote: '',
     dateIn: todayKey(),
@@ -585,6 +532,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     category: '',
     stock: 0,
     reorderLevel: 0,
+    weight_kg: 0,
     location: '',
     supplier: '',
     supplierCode: '',
@@ -657,9 +605,12 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         });
       } else {
         setJobForm({
-          // From the Quotes screen a new job is a quote: an ORDER reserves stock
-          // and runs the credit check, which a quote must not.
-          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'ORDER', priority: 'Normal',
+          // From the Quotes screen a new job is a quote. Any other new job is
+          // Booked (New): TIG books every order first and releases it to
+          // Confirmed (ORDER), which reserves stock and runs the credit check
+          // (docs/superpowers/specs/2026-11-07-tig-status-ladder.md).
+          customer: '', customerId: '', status: activeModule === 'quotes' ? 'QUOTE' : 'New', priority: 'Normal',
+          orderCategory: 'Normal',
           type: 'Standard', quote: '', dateIn: todayKey(),
           due: '', out: '', assignedTo: '', branch: 'HQ', shipToId: null, shippingAddress: '',
           paymentMethod: 'Account', custRef: '', ourRef: '', description: '', shipTo: '',
@@ -680,6 +631,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
           category: '',
           stock: 0,
           reorderLevel: 0,
+          weight_kg: 0,
           location: '',
           supplier: '',
           supplierCode: '',
@@ -754,7 +706,13 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     document.addEventListener('mouseup', onUp);
   };
 
+  // The customer's logos, suggested in a line's stock-code field (F02).
+  const customerLogos = useCustomerLogos(jobForm.customerId);
+
+  // lineKey: how another line of this form names this one until it is saved
+  // and has an id ("Applies to", F19).
   const blankItem = () => ({
+    lineKey: newLineKey(),
     displayType: 'product', decorationType: 'None',
     description: '', sizes: '', stockCode: '', embCode: '', trsCode: '', decCode: '',
     stitchCount: '', colorCount: '', decPosition: '',
@@ -774,7 +732,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   });
   const ctxAddAbove = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx, 0, blankItem()); return { ...f, items }; });
   const ctxAddBelow = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, blankItem()); return { ...f, items }; });
-  const ctxDuplicate = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, { ...items[idx] }); return { ...f, items }; });
+  const ctxDuplicate = (idx) => setJobForm(f => { const items = [...f.items]; items.splice(idx + 1, 0, { ...items[idx], lineKey: newLineKey() }); return { ...f, items }; });
+  const linkJobItem = (idx, ref) => setJobForm(f => recalcJobTotals({ ...f, items: f.items.map((it, i) => (i === idx ? linkLine(it, ref) : it)) }));
   const ctxMoveUp = (idx) => setJobForm(f => { if (idx === 0) return f; const items = [...f.items]; [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]]; return { ...f, items }; });
   const ctxMoveDown = (idx) => setJobForm(f => { if (idx >= f.items.length - 1) return f; const items = [...f.items]; [items[idx], items[idx + 1]] = [items[idx + 1], items[idx]]; return { ...f, items }; });
   const ctxClearRow = (idx) => setJobForm(f => { const items = f.items.map((it, i) => i === idx ? blankItem() : it); return recalcJobTotals({ ...f, items }); });
@@ -783,6 +742,8 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
   const updateJobItem = (idx, field, value) => setJobForm(f => {
     const items = [...f.items];
     items[idx] = { ...items[idx], [field]: value };
+    // A retyped code is no longer the logo it was; the server resolves it again.
+    if (field === 'stockCode') items[idx].logoId = null;
     // Clear stale decoration fields when type changes
     if (field === 'decorationType') {
       if (value !== 'EMB') { items[idx].embCode = ''; items[idx].stitchCount = ''; }
@@ -862,11 +823,36 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     return { ...form, subtotal, tax, total, balanceDue };
   };
 
+  // The job open now, for a crash report: read from what is on screen, so it
+  // is right however the job was opened and cleared once it is closed.
+  useEffect(() => {
+    setPlace({ jobId: showJobDetail && activeJob ? activeJob.id : null });
+  }, [showJobDetail, activeJob]);
+
   // Pinned-job helpers
   const pinJob = (job) => {
+    addStep('job', `Opened job ${job.id}`);
     setPinnedJobs(prev => prev.find(j => j.id === job.id) ? prev.map(j => j.id === job.id ? job : j) : [...prev, job]);
     setActiveJob(job);
     setShowJobDetail(true);
+  };
+
+  // Lines to another of the customer's open jobs; both jobs are read again.
+  const moveJobLines = async (itemIds, toJobId) => {
+    await api.jobs.moveLines(activeJob.id, itemIds, toJobId);
+    const job = await api.jobs.get(activeJob.id);
+    setActiveJob(job);
+    updatePinnedJob(job);
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    notify(`${itemIds.length === 1 ? 'Line' : 'Lines'} moved to job ${toJobId}.`, { type: 'success' });
+  };
+
+  // A job named only by its number (the production board): from the loaded
+  // list, else fetched — the list holds the newest 500.
+  const openJobById = async (jobId) => {
+    const job = jobs.find(j => j.id === jobId) ?? await api.jobs.get(jobId).catch((e) => { setApiError(e.message); return null; });
+    if (job) { pinJob(job); setActiveModule('jobs'); }
   };
 
   const unpinJob = (jobId) => {
@@ -880,6 +866,15 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     setActiveJob(cur => (cur?.id === updated.id ? updated : cur));
   };
 
+  // A job changed from another screen (credit applied on the customer): an
+  // open or pinned copy of it is read again, else it shows what it owed
+  // before. Always read: whether it is open is known only when the answer
+  // comes (updatePinnedJob leaves a job that is neither alone).
+  const refreshPinnedJob = (jobId) => {
+    api.jobs.get(jobId).then(updatePinnedJob)
+      .catch((e) => notify(`Job ${jobId} could not be reloaded: ${e.message}`, { type: 'warning' }));
+  };
+
   // CRUD operations
   const saveJob = async () => {
     if (!jobForm.customerId) {
@@ -889,7 +884,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       return;
     }
     try {
-      const formWithTotals = recalcJobTotals(jobForm);
+      const formWithTotals = recalcJobTotals({ ...jobForm, items: resolveLineLinks(jobForm.items) });
       if (editingItem) {
         const updated = await api.jobs.update(editingItem.id, formWithTotals);
         updatePinnedJob(updated);
@@ -942,23 +937,11 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
     localStorage.setItem('tig_job_templates', JSON.stringify(updated));
   };
 
-  // ── Payment terms → due date ───────────────────────────────────────────────
-  const calcDueFromTerms = (terms, fromDate) => {
-    const base = fromDate ? new Date(fromDate) : new Date();
-    const days = terms?.startsWith('Net ') ? parseInt(terms.replace('Net ', ''), 10)
-                 : terms === 'COD' || terms === 'On Receipt' ? 0
-                 : terms === 'EOM' ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + 1, 0); return Math.floor((d - base) / 86400000); })()
-                 : 30;
-    const due = new Date(base);
-    due.setDate(due.getDate() + (isNaN(days) ? 30 : days));
-    return due.toISOString().split('T')[0];
-  };
-
   const applyCustomerToJobForm = (c) => ({
     customer: c.name,
     customerId: c.id || '',
     shippingAddress: c.address || '',
-    due: calcDueFromTerms(c.paymentTerms),
+    due: dueFromTerms(c.paymentTerms),
     nameContact: c.contact || '',
   });
 
@@ -972,6 +955,7 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
         customerId: job.customerId,
         status: 'QUOTE',
         priority: job.priority,
+        orderCategory: job.orderCategory ?? 'Normal',
         type: job.type,
         assignedTo: job.assignedTo,
         shippingAddress: job.shippingAddress,
@@ -1015,33 +999,6 @@ const TotalImageERP = ({ currentUser, onLogout }) => {
       setSelectedJobIds(new Set());
     } else {
       setSelectedJobIds(new Set(jobs.map(j => j.id)));
-    }
-  };
-
-  const bulkStatusChange = async (status) => {
-    const ids = [...selectedJobIds];
-    // One request rather than one per job. Sixty-eight round trips gave no
-    // single answer at the end about what happened; the server judges each job
-    // on its own and reports the ones that would not move.
-    let result;
-    try {
-      result = await api.jobs.bulkStatus(ids, status);
-    } catch (e) {
-      notify(e?.message || 'Bulk status update failed', { type: 'error' });
-      return;
-    }
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    setSelectedJobIds(new Set());
-    setBulkActionOpen(false);
-    if (result.failed?.length) {
-      const detail = result.failed.map(f => `#${f.job_id} ${f.reason}`).join('; ');
-      notify(
-        `${result.moved} of ${ids.length} moved to ${status}. ${result.failed.length} did not — ${detail}`,
-        { type: 'error' },
-      );
-    } else {
-      notify(`${result.moved} job${result.moved === 1 ? '' : 's'} moved to ${status}`);
     }
   };
 
@@ -1249,6 +1206,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     } catch (e) { setApiError(e.message); }
   };
 
+  const pinJobComment = async (jobId, commentId, pinned) => {
+    try {
+      await api.jobs.pinComment(jobId, commentId, pinned);
+      updatePinnedJob(await api.jobs.get(jobId));
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    } catch (e) { notify(e?.message || 'The comment was not pinned', { type: 'error' }); }
+  };
+
   // Rethrows rather than resolving on failure. The payment modal has to be able
   // to tell a failed record from a successful one: it closes itself on success,
   // and on the Tyro path the card has already been charged by the time this
@@ -1268,7 +1233,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
   // Dashboard calculations
   const dashboardStats = (() => {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = isoDay(now);
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1282,12 +1247,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     const inProduction = jobsInView(jobs, 'inProduction').length;
     const toInvoice = jobsInView(jobs, 'toInvoice').length;
     const statusBreakdown = {};
-    ['QUOTE','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
+    ['QUOTE', ...PRODUCTION_STATUSES, 'INVOICE'].forEach(s => { statusBreakdown[s] = jobs.filter(j => j.status === s).length; });
 
     // On-time delivery rate (finished/invoiced/paid jobs in last 90 days that met their due date)
     const ninetyDaysAgo = new Date(now); ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const completedRecent = jobs.filter(j => {
-      if (!['FINISH','INVOICE','PAID'].includes(j.status)) return false;
+      if (![...FINISHED_STATUSES,'INVOICE','PAID'].includes(j.status)) return false;
       const d = parseJobDate(j.dateIn); return d && d >= ninetyDaysAgo;
     });
     const onTimeCount = completedRecent.filter(j => {
@@ -1313,10 +1278,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     // Jobs due in next 48 hours (not today)
     const in48h = new Date(now); in48h.setHours(in48h.getHours() + 48);
     const dueSoon = jobs.filter(j => {
-      if (['FINISH','PAID','CANCEL'].includes(j.status)) return false;
+      if ([...FINISHED_STATUSES,'PAID','CANCEL'].includes(j.status)) return false;
       const d = parseJobDate(j.due);
       if (!d) return false;
-      const ds = d.toISOString().split('T')[0];
+      const ds = isoDay(d);
       return ds > todayStr && d <= in48h;
     });
 
@@ -1325,7 +1290,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleString('en-AU', { month: 'short' });
-      const rev = jobs.filter(j => ['INVOICE','PAID','FINISH'].includes(j.status) && jobDateIn(j) === key)
+      const rev = jobs.filter(j => ['INVOICE','PAID',...FINISHED_STATUSES].includes(j.status) && jobDateIn(j) === key)
         .reduce((s, j) => s + (j.subtotal || 0), 0);
       return { month: label, revenue: Math.round(rev) };
     });
@@ -1364,8 +1329,8 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     }));
 
     return {
-      activeJobs: jobs.filter(j => !['FINISH','PAID','CANCEL'].includes(j.status)).length,
-      completedToday: jobs.filter(j => j.status === 'FINISH' && j.out === now.toLocaleDateString('en-GB')).length,
+      activeJobs: jobs.filter(j => ![...FINISHED_STATUSES,'PAID','CANCEL'].includes(j.status)).length,
+      completedToday: jobs.filter(j => FINISHED_STATUSES.includes(j.status) && j.out === now.toLocaleDateString('en-GB')).length,
       pendingInvoices: jobs.filter(j => j.balanceDue > 0).length,
       lowStock: countNeedingReorder(inventory),
       totalRevenue: jobs.reduce((sum, j) => sum + (j.total || 0), 0),
@@ -1403,7 +1368,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     setAiMessages(prev => [...prev, { role: 'user', text: userMsg, ts: new Date() }]);
     setAiLoading(true);
     try {
-      const context = `Jobs: ${jobs.length} total, ${jobs.filter(j => j.status === 'FINISH').length} finished. ` +
+      const context = `Jobs: ${jobs.length} total, ${jobs.filter(j => FINISHED_STATUSES.includes(j.status)).length} finished. ` +
         `Inventory: ${inventory.length} SKUs, ${countNeedingReorder(inventory)} low stock. ` +
         `Customers: ${customers.length}. Suppliers: ${suppliers.length}. ` +
         `Purchase Orders: ${purchaseOrders.length} total, ${purchaseOrders.filter(p => p.status === 'Draft').length} drafts. ` +
@@ -1449,83 +1414,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     a.click();
   };
 
-  const printInvoice = (job) => {
-    openInvoiceDoc(job);
-  };
-
-  const _legacyPrintInvoice_unused = (job) => {
-    const printWindow = window.open('', '', 'height=800,width=600');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice ${job.invoice}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .totals { text-align: right; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <h1>Total Image</h1>
-          <h2>Tax Invoice</h2>
-          <p><strong>Invoice #:</strong> ${job.invoice}</p>
-          <p><strong>Job #:</strong> ${job.id}</p>
-          <p><strong>Date:</strong> ${job.dateIn}</p>
-          <p><strong>Customer:</strong> ${job.customer}</p>
-          <p><strong>Due Date:</strong> ${job.due}</p>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Stock Code</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit Price (Inc)</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${job.items.map(item => `
-                <tr>
-                  <td>${item.stockCode}</td>
-                  <td>${item.description}</td>
-                  <td>${item.order}</td>
-                  <td>$${item.priceInc.toFixed(2)}</td>
-                  <td>$${item.total.toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="totals">
-            <p><strong>Subtotal:</strong> $${job.subtotal.toFixed(2)}</p>
-            <p><strong>GST:</strong> $${job.tax.toFixed(2)}</p>
-            <p><strong>Total:</strong> $${job.total.toFixed(2)}</p>
-            <p><strong>Amount Paid:</strong> $${job.invoicePaid.toFixed(2)}</p>
-            <p style="font-size: 1.2em;"><strong>Balance Due:</strong> $${job.balanceDue.toFixed(2)}</p>
-          </div>
-          
-          <p style="margin-top: 40px;">Thank you for your business!</p>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  };
-
-  // Render Dashboard
-  const renderDashboard = () => {
-    return (
-      <Dashboard
-        jobs={jobs}
-        onNewJob={() => openModal('job')}
-        onNavigateJobs={() => setActiveModule('jobs')}
-      />
-    );
-  };
   const clearFilters = () => {
     setSearchTerm('');
     setFilterStatus('all');
@@ -1548,8 +1436,25 @@ Invoice anyway? The shortfall will be recorded on the job.`,
     clearFilters();
     setFilterQuick(quick);
     setShowJobDetail(false);
-    setActiveModule('jobs');
+    setActiveModule(quickListModule(quick));
   };
+
+  // Opens what a Home tile counted (HomeModule onOpenLink). Purchases is
+  // cleared to exactly that set: no search left over, no saved list on top.
+  const openHomeLink = (target) => {
+    const next = { module: activeModule, ...target };
+    if (next.module === 'purchase-orders') {
+      setSearchTerm('');
+      setPoStatusFilter(next.poStatus ?? 'all');
+      setSelectedPO(null);
+      setPoListModal(m => ({ ...m, open: false }));
+    }
+    if (next.module === 'inventory') setStockListModal(m => ({ ...m, open: false }));
+    setHomeLink(next);
+    setAdminMode(!!next.admin);
+    setActiveModule(next.module);
+  };
+  const link = (homeLink?.module === activeModule && homeLink) || {};
 
   const setJobsFilter = (key, value) => {
     const setters = {
@@ -1572,18 +1477,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
   // Render Jobs Module
   const renderJobs = () => {
-    const jStatusColors = {
-      QUOTE:'bg-hairline-soft text-header', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong',
-      'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong',
-      'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong',
-      PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger',
-    };
-
     return (
       <div className="space-y-4">
         {!showJobDetail && (
           <JobsModule
             jobs={jobs}
+            statusAllowances={statusAllowances}
             filters={{
               searchTerm,
               status: filterStatus,
@@ -1612,454 +1511,86 @@ Invoice anyway? The shortfall will be recorded on the job.`,
         {/* Job Detail — full-page child module */}
         {activeJob && showJobDetail && (
           <div className="space-y-3">
-            {/* ── Breadcrumb ─────────────────────────────────────────────── */}
-            <div className="flex items-center gap-1.5 text-sm select-none rounded-xl shadow-sm px-4 py-2.5" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-              <button onClick={() => setShowJobDetail(false)} className="flex items-center gap-1 font-medium transition-colors shrink-0" style={{ color: T.accentStrong }}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
-                Jobs
-              </button>
-              <span style={{ color: T.hairline }}>/</span>
-              <span className="font-mono text-xs shrink-0" style={{ color: T.accentStrong }}>#{activeJob.id}</span>
-              <span style={{ color: T.hairline }}>/</span>
-              <span className="font-medium truncate" style={{ color: T.text }}>{activeJob.customer}</span>
-              <span className="shrink-0"><StatusBadge status={activeJob.status} size="sm" /></span>
-              {activeJob.locked && <span className="shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</span>}
-              {activeJob.priority === 'Urgent' && <span className="shrink-0 text-xs bg-danger-tint text-danger px-2 py-0.5 rounded-full font-semibold">Urgent</span>}
-              <div className="flex-1" />
-              {activeJob.status === 'QUOTE' && (
-                <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
-                  Convert to Order →
-                </button>
-              )}
-              <button onClick={() => openModal('job', activeJob)} disabled={!isJobEditable(activeJob)} title={jobLockReason(activeJob)} className="disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-accent-strong text-white rounded-lg hover:bg-accent-strong font-medium">
-                <Edit className="w-3.5 h-3.5" />Edit
-              </button>
-              <button onClick={() => cloneJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                <Copy className="w-3.5 h-3.5" />Clone
-              </button>
-              <div className="relative shrink-0">
-                <button onClick={() => setPrintDropdownOpen(o => !o)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                  <Printer className="w-3.5 h-3.5" />Print<ChevronDown className="w-3 h-3" />
-                </button>
-                {printDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl z-30 w-44 py-1.5 overflow-hidden" onMouseLeave={() => setPrintDropdownOpen(false)}>
-                    {[
-                      { type:'invoice',      label:'TAX Invoice',    action:()=>{ openInvoiceDoc(activeJob); setPrintDropdownOpen(false); } },
-                      { type:'proforma',     label:'Proforma Invoice', action:()=>{ openInvoiceDoc(activeJob, 'proforma'); setPrintDropdownOpen(false); } },
-                      { type:'proformaBal',  label:'Proforma — Balance ONLY', action:()=>{ openInvoiceDoc(activeJob, 'proformaBalance'); setPrintDropdownOpen(false); } },
-                      { type:'pickingSlip',  label:'Picking Slip',   action:()=>{ setDocumentPrint({ type:'pickingSlip',  job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'deliveryNote', label:'Delivery Note',  action:()=>{ setDocumentPrint({ type:'deliveryNote', job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'jobSheet',     label:'Job Sheet',      action:()=>{ setDocumentPrint({ type:'jobSheet',     job:activeJob }); setPrintDropdownOpen(false); } },
-                      { type:'shipLabel',    label:'Ship Label',     action:()=>{ setDocumentPrint({ type:'shipLabel',    job:activeJob }); setPrintDropdownOpen(false); } },
-                    ].map(d => (
-                      <button key={d.type} onClick={d.action} className="w-full text-left px-4 py-2 text-sm hover:bg-panel-alt flex items-center gap-2">
-                        <Printer className="w-3.5 h-3.5 text-faint" />{d.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => setEmailModalJob(activeJob)} className="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-white border text-muted rounded-lg hover:bg-panel-alt font-medium">
-                <Mail className="w-3.5 h-3.5" />Email
-              </button>
-            </div>
-            <div className="flex gap-4 items-start">
-              <div className="flex-1 min-w-0">
-
-            {/* ── Detail card ────────────────────────────────────────────── */}
-            <div className="rounded-xl shadow-sm p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-            {/* Jim2-style compact header grid */}
+            {/* ── Record header: which job, whose, where it stands, the next step ── */}
             {(() => {
-              const F = ({ label, value, badge, mono, red, green }) => (
-                <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>{label}</span>
-                  {badge
-                    ? <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${badge}`}>{value || '—'}</span>
-                    : <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: mono ? T.accentStrong : red ? T.danger : green ? T.ok : T.text }}>{value || <span style={{ color: T.textFaint }}>—</span>}</span>}
-                </div>
-              );
-              const isOverdue = (d) => d && new Date(d.split('/').reverse().join('-')) < new Date() && !['FINISH','PAID','CANCEL'].includes(activeJob.status);
+              const step = nextStepFor(activeJob);
+              // The next step is offered only where the role may take it; the
+              // server still decides (an invoice needs staff, PAID needs payment).
+              const mayStep = step && (step.kind === 'despatch'
+                ? offer('POST', '/dispatch-sessions')
+                : offer('POST', '/jobs/{job_id}/status'));
+              const runStep = () => {
+                if (step.kind === 'despatch') { setShowJobDetail(false); setDispatchListOpen(true); return; }
+                updateJobStatus(activeJob.id, step.to);
+              };
               return (
-                <div className="grid grid-cols-4 gap-x-6 mb-5 pb-4 text-xs" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                  {/* Col 1 – job identity */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Job</div>
-                    <F label="Job #" value={activeJob.id} mono />
-                    <F label="Cust Ref#" value={activeJob.custRef} />
-                    <F label="Invoice#" value={activeJob.invoice} mono />
-                    <F label="Date In" value={activeJob.dateIn} />
-                    <F label="Desc." value={activeJob.description} />
-                    <F label="Project#" value={activeJob.projectNo} />
-                    <F label="Serial#" value={activeJob.serialNo} />
-                    <F label="Quote Ref" value={activeJob.quote} />
-                  </div>
-                  {/* Col 2 – customer & shipping */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer</div>
-                    <F label="Cust#" value={activeJob.customerId} mono />
-                    <F label="Name" value={activeJob.customer} />
-                    <F label="Contact" value={activeJob.nameContact} />
-                    <F label="Ship#" value={activeJob.shipTo} mono />
-                    <F label="Our Ref#" value={activeJob.ourRef} />
-                    <F label="Assigned" value={activeJob.assignedTo} />
-                    {activeJob.shippingAddress && (
-                      <div className="mt-1 text-xs rounded px-1.5 py-1 leading-relaxed" style={{ color: T.textMuted, background: T.hairlineSoft }}>{activeJob.shippingAddress}</div>
-                    )}
-                  </div>
-                  {/* Col 3 – status & dates */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Status & Dates</div>
-                    <div className="flex items-baseline gap-1 min-w-0 py-0.5" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                      <span className="text-xs whitespace-nowrap shrink-0 w-20" style={{ color: T.textFaint }}>Status</span>
-                      <StatusBadge status={activeJob.status} size="sm" />
-                    </div>
-                    <F label="Priority" value={activeJob.priority}
-                      red={['High','Urgent'].includes(activeJob.priority)} />
-                    <F label="Type" value={activeJob.type} />
-                    <F label="Due" value={activeJob.due} red={isOverdue(activeJob.due)} />
-                    <F label="Out" value={activeJob.out} />
-                    <F label="Commitment" value={activeJob.commitmentDate} />
-                    {activeJob.validityDate && (
-                      <F label="Valid Until" value={activeJob.validityDate}
-                        red={new Date(activeJob.validityDate) < new Date()} />
-                    )}
-                  </div>
-                  {/* Col 4 – financial */}
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Financial</div>
-                    <F label="Payment" value={activeJob.paymentMethod} />
-                    <F label="Paid Status" value={activeJob.paymentStatus || 'unpaid'}
-                      badge={activeJob.paymentStatus === 'paid' ? 'bg-ok-tint text-ok' : activeJob.paymentStatus === 'partial' ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'} />
-                    <F label="Inv. Status" value={(activeJob.invoiceStatus || 'not_invoiced').replace(/_/g, ' ')}
-                      badge={activeJob.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong' : activeJob.invoiceStatus === 'to_invoice' ? 'bg-accent-tint text-accent-strong' : 'bg-hairline-soft text-muted'} />
-                    {activeJob.proofStatus && activeJob.proofStatus !== 'none' && (
-                      <F label="Proof" value={activeJob.proofStatus}
-                        badge={activeJob.proofStatus === 'approved' ? 'bg-ok-tint text-ok' : activeJob.proofStatus === 'rejected' ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'} />
-                    )}
-                    <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-sm font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span>Total</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${(activeJob.invoicePaid || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between text-xs"><span style={{ color: T.textMuted }}>Balance</span>
-                        <span className="font-semibold" style={{ color: activeJob.balanceDue > 0 ? T.danger : T.ok }}>${(activeJob.balanceDue || 0).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    {activeJob.balanceDue > 0 && (
-                      <button
-                        onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                        className="mt-2 w-full text-white px-2 py-1.5 rounded text-xs flex items-center justify-center gap-1"
-                        style={{ background: T.ok }}
-                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
-                        onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-                      >
-                        <CreditCard className="w-3 h-3" />Record Payment
-                      </button>
-                    )}
-                    {activeJob.locked && (
-                      <div className="mt-1 text-center text-xs font-semibold px-2 py-1 rounded" style={{ background: T.accentTint, color: T.accentStrong }}>🔒 Locked</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Jim2-style Invoice Details (Customer / Ship) ── */}
-            {(() => {
-              const cust = customers.find(c => String(c.id) === String(activeJob.customerId));
-              const Row = ({ label, value, mono, accent }) => (
-                <div className="flex items-baseline gap-2 py-0.5" style={{ borderBottom: `1px solid ${T.hairlineSoft}` }}>
-                  <span className="text-xs shrink-0 w-16" style={{ color: T.textFaint }}>{label}</span>
-                  <span className={`text-xs font-medium truncate ${mono ? 'font-mono' : ''}`} style={{ color: accent ? T.accentStrong : value ? T.text : T.textFaint }}>{value || '—'}</span>
-                </div>
-              );
-              return (
-                <div className="mb-4 rounded overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                  <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: T.chrome, borderLeft: `3px solid ${T.accent}` }}>
-                    <FileText className="w-3.5 h-3.5" style={{ color: T.accent }} />
-                    <span className="text-xs font-semibold" style={{ color: T.chromeText }}>Invoice Details</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-5 px-3 py-2">
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Customer (Bill To)</div>
-                      <Row label="Cust#" value={activeJob.customerId} mono accent />
-                      <Row label="Name" value={cust?.name || activeJob.customer} />
-                      <Row label="Attn" value={cust?.contact} />
-                      <Row label="Address" value={cust?.address} />
-                      <Row label="Phone" value={cust?.phone || cust?.mobile} />
-                      <Row label="Email" value={cust?.email} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: T.textMuted }}>Ship To</div>
-                      <Row label="Ship#" value={activeJob.shipTo} mono accent />
-                      <Row label="Attn" value={activeJob.nameContact} />
-                      <Row label="Address" value={activeJob.shippingAddress} />
-                      <Row label="Our Ref#" value={activeJob.ourRef} />
-                      <Row label="Branch" value={activeJob.branch} />
-                      <Row label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : ''} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Jim2-style Comments panel (middle, always visible) ── */}
-            <div className="mb-4 rounded" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}` }}>
-              <div className="flex items-center justify-between px-3 py-1.5 rounded-t" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Comments & Activity</span>
-                <span className="text-[10px]" style={{ color: T.textFaint }}>{(activeJob.comments || []).length} entries</span>
-              </div>
-              {(activeJob.comments || []).length > 0 && (
-                <div className="overflow-x-auto max-h-44 overflow-y-auto">
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                      <tr>
-                        <th className="px-2 py-1 text-center font-semibold w-7" style={{ color: T.textMuted }}>#</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Date</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Time</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>User</th>
-                        <th className="px-2 py-1 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1 text-center font-semibold whitespace-nowrap w-7" title="Include in customer documents" style={{ color: T.textMuted }}>Inc</th>
-                        <th className="px-2 py-1 text-left font-semibold" style={{ color: T.textMuted }}>Comment</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
-                      {[...activeJob.comments].reverse().map((comment, idx) => (
-                        <tr key={idx} style={{ background: comment.isInternal ? '#fffbeb' : idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
-                          <td className="px-2 py-1 text-center" style={{ color: T.textFaint }}>{activeJob.comments.length - idx}</td>
-                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.date}</td>
-                          <td className="px-2 py-1 whitespace-nowrap" style={{ color: T.text }}>{comment.time}</td>
-                          <td className="px-2 py-1 font-mono font-semibold whitespace-nowrap" title={comment.authorName} style={{ color: T.text }}>{comment.initials}</td>
-                          <td className="px-2 py-1 whitespace-nowrap">
-                            {comment.status && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px]" style={{ background: T.accentTint, color: T.accentStrong }}>{comment.status}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-1 text-center">
-                            {comment.inc ? <span className="font-bold" style={{ color: T.ok }}>✓</span> : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className={`px-2 py-1 ${comment.isInternal ? 'italic text-accent-strong' : ''}`} style={comment.isInternal ? {} : { color: T.text }}>
-                            {comment.isInternal && <span className="mr-1 text-accent-strong font-semibold">[int]</span>}
-                            {comment.comment}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {(activeJob.comments || []).length === 0 && (
-                <p className="text-xs text-center py-3" style={{ color: T.textFaint }}>No comments yet</p>
-              )}
-              <div className="flex gap-2 px-3 py-2" style={{ borderTop: `1px solid ${T.hairline}` }}>
-                <input
-                  type="text"
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && commentInput.trim()) {
-                      addJobComment(activeJob.id, commentInput.trim());
-                      setCommentInput('');
-                    }
-                  }}
-                  placeholder="Add a comment or note… (Enter to submit)"
-                  className="flex-1 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus"
-                  style={{ border: `1px solid ${T.hairline}` }}
+                <JobRecordHeader
+                  job={activeJob}
+                  onBack={() => setShowJobDetail(false)}
+                  onEdit={() => openModal('job', activeJob)}
+                  editDisabled={!isJobEditable(activeJob)}
+                  editTitle={jobLockReason(activeJob)}
+                  onClone={() => cloneJob(activeJob)}
+                  onEmail={() => setEmailModalJob(activeJob)}
+                  printItems={offeredPrintItems([
+                    { key: 'invoice', label: 'Tax invoice', onClick: () => openInvoiceDoc(activeJob) },
+                    { key: 'proforma', label: 'Proforma invoice', onClick: () => openInvoiceDoc(activeJob, 'proforma') },
+                    { key: 'proformaBal', label: 'Proforma — balance only', onClick: () => openInvoiceDoc(activeJob, 'proformaBalance') },
+                    { key: 'pickingSlip', label: 'Picking slip', onClick: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
+                    { key: 'deliveryNote', label: 'Delivery note', onClick: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
+                    { key: 'jobSheet', label: 'Job sheet', onClick: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
+                    { key: 'shipLabel', label: 'Ship label', onClick: () => setDocumentPrint({ type: 'shipLabel', job: activeJob }) },
+                  ], offer)}
+                  // Duplicate to sites, Unprint: decided in ui/shell/pageActions.js.
+                  moreActions={pageHeader?.actions ?? []}
+                  nextStep={mayStep ? step : null}
+                  onNextStep={runStep}
                 />
-                <button
-                  onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                  className="text-xs px-2 py-1 rounded hover:bg-hairline whitespace-nowrap"
-                  style={{ background: T.hairlineSoft, color: T.textMuted, border: `1px solid ${T.hairline}` }}
-                  title="Add as internal note (not visible to customer)"
-                >Internal</button>
-                <button
-                  onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
-                  className="text-xs text-white px-3 py-1 rounded whitespace-nowrap"
-                  style={{ background: T.accentStrong }}
-                >Add</button>
-              </div>
-            </div>
+              );
+            })()}
+            <div className="flex gap-4 items-start">
+              <div className="flex-1 min-w-0 space-y-3">
 
-            {/* ── Jim2-style Line Items panel (bottom) ── */}
-            {activeJob.items && activeJob.items.length > 0 && (
-              <div className="rounded overflow-hidden" style={{ border: `1px solid ${T.hairline}` }}>
-                <div className="px-3 py-1.5 flex items-center justify-between" style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: T.textMuted }}>Order Items</span>
-                  <span className="text-[10px]" style={{ color: T.textFaint }}>{activeJob.items.filter(i => !i.displayType).length} lines</span>
-                </div>
-                {(() => {
-                  const linkedPOs = [...new Set(activeJob.items.filter(i => i.poNo).map(i => i.poNo))];
-                  if (linkedPOs.length === 0) return null;
-                  return (
-                    <div className="px-3 py-1.5 flex items-center gap-2 flex-wrap" style={{ background: T.panel, borderBottom: `1px solid ${T.hairline}` }}>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: T.textFaint }}>Purchase Orders</span>
-                      {linkedPOs.map(po => (
-                        <button key={po} onClick={() => openPOById(po)} title={`Open PO ${po}`}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold hover:underline"
-                          style={{ background: T.accentTint, color: T.accentStrong, border: `1px solid ${T.accentStrong}` }}>
-                          {po}<ExternalLink className="w-3 h-3" />
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs" style={{ minWidth: 860 }}>
-                    <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Status</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO#</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>PO Due</th>
-                        <th className="px-2 py-1.5 text-left font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Stock Code</th>
-                        <th className="px-2 py-1.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Order</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Supply</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>B. Ord</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Qty Pick</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Ex.</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Price Inc.</th>
-                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Tax</th>
-                        <th className="px-2 py-1.5 text-center font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Hide</th>
-                        <th className="px-2 py-1.5 text-right font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: T.hairline }}>
-                      {activeJob.items.map((item, idx) => {
-                        const isSec = item.displayType === 'section';
-                        const isNote = item.displayType === 'note';
-                        if (isSec) return (
-                          <tr key={idx} style={{ background: T.accentTint, borderLeft: `4px solid ${T.accentStrong}` }}>
-                            <td colSpan={14} className="px-3 py-1.5 font-bold text-xs" style={{ color: T.accentStrong }}>{item.description}</td>
-                          </tr>
-                        );
-                        if (isNote) return (
-                          <tr key={idx} className="bg-warn-tint">
-                            <td colSpan={14} className="px-3 py-1.5 italic text-warn text-xs">{item.description}</td>
-                          </tr>
-                        );
-                        return (
-                        <tr key={idx} className={`hover:bg-accent-tint ${item.hide ? 'opacity-50' : ''}`} style={{ background: idx % 2 === 0 ? T.panel : T.hairlineSoft }}>
-                          <td className="px-2 py-1.5">
-                            {item.itemStatus
-                              ? <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={{ background: T.accentTint, color: T.accentStrong }}>{item.itemStatus}</span>
-                              : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className="px-2 py-1.5 font-mono">
-                            {item.poNo
-                              ? <button onClick={() => openPOById(item.poNo)} title={`Open PO ${item.poNo}`}
-                                  className="inline-flex items-center gap-1 hover:underline" style={{ color: T.accentStrong, fontWeight: 600 }}>
-                                  {item.poNo}<ExternalLink className="w-3 h-3" />
-                                </button>
-                              : <span style={{ color: T.textFaint }}>—</span>}
-                          </td>
-                          <td className="px-2 py-1.5 whitespace-nowrap" style={{ color: T.text }}>{item.poDue || <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 font-mono" style={{ color: T.accentStrong }}>{item.stockCode || <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5">
-                            <div className="font-medium" style={{ color: T.text }}>{item.description}</div>
-                            {item.sizes && <div className="whitespace-pre-line mt-0.5" style={{ color: T.textMuted }}>{item.sizes}</div>}
-                            {(item.decCode || item.embCode || item.trsCode) && <div className="text-xs font-mono mt-0.5" style={{ color: T.accentStrong }}>{item.decorationType && item.decorationType !== 'None' ? `${item.decorationType}: ` : ''}{item.decCode || item.embCode || item.trsCode}{item.stitchCount ? ` · ${item.stitchCount} sts` : ''}</div>}
-                          </td>
-                          <td className="px-2 py-1.5 text-right" style={{ color: T.text }}>{item.order}</td>
-                          <td className="px-2 py-1.5 text-right">
-                            <span style={{ color: item.supply >= item.order ? T.ok : T.danger, fontWeight: item.supply >= item.order ? 500 : undefined }}>
-                              {item.supply}
-                            </span>
-                          </td>
-                          <td className="px-2 py-1.5 text-right text-accent-strong font-medium">{item.bOrd > 0 ? item.bOrd : <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 text-right text-emphasis font-medium">{item.qtyPick > 0 ? item.qtyPick : <span style={{ color: T.textFaint }}>—</span>}</td>
-                          <td className="px-2 py-1.5 text-right">${(item.priceEx || 0).toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-right">${(item.priceInc || 0).toFixed(2)}</td>
-                          <td className="px-2 py-1.5 text-center" style={{ color: T.textMuted }}>{item.taxType || 'G'}</td>
-                          <td className="px-2 py-1.5 text-center">{item.hide ? <span className="text-accent font-bold">✓</span> : <span style={{ color: T.textFaint }}>✗</span>}</td>
-                          <td className="px-2 py-1.5 text-right font-semibold">${(item.total || 0).toFixed(2)}</td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot style={{ background: T.hairlineSoft, borderTop: `2px solid ${T.hairline}` }}>
-                      <tr>
-                        <td colSpan={13} className="px-3 py-1.5 text-right text-xs" style={{ color: T.textMuted }}>
-                          {activeJob.weightTotal > 0 && (
-                            <span className="mr-4 text-accent-strong"><strong>Weight: {Number(activeJob.weightTotal).toFixed(2)} kg</strong></span>
-                          )}
-                          <span className="mr-4">Subtotal: <strong>${(activeJob.subtotal || 0).toFixed(2)}</strong></span>
-                          <span className="mr-4">GST: <strong>${(activeJob.tax || 0).toFixed(2)}</strong></span>
-                          <span className="mr-4">Total (Inc): <strong style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</strong></span>
-                          {activeJob.balanceDue > 0 && <span style={{ color: T.danger }}>Balance: <strong>${(activeJob.balanceDue || 0).toFixed(2)}</strong></span>}
-                        </td>
-                        <td className="px-2 py-1.5 text-right font-bold text-sm">
-                          ${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
+            {/* ── Sections, one at a time: the record in chunks, not one wall ── */}
+            <div className="rounded-xl px-3" style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm }}>
+              <Tabs
+                bare
+                active={jobDetailTab}
+                onChange={setJobDetailTab}
+                tabs={[
+                  { id: 'job', label: 'Overview' },
+                  { id: 'pickpack', label: 'Pick / Pack' },
+                  { id: 'documents', label: 'Documents' },
+                  { id: 'cost', label: 'Cost' },
+                  { id: 'stats', label: 'Stats' },
+                  { id: 'linked', label: 'Linked' },
+                  { id: 'activity', label: 'Activity', count: (activeJob.comments || []).length || undefined },
+                ]}
+              />
+            </div>
+            {jobDetailTab === 'job' && (
+              <>
+                {/* What the job is, what is being said about it, then its facts. */}
+                <JobLinesCard
+                  job={activeJob}
+                  onOpenPO={openPOById}
+                  moveTargets={moveTargets(jobs, activeJob)}
+                  onMoveLines={offer('POST', '/jobs/{job_id}/move-lines') ? moveJobLines : undefined}
+                />
+                <CreditNotesCard job={activeJob} onChanged={() => api.jobs.get(activeJob.id).then(updatePinnedJob).catch((e) => notify(`The credit note is raised; job ${activeJob.id} could not be reloaded: ${e.message}`, { type: 'warning' }))} />
+                <JobCommentsCard
+                  job={activeJob}
+                  onAdd={(text, internal) => addJobComment(activeJob.id, text, internal)}
+                  onPin={offer('POST', '/jobs/{job_id}/comments/{comment_id}/pin')
+                    ? (c, pinned) => pinJobComment(activeJob.id, c.id, pinned)
+                    : undefined}
+                />
+                <JobDetailsCard job={activeJob} />
+              </>
             )}
 
-            {/* ── Jim2-style Freight + Totals footer ───────────────────── */}
-            {(() => {
-              const freightItem = (activeJob.items || []).find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
-              const freightAmt = freightItem ? parseFloat(freightItem.priceEx || freightItem.total || 0) : 0;
-              const freightTax = Math.round(freightAmt * 0.10 * 100) / 100;
-              const cartons = freightItem ? (parseInt(freightItem.order) || parseInt(freightItem.qty) || 1) : 1;
-              const TR = ({ label, value, strong, color }) => (
-                <div className="flex justify-between items-baseline" style={{ fontSize: strong ? 14 : 12, padding: strong ? '5px 0' : '3px 0', marginTop: strong ? 2 : 0, borderTop: strong ? `1px solid ${T.hairline}` : 'none', fontWeight: strong ? 500 : 400 }}>
-                  <span style={{ color: strong ? T.text : T.textMuted }}>{label}</span>
-                  <span className="font-mono" style={{ color: color || T.text, fontWeight: 500 }}>{value}</span>
-                </div>
-              );
-              return (
-                <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: '1fr 260px', alignItems: 'start' }}>
-                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                    <div className="flex items-center gap-1.5 mb-1" style={{ color: T.textMuted }}>
-                      <Package className="w-3.5 h-3.5" /><span className="text-xs font-bold uppercase tracking-wide">Freight</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4">
-                      <TR label="Freight $" value={freightAmt ? freightAmt.toFixed(2) : '—'} color={freightAmt ? T.text : T.textFaint} />
-                      <TR label="Tax" value={freightAmt ? freightTax.toFixed(2) : '0.00'} />
-                      <TR label="Amount" value={freightAmt ? (freightAmt + freightTax).toFixed(2) : '0.00'} />
-                      <TR label="Cartons" value={String(cartons)} />
-                      <TR label="Fuel Levy" value={activeJob.fuelLevy ? activeJob.fuelLevy.toFixed(2) : '0.00'} />
-                      <TR label="Weight" value={activeJob.weightTotal ? `${activeJob.weightTotal} kg` : '—'} color={activeJob.weightTotal ? T.text : T.textFaint} />
-                    </div>
-                  </div>
-                  <div className="rounded-lg p-3" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                    <TR label="SubTotal $" value={(activeJob.subtotal || 0).toFixed(2)} />
-                    <TR label="Tax $" value={(activeJob.tax || 0).toFixed(2)} />
-                    <TR label="Total $ (AUD)" value={(activeJob.totalInc || activeJob.total || 0).toFixed(2)} strong />
-                    <TR label="Prepaid $" value={(activeJob.invoicePaid || 0).toFixed(2)} color={T.ok} />
-                    <TR label="Balance Due $" value={(activeJob.balanceDue || 0).toFixed(2)} strong color={activeJob.balanceDue > 0 ? T.danger : T.ok} />
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Secondary tab strip ──────────────────────────────────── */}
-            <div className="mt-3 pt-1 flex gap-0 text-xs" style={{ borderTop: `1px solid ${T.hairline}` }}>
-              {[
-                { id: 'job',       label: 'Job',                icon: FileText },
-                { id: 'cost',      label: 'Cost',               icon: DollarSign },
-                { id: 'stats',     label: 'Stats',              icon: BarChart3 },
-                { id: 'linked',    label: 'Linked Jobs/Quotes', icon: Layers },
-                { id: 'pickpack',  label: 'Pick / Pack',        icon: CheckSquare },
-                { id: 'documents', label: 'Documents',          icon: ClipboardList },
-                { id: 'activity',  label: 'Activity',           icon: Bell },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = jobDetailTab === tab.id;
-                return (
-                  <button key={tab.id}
-                    onClick={() => setJobDetailTab(isActive ? 'job' : tab.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 border-b-2 transition-colors"
-                    style={isActive
-                      ? { borderColor: T.accent, color: T.accentStrong, fontWeight: 500, background: T.accentTint }
-                      : { borderColor: 'transparent', color: T.textMuted }}>
-                    <Icon className="w-3 h-3" />{tab.label}
-                  </button>
-                );
-              })}
-            </div>
+            {jobDetailTab !== 'job' && (
+            <div className="rounded-xl p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm }}>
 
             {/* ── STATS TAB ────────────────────────────────────────────── */}
             {jobDetailTab === 'stats' && (() => {
@@ -2141,16 +1672,22 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             {jobDetailTab === 'pickpack' && (() => {
               // Persisted Pick/Pack (Jim2 Qty Pick): drafts overlay the saved
               // qty_pick per line; Save Picks writes them via /jobs/{id}/pick.
-              const productLines = (activeJob.items || []).filter(i => (i.displayType || 'product') === 'product');
-              const target = (i) => i.supply || i.qty || i.order || 0;
+              const productLines = pickableLines(activeJob);
+              const target = pickTarget;
               const draft = pickState[activeJob.id] || {};
               const pickedOf = (i) => (draft[i.id] !== undefined ? draft[i.id] : (i.qtyPick || 0));
               const setDraft = (itemId, val) => setPickState(prev => ({
                 ...prev, [activeJob.id]: { ...(prev[activeJob.id] || {}), [itemId]: val },
               }));
-              const fullyPicked = productLines.length > 0 && productLines.every(i => target(i) > 0 && pickedOf(i) >= target(i));
-              const pickedCount = productLines.filter(i => target(i) > 0 && pickedOf(i) >= target(i)).length;
+              // A line with stock still on back-order is not picked in full
+              // (jobPicking.js, the server's own rule).
+              const linePicked = (i) => linePickedInFull(i, pickedOf(i));
+              const fullyPicked = productLines.length > 0 && productLines.every(linePicked);
+              const pickedCount = productLines.filter(linePicked).length;
               const pct = productLines.length ? Math.round((pickedCount / productLines.length) * 100) : 0;
+              // Picked or Inco/Pick, marked by hand (jobPicking.js). "Mark
+              // Complete" used to send the job to FINISH, which says it has gone (F30).
+              const pickMove = pickMoveFor(activeJob.status, productLines, pickedOf);
               const dirty = productLines.some(i => draft[i.id] !== undefined && draft[i.id] !== (i.qtyPick || 0));
               const savePicks = async () => {
                 try {
@@ -2254,12 +1791,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="w-full rounded-full h-2" style={{ background: T.hairline }}>
                       <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? T.ok : T.accent }} />
                     </div>
-                    {fullyPicked && (
+                    {(fullyPicked || pickMove) && (
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-medium" style={{ color: T.ok }}>All lines picked{dirty ? ' — save picks to record' : ''}</span>
-                        <button onClick={() => updateJobStatus(activeJob.id, 'FINISH')} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: T.ok }}>
-                          Mark Complete
-                        </button>
+                        <span className="text-sm font-medium" style={{ color: fullyPicked ? T.ok : T.warn }}>
+                          {fullyPicked ? 'All lines picked' : 'Part picked — the rest waits on stock'}{dirty ? ' — save picks to record' : ''}
+                        </span>
+                        {pickMove && (
+                          <button onClick={() => updateJobStatus(activeJob.id, pickMove)} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: fullyPicked ? T.ok : T.warn }}>
+                            {pickMove === 'Picked' ? 'Mark picked' : 'Mark Inco/Pick'}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2270,37 +1811,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
             {/* ── DOCUMENTS TAB ────────────────────────────────────────── */}
             {jobDetailTab === 'documents' && (
-              <div>
-                <p className="text-sm mb-4" style={{ color: T.textMuted }}>Generate and print documents for Job #{activeJob.id}.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { type: 'invoice', label: 'TIG TAX Invoice', desc: 'Standard tax invoice with totals and payment details', icon: FileText, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
-                    { type: 'pickingSlip', label: 'TIG Picking Slip', desc: 'Warehouse pick list with bin locations and checkboxes', icon: ClipboardList, color: 'bg-accent-tint hover:bg-accent-tint border-accent text-accent-strong' },
-                    { type: 'deliveryNote', label: 'TIG Delivery Note', desc: 'Customer delivery confirmation with signature fields', icon: Truck, color: 'bg-ok-tint hover:bg-ok-tint border-ok text-ok' },
-                    { type: 'jobSheet', label: 'TIG Job Sheet', desc: 'Production order with job details and instructions', icon: FileSpreadsheet, color: 'bg-emphasis-tint hover:bg-emphasis-tint border-emphasis text-emphasis' },
-                    { type: 'shipLabel', label: 'Ship Label', desc: 'Large-format shipping label with recipient address and job number', icon: Tag, color: 'bg-danger-tint hover:bg-danger-tint border-danger text-danger' },
-                  ].map(doc => {
-                    const Icon = doc.icon;
-                    return (
-                      <button
-                        key={doc.type}
-                        onClick={() => {
-                          if (doc.type === 'invoice') openInvoiceDoc(activeJob);
-                          else setDocumentPrint({ type: doc.type, job: activeJob });
-                        }}
-                        className={`p-4 rounded-lg border text-left transition-colors ${doc.color}`}
-                      >
-                        <Icon className="w-5 h-5 mb-2" />
-                        <p className="font-semibold text-sm">{doc.label}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{doc.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-4 pt-4 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textFaint }}>
-                  <p>All documents open a print-ready preview. Use your browser's print function (Ctrl+P) to print or save as PDF.</p>
-                </div>
-              </div>
+              <JobDocumentsTab
+                job={activeJob}
+                offer={offer}
+                onInvoice={(job) => openInvoiceDoc(job)}
+                onDocument={(type, job) => setDocumentPrint({ type, job })}
+              />
             )}
 
             {/* ── COST TAB ─────────────────────────────────────────────── */}
@@ -2399,7 +1915,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                               <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>
                               <p className="text-xs" style={{ color: T.textFaint }}>{c.authorName || c.initials} · {c.date} {c.time}</p>
                             </div>
-                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{c.status}</span>}
+                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{statusLabel(c.status)}</span>}
                           </div>
                         </div>
                       ))}
@@ -2446,86 +1962,28 @@ Invoice anyway? The shortfall will be recorded on the job.`,
             )}
 
             </div>
+            )}
               </div>{/* /flex-1 */}
 
-              {/* ── FactBox Sidebar ────────────────────────────────────── */}
+              {/* ── Side: the customer and the money, once each ── */}
               {(() => {
                 const fbCust = customers.find(c => c.id === activeJob.customerId) || {};
-                const custJobs = jobs.filter(j => j.customerId === activeJob.customerId && j.id !== activeJob.id);
-                const openCustJobs = custJobs.filter(j => !['PAID','CANCEL'].includes(j.status));
-                const paid = (activeJob.total || 0) - (activeJob.balanceDue || 0);
-                const balPct = activeJob.total > 0 ? Math.max(0, Math.min(100, (paid / activeJob.total) * 100)) : 0;
+                const openCustJobs = jobs.filter(j => j.customerId === activeJob.customerId && j.id !== activeJob.id && !['PAID', 'CANCEL'].includes(j.status));
                 return (
-                  <div className="w-72 shrink-0 space-y-3">
-
-                    {/* Customer Card */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <div className="flex items-center justify-between mb-2.5">
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: T.textMuted }}>Customer</h4>
-                        {fbCust.id && <button onClick={() => setActiveModule('customers')} className="text-[11px]" style={{ color: T.accentStrong }}>View →</button>}
-                      </div>
-                      <p className="font-semibold text-sm leading-tight" style={{ color: T.text }}>{activeJob.customer}</p>
-                      {fbCust.contact && <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>{fbCust.contact}</p>}
-                      <div className="mt-2 space-y-1">
-                        {fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.phone}</div>}
-                        {fbCust.mobile && fbCust.mobile !== fbCust.phone && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Phone className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} />{fbCust.mobile}</div>}
-                        {fbCust.email && <div className="flex items-center gap-1.5 text-xs" style={{ color: T.text }}><Mail className="w-3 h-3 shrink-0" style={{ color: T.textFaint }} /><span className="truncate">{fbCust.email}</span></div>}
-                        {(activeJob.shipTo || fbCust.address) && <div className="flex items-start gap-1.5 text-xs mt-1" style={{ color: T.text }}><MapPin className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.textFaint }} /><span className="leading-tight">{activeJob.shipTo || fbCust.address}</span></div>}
-                      </div>
-                      {fbCust.paymentTerms && <div className="mt-2 pt-2 text-xs" style={{ borderTop: `1px solid ${T.hairline}`, color: T.textMuted }}>Terms: <span className="font-medium" style={{ color: T.text }}>{fbCust.paymentTerms}</span></div>}
-                    </div>
-
-                    {/* Financial Summary */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Financials</h4>
-                      <div className="space-y-1.5 text-xs">
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Subtotal</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.subtotal || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>GST</span><span className="font-medium" style={{ color: T.text }}>${(activeJob.tax || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between pt-1 mt-1" style={{ borderTop: `1px solid ${T.hairline}` }}><span className="font-semibold" style={{ color: T.text }}>Total (inc. GST)</span><span className="font-bold" style={{ color: T.text }}>${(activeJob.totalInc || activeJob.total || 0).toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span style={{ color: T.textMuted }}>Paid</span><span className="font-medium" style={{ color: T.ok }}>${paid.toFixed(2)}</span></div>
-                        {activeJob.balanceDue > 0 && <div className="flex justify-between"><span className="font-semibold" style={{ color: T.danger }}>Balance Due</span><span className="font-bold" style={{ color: T.danger }}>${Number(activeJob.balanceDue).toFixed(2)}</span></div>}
-                      </div>
-                      {activeJob.total > 0 && (
-                        <div className="mt-2.5">
-                          <div className="w-full rounded-full h-1.5" style={{ background: T.hairlineSoft }}>
-                            <div className="bg-ok h-1.5 rounded-full transition-all" style={{ width: `${balPct}%` }} />
-                          </div>
-                          <p className="text-[10px] mt-0.5 text-right" style={{ color: T.textFaint }}>{balPct.toFixed(0)}% paid</p>
-                        </div>
-                      )}
-                      {activeJob.balanceDue > 0 && (
-                        <button onClick={() => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })}
-                          className="w-full mt-2 text-xs bg-ok text-white py-1.5 rounded-lg hover:bg-ok font-semibold">
-                          Record Payment
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Quick Actions</h4>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {[
-                          // Colour says what kind of action this is, not which
-                          // button it happens to be. Editing the job is the one
-                          // that changes it, so it is the only accented tile;
-                          // the four documents below print what is already
-                          // there and read as one quiet group.
-                          { label: 'Edit Job',  icon: Edit,          variant: 'primary',   action: () => openModal('job', activeJob),                               disabled: !isJobEditable(activeJob), title: jobLockReason(activeJob) },
-                          { label: 'Clone',     icon: Copy,          variant: 'secondary', action: () => cloneJob(activeJob) },
-                          { label: 'Job Sheet', icon: Printer,       variant: 'secondary', action: () => setDocumentPrint({ type: 'jobSheet', job: activeJob }) },
-                          { label: 'Invoice',   icon: FileText,      variant: 'secondary', action: () => openInvoiceDoc(activeJob) },
-                          { label: 'Delivery',  icon: Package,       variant: 'secondary', action: () => setDocumentPrint({ type: 'deliveryNote', job: activeJob }) },
-                          { label: 'Picking',   icon: ClipboardList, variant: 'secondary', action: () => setDocumentPrint({ type: 'pickingSlip', job: activeJob }) },
-                        ].map(a => (
-                          <Button key={a.label} variant={a.variant} size="tile" onClick={a.action} disabled={a.disabled} title={a.title || undefined}>
-                            <a.icon className="w-4 h-4" />{a.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Proof Approval */}
+                  <div className="w-80 shrink-0 space-y-3">
+                    <JobCustomerCard
+                      job={activeJob}
+                      customer={fbCust}
+                      openJobCount={openCustJobs.length}
+                      onViewCustomer={() => setActiveModule('customers')}
+                      onShowCustomerJobs={() => { setShowJobDetail(false); setActiveModule('jobs'); setFilterCustomer(activeJob.customerId || ''); }}
+                    />
+                    <JobMoneyCard
+                      job={activeJob}
+                      onRecordPayment={offer('POST', '/jobs/{job_id}/payment')
+                        ? () => setPaymentModal({ show: true, jobId: activeJob.id, maxAmount: activeJob.balanceDue, amount: activeJob.balanceDue.toFixed(2), method: 'Credit Card' })
+                        : undefined}
+                    />
                     <ProofPanel
                       key={activeJob.id}
                       job={activeJob}
@@ -2534,38 +1992,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         queryClient.invalidateQueries({ queryKey: ['jobs'] });
                         setActiveJob(j => ({ ...j, proofStatus: status, proofNotes: notes }));
                       }}
+                      // A logo's proof is the logo's, for every job carrying it (F31).
+                      onApproveLogo={offer('POST', '/logos/{logo_id}/proof')
+                        ? async (logoId) => {
+                            const logo = await api.logos.proof(logoId, 'approved');
+                            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+                            queryClient.invalidateQueries({ queryKey: ['logos'] });
+                            setActiveJob(j => ({ ...j, items: (j.items || []).map(i => (i.logoId === logoId ? { ...i, logoProofStatus: logo.proofStatus } : i)) }));
+                          }
+                        : undefined}
                     />
-
-                    {/* Related */}
-                    <div className="rounded-xl shadow-sm p-4" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
-                      <h4 className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: T.textMuted }}>Related</h4>
-                      <div className="space-y-1.5">
-                        <button onClick={() => { setActiveModule('jobs'); setFilterCustomer(activeJob.customerId || ''); }}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium" style={{ background: T.hairlineSoft, color: T.text }}>
-                          <span className="flex items-center gap-2"><FileText className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Other Jobs</span>
-                          <span className="px-2 py-0.5 rounded-full font-bold text-[11px]" style={openCustJobs.length > 0 ? { background: T.accentTint, color: T.accentStrong } : { background: T.hairlineSoft, color: T.textMuted }}>{openCustJobs.length}</span>
-                        </button>
-                        {activeJob.poNumber && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
-                            <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Customer PO</span>
-                            <span className="font-mono font-medium" style={{ color: T.text }}>{activeJob.poNumber}</span>
-                          </div>
-                        )}
-                        {activeJob.assignedTo && (
-                          <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: T.hairlineSoft, color: T.text }}>
-                            <span className="flex items-center gap-2"><Users className="w-3.5 h-3.5" style={{ color: T.textFaint }} />Assigned To</span>
-                            <span className="font-medium" style={{ color: T.text }}>{activeJob.assignedTo}</span>
-                          </div>
-                        )}
-                        {activeJob.status === 'QUOTE' && (
-                          <button onClick={() => updateJobStatus(activeJob.id, 'ORDER')}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white mt-1" style={{ background: T.accentStrong }}>
-                            Convert to Order →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
                   </div>
                 );
               })()}
@@ -2596,6 +2032,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
         setActiveModule('purchase-orders');
         setSelectedPO(po);
       }}
+      initialTab={link.tab}
     />
   );
 
@@ -2690,6 +2127,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="QT-XXXX" />
                     </div>
                   </div>
+
+                  {/* The customer's watchout, as the order is taken. */}
+                  <Watchout text={customers.find(c => c.id === jobForm.customerId)?.watchout} style={{ margin: '8px 10px', fontSize: 12 }} />
 
                   {/* Row 2: References */}
                   <div className="flex divide-x border-b" style={{borderColor: T.hairline}}>
@@ -2823,7 +2263,15 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
                         className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
-                        {['QUOTE','New','ORDER','In Progress','PROOF','PRINT','Pick/Pack','FINISH','INVOICE','PAID','CANCEL'].map(s => <option key={s}>{s}</option>)}
+                        {JOB_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
+                      </select>
+                    </div>
+                    {/* Order category — Jim2's, beside the urgency (JIM7) */}
+                    <div className="flex items-center gap-1">
+                      <label htmlFor="job-order-category" className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Category</label>
+                      <select id="job-order-category" value={jobForm.orderCategory ?? 'Normal'} onChange={e => setJobForm({...jobForm, orderCategory: e.target.value})}
+                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        {ORDER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
@@ -2864,11 +2312,16 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     {/* Proof — semantic colours kept */}
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Proof</span>
+                      {/* A job with logo lines is proofed on its logos (F31), so it has no proof of its own to set here. */}
+                      {(jobForm.items || []).some(i => i.logoId != null) ? (
+                        <span className="text-xs" style={{ color: T.textMuted }} title="Approved once per logo, on the customer's Logos tab">On its logos</span>
+                      ) : (
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
                         className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-ok-tint text-ok border-ok' : jobForm.proofStatus === 'sent' ? 'bg-warn-tint text-warn border-warn' : jobForm.proofStatus === 'rejected' ? 'bg-danger-tint text-danger border-danger' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
+                      )}
                     </div>
                     <div className="w-px h-4" style={{background: T.hairline}} />
                     {/* Lock — amber kept as identity colour */}
@@ -2893,11 +2346,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
-                      if (!fc || !fc.creditLimit) return null;
-                      const outstanding = jobs.filter(j => j.customerId === fc.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-                      const overLimit = outstanding > fc.creditLimit;
-                      const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
-                      if (util < 80) return null;
+                      const credit = creditUse(fc);
+                      if (!credit || credit.util < 80) return null;
+                      const { outstanding, overLimit, util } = credit;
                       return (
                         <div className={`flex items-center gap-2 px-3 py-2 text-xs ${overLimit ? 'bg-danger-tint text-danger' : 'bg-warn-tint text-warn'}`} style={{minWidth:200}}>
                           <span className="text-base">{overLimit ? '🚫' : '⚠️'}</span>
@@ -3060,11 +2511,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
-                      if (!fc || !fc.creditLimit) return null;
-                      const outstanding = jobs.filter(j => j.customerId === fc.id).reduce((s, j) => s + parseFloat(j.balanceDue || 0), 0);
-                      const overLimit = outstanding > fc.creditLimit;
-                      const util = Math.min(100, (outstanding / fc.creditLimit) * 100);
-                      if (util < 80) return null;
+                      const credit = creditUse(fc);
+                      if (!credit || credit.util < 80) return null;
+                      const { outstanding, overLimit, util } = credit;
                       return (
                         <div className={`rounded-lg px-3 py-2 text-sm flex items-start gap-2 ${overLimit ? 'bg-danger-tint border border-danger text-danger' : 'bg-warn-tint border border-warn text-warn'}`}>
                           <span className="text-lg leading-tight">{overLimit ? '🚫' : '⚠️'}</span>
@@ -3440,10 +2889,18 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                 const avail = Math.max(0, (inv.stock || 0) - (inv.committed_qty || 0));
                                 const supply = Math.min(order, avail);
                                 const bOrd = Math.max(0, order - supply);
-                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, supply, bOrd, total: parseFloat((priceEx * order).toFixed(2)) };
+                                items[idx] = { ...items[idx], stockCode: inv.sku, description: inv.name, logoId: null, purchasePrice: cost, priceEx, priceInc, margin, marginPercent, supply, bOrd, total: parseFloat((priceEx * order).toFixed(2)) };
                                 return recalcJobTotals({ ...f, items });
                               });
                               setDescDropdown({ idx: -1, query: '', highlighted: 0 });
+                              setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
+                            };
+
+                            // The customer's logos matching what is typed: choosing one
+                            // makes the line that logo, a service at the logo's price (F02).
+                            const logoScored = skuIsOpen ? logoMatches(customerLogos, skuQ) : [];
+                            const selectLogo = (logo) => {
+                              setJobForm(f => recalcJobTotals({ ...f, items: f.items.map((it, i) => (i === idx ? applyLogo(it, logo) : it)) }));
                               setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                             };
 
@@ -3496,10 +2953,21 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                           if (e.key === 'Escape') setSkuDropdown({ idx: -1, query: '', highlighted: 0 });
                                         }}
                                         className={ci + ' font-mono'} placeholder="SKU…" autoComplete="off" />
-                                      {skuIsOpen && skuDropdown.rect && skuDropdown.typed && skuScored.length > 0 && (
+                                      {skuIsOpen && skuDropdown.rect && skuDropdown.typed && (skuScored.length > 0 || logoScored.length > 0) && (
                                         <div className="rounded-xl shadow-2xl" style={{ position: 'fixed', zIndex: 99999, minWidth: 380, left: skuDropdown.rect.left, top: skuDropdown.rect.top - 4, transform: 'translateY(-100%)', background: T.panel, border: `1px solid ${T.hairline}` }}>
                                           <div className="px-3 py-1.5 text-xs flex items-center gap-1.5" style={{ color: T.textMuted, borderBottom: `1px solid ${T.hairline}`, background: T.hairlineSoft }}><Search className="w-3 h-3" />{skuQ ? `SKU: "${skuQ}"` : 'Browse by SKU'}</div>
-                                          {skuScored.length === 0 ? <div className="px-4 py-4 text-xs text-center" style={{ color: T.textFaint }}>No matches</div>
+                                          {logoScored.map(logo => (
+                                            <div key={`logo-${logo.id}`} onMouseDown={() => selectLogo(logo)}
+                                              className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt"
+                                              style={{ borderBottom: `1px solid ${T.hairline}`, background: T.editable }}>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="font-mono font-bold text-xs" style={{ color: T.accentStrong }}>{hl(logo.code, skuQ)}</div>
+                                                <div className="text-xs truncate" style={{ color: T.textMuted }}>Logo · {logo.decorationType}{logo.name ? ` · ${logo.name}` : ''}</div>
+                                              </div>
+                                              {logo.priceEx > 0 && <div className="text-xs shrink-0" style={{ color: T.textFaint }}>${logo.priceEx.toFixed(2)}</div>}
+                                            </div>
+                                          ))}
+                                          {skuScored.length === 0 ? null
                                             : skuScored.map(({ inv }, i) => (
                                               <div key={inv.sku} onMouseDown={() => selectInvItem(inv)} onMouseEnter={() => setSkuDropdown(s => ({ ...s, highlighted: i }))}
                                                 className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-panel-alt`}
@@ -3692,6 +3160,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                         </>)}
+                                        {/* The garment this decoration or alteration is done to (F02, F19). */}
+                                        <div className="ml-auto">
+                                          <AppliesToSelect items={jobForm.items} idx={idx} onChange={(ref) => linkJobItem(idx, ref)} />
+                                        </div>
                                       </div>
                                     </td>
                                     <td style={{ width: 24 }}></td>
@@ -3998,9 +3470,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           </div>
                           <div className="flex items-center space-x-3">
                             <span className="text-xs text-muted">{j.due}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                              { QUOTE:'bg-hairline-soft text-header', New:'bg-warn-tint text-warn', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' }[j.status] || 'bg-hairline-soft text-muted'
-                            }`}>{j.status}</span>
+                            <StatusBadge status={j.status} size="sm" />
                           </div>
                         </button>
                       ))}
@@ -4498,8 +3968,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
   // Document Print Modal (Picking Slip, Delivery Note, Job Sheet)
 
+  const onJobRecord = ['jobs', 'quotes'].includes(activeModule) && showJobDetail && !!activeJob;
   const pageHeader = pageActions({
-    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify,
+    activeModule, showJobDetail, activeJob, inventory, jobs, exportToCSV, notify, offer,
     selectedPO, selectedCardFile,
     newJob: () => openModal('job'),
     openDispatch: () => { setShowJobDetail(false); setDispatchListOpen(true); },
@@ -4534,7 +4005,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
   return (
     <AppShell
       activeModule={activeModule}
-      onNavigate={setActiveModule}
+      // A space chosen from the sidebar opens at its list: on a job's record,
+      // clicking Jobs used to change nothing, so there was no way back but the
+      // breadcrumb.
+      onNavigate={(m) => { setShowJobDetail(false); setActiveModule(m); }}
       adminMode={adminMode}
       onAdminToggle={() => setAdminMode(v => !v)}
       currentUser={currentUser}
@@ -4589,35 +4063,38 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
       {/* ── Page header: the Fiori title and header toolbar (ui/shell/ActionBar).
           It replaced the Jim2 ribbon, 97 of whose 135 buttons did nothing. */}
-      {pageHeader && <ActionBar {...pageHeader} />}
+      {/* On a job's record its own header carries the title and actions, so
+          the page header and the job-count strip would only repeat them. */}
+      {pageHeader && !onJobRecord && <ActionBar {...pageHeader} />}
 
-      {/* ── Live KPI Bar — job counts, so on the job pages only ── */}
-      {['dashboard', 'jobs', 'quotes'].includes(activeModule) && (
-      <div className="shrink-0 bg-white border-b border-hairline-soft flex items-center h-8 select-none overflow-x-auto shadow-sm">
+      {/* ── Live KPI Bar — job counts, so on the job pages only. Home has its
+          own, chosen for the role. ── */}
+      {['jobs', 'quotes'].includes(activeModule) && !onJobRecord && (
+      // Quick views as pills: the count first, coloured only when it needs
+      // someone; each opens the list it counts.
+      <div className="shrink-0 flex items-center gap-2 mb-4 select-none overflow-x-auto">
         {[
-          { label: 'Overdue',    count: dashboardStats.overdueJobs.length, urgent: dashboardStats.overdueJobs.length > 0, icon: AlertCircle, iconColor: 'text-danger',    bg: 'hover:bg-danger-tint',    text: 'text-danger',    border: 'border-danger',    action: () => openQuickList('overdue') },
-          { label: 'Due Today',  count: dashboardStats.dueToday.length,    urgent: dashboardStats.dueToday.length > 0,    icon: Clock,       iconColor: 'text-accent', bg: 'hover:bg-accent-tint', text: 'text-accent-strong', border: 'border-accent', action: () => openQuickList('dueToday') },
-          { label: 'To Invoice', count: dashboardStats.toInvoice,          urgent: dashboardStats.toInvoice > 0,          icon: FileText,    iconColor: 'text-emphasis', bg: 'hover:bg-emphasis-tint', text: 'text-emphasis', border: 'border-emphasis', action: () => openQuickList('needsInvoice') },
-          { label: 'Low Stock',  count: dashboardStats.lowStock,           urgent: dashboardStats.lowStock > 0,           icon: Package,     iconColor: 'text-warn',  bg: 'hover:bg-warn-tint',  text: 'text-warn',  border: 'border-warn',  action: () => setActiveModule('inventory') },
-          { label: 'In Prod.',   count: dashboardStats.inProduction,       urgent: false,                                 icon: Layers,      iconColor: 'text-accent',   bg: 'hover:bg-accent-tint',   text: 'text-accent-strong',   border: 'border-accent',   action: () => openQuickList('inProduction') },
+          { label: 'Overdue',       count: dashboardStats.overdueJobs.length, tone: T.danger, icon: AlertCircle, action: () => openQuickList('overdue') },
+          { label: 'Due today',     count: dashboardStats.dueToday.length,    tone: T.accent, icon: Clock,       action: () => openQuickList('dueToday') },
+          { label: 'To invoice',    count: dashboardStats.toInvoice,          tone: T.accent, icon: FileText,    action: () => openQuickList('needsInvoice') },
+          { label: 'Low stock',     count: dashboardStats.lowStock,           tone: T.warn,   icon: Package,     action: () => setActiveModule('inventory') },
+          { label: 'In production', count: dashboardStats.inProduction,       tone: null,     icon: Layers,      action: () => openQuickList('inProduction') },
         ].map((item) => {
           const Icon = item.icon;
+          const lit = item.tone && item.count > 0;
           return (
-            <button key={item.label} onClick={item.action}
-              className={`flex items-center gap-1.5 px-3 h-full border-r border-hairline text-[11px] font-medium transition-colors whitespace-nowrap ${item.bg} ${item.urgent ? item.text : 'text-muted'}`}>
-              <Icon className={`w-3 h-3 shrink-0 ${item.urgent ? item.iconColor : 'text-faint'}`} />
-              <span className={`font-bold tabular-nums ${item.urgent ? '' : 'text-faint'}`}>{item.count}</span>
-              <span className={item.urgent ? 'opacity-90' : 'opacity-60'}>{item.label}</span>
+            <button key={item.label} type="button" onClick={item.action}
+              className="flex items-center gap-2 h-8 pl-2.5 pr-3 rounded-lg whitespace-nowrap transition-colors hover:bg-panel-alt"
+              style={{ background: T.panel, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm, fontSize: T.fsSmall, color: T.textMuted }}>
+              <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: lit ? item.tone : T.textFaint }} aria-hidden />
+              <span className="tabular-nums" style={{ fontSize: T.fsGrid, fontWeight: 600, color: lit ? item.tone : T.text }}>{item.count}</span>
+              <span>{item.label}</span>
             </button>
           );
         })}
-        <div className="flex-1" />
         {dashboardStats.overdueJobs.length === 0 && dashboardStats.dueToday.length === 0 && dashboardStats.toInvoice === 0 && (
-          <span className="text-[10px] text-ok font-medium px-3 flex items-center gap-1"><CheckSquare className="w-3 h-3" />All caught up</span>
+          <span className="flex items-center gap-1 px-2" style={{ fontSize: T.fsSmall, color: T.ok, fontWeight: 500 }}><CheckSquare className="w-3.5 h-3.5" aria-hidden />All caught up</span>
         )}
-        <span className="text-[10px] text-faint px-3 border-l border-hairline whitespace-nowrap hidden lg:block">
-          {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-        </span>
       </div>
       )}
 
@@ -4626,8 +4103,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
         {/* ── Main content column ── */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <main className="flex-1 p-5 overflow-auto bg-paper">
-            {loading && (
+          {/* The shell's <main> already pads the page and is the landmark; a
+              second padded <main> here set every module 20px in from its own
+              page title. */}
+          <div className="flex-1 overflow-auto">
+            {/* Home shows its own busy tiles while data loads. */}
+            {loading && activeModule !== 'home' && (
               <div className="flex items-center justify-center py-20 text-faint text-sm">Loading data...</div>
             )}
             {apiError && (
@@ -4637,10 +4118,23 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               </div>
             )}
             {adminMode ? (
-              <AdminPanel currentUser={currentUser} />
+              <AdminPanel currentUser={currentUser} usersFilter={homeLink?.admin ? homeLink.usersFilter : undefined} />
             ) : (
               <>
-                {!loading && activeModule === 'dashboard'          && renderDashboard()}
+                {activeModule === 'home' && (
+                  <HomeModule
+                    currentUser={currentUser}
+                    // isPending, not isLoading: a query that has not fetched yet
+                    // (paused offline) has no data, and must not count as 0.
+                    sources={{
+                      jobs: { data: jobs, isPending: jobsPending, isError: jobsFailed },
+                      inventory: { data: inventory, isPending: invPending, isError: invFailed },
+                      purchaseOrders: { data: purchaseOrders, isPending: posPending, isError: posFailed },
+                    }}
+                    onOpenQuickList={openQuickList}
+                    onOpenLink={openHomeLink}
+                  />
+                )}
                 {!loading && (activeModule === 'jobs' || activeModule === 'quotes') && (
                   jobListModal.open ? <JobListPage customers={customers} deleteJobList={deleteJobList} inventory={inventory} jobListModal={jobListModal} jobs={jobs} openModal={openModal} savedJobLists={savedJobLists} setActiveJob={setActiveJob} setActiveJobList={setActiveJobList} setActiveModule={setActiveModule} setJobListModal={setJobListModal} setShowJobDetail={setShowJobDetail} updateListFilter={updateListFilter} />
                   : (dispatchListOpen && activeModule === 'jobs') ? (
@@ -4656,21 +4150,25 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     focusSku={stockFocusSku}
                     onNavigateJob={async (jobId) => { setActiveModule('jobs'); let j = jobs.find(jb => String(jb.id) === String(jobId)); if (!j) { try { j = await api.jobs.get(jobId); } catch (e) { setApiError(e.message); } } if (j) pinJob(j); }}
                     onNavigatePO={() => setActiveModule('purchase-orders')}
+                    initialChip={link.chip}
                   />
                 ))}
-                {!loading && activeModule === 'customers'          && <CustomersDetail customers={customers} deleteCustomer={deleteCustomer} exportToCSV={exportToCSV} jobs={jobs} openModal={openModal} pinJob={pinJob} searchTerm={searchTerm} setActiveModule={setActiveModule} setFilterCustomer={setFilterCustomer} setSearchTerm={setSearchTerm} />}
+                {!loading && activeModule === 'customers'          && <CustomersDetail customers={customers} deleteCustomer={deleteCustomer} exportToCSV={exportToCSV} jobs={jobs} onJobChanged={refreshPinnedJob} openModal={openModal} pinJob={pinJob} searchTerm={searchTerm} setActiveModule={setActiveModule} setFilterCustomer={setFilterCustomer} setSearchTerm={setSearchTerm} />}
                 {!loading && activeModule === 'suppliers'          && <SuppliersModule deleteSupplier={deleteSupplier} exportToCSV={exportToCSV} inventory={inventory} openModal={openModal} purchaseOrders={purchaseOrders} searchTerm={searchTerm} setActiveModule={setActiveModule} setSearchTerm={setSearchTerm} suppliers={suppliers} />}
                 {!loading && activeModule === 'purchase-orders'    && (poListModal.open ? <POListPage deleteJobList={deleteJobList} openModal={openModal} poListModal={poListModal} purchaseOrders={purchaseOrders} savedJobLists={savedJobLists} setActiveModule={setActiveModule} setPoListModal={setPoListModal} setSelectedPO={setSelectedPO} updateListFilter={updateListFilter} /> : <PurchaseOrdersDetail exportToCSV={exportToCSV} openModal={openModal} poStatusFilter={poStatusFilter} purchaseOrders={purchaseOrders} receivePO={receivePO} receiveQtys={receiveQtys} searchTerm={searchTerm} selectedPO={selectedPO} setPoStatusFilter={setPoStatusFilter} setReceiveQtys={setReceiveQtys} setSearchTerm={setSearchTerm} setSelectedPO={setSelectedPO} updatePOStatus={updatePOStatus} />)}
                 {!loading && activeModule === 'reports'            && renderReports()}
                 {!loading && activeModule === 'warehouse'          && <WarehouseModule currentUser={currentUser} inventory={inventory} customers={customers} onOpenSku={(sku) => { setStockFocusSku(sku); setActiveModule('inventory'); }} />}
                 {!loading && activeModule === 'scheduling'         && renderScheduling()}
+                {!loading && activeModule === 'production'         && <ProductionModule onOpenJob={openJobById} />}
+                {!loading && activeModule === 'picking'            && <PickingModule />}
+                {!loading && activeModule === 'returns'            && <ReturnsModule />}
                 {!loading && activeModule === 'card-files'         && renderCardFiles()}
                 {activeModule === 'import'                         && <ImportModule />}
                 {!loading && activeModule === 'email'              && <EmailModule jobs={jobs} />}
-                {!loading && activeModule === 'settings'           && <SettingsModule currentUser={currentUser} />}
                 {!loading && activeModule === 'styles'             && <StylesModule />}
+                {!loading && activeModule === 'analytics'          && <AnalyticsModule />}
                 {!loading && activeModule === 'accounts' && (
-                  <AccountingModule suppliers={suppliers} currentUser={currentUser} />
+                  <AccountingModule suppliers={suppliers} currentUser={currentUser} initialTab={link.tab} initialReport={link.report} />
                 )}
                 {!loading && ['ebusiness','documents','projects','assets'].includes(activeModule) && (
                   <div className="flex flex-col items-center justify-center h-64 text-faint">
@@ -4683,18 +4181,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 )}
               </>
             )}
-          </main>
+          </div>
         </div>
       </div>
 
-      {/* ── Status Bar ── */}
-      <div className="shrink-0 bg-white border-t border-hairline-soft flex items-center px-4 gap-4 text-[11px] text-faint" style={{ height: 24 }}>
-        <span className="text-muted font-medium">{currentUser?.full_name || currentUser?.username}</span>
-        <span>·</span>
-        <span>TIG ERP v1.0</span>
-        <div className="flex-1" />
-        <span>{new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-      </div>
 
       {/* ── Nav context menu ── */}
       {navCtxMenu.open && (
@@ -4806,7 +4296,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   (j.invoice || '').toLowerCase().includes(q) ||
                   (j.custRef || '').toLowerCase().includes(q)
                 ).slice(0, 6);
-                const statusColors = { QUOTE:'bg-hairline-soft text-muted', New:'bg-accent-tint text-accent-strong', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', PROOF:'bg-emphasis-tint text-emphasis', PRINT:'bg-accent-tint text-accent-strong', 'Pick/Pack':'bg-accent-tint text-accent-strong', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
                 return hits.length > 0 ? (
                   <div className="mt-2 rounded-xl border border-hairline-soft overflow-hidden shadow-sm">
                     {hits.map(j => (
@@ -4815,7 +4304,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent-tint text-left border-b border-hairline-soft last:border-0 transition-colors">
                         <span className="font-mono text-xs font-bold text-accent-strong w-24 shrink-0">#{j.id}</span>
                         <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColors[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
+                        <span className="shrink-0"><StatusBadge status={j.status} size="sm" /></span>
                       </button>
                     ))}
                   </div>
@@ -4972,7 +4461,6 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 (s.name||'').toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q)
               ).slice(0, 2);
               const hasResults = jobHits.length || custHits.length || invHits.length || suppHits.length;
-              const statusBg = { QUOTE:'bg-hairline-soft text-muted', ORDER:'bg-accent-tint text-accent-strong', 'In Progress':'bg-warn-tint text-warn', FINISH:'bg-ok-tint text-ok', INVOICE:'bg-accent-tint text-accent-strong', PAID:'bg-ok-tint text-ok', CANCEL:'bg-danger-tint text-danger' };
               return (
                 <div className="max-h-[60vh] overflow-y-auto divide-y divide-hairline-soft">
                   {jobHits.length > 0 && (
@@ -4984,7 +4472,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           <FileText className="w-4 h-4 text-accent shrink-0" />
                           <span className="font-mono text-sm font-bold text-accent-strong w-20 shrink-0">#{j.id}</span>
                           <span className="flex-1 text-sm text-header truncate">{j.customer}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBg[j.status] || 'bg-hairline-soft text-muted'}`}>{j.status}</span>
+                          <StatusBadge status={j.status} size="sm" />
                           <span className="text-sm font-semibold text-muted shrink-0">${(j.total||0).toFixed(0)}</span>
                         </div>
                       ))}

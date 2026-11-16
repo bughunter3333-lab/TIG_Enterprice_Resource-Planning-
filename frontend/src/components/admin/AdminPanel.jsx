@@ -1,57 +1,36 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as api from '../../api';
 import { T } from '../../ui/tokens';
-import FieldConfig from './FieldConfig';
-import StatusWorkflow from './StatusWorkflow';
-import PriceLevels from './PriceLevels';
-import DecorationTypes from './DecorationTypes';
 import MigrationWizard from './MigrationWizard';
 import DocumentDesigner from '../../modules/documents/DocumentDesigner';
 import UsersModule from '../../modules/users/UsersModule';
+import SettingsModule from '../../modules/SettingsModule';
+import CrashReportsModule from '../../modules/crash-reports/CrashReportsModule';
+import StatusTimesSettings from '../../modules/jobs/StatusTimesSettings';
 
 const TABS = [
   { id: 'users',       label: 'Users and roles' },
-  { id: 'fields',      label: 'Job Fields' },
-  { id: 'statuses',    label: 'Status Workflow' },
-  { id: 'prices',      label: 'Price Levels' },
-  { id: 'decorations', label: 'Decoration Types' },
+  // Company details, bank, email server and EFTPOS: printed on every invoice.
+  { id: 'company',     label: 'Company Settings' },
+  // Job Fields, Status Workflow, Price Levels and Decoration Types are not
+  // offered: each saved a setting nothing in the app reads (field_config,
+  // status_config, price_levels, dec_types — the job form reads
+  // custom_dec_types), so an admin's change said "saved" and did nothing.
+  // Their components stay (FieldConfig, StatusWorkflow, PriceLevels,
+  // DecorationTypes) and return as each is wired: the statuses with the
+  // strict workflow, job fields with configurable fields, price levels with a
+  // customer's default level (docs/superpowers/specs/2026-11-06-jim2-parity-roadmap.md).
+  // How long a job may sit at each status (docs/superpowers/specs/2026-11-09-status-times.md).
+  { id: 'status-times', label: 'Status times' },
   { id: 'documents',   label: 'Print Templates' },
   { id: 'migration',   label: 'Jim2 Migration' },
+  // What broke, for whom, with what they saw (docs/superpowers/specs/2026-11-08-crash-reports.md).
+  { id: 'crash-reports', label: 'Crash reports' },
 ];
 
-function useAdminSetting(key) {
-  return useQuery({
-    queryKey: ['admin-setting', key],
-    queryFn: () => api.adminSettings.get(key),
-    staleTime: 60_000,
-  });
-}
-
-function parseJson(raw, fallback = null) {
-  try { return raw?.value ? JSON.parse(raw.value) : null; } catch { return fallback; }
-}
-
-export default function AdminPanel({ currentUser }) {
+// `usersFilter` is handed to Users and roles as its opening filter (UsersModule `initialFilter`).
+export default function AdminPanel({ currentUser, usersFilter }) {
   // Who can sign in, and as what, is the first thing an admin comes here for.
   const [activeTab, setActiveTab] = useState('users');
-  const queryClient = useQueryClient();
-
-  const fieldQuery = useAdminSetting('field_config');
-  const statusQuery = useAdminSetting('status_config');
-  const priceQuery = useAdminSetting('price_levels');
-  const decQuery = useAdminSetting('dec_types');
-
-  function saveKey(key) {
-    return async (value) => {
-      try {
-        await api.adminSettings.set(key, value);
-        queryClient.invalidateQueries({ queryKey: ['admin-setting', key] });
-      } catch (err) {
-        console.error(`Failed to save admin setting: ${key}`, err);
-      }
-    };
-  }
 
   return (
     <div style={{ background: T.chrome, minHeight: '100%', borderRadius: 12, padding: 20 }}>
@@ -78,21 +57,12 @@ export default function AdminPanel({ currentUser }) {
       </div>
 
       <div>
-        {activeTab === 'users' && <UsersModule currentUser={currentUser} />}
-        {activeTab === 'fields' && !fieldQuery.isLoading && (
-          <FieldConfig config={parseJson(fieldQuery.data)} onChange={saveKey('field_config')} />
-        )}
-        {activeTab === 'statuses' && !statusQuery.isLoading && (
-          <StatusWorkflow config={parseJson(statusQuery.data)} onChange={saveKey('status_config')} />
-        )}
-        {activeTab === 'prices' && !priceQuery.isLoading && (
-          <PriceLevels config={parseJson(priceQuery.data)} onChange={saveKey('price_levels')} />
-        )}
-        {activeTab === 'decorations' && !decQuery.isLoading && (
-          <DecorationTypes config={parseJson(decQuery.data)} onChange={saveKey('dec_types')} />
-        )}
+        {activeTab === 'users' && <UsersModule currentUser={currentUser} initialFilter={usersFilter} />}
+        {activeTab === 'company' && <SettingsModule currentUser={currentUser} />}
+        {activeTab === 'status-times' && <StatusTimesSettings />}
         {activeTab === 'documents' && <DocumentDesigner />}
         {activeTab === 'migration' && <MigrationWizard />}
+        {activeTab === 'crash-reports' && <CrashReportsModule />}
       </div>
     </div>
   );

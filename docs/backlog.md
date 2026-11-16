@@ -691,7 +691,7 @@ A process decision rather than a defect: pick a fixed-width scheme
 (AR.PKW / AR.PKV / AR.PKN) and write it down, because the collisions are
 between sites in different states whose garments must not be swapped.
 
-### ORD8. PATCH accepts field names it does not recognise and reports success (MEDIUM)
+### ORD8. PATCH accepts field names it does not recognise and reports success (FIXED — SIM F10)
 
 `PATCH /jobs/{id}` with items carrying `supply` instead of `supply_qty`
 returned 200 for 69 consecutive jobs and changed nothing. Pydantic ignores
@@ -1038,25 +1038,29 @@ employee**:
 
 ```
 Job#     Cust Ref#              Item#        Item Desc                    Serial#   Name
-1218774  GILBERT BOCAUT…        NOP.ONLINE   gbocauto@ricoh.com.au        4514649   SYS
-1219015  GREG WHITED            NOP.ONLINE   gregwhited@ricoh.com.au      4514839   SYS
-1219117  KENT WITTKE-22…        NOP.ONLINE   kwittke@ricoh.com.au         4514921   SYS
-1219209  STEVE PARASKEV…        NOP.ONLINE   sparas@ricoh.com.au          4515000   SYS
-1219224  MORGAN GATSIS          SALE         Ad-Hoc Sale                            DANIELL.GO
-1219225  NATASHA WYNN           SALE         Ad-Hoc Sale                            DANIELL.GO
-1219319  NINO BLANCO            NOP.ONLINE   nblanco@ricoh.com.au         4515086   SYS
-1219410  VIRDIPSINH CHU…        NOP.ONLINE   vchudasama@ricoh.com.a       4515160   SYS
-1219433  DAVID RICE - 22(       NOP.ONLINE   drice@ricoh.com.au           4515183   SYS
-1219454  MARTIN CLUNE -         NOP.ONLINE   mclune@ricoh.com.au          4515196   SYS
+1218774  <EMPLOYEE 1>…          NOP.ONLINE   <employee email>             4514649   SYS
+1219015  <EMPLOYEE 2>           NOP.ONLINE   <employee email>             4514839   SYS
+1219117  <EMPLOYEE 3>-22…       NOP.ONLINE   <employee email>             4514921   SYS
+1219209  <EMPLOYEE 4>…          NOP.ONLINE   <employee email>             4515000   SYS
+1219224  <EMPLOYEE 5>           SALE         Ad-Hoc Sale                            <staff login>
+1219225  <EMPLOYEE 6>           SALE         Ad-Hoc Sale                            <staff login>
+1219319  <EMPLOYEE 7>           NOP.ONLINE   <employee email>             4515086   SYS
+1219410  <EMPLOYEE 8>…          NOP.ONLINE   <employee email>             4515160   SYS
+1219433  <EMPLOYEE 9> - 22(     NOP.ONLINE   <employee email>             4515183   SYS
+1219454  <EMPLOYEE 10> -        NOP.ONLINE   <employee email>             4515196   SYS
 ```
+
+(People's names and work emails replaced with placeholders, 2026-10-23: this
+repository is public. The shape is what matters — a person's name, sometimes
+with a staff number after it, and their work email.)
 
 The employee's **name and staff number go in `Cust Ref#`**, their **email in the
 job description**, and the job is theirs alone.
 
 ORD10 asked where a per-garment name should live and concluded the data model
 had no room for it. The question was wrong. **The unit of personalisation is the
-job, not the line.** Job 1218774 is Gilbert Bocauto's pullover, pants, shirt and
-two polos — his whole pack, on his own job, embroidered `RICOH (Only) - in RED
+job, not the line.** Job 1218774 is one employee's pullover, pants, shirt and
+two polos — their whole pack, on their own job, embroidered `RICOH (Only) - in RED
 for LH Chest on Shirt, Back right of pants`.
 
 That also re-frames the Arcare simulation: 100 personal packs is not one job
@@ -1070,7 +1074,7 @@ handling (JIM1) not a convenience but the load-bearing mechanism.
 - **`NOP.ONLINE`** — the employee ordered it themselves. Their email is the job
   description, `Serial#` is the portal's order number (4514649, 4514839, …), and
   `Name` is **`SYS`**: nobody keyed it.
-- **`SALE`** — "Ad-Hoc Sale", keyed by a person (`Name: DANIELL.GO`).
+- **`SALE`** — "Ad-Hoc Sale", keyed by a person (`Name:` a staff login).
 
 Eight of those ten jobs arrived without a human touching them. Corinthian and
 Zone Bowling jobs are `NOP.ONLINE` too. This is what Jim2's **eBusiness** ribbon
@@ -1084,10 +1088,10 @@ modelled the back office of a business whose front door is a portal.
 Job List filtered on `Cust Grp: Ricoh`, **grouped by `Ship#`**:
 
 ```
-▾ Ship# : RICO.2201  (Count=3)   [100%] 1218996  MATTHEW DOWL…   [100%] 1219454  MARTIN CLUNE   [100%] 1219456  NINO MAGARARL
-▾ Ship# : RICO.2202  (Count=3)   [100%] 1218790  QUAN PHAN       [100%] 1218800  SCOTT WILTON   [100%] 1218989  DAVID HOLLINS
-▾ Ship# : RICO.2202P (Count=1)   [100%] 1219015  GREG WHITED
-▾ Ship# : RICO.2203  (Count=2)   [100%] 1218980  STAN FOLCIK     [100%] 1218992  ARTHUR SIMOS
+▾ Ship# : RICO.2201  (Count=3)   [100%] 1218996  <EMPLOYEE>   [100%] 1219454  <EMPLOYEE>   [100%] 1219456  <EMPLOYEE>
+▾ Ship# : RICO.2202  (Count=3)   [100%] 1218790  <EMPLOYEE>   [100%] 1218800  <EMPLOYEE>   [100%] 1218989  <EMPLOYEE>
+▾ Ship# : RICO.2202P (Count=1)   [100%] 1219015  <EMPLOYEE>
+▾ Ship# : RICO.2203  (Count=2)   [100%] 1218980  <EMPLOYEE>   [100%] 1218992  <EMPLOYEE>
 ```
 
 Three things here we do not have:
@@ -1396,6 +1400,266 @@ Three bugs surfaced again only by running it rather than testing it:
   live grid showed it; the test used a missing key.
 - The existing Clone button spread each line wholesale, so a clone inherited the
   original's picked quantities, its PO number and its line status.
+
+## JIM23-JIM31. The October photographs — the despatch end of the work
+
+Seven photographs taken 14–22 October 2026: three job lists, the job list's
+right-click menu, a ship label on a satchel, a printed job sheet and a picking
+slip. Clients and people are deliberately not named here — the photographs
+carry employee names and work emails, and this repository is public.
+
+### JIM23. The status ladder in daily use (MEDIUM — extends JIM9)
+
+The navigation tree and job lists show, in order of the work:
+**`Booked · Confirmed · Picked · ProdExt · Pick/Pack · Desp/Ready · FINISH`**.
+Portal jobs reach `Desp/Ready` together, and `FINISH` is written on despatch by
+the bulk OpenFreight script ("Status set by bulk OpenFreight Script").
+
+Ours: QUOTE · New · ORDER · In Progress · PROOF · PRINT · Pick/Pack · FINISH ·
+INVOICE · PAID. Missing as states: `Booked` vs `Confirmed` (taken vs accepted),
+`Picked` (pulled from stock, before decoration), **`ProdExt`** — read as
+*production external*, out at the embroiderer; **inferred, confirm with the
+owner** — and **`Desp/Ready`**, packed and waiting for the carrier, which is a
+different fact from FINISH (gone).
+
+**Partly done (2026-10-25, SIM F30/F32):** `Desp/Ready` is a status, before
+FINISH, and anyone may skip forward. `Booked`/`Confirmed`, `Picked` and
+`ProdExt` are still not states.
+
+### JIM24. The job list's bulk actions are the daily controls (HIGH)
+
+Right-click on any job list: **Auto Pick Stock · Auto Create Purchase Orders ·
+Change Jobs Status · Change Jobs Date Due · Pick All Jobs** · Export Data ·
+Export Grid · Print. An **`Auto Pick Stock`** tick sits at the foot of the list.
+
+Ours has bulk status (`POST /jobs/bulk-status`, b1b96d1). Picking is one job at a
+time (`POST /jobs/{id}/pick`), there is no bulk due-date change, and purchase
+orders are raised from the procurement worklist rather than from a selected
+list of jobs.
+
+**Partly done (2026-10-25, SIM F20):** Auto Pick Stock across the despatch list
+(`POST /jobs/auto-pick`). Bulk due-date change and creating POs from selected
+jobs are still open.
+
+### JIM25. Availability % is the sort key for despatch (MEDIUM — confirms JIM15)
+
+Every list carries `Availability` as a coloured bar — **100 green, 66–87
+orange** — beside a `Pick` tick, and portal lists are sorted on it: what can go
+today is at the top. JIM15 recorded the column; these lists show it is the
+first thing read.
+
+### JIM26. Every job on a purchase order, found from the PO number (MEDIUM)
+
+A job list filtered on **`Order# 2059625`** — a purchase order number — returns
+the portal jobs that order supplies, ready to pick when it lands. Ours carries
+`po_no` on job lines but the jobs list cannot filter on it.
+
+### JIM27. Customers are grouped by industry (LOW)
+
+`CardFile Group Management` holds a tree — Automotive, CCW, Corporate,
+Education, Government, Healthcare, Hi Vis & Workwear, Hospitality,
+Manufacturing, Other, Retail, Services, Teamwear & Fitness — and a group (e.g.
+one client's aged-care homes) is a job-list filter (`Cust Grp`). Ours has a
+free-text `customers.customer_group` (default "General") and no tree.
+
+### JIM28. One satchel per person, and what its label says (HIGH — despatch)
+
+A portal pack goes out as its own satchel. The ship label reads: **Ship Code ·
+Attn · site address · From (TIG, Marrickville) · `Sender Ref#` — the person the
+pack is for · `Job #` · `Ship Via: OpenFreight` · `Con. No` · `1 of 1`**. The
+job carries the carrier's consignment on a **`FREIGHT`** line ("Freight Charges
+Con # …") and a **`FUEL.LEVY`** line ("Temporary Fuel Levy").
+
+Checks for ours: the ship label's fields (Sender Ref# is the job's Cust Ref, not
+the customer's reference), a parcel count, and the connote written back onto
+the job by despatch.
+
+**Partly done (2026-10-25, SIM F21/F22):** a ship label per carton ("Carton n of
+N") with the job, its Cust Ref, the connote and the sender; despatch writes the
+connote and ship via onto the job. The label does not yet print Attn, the Ship
+Code or Ship Via, and freight and fuel levy are not lines despatch adds.
+
+### JIM29. Payment terms are codes: `30DAYSINV` (FIXED)
+
+A printed job sheet reads **`Pay Terms 30DAYSINV`**. The overdue rule
+(`app/core/payment_terms.py`, owner decision 2026-10-19) read "Net 30" and
+"30 days" but not this, so a `14DAYSINV` account would have fallen back to the
+30-day default. It now reads `NDAYSINV` and "N days from invoice".
+
+### JIM30. Returns run on comments and a handwritten note (HIGH)
+
+A finished job's sheet, comment 1: the customer returned two garments; they are
+to go back into HQ stock; the invoice may need altering; the returned lines are
+highlighted on the printout ("NO LOGO") and the items left on a colleague's
+desk. There is no return document — the comment trail and a pen are the
+process.
+
+Ours has the `RET` (returns) location and a stock adjustment, but no return
+against a job's lines, no restock in one step, and no customer credit note
+(ERP1, "Open": no credit notes as documents).
+
+### JIM31. The picking slip, line by line (LOW — confirms JIM2, JIM21)
+
+`Location HQ · Bin (empty) · Stock · Description · Unit · Pick · Picked ☐`, with
+lines **`FREIGHT` · `KIT`** (the sell line, size curve written as prose:
+"size M/3, XL/12") **· `EMB.4299`** (the logo, 8 cm, two colours) **·** the
+garment stock code. The Bin column is empty on a real slip — JIM21's finding
+that bins are not in use, seen on paper. Saved stock lists in the tree also flag
+items as **`Depleting`**: reorder watch lists, kept by hand.
+
+## SIM F01-F38. The order-to-despatch simulation, and what was done
+
+One portal order was taken from intake through to the customer's remittance,
+against the API on a test database, and the report recorded 38 findings
+(2026-10-24). Each was then fixed in code with a test — except F37, which is a
+decision. Owner decisions taken on the way (2026-10-25): **Desp/Ready is a
+status and anyone may skip steps forward**; **a logo is a master record, and a
+decoration line points at the garment it is done to**; **the online store gets
+its own limited `portal` role**; **aged payables ages bills, with open POs shown
+beside it as committed spend** (the API's 300-second limit stays).
+
+| # | Was | Now |
+| --- | --- | --- |
+| F01 HIGH | A portal retry booked a second job; search could not find the order number or the email | A second online-store order with the same order number for the same customer is a 409 naming the job already made. Search covers serial no., contact, requested by, ex-job ref and connote |
+| F02 HIGH | Sell line + decoration + bought garment could not be one job without buying the garment twice | Decoration and alteration lines are services (`JobItem.logo_id` / `applies_to_item_id` → `is_service`): never reserved, bought, picked or shipped. The garment line is the one stock line |
+| F03 HIGH | Receiving a consolidated PO credited only the first line with that SKU, and the PO never closed | `app/core/receiving.py`: a receipt fills every open line of the SKU in order and settles the PO to Partial or Received |
+| F04 HIGH | Invoice, AR and the ledger used whatever header total the caller sent | The server totals the lines on every write (`app/core/job_totals.py`); the ledger health check lists any job whose total disagrees with its lines |
+| F05 HIGH | Despatch with "advance status" invoiced past the checks | Despatch changes status through `_apply_status_transition`, like every other path |
+| F06 HIGH | The customer balance counted FINISH (not yet invoiced) jobs | The balance is invoiced jobs less payments, recalculated whenever a job crosses the invoiced boundary; health lists balances that disagree with the invoices |
+| F07 HIGH | A bill payment overwrote the amount paid and marked any part-payment paid | `supplier_bill_payments`: each payment is a row with its own ledger entry, a bill is paid when its payments reach its total, and a payment can be taken back |
+| F08 MEDIUM | Stock weight had no writer, so every order weighed 0 kg | `weight_kg` on stock create and update; the warning counts unweighed goods lines only (`app/core/job_weight.py`) |
+| F09 MEDIUM | A logo existed only as text on each job line | `logos` and `/logos`: customer, code, position, stitches, price, cost, who makes it, proof. Customer → Logos tab |
+| F10 MEDIUM | Unknown JSON fields were accepted and dropped | Job, line and comment schemas forbid unknown fields, so a misspelt field is a 422. **This also fixes ORD8** |
+| F11 MEDIUM | `New` reserved stock with no movement | `New` is uncommitted: nothing is reserved until the order is confirmed |
+| F12 MEDIUM | Decoration lines from the portal became back-orders to buy | Service lines are not goods (F02), so they are not back-ordered or bought |
+| F13 MEDIUM | Order requirements counted QUOTE jobs; the back-order report did not | Both read the committed statuses only |
+| F14 MEDIUM | Committed movements reserved the order quantity; everything else reserved supply | Reservation movements post supply-quantity deltas, and committed is derived from committed jobs' goods lines |
+| F15 MEDIUM | POs raised from requirements had no GST or inc-GST total | Every PO write totals its lines with GST |
+| F16 MEDIUM | The decoration worklist could not tell subcontracted from in-house | A logo says who makes it (`in_house`, or `subcontract` with the supplier); in-house work is not bought |
+| F17 MEDIUM | No purchase-order document, and no way to send it | `GET /purchase-orders/{id}/pdf`; `POST /purchase-orders/{id}/email` attaches it, logs the send and makes a Draft Sent. Print and Email supplier on the PO screen |
+| F18 MEDIUM | Receipts were not traceable to a PO line; a line never read Received; back-order fill ignored whose order it was | Goods-receipt lines carry `po_item_id`; filling a back-order gives the stock to the jobs the PO lines were raised for first, and a covered line reads Received |
+| F19 MEDIUM | Picking overwrote the line status; an alteration could not point at its garment | Picking touches goods lines only; a service line points at its garment (`applies_to_item_id`) |
+| F20 MEDIUM | Picking was one job per request | `POST /jobs/auto-pick` across the despatch list; Auto Pick on the Dispatch screen |
+| F21 MEDIUM | No delivery note, ship label, job label or proforma | `GET /jobs/{id}/pdf?type=proforma\|delivery-note\|ship-label\|job-label`, and `GET /job-documents` for many jobs in one PDF; print buttons on the Dispatch screen |
+| F22 MEDIUM | Despatch did not record the site, did not check status, and did not write the connote back | A despatch is a recorded session with the ship-to and address; it refuses jobs not ready to go and writes ship via and connote onto the job |
+| F23 MEDIUM | Overseas staff could move a job to INVOICE or PAID | Invoicing, PAID and cancelling an invoice need staff or above. Overseas staff also cannot read the sales register or print an invoice or proforma |
+| F24 MEDIUM | Invoice numbers had to be typed | The next number is issued on entering INVOICE or PAID (`app/core/invoice_numbers.py`, prefix + Next Invoice Number in Company Settings); a typed number another job holds is refused |
+| F25 MEDIUM | Aged payables aged purchase orders | It ages unpaid bills; open POs are shown beside it as committed spend |
+| F26 MEDIUM | No service role: the portal had to hold a staff account | `portal` creates jobs and comments on its own intake, nothing else (`SERVICE_ROLES` in `app/core/dependencies.py`) |
+| F27 MEDIUM | Creating a job straight into ORDER skipped the credit check | A new job is created as QUOTE and moved through the gate, so the credit check runs. An order taken over the limit on account says so in a comment |
+| F28 LOW | Intake wrote no system comments | Create writes "Booked from the online store — order …" or "Created as …" |
+| F29 LOW | A partial receipt left the PO at Sent | Partial (F03) |
+| F30 LOW | Non-admins had to walk every intermediate status | Anyone may skip forward within production and go back one step; an admin may go further back |
+| F31 LOW | Proof approval was per job | `POST /logos/{id}/proof`: approved once, for every job that uses the logo |
+| F32 LOW | FINISH stamped `dispatched_at` before any despatch | Only a despatch stamps it. `Desp/Ready` (packed, waiting for the carrier) sits before FINISH |
+| F33 LOW | Unprint left `invoice_status` and the old invoice date | Leaving invoiced clears both |
+| F34 LOW | The invoice PDF printed hidden lines | PDFs and invoice emails print visible lines only |
+| F35 LOW | One remittance had to be split into a payment per job by the caller | `POST /customers/{id}/remittances`: one amount, allocated as given or oldest invoice first, all or nothing. Form on the customer's Aged AR tab |
+| F36 LOW | Supplier bills were typed with nothing matching them to the PO | A bill shows its PO's ordered, received and billed figures (`app/core/bill_matching.py`) |
+| F37 LOW | Job margins and the ledger's cost of sales are different numbers | **Open, by design** — see SIM-F37 below |
+| F38 LOW | Stock Stats never saw goods receipts | Stats count every receipt type |
+
+### SIM-F37. Job margin vs the ledger's cost of sales (OPEN — owner decision)
+
+A job's margin is sell less the cost on its lines; the ledger's cost of sales is
+periodic (purchases adjusted by the stock count). They do not meet per job and
+are not meant to. Perpetual inventory — cost of sales posted at average cost on
+despatch — would make them meet; it changes the chart of accounts, the BAS and
+every past period's comparatives, so it is for the owner and the bookkeeper.
+Written up in `docs/superpowers/specs/2026-10-25-job-cost-and-the-ledger.md`.
+
+## SIM2 S2-01–S2-20. The research-based simulation (2026-11-01)
+
+Eight scenarios from `docs/research/2026-10-31-how-a-uniform-supplier-runs.md`
+were run end to end through the real API on throwaway databases (after the 27
+SIM gaps were closed): an aged-care allocation roll-out (24 wearers, 4
+residences), Ricoh-style personalised packs (10 people, 4 sites, subcontract
+embroidery), a franchise bulk order with name badges and a credit hold, a club
+indent with deposit and balance, an office order with set-up fee and price
+breaks on 30 EOM, hi-vis for night road works, a council allowance with cost
+centres and client-held stock, and a childcare card-paid order with an
+exchange. All eight ran to the end — several only through staff workarounds.
+55 findings (19 bugs, 13 gaps, 9 missing, 3 UX, 11 rules that held) reduce to
+20 root causes. **(decision)** marks a fix that needs an owner rule first.
+
+| # | Sev | Root cause | Findings | Fix direction |
+| --- | --- | --- | --- | --- |
+| S2-01 | HIGH | Portal jobs carry no customer name: tax invoices print an empty Bill To (invalid from $1,000), aged receivables say "Unknown" | A1-01, B1-01 | Fill `customer_name` from the customer on create; the invoice prints the customer's name and ABN from the master |
+| S2-02 | HIGH | Invoicing a partly despatched job bills the back-ordered units; at INVOICE the back-orders drop out of buying and filling, so stock bought for the job sits free | A1-02, C2-01, B1-04, C2-03 | **(decision)** refuse to invoice while lines are back-ordered (close the back-order first), or invoice per consignment |
+| S2-03 | HIGH | Editing a line's quantity never re-works supply and back-order: bills the new quantity, ships the old | B3-01 | Re-derive the split on any quantity change |
+| S2-04 | HIGH | Receiving a bought-in (non-stock) code never reaches the job line, and the buying list keeps asking | B2-01 | Fill by the PO line's job when the code is no stock item |
+| S2-05 | HIGH | Charge lines (FREIGHT, set-up, fees, notes) are goods: back-ordered, bought, weighed, printed as back-ordered | A2-01, B3-02 | A stock item whose type is Service is a service line |
+| S2-06 | HIGH | A $0 job (no-charge exchange, remake) is held by the credit check, cannot be invoiced or closed, so its goods never leave stock | A1-04, B1-05 | **(decision)** a no-charge job closes at $0 and depletes stock; $0 adds no credit exposure |
+| S2-07 | HIGH | No returns: no document, no return location, no inspection, no credit note; a −1 line is accepted, reserves −1 and never restocks | A1-05, A1-06, C3-03, B3-05 | Quantities ≥ 0 now; **(decision)** returns against job lines into RET, inspected to restock / quarantine / scrap (decorated goods not restockable), fee line, exchange link, credit note |
+| S2-08 | HIGH | Card-paid portal orders arrive unpaid (payment fields dropped silently); inc-only prices make a $0 job; inc prices drift a cent so the real card amount is refused | A1-03, C3-04, C3-01, C3-02, C3-05 | Intake records the store's card payment; a line priced inc derives ex and totals to the cent the store charged; fully paid at invoice reads PAID |
+| S2-09 | HIGH | Supplier credit notes cannot be applied, and aged payables ignores them | C1-02 | Apply a credit against the supplier's bills; aged payables nets it |
+| S2-10 | HIGH | No allowance or funding split per wearer | C2-02, A1-03 | **(decision)** allowance ledger per wearer per financial year; each line funded by allowance, card or employee debt |
+| S2-11 | HIGH | Client-held stock is not ring-fenced | C2-05 | **(decision)** stock owned by a named customer, available only to its orders |
+| S2-12 | HIGH | No hi-vis class or UPF on stock; a Class D swap onto a night-works order is accepted | C1-01 | **(decision)** compliance attributes on stock and a required class on the job |
+| S2-13 | MED | Invoice prints the delivery date as Due Date and the company's terms; changing a customer's terms re-dates open invoices; AR "as at" lists later invoices | B2-02, B2-03, B2-04 | Store terms and due date on the invoice when issued; as-at filters by invoice date |
+| S2-14 | MED | Money rules: COD not enforced and a zero limit means unlimited; no authorised credit release; overpayment cannot sit on account; deposit GST falls in the invoice period | B2-07, B1-02, B1-03, B2-05 | **(decision)** COD blocks confirm until paid; release by a manager with a reason; customer deposits held until invoiced |
+| S2-15 | MED | No proof gate: a job reaches PRINT with its logo unapproved | B2-06 | PRINT needs every logo on the job approved |
+| S2-16 | MED | Pricing: quantity breaks stored but never applied; a line with no price books at $0; a duplicated job re-charges the logo set-up | B3-03, B3-04 | Price from the stock's levels when no price is keyed; the logo records that its set-up was billed |
+| S2-17 | MED | Scrap and close-short on decoration do not feed back to the job: scrapped units stay supplied, decoration applications are not re-listed | C1-03, A2-02 | Scrap against a job line back-orders it; close-short releases decoration lines too |
+| S2-18 | MED | Job profitability costs stocked lines at $0 | B1-06 | Cost from the stock's unit cost when the line has none |
+| S2-19 | MED | No cost centre on job, statement or search | C2-04 | **(decision)** a cost centre per job, on the statement and in search |
+| S2-20 | LOW | Despatch and PO details: one job with nothing to send refuses the whole batch; a further consignment's note lists empty lines; no despatch date; PO items cannot be added by PATCH (silently ignored); indent size curve is free text only | A1-07, A1-08, B1-07, C1-04, B2-08 | Skip and report jobs with nothing to send; notes list only what went; PATCH refuses or adds items |
+
+**Status 2026-11-02 — the ones that needed no decision are fixed** (migration
+`e7f8a9b0c1d2`; tests `tests/integration/test_sim2_*.py`):
+
+- S2-01 a job takes its customer's name when none is keyed (create, a move to
+  another customer, and a backfill); the invoice's Bill To prints the master's
+  name and ABN.
+- S2-03 a saved line whose quantity or code changes has its supply and
+  back-order worked out again, unless the save sent a split that adds up;
+  and a save never has an open order hold more than is free to it.
+- S2-04 a code that is no stock item goes to the PO line's job on receipt.
+- S2-05 a stock code typed Service or Non-Depleting, or in the Service
+  category, is a charge: supplied in full, never reserved, bought, weighed,
+  picked or listed as back-ordered.
+- S2-07 (in part) line quantities are never below zero. Returns themselves
+  wait on the decision.
+- S2-08 (in part) a line sent priced inc GST totals to the cent; the store's
+  payment (`deposit`, `payment_method`) is recorded with a portal order, and
+  more than the order is refused. **Open:** whether an invoiced job that is
+  fully paid moves to PAID by itself (C3-05) — today no payment moves a job
+  to PAID, before or after invoicing.
+- S2-09 a credit note is applied to the supplier's bill
+  (`POST /ap/bills/{credit}/apply`); outstanding and aged payables net it,
+  and neither side can later be edited past it or moved to another
+  supplier. Accounts Payable offers Apply on a credit note.
+- S2-13 an invoice stamps its terms and due date when issued; aged
+  receivables as at a past date leaves out later invoices and adds back
+  payments taken after it.
+- S2-15 a job goes from anywhere before PRINT (a quote, a portal order, a
+  job being created) to PRINT, past it or straight to invoiced only with
+  every logo on it approved.
+- S2-16 (in part) a line sent with no price takes the stock's price-level
+  break for its own quantity, else the sell price. **Open:** the logo set-up
+  charged once — nothing ties a set-up line (SETUP.LOGO) to the logo it set
+  up, so the rule for recognising one is needed first.
+- S2-17 a write-off against a job (`POST /inventory/{sku}/adjust` with
+  `job_id`) back-orders the job's line (and its pick), at the job's branch,
+  and is recorded as the job's; closing a decoration PO short re-lists the
+  applications it did not bring — a line it brought in part is split.
+- S2-18 a stocked line with no purchase price costs the stock's unit cost.
+- S2-20 (in part) a despatch batch leaves out, and names, a job with nothing
+  to send; a further consignment's note leaves off lines finished earlier; a
+  PO PATCH refuses unknown fields and adds lines by `add_items`; a despatch
+  is dated (today unless the despatcher picks the next collection, after the
+  carrier's cut-off — B1-07), and its delivery note prints that day. The
+  invoice is still dated the day it is issued (that is S2-02's decision).
+  **Open:** an indent's size curve (B2-08), which needs a design: per-size
+  quantities on an indent line, received and closed short per size.
+
+Held under pressure: the portal retry 409, confirmation back-ordering the
+shortfall with a trail, one PO across many jobs with oldest-first fill,
+subcontract decoration bought per job and not shelved, all-or-nothing
+remittances, the credit check counting open orders, badge names on the PO, the
+second consignment printing only its contents, order weight naming unweighed
+lines, 30 EOM due dates, and the ledger agreeing with the documents in every
+scenario.
 
 ## Known gaps, deliberately open
 

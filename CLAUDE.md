@@ -5,6 +5,7 @@
 - Check `docs/superpowers/plans/` and `docs/superpowers/specs/` before changing a module. The plans carry verified API shapes and line references — trust them rather than re-deriving.
 - Follow the shape of `frontend/src/modules/stock/` when building a module: `<Name>Module.jsx`, a list, a pure filters module, `__tests__/`.
 - Route stock changes through the shared paths. Anything that changes `InventoryItem.stock` must also call `adjust_location`; every `StockMovement` must be constructed with `location_branch` (the value is already in scope — it is what the adjacent `adjust_location` uses); and anything that changes a job's status must go through `_apply_status_transition`. Each has been forgotten on an individual path before, and each time it corrupted the ledger silently.
+- Take row locks in the one order (`app/core/row_locks.py`; spec `docs/superpowers/specs/2026-11-15-lock-order.md`): the number sequence, a document header, jobs by id, customers by id, stock by SKU — and change stock figures in SQL (`stock = stock + q`), never read-add-write. Two requests that lock in opposite orders deadlock; a figure read and written back loses the other's movement. SQLite ignores locks: check a new locking path with `tests/postgres` (`TEST_POSTGRES_URL`).
 - Run the validation gate below before reporting work as done.
 
 ## Never
@@ -14,6 +15,7 @@
 - Never mock `../api` with a partial object literal in a component test. Use `renderWithQuery` from `src/test/renderWithQuery.jsx` — TanStack Query turns a missing method into an empty render, so the test passes while covering nothing.
 - Never leave a second Alembic head. A deploy runs `upgrade head` and applies one branch only.
 - Never add a *new* surface to `frontend/src/TotalImageERP.jsx`. Carve it into `frontend/src/modules/<name>/` instead; the monolith is shrinking, not growing.
+- Never take a business day from a UTC clock. The API runs in UTC and the shop is in Sydney, so `date.today()` and a naive `datetime.now()` are yesterday until 10 or 11am — an invoice issued on 1 July was dated 30 June. Read the day through `app/core/shop_day.py` (`today()`, `wall_clock()` for a time people read, `day_of()` for a stored instant); on screen use `localDay()` or `isoDay(date)`, never `toISOString().slice(0, 10)`. Both are enforced by scans (`tests/unit/test_shop_day_convention.py`, `src/lib/__tests__/localDay.test.js`); pin the clock in a test with the `shop_clock` fixture.
 
 ## Ask First
 
@@ -69,6 +71,10 @@ python seed_admin.py
 # Seed realistic demo data (idempotent; customers, stock, jobs across all statuses)
 python seed_data.py
 
+# TIG demo data through the API as the first admin (invoices numbered, ledger
+# agrees; test DBs only — tests/integration/test_seed_demo.py)
+python seed_demo.py
+
 # Lint / format
 ruff check app tests
 black --check app tests
@@ -81,21 +87,36 @@ black --check app tests
 - `app/core/fiscal.py` — Australian fiscal year helpers (July–June default)
 - `app/core/logging_config.py` — JSON logs in production, plain in dev
 - `app/routers/health.py` — `/health` (liveness) and `/health/ready` (readiness + DB check)
-- `app/routers/pdf.py` — ReportLab PDF generator; `GET /jobs/{id}/pdf?type=invoice|quote|picking-slip|job-sheet`
+- `app/routers/pdf.py` — ReportLab PDF generator; `GET /jobs/{id}/pdf?type=invoice|quote|proforma|picking-slip|job-sheet|delivery-note|ship-label|job-label` (invoice and proforma are `require_staff`; hidden lines never print); `GET /job-documents?type=…&job_id=…&job_id=…` prints many jobs in one PDF (it is not under `/jobs/`, where `GET /jobs/{job_id}` would swallow it). Despatch documents are built in `app/core/despatch_documents.py`, the purchase order in `app/core/purchase_order_document.py`
 - `app/routers/ship_to.py` — Customer ship-to address CRUD (`GET/POST/PATCH/DELETE /customers/{id}/ship-tos`)
 - `app/routers/` — FastAPI routers (thin; business logic stays in core/)
 - `app/models/` — SQLAlchemy ORM models (incl. `stock_location.py`, `stock_pricing.py` for the Stock module)
 - `app/routers/inventory.py` — Stock API: locations CRUD, pricing (cost + qty-break levels), `/transactions`, `/committed` (`/inventory/{sku}/...`)
-- `alembic/versions/` — DB migration history; latest head: `a7b8c9d0e1f2` (users.must_change_password)
+- `alembic/versions/` — DB migration history; latest head: `e3f4a5b6c7d8` (customer credit notes)
+- Job status (`app/routers/jobs.py`): one gate, `_apply_status_transition`, for every path that changes a status — create (a new job is made as QUOTE and moved, so the credit check runs), duplicate, import, bulk, PATCH, despatch, unprint. Production ladder (TIG's, `docs/superpowers/specs/2026-11-07-tig-status-ladder.md`): `ORDER · In Progress · PROOF · Picked · Inco/Pick · PRINT · ProdExt · Pick/Pack · Desp/Ready · FINISH · Ready`, then `INVOICE · PAID`; `New` is shown as Booked and `ORDER` as Confirmed (`frontend/src/modules/jobs/jobStatuses.js` `statusLabel`), and "gone, not invoiced" is `FINISHED_STATUSES` (FINISH, Ready — `app/core/reservations.py`), never FINISH alone; anyone may skip forward or go back one step, an admin further back. Entering INVOICE/PAID issues the next invoice number (`app/core/invoice_numbers.py`); only staff and above may touch an invoiced status. The job total is the server's sum of its lines (`app/core/job_totals.py`), never the caller's
+- Job lines: goods vs services. A decoration or alteration line (`JobItem.logo_id` or `applies_to_item_id` → `is_service`) is never reserved, bought, picked or shipped; nor is a charge — a stock code typed Service or Non-Depleting, or in the Service category, such as FREIGHT (`JobItem.is_charge`, `models/inventory.py` `is_charge`). Logos are a master per customer (`app/routers/logos.py`: `/logos`, proofed once with `POST /logos/{id}/proof`; `made_by` `in_house`/`subcontract`); a job goes from before PRINT to PRINT or past it only with every logo on it approved (`_require_approved_proofs`)
+- Line prices: a line sent with `price_inc` and no `price_ex` (the online store) is `priced_inc` and totals its inc price to the cent (`app/core/job_totals.py`); one sent with no price takes the stock's price level break for its own quantity, else the sell price (`_stock_price`). An invoice stamps its terms and due date when issued (`invoice_terms`, `invoice_due_date`)
+- `app/core/receiving.py` — the one receive path (goods receipts and the PO screen's inline receive): credits every open PO line of the SKU, settles the PO Partial/Received, fills back-orders for the PO lines' own jobs first; a code that is no stock item (an indent) goes straight to the PO line's job (`fill_bought_in`). Bills: `app/core/bill_matching.py` (PO ordered/received/billed), payments are rows in `supplier_bill_payments` with a ledger entry each (`app/core/ledger_postings.py`); a supplier credit note is a negative bill applied to one of its bills (`POST /ap/bills/{credit}/apply`, `applied_to_bill_id`), never paid — what is owed is `bill_outstanding`
+- Customer credit notes and returns (`app/core/credit_notes.py`, `app/routers/credit_notes.py`; spec `docs/superpowers/specs/2026-11-09-returns-credit-notes.md`): CN-0001 series, managers and admins raise and apply; applied to its invoice up to what it owes, the rest is credit on the customer's account. Lines or an amount. The receivables invariant is `balance_due = total_inc − deposit − credited` (`credit_notes.owed`); the note's ledger entry is fixed and each application is its own `credit_application` entry; the customer's balance is less their unapplied credit; an invoice with a credit note stays invoiced. Plain goods back wait for inspection and are not stock until restocked (`Return` at the job's branch); decorated goods never re-enter stock
+- `app/routers/remittances.py` — `POST /customers/{id}/remittances`: one customer payment over many invoices, as allocated or oldest first, all or nothing
+- `POST /purchase-orders/{id}/email` — the PO as a PDF to the supplier, logged; a Draft becomes Sent. `/reports/aged-payables` ages unpaid bills; open POs, less what is billed against them, are `committed` beside it
 - `app/routers/saved_lists.py` — server-synced per-user nav-tree lists (`/saved-lists`, max 25 per node)
-- `app/routers/dispatch_sessions.py` — recorded despatch batches (Jim2 "Dispatch #"); creating one dispatches its jobs + records reviewable lines (`/dispatch-sessions`)
+- `app/routers/dispatch_sessions.py` — recorded despatch batches (Jim2 "Dispatch #"); creating one dispatches its jobs + records reviewable lines (`/dispatch-sessions`). Each consignment records what went per job line (`dispatch_line_items`): what is picked (else supplied) less what earlier consignments took, so a further consignment of back-ordered sizes (`again: true`) prints only what is in the carton. A job already despatched goes again only with `again`. A batch is all or nothing, save a job with nothing left to send: it is left out and listed in `skipped`. A despatch goes on `despatch_date` (today unless given, 30 days back to 14 ahead — `despatch_day`), stored per consignment and printed on its delivery note
 - `app/routers/rack_sections.py` — racking marked for a customer on the 3D warehouse map: two corner boxes on one rack face, no overlaps (`GET/POST/DELETE /rack-sections`); bin codes are parsed in `app/core/bin_codes.py`
 - `app/core/racking.py` — the racking a branch has, read on the server as the map reads it; a bin on a stock position must be a box in it (`checked_bin`)
 - `app/routers/users.py` — accounts and roles, admin only; `app/core/access.py` builds "what each role can do" from the routes' own gates, and `tests/unit/test_access_gates.py` fails on a route with no gate or one that admits a junior role over a senior one
-- `frontend/src/modules/users/` — Users and roles screen, mounted in the Admin section (`components/admin/AdminPanel.jsx`); spec: `docs/superpowers/specs/2026-10-12-users-and-roles.md`
-- `frontend/src/ui/` — design tokens (`tokens.js`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, Field, Select, Tabs, Modal, KpiTile, Toast)
-- `frontend/src/ui/shell/` — app chrome: ModuleBar (top), LiveTree (left), StatusBar (bottom), AppShell (composition)
-- `frontend/src/modules/jobs/` — Jobs module (JobsModule, JobsList, jobsFilters) — first migrated module; Quotes module reuses JobsModule via `lockedStatus="QUOTE"`
+- `GET /users/me/access` — the signed-in person's own role: their column of the access table plus `allowed`, every route their gate admits as `"METHOD /path-template"` (`role_access` in `app/core/access.py`). The frontend decides what to offer only from this: `frontend/src/lib/access.js` (`canCall`, `offers`) and `lib/useMyAccess.js`. Never decide visibility from a role's name.
+- Money reads (reports with amounts, analytics, `/ap/*`, customer statements, the sales register, invoice/proforma PDFs) are `require_staff`: overseas_staff read only counts and days.
+- `portal` is a service role (`SERVICE_ROLES` in `app/core/dependencies.py`), for the online store: it may only `POST /jobs` (`require_intake`, booked as New/QUOTE with its order number, a repeat order number is a 409 naming the job) and comment on jobs it booked (`require_commenter`). Spec: `docs/superpowers/specs/2026-10-12-users-and-roles.md`
+- `app/core/payment_terms.py` — an invoice's due date from the customer's terms counted from the invoice date (`Net 30`, `30DAYSINV`, `COD`, `EOM`, `30 EOM`; unknown → company default → Net 30). `/reports/aged-receivables` buckets by days overdue: `current`, `days_1_30`, `days_31_60`, `days_61_90`, `over_90`.
+- `frontend/src/modules/home/` — role-based Home, the landing module (`homeSections.js` is pure: the tiles per role are a content list, a tile shows only if `canSee` finds every route it reads in `allowed`); spec: `docs/superpowers/specs/2026-10-19-role-based-home.md`
+- `frontend/src/modules/users/` — Users and roles screen, mounted in the Admin section (`components/admin/AdminPanel.jsx`), beside Company Settings (`modules/SettingsModule.jsx`); spec: `docs/superpowers/specs/2026-10-12-users-and-roles.md`
+- `frontend/src/ui/` — design tokens (`palette.js` is the single source, read by `tokens.js` and `tailwind.config.js`; `index.css` mirrors a few, enforced by `paletteMirror.test`), UI primitives (DataGrid, FilterBar, StatusBadge, Button, IconButton, Card, SegmentedControl, DensityToggle, Field, Select, `fieldStyle.js`, Tabs, Modal, KpiTile, Toast). The look: `docs/superpowers/specs/2026-10-25-calm-product-look.md`
+- `frontend/src/ui/shell/` — app chrome: Sidebar (left: modules in groups from `shellModules.js`, then LiveTree), TopBar (title, search, Ask, New job), StatusBar (bottom), AppShell (composition; its `<main>` is the only page landmark and padding)
+- Production board (`app/core/production_board.py`, `app/routers/production_board.py`, `frontend/src/modules/production/`; spec `docs/superpowers/specs/2026-11-07-production-board.md`): a card is a job at a lane (Picking · Embroidery · Print · a lane per decorator · Packing); a garment is where it was handed (`JobItem.station`, `station_holder`, `station_at`) else where its work is. A hand-off writes a printed (`inc`) comment and never changes status, stock or money. The pick rule both it and the pick endpoints read is `app/core/picking.py`
+- Jobs module, Phase 1 (specs `docs/superpowers/specs/2026-11-08-move-lines.md`, `2026-11-09-status-times.md`, `2026-11-09-watchouts.md`): `POST /jobs/{id}/move-lines` (`app/routers/job_lines.py`) moves lines to another open job of the same customer, the reservation with them; `jobs.status_changed_at` is stamped by `_apply_status_transition`, allowances per status are `GET/PUT /status-allowances` (`app/core/status_times.py`), and the screens flag a job over its allowance (`jobMetrics.timeAtStatus`, set from `lib/useStatusAllowances.js`); `customers.watchout` shows on every job for the customer (`Job.customer_watchout`)
+- Crash reports (`app/routers/crash_reports.py`, `app/core/crash_reports.py`, `frontend/src/modules/crash-reports/`, `frontend/src/lib/crashContext.js`; spec `docs/superpowers/specs/2026-11-08-crash-reports.md`): every screen sits in a `CrashBoundary`; `api.js` records each call as a step and raises `app:server-error` on a 5xx; admins read them in Admin → Crash reports; `backend/pull_crash_reports.py` fills the git-ignored `/crash-reports/` folder. A screenshot never shows a password field or anything marked `data-sensitive`
+- `frontend/src/modules/jobs/` — Jobs module (JobsModule, JobsList, jobsFilters, DispatchList) — first migrated module; Quotes module reuses JobsModule via `lockedStatus="QUOTE"`. The job record's header, stepper and cards are in `modules/jobs/record/` (`lifecycle.js` decides the next step)
 - `frontend/src/modules/stock/` — Stock module (StockModule master/detail, StockList, 5 tabs) on the Stock API; replaces the old flat inventory table
 - `frontend/src/modules/purchase-orders/` — Purchase Orders module (POModule list + KPI/filter, poFilters); inline goods-receipt panel stays in the monolith
 - `frontend/src/modules/customers/` — Customers module (CustomersModule list + KPI/search, customerAggregates); detail panel (tabs) stays in the monolith
@@ -112,6 +133,7 @@ Tests live in `backend/tests/`. All tests use SQLite in-memory — no PostgreSQL
 
 - `tests/unit/` — pure logic tests (ABN, fiscal year, model helpers)
 - `tests/integration/` — full HTTP round-trips via FastAPI `TestClient`
+- `tests/postgres/` — two requests at once on real Postgres (lost updates, deadlocks), run where `TEST_POSTGRES_URL` names a migrated database (CI's Migrations job); skipped elsewhere
 
 ## Australian compliance notes
 

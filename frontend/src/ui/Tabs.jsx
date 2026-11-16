@@ -1,8 +1,16 @@
 import { T } from './tokens';
 
-export default function Tabs({ tabs, active, onChange }) {
+/**
+ * Section tabs on a record page: an underline in the one blue marks where you
+ * are. (For switching a view of the same data — List / Board — use
+ * SegmentedControl instead.) An optional `count` on a tab says how much is in
+ * that section before you open it.
+ */
+export default function Tabs({ tabs, active, onChange, bare = false }) {
+  // `bare` drops the rule beneath the tabs, for a tab bar that is itself the
+  // edge of a card.
   return (
-    <div role="tablist" style={{ display: 'flex', gap: 2, borderBottom: `1px solid ${T.hairline}`, fontFamily: T.font }}>
+    <div role="tablist" style={{ display: 'flex', gap: 4, borderBottom: bare ? 'none' : `1px solid ${T.hairline}`, fontFamily: T.font, overflowX: 'auto' }}>
       {tabs.map(t => {
         const isActive = t.id === active;
         return (
@@ -13,25 +21,34 @@ export default function Tabs({ tabs, active, onChange }) {
             aria-selected={isActive}
             onClick={() => onChange(t.id)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(t.id); } }}
-            // Tabs declared cursor:pointer but gave no feedback before the
-            // click. Inactive tabs now lift toward full text colour on hover;
-            // the active one is already at full strength.
+            // Inactive tabs lift toward full text colour on hover; the active
+            // one is already at full strength.
             onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = T.text; }}
             onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = T.textMuted; }}
             style={{
-              padding: '6px 12px',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '8px 4px', margin: '0 6px',
               fontSize: T.fsGrid,
-              fontWeight: isActive ? 700 : 500,
+              fontWeight: isActive ? 600 : 500,
               color: isActive ? T.text : T.textMuted,
-              borderBottom: isActive ? `2px solid ${T.accent}` : '2px solid transparent',
+              boxShadow: isActive ? `inset 0 -2px 0 ${T.accent}` : 'none',
               marginBottom: -1,
               cursor: 'pointer',
               userSelect: 'none',
-              borderRadius: `${T.radius}px ${T.radius}px 0 0`,
-              transition: `color ${T.transition}, background ${T.transition}`,
+              transition: `color ${T.transition}, box-shadow ${T.transition}`,
             }}
           >
             {t.label}
+            {t.count != null && (
+              <span style={{
+                minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: isActive ? T.accentTint : T.hairlineSoft, color: isActive ? T.accentStrong : T.textMuted,
+                fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+              }}>
+                {t.count}
+              </span>
+            )}
           </div>
         );
       })}

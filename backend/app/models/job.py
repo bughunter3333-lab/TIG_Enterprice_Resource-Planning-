@@ -7,10 +7,15 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Text,
+    exists,
     func,
+    select,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import column_property, relationship
 from app.database import Base
+from app.models.inventory import InventoryItem, charge_condition
+from app.models.customer import Customer
+from app.models.logo import Logo
 
 
 class Job(Base):
@@ -22,12 +27,19 @@ class Job(Base):
     )
     customer_name = Column(String(100))
     status = Column(String(30), nullable=False, default="QUOTE", index=True)
+    # When it came to its status: how long it has sat there is counted from
+    # this (docs/superpowers/specs/2026-11-09-status-times.md).
+    status_changed_at = Column(DateTime(timezone=True))
     invoice = Column(String(20))
     date_in = Column(String(20))
     due = Column(String(40))
     out = Column(String(20))
     quote = Column(String(50))
     priority = Column(String(20), default="Normal")
+    # Normal, Branch or Employee (JIM7); `priority` is the urgency.
+    order_category = Column(
+        String(20), nullable=False, default="Normal", server_default="Normal"
+    )
     type = Column(String(20), default="Normal")
     assigned_to = Column(String(50))
     total_ex = Column(Numeric(10, 2), default=0)
@@ -35,6 +47,9 @@ class Job(Base):
     total_inc = Column(Numeric(10, 2), default=0)
     deposit = Column(Numeric(10, 2), default=0)
     balance_due = Column(Numeric(10, 2), default=0)
+    # Credit notes applied to this invoice: what is owed is its total less
+    # payments (deposit) less this (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credited = Column(Numeric(10, 2), default=0)
     payment_method = Column(String(50), default="Account")
     shipping_address = Column(Text)
     notes = Column(Text)
@@ -66,6 +81,15 @@ class Job(Base):
     ship_to_id = Column(Integer, ForeignKey("customer_ship_tos.id"), nullable=True)
     weight_total = Column(Numeric(8, 3), default=0)
     fuel_levy = Column(Numeric(10, 2), default=0)
+    # How it went and the consignment note, written when it is despatched. The
+    # connote used to live only in a comment (F22).
+    ship_via = Column(String(100))
+    connote = Column(String(100))
+    # The account that created the job. The portal may comment only on the
+    # jobs it booked (F26).
+    created_by_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     # Jim2 Sprint-2 fields
     price_level = Column(String(50))  # Retail / Trade / Wholesale / VIP / Cost
     acc_mgr = Column(String(100))  # account manager name or initials
@@ -75,6 +99,11 @@ class Job(Base):
     lock_rate = Column(Boolean, default=False)  # lock exchange/pricing rate
     # Compliance / audit timestamps
     invoice_date = Column(String(20))
+    # The terms an invoice was issued on and the day it falls due by them,
+    # stamped when it is invoiced: changing the customer's terms afterwards
+    # used to re-date every open invoice (S2-13).
+    invoice_terms = Column(String(30))
+    invoice_due_date = Column(String(20))
     payment_date = Column(String(20))
     dispatched_at = Column(String(20))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -96,7 +125,14 @@ class Job(Base):
 
     __mapper_args__ = {"version_id_col": version}
 
-    items = relationship("JobItem", back_populates="job", cascade="all, delete-orphan")
+    # In the order the job record shows them, so a line's number reads the same
+    # on the record, the documents and the production board.
+    items = relationship(
+        "JobItem",
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="(JobItem.sort, JobItem.id)",
+    )
     comments = relationship(
         "JobComment",
         back_populates="job",
@@ -106,6 +142,14 @@ class Job(Base):
     # ship_to (str, above) is the Jim2 ship-to code; ship_to_address is the linked
     # CustomerShipTo record via ship_to_id. Distinct names so neither shadows the other.
     ship_to_address = relationship("CustomerShipTo", foreign_keys=[ship_to_id])
+    # The customer's watchout, read with the job, never copied onto it: a
+    # change on the customer shows on every job for them at once.
+    customer_watchout = column_property(
+        select(Customer.watchout)
+        .where(Customer.id == customer_id)
+        .correlate_except(Customer)
+        .scalar_subquery()
+    )
 
 
 class JobItem(Base):
@@ -143,14 +187,68 @@ class JobItem(Base):
     discount = Column(Numeric(5, 2), default=0)
     price_ex = Column(Numeric(10, 2), default=0)
     price_inc = Column(Numeric(10, 2), default=0)
+    # Priced inc GST — the online store's shelf price: the line totals its
+    # price_inc to the cent, and price_ex is only that price less GST, shown
+    # (S2-08, `core/job_totals.py`).
+    priced_inc = Column(Boolean, default=False)
     total = Column(Numeric(10, 2), default=0)
     hide = Column(Boolean, default=False)
     tax_type = Column(String(5))
     item_status = Column(String(30))
+    # Where the garment is on the floor, once handed off on the production
+    # board: its lane (picking, embroidery, print, packing, decorator:<id>),
+    # the person given it, and when. Never the job's status (owner decision
+    # 2026-11-07, docs/superpowers/specs/2026-11-07-production-board.md).
+    station = Column(String(40))
+    station_holder = Column(String(50))
+    station_at = Column(DateTime(timezone=True))
     po_no = Column(String(50), index=True)
     po_due = Column(String(20))
+    # A decoration line points at the logo it applies; a decoration or an
+    # alteration points at the garment line it is done to (owner decision
+    # 2026-10-25, findings F09, F12, F19). Either makes the line a service:
+    # supplied in full, never bought, reserved, picked or shipped as stock.
+    logo_id = Column(
+        Integer, ForeignKey("logos.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    applies_to_item_id = Column(
+        Integer, ForeignKey("job_items.id", ondelete="SET NULL"), nullable=True
+    )
+    # Read from the logo, never stored on the line: the proof is the logo's,
+    # approved once for every job, and the job page used to keep its own copy
+    # that the logo's approval never reached (F31). None on a line with no logo.
+    logo_code = column_property(
+        select(Logo.code)
+        .where(Logo.id == logo_id)
+        .correlate_except(Logo)
+        .scalar_subquery()
+    )
+    logo_proof_status = column_property(
+        select(Logo.proof_status)
+        .where(Logo.id == logo_id)
+        .correlate_except(Logo)
+        .scalar_subquery()
+    )
+
+    # Its code is a stock item kept for a charge — freight, a set-up, a fee —
+    # not goods (S2-05, `models.inventory.is_charge`). Read with the line, and
+    # again after any flush that touches it, so a recoded line reads its new
+    # code once flushed.
+    is_charge = column_property(
+        exists()
+        .where(InventoryItem.sku == stock_code, charge_condition())
+        .correlate_except(InventoryItem)
+    )
 
     job = relationship("Job", back_populates="items")
+
+    @property
+    def is_service(self) -> bool:
+        return (
+            self.logo_id is not None
+            or self.applies_to_item_id is not None
+            or bool(self.is_charge)
+        )
 
 
 class JobComment(Base):

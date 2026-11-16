@@ -25,8 +25,13 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.access import access_table
-from app.core.dependencies import ROLES, get_signed_in_user, require_admin
+from app.core.access import access_table, role_access
+from app.core.dependencies import (
+    ALL_ROLES,
+    get_current_user,
+    get_signed_in_user,
+    require_admin,
+)
 from app.core.security import (
     MAX_PASSWORD_CHARS,
     hash_password,
@@ -100,10 +105,10 @@ def _keep_an_admin(db: Session, target: User) -> None:
 
 
 def _a_role(role: str) -> str:
-    if role not in ROLES:
+    if role not in ALL_ROLES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown role '{role}'. The roles are: {', '.join(ROLES)}",
+            detail=f"Unknown role '{role}'. The roles are: {', '.join(ALL_ROLES)}",
         )
     return role
 
@@ -149,6 +154,21 @@ def get_me(current_user: User = Depends(get_signed_in_user)):
     # Not get_current_user: someone who still has to choose their own password
     # has to be able to learn that they do.
     return current_user
+
+
+@router.get("/me/access")
+def get_my_access(request: Request, current_user: User = Depends(get_current_user)):
+    """What the signed-in person's own role can do: their column of the access
+    table, and the routes it lets them call. The website shapes its menus on
+    this; the server still checks each request against the route's gate.
+
+    Behind `get_current_user`, not `get_signed_in_user` like /me: someone who
+    still has to choose their own password has nothing to be shown yet. Any
+    role, the portal's too — the website reads a refusal here as "offer
+    everything", which is the wrong way round for an account that can do two
+    things.
+    """
+    return role_access(request.app, current_user.role)
 
 
 @router.get("/access")

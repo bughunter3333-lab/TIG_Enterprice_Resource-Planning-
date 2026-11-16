@@ -4,15 +4,20 @@ from datetime import datetime, date, timedelta
 from typing import Optional
 
 from app.core.replenishment import replenishment_rows
+from app.core.reservations import FINISHED_STATUSES
 from app.database import get_db
-from app.core.dependencies import require_any
+from app.core.dependencies import require_any, require_staff
 from app.models.user import User
 from app.models.job import Job
 from app.models.inventory import InventoryItem, StockMovement
 from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder
+from app.core import shop_day
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+# As in reports.py: a view with money in it is for staff and above; overseas
+# staff read the one that only counts jobs and days (turnaround).
 
 # ── Math & Statistical Helpers ──────────────────────────────────────────────────
 
@@ -92,15 +97,23 @@ def _zscore_anomalies(values: list) -> list[tuple[int, float]]:
     ]
 
 
+# Completed: gone (FINISH, or marked Ready to invoice), invoiced or paid.
+_DONE = (*FINISHED_STATUSES, "INVOICE", "PAID")
+
+
 def get_active_jobs(db: Session) -> list:
-    return db.query(Job).filter(Job.status.notin_(["FINISH", "CANCEL", "PAID"])).all()
+    return (
+        db.query(Job)
+        .filter(Job.status.notin_([*FINISHED_STATUSES, "CANCEL", "PAID"]))
+        .all()
+    )
 
 
 def get_overdue_jobs(db: Session) -> list:
     return [
         j
         for j in get_active_jobs(db)
-        if (d := parse_date(j.due or "")) and d < date.today()
+        if (d := parse_date(j.due or "")) and d < shop_day.today()
     ]
 
 
@@ -120,7 +133,7 @@ def get_low_stock(db: Session) -> list:
 
 
 @router.get("/overview")
-def get_overview(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_overview(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Summary metrics overview of operations."""
     active_jobs = get_active_jobs(db)
     overdue_jobs = get_overdue_jobs(db)
@@ -133,7 +146,7 @@ def get_overview(db: Session = Depends(get_db), _: User = Depends(require_any)):
     )
 
     # Calculate Stagnant active jobs (open > 30 days)
-    today = date.today()
+    today = shop_day.today()
     stagnant_count = len(
         [
             j
@@ -172,7 +185,7 @@ def get_overview(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/forecast")
-def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Revenue forecasting analysis using Holt-Winters EWMA and OLS ensemble."""
     all_jobs = db.query(Job).all()
     monthly = {}
@@ -197,7 +210,7 @@ def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_any)):
     ols_pred = max(0.0, m_ols * len(ys) + b_ols)
     ensemble = 0.6 * holt_pred + 0.4 * ols_pred
 
-    today = date.today()
+    today = shop_day.today()
     next_month_dt = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
     forecast_month = next_month_dt.strftime("%B %Y")
 
@@ -235,7 +248,7 @@ def get_forecast(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/dso")
-def get_dso(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_dso(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Days Sales Outstanding (DSO) collection efficiency and accounts receivable."""
     all_jobs = db.query(Job).all()
     invoiced_jobs = [
@@ -247,7 +260,7 @@ def get_dso(db: Session = Depends(get_db), _: User = Depends(require_any)):
     )
 
     # Revenue in the last 90 days
-    today = date.today()
+    today = shop_day.today()
     total_rev_90 = sum(
         float(j.total_inc or 0)
         for j in all_jobs
@@ -295,7 +308,7 @@ def get_dso(db: Session = Depends(get_db), _: User = Depends(require_any)):
 
 
 @router.get("/abc")
-def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """ABC classification of inventory by stock value (Pareto 80/20 rule)."""
     items = (
         db.query(InventoryItem)
@@ -358,7 +371,7 @@ def get_abc_analysis(db: Session = Depends(get_db), _: User = Depends(require_an
 
 
 @router.get("/churn")
-def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Customer Churn Risk Analysis based on order recency."""
     customers = db.query(Customer).filter(Customer.status == "Active").all()
     all_jobs = db.query(Job).all()
@@ -376,7 +389,7 @@ def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_any)
                 j.total_inc or 0
             )
 
-    today = date.today()
+    today = shop_day.today()
     high_risk, at_risk, never = [], [], []
     for c in customers:
         last = last_order.get(c.id)
@@ -415,7 +428,7 @@ def get_churn_risk(db: Session = Depends(get_db), _: User = Depends(require_any)
 
 
 @router.get("/margins")
-def get_margins(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_margins(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Overall margin analysis and order value distribution."""
     all_jobs = db.query(Job).all()
     if not all_jobs:
@@ -488,11 +501,7 @@ def get_margins(db: Session = Depends(get_db), _: User = Depends(require_any)):
 @router.get("/turnaround")
 def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)):
     """Throughput analytics and job turnaround times."""
-    finished = [
-        j
-        for j in db.query(Job).all()
-        if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in
-    ]
+    finished = [j for j in db.query(Job).all() if j.status in _DONE and j.date_in]
     if not finished:
         return {"error": "No completed jobs to analyze turnaround time."}
 
@@ -500,9 +509,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
     for j in finished:
         d_in = parse_date(j.date_in or "")
         d_out = parse_date(j.out or "") or (
-            parse_date(j.due or "")
-            if j.status in ("FINISH", "INVOICE", "PAID")
-            else None
+            parse_date(j.due or "") if j.status in _DONE else None
         )
         if d_in and d_out and d_out >= d_in:
             durations.append((d_out - d_in).days)
@@ -522,7 +529,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
     rating = "Fast" if avg_days <= 5 else "Moderate" if avg_days <= 10 else "Slow"
 
     active = get_active_jobs(db)
-    today = date.today()
+    today = shop_day.today()
     ages = []
     at_risk_jobs = []
 
@@ -566,7 +573,7 @@ def get_turnaround(db: Session = Depends(get_db), _: User = Depends(require_any)
 
 
 @router.get("/seasonality")
-def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Month-of-year seasonal revenue patterns and indexes."""
     all_jobs = db.query(Job).all()
     by_month_num = {i: [] for i in range(1, 13)}
@@ -625,7 +632,7 @@ def get_seasonality(db: Session = Depends(get_db), _: User = Depends(require_any
 
 
 @router.get("/anomalies")
-def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_any)):
+def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_staff)):
     """Z-Score anomaly detection on stock movements, revenue spikes, and stuck jobs."""
     items = db.query(InventoryItem).filter(InventoryItem.status == "Active").all()
     movements = db.query(StockMovement).all()
@@ -687,7 +694,7 @@ def get_anomalies(db: Session = Depends(get_db), _: User = Depends(require_any))
 
     # Stuck/stagnant jobs (>30 days open)
     active_jobs = get_active_jobs(db)
-    today = date.today()
+    today = shop_day.today()
     stagnant_jobs = []
     for j in active_jobs:
         d = parse_date(j.date_in or "")

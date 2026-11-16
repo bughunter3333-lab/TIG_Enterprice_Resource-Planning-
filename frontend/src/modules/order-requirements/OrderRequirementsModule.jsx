@@ -6,6 +6,9 @@ import { T } from '../../ui/tokens';
 import * as api from '../../api';
 import DraggableModal from '../../ui/DraggableModal';
 
+// A logo's `made_by`, worded as the Logos tab words it.
+const MADE_BY = { in_house: 'In-house', subcontract: 'By a decorator' };
+
 export default function OrderRequirementsModule({ decorationReqs, garmentReqs, jobs, pinJob, refetchDecorationReqs, refetchGarmentReqs, setActiveModule, suppliers }) {
   const queryClient = useQueryClient();
   const [orderReqTab, setOrderReqTab] = useState('garment');
@@ -139,6 +142,8 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                     <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Type</th>
                     <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Code</th>
                     <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Description</th>
+                    <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Made by</th>
+                    <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Decorator</th>
                     <th className="px-3 py-2.5 text-right font-semibold" style={{ color: T.textMuted }}>Total Qty</th>
                     <th className="px-3 py-2.5 text-left font-semibold" style={{ color: T.textMuted }}>Affected Jobs</th>
                   </>
@@ -184,6 +189,13 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                         </td>
                         <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
+                        {/* Who makes it, from the logo the line applies. Work keyed on
+                            the garment line itself names no logo, so the server does
+                            not know: it reads "Not set", never a guess (F16). */}
+                        <td className="px-3 py-2.5" style={{ color: req.made_by ? T.text : T.textFaint }}>{MADE_BY[req.made_by] ?? 'Not set'}</td>
+                        <td className="px-3 py-2.5" style={{ color: req.supplier_id ? T.textMuted : T.textFaint }}>
+                          {req.made_by === 'in_house' ? '—' : req.supplier_id ? ((suppliers || []).find(s => s.code === req.supplier_id)?.name ?? req.supplier_id) : 'Not set'}
+                        </td>
                         <td className="px-3 py-2.5 text-right font-bold text-accent-strong">{req.total_qty}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1">
@@ -217,6 +229,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                   </>
                 ) : (
                   <>
+                    <td className="px-3 py-2" colSpan={2} />
                     <td className="px-3 py-2 text-right text-xs font-bold text-accent-strong">{reqs.reduce((t, r) => t + r.total_qty, 0)}</td>
                     <td className="px-3 py-2" />
                   </>

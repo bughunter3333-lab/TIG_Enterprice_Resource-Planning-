@@ -62,7 +62,8 @@ class JournalEntry(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     entry_date = Column(Date, nullable=False, index=True)
     memo = Column(String(255), nullable=True)
-    # invoice | payment | bill | bill_payment | manual | opening
+    # invoice | payment | bill | supplier_payment | manual | opening
+    # (bill_payment: one entry per bill, before part-payments — history only)
     source_type = Column(String(30), nullable=False, index=True)
     source_id = Column(String(40), nullable=True, index=True)
     reverses_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)

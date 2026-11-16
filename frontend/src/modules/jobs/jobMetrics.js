@@ -7,15 +7,19 @@
  * count is always the length of the list it opens.
  *
  * The phases follow the server's lifecycle (ALLOWED_TRANSITIONS in
- * backend/app/routers/jobs.py): QUOTE → ORDER → In Progress → (PROOF) → PRINT
- * → Pick/Pack → FINISH → INVOICE → PAID, with CANCEL reachable from any step.
+ * backend/app/routers/jobs.py): QUOTE → New (Booked) → ORDER (Confirmed) →
+ * In Progress → (PROOF) → Picked → (Inco/Pick) → PRINT → (ProdExt) →
+ * Pick/Pack → Desp/Ready → FINISH → Ready → INVOICE → PAID, with CANCEL
+ * reachable from any step. Desp/Ready is packed and waiting for the carrier;
+ * FINISH is the goods having gone, Ready is FINISH checked, ready to invoice.
  */
 import { addDays, dayKey, todayKey } from '../../lib/dates';
+import { FINISHED_STATUSES } from './jobStatuses';
 
 export const PHASES = [
   { id: 'sales', label: 'Sales', statuses: ['QUOTE'] },
-  { id: 'production', label: 'Production', statuses: ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT'] },
-  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'FINISH'] },
+  { id: 'production', label: 'Production', statuses: ['New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt'] },
+  { id: 'fulfil', label: 'Fulfil', statuses: ['Pick/Pack', 'Desp/Ready', ...FINISHED_STATUSES] },
   { id: 'billing', label: 'Billing', statuses: ['INVOICE', 'PAID'] },
   { id: 'closed', label: 'Cancelled', statuses: ['CANCEL'] },
 ];
@@ -30,7 +34,9 @@ export const phaseOf = (status) => PHASE_OF[status] ?? 'production';
  * promise to the customer, so this is what "overdue" and "due today" count.
  * A quote has a validity date instead; from FINISH on, the goods have gone.
  */
-export const OPEN_WORK = ['New', 'ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack'];
+export const OPEN_WORK = [
+  'New', 'ORDER', 'In Progress', 'PROOF', 'Picked', 'Inco/Pick', 'PRINT', 'ProdExt', 'Pick/Pack', 'Desp/Ready',
+];
 
 const isOpenWork = (job) => OPEN_WORK.includes(job.status);
 const due = (job) => dayKey(job.due);
@@ -44,8 +50,58 @@ export const isDueWithin = (job, days, today = todayKey()) => {
   return isOpenWork(job) && !!d && d >= today && d <= addDays(today, days);
 };
 
-/** Finished and delivered, waiting for its invoice. */
-export const isToInvoice = (job) => job.status === 'FINISH';
+/** Finished and delivered, waiting for its invoice — checked (Ready) or not yet. */
+export const isToInvoice = (job) => FINISHED_STATUSES.includes(job.status);
+
+/** Finished or invoiced, with no despatch recorded against it yet. */
+export const isNotDespatched = (job) =>
+  [...FINISHED_STATUSES, 'INVOICE'].includes(job.status) && !String(job.dispatchedAt ?? '').trim();
+
+/** A quote whose validity runs out from today through the next 7 days. */
+export const isQuoteExpiring = (job, today = todayKey()) => {
+  const valid = dayKey(job.validityDate);
+  return job.status === 'QUOTE' && !!valid && valid >= today && valid <= addDays(today, 7);
+};
+
+// How long a job may sit at each status, in working days (0: no limit) —
+// the server's table (GET /status-allowances), set once the app has it
+// (lib/useStatusAllowances.js). Empty until then: nothing is flagged.
+let allowanceTable = {};
+export const setStatusAllowances = (table) => { allowanceTable = table ?? {}; };
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+/**
+ * Working days (Monday to Friday) since a moment, in this browser's own days:
+ * moved on Monday, it is 2 on Wednesday; moved on Friday, 1 on Monday.
+ */
+export function workingDaysSince(iso, now = new Date()) {
+  const at = iso ? new Date(iso) : null;
+  if (!at || Number.isNaN(at.getTime())) return null;
+  const day = startOfDay(at);
+  const end = startOfDay(now);
+  let days = 0;
+  while (day < end) {
+    day.setDate(day.getDate() + 1);
+    if (day.getDay() !== 0 && day.getDay() !== 6) days += 1;
+  }
+  return days;
+}
+
+/**
+ * How long the job has sat at its status against its allowance: null when
+ * its status has no limit, or it is not known when it got there.
+ */
+export function timeAtStatus(job, { allowances = allowanceTable, now = new Date() } = {}) {
+  const allowed = allowances[job?.status];
+  if (!allowed) return null;
+  const days = workingDaysSince(job.statusChangedAt, now);
+  if (days === null) return null;
+  return { days, allowed, over: days > allowed };
+}
+
+/** Sat at its status longer than its allowance. */
+export const isOverTime = (job, ctx) => !!timeAtStatus(job, ctx)?.over;
 
 /** Being made: ordered through printed. */
 export const isInProduction = (job) => phaseOf(job.status) === 'production';
@@ -71,6 +127,12 @@ export const JOB_VIEWS = [
   { id: 'inProduction', label: 'In production', test: (j) => isInProduction(j) },
   { id: 'pickPack', label: 'Pick/Pack', test: (j) => j.status === 'Pick/Pack' },
   { id: 'toInvoice', label: 'To invoice', test: (j) => isToInvoice(j) },
+  { id: 'proof', label: 'With the customer', test: (j) => j.status === 'PROOF' },
+  { id: 'orderNotStarted', label: 'Orders not started', test: (j) => j.status === 'ORDER' },
+  { id: 'inProgress', label: 'In progress', test: (j) => j.status === 'In Progress' },
+  { id: 'notDespatched', label: 'Finished not despatched', test: (j) => isNotDespatched(j) },
+  { id: 'quoteExpiring', label: 'Quotes expiring this week', test: (j, { today }) => isQuoteExpiring(j, today) },
+  { id: 'overTime', label: 'Over time at their status', test: (j) => isOverTime(j) },
 ];
 
 const VIEW_BY_ID = Object.fromEntries(JOB_VIEWS.map((v) => [v.id, v]));

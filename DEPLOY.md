@@ -103,7 +103,12 @@ Signing in with the password typed here does not ask for a new one: it is yours 
 
 ### Optional — seed demo data for the testing period
 
-Run `python seed_data.py` (no args) to populate a realistic dataset: 6 customers, 3 suppliers, 12 stock items, and 12 jobs spanning the full status workflow (quote → order → in progress → … → paid/cancel). It is **idempotent and additive** — it inserts only rows whose IDs don't already exist, so it never duplicates or clobbers data and is safe to re-run. Skip on a production database you intend to fill with real records.
+`backend/seed_demo.py` loads ten of TIG's customers (six from its public client stores and case study, four already named in `docs/backlog.md`), their sites, four suppliers, stock, logos and a dozen jobs from quote to paid — a council hi-vis order bought short and received, aged-care polos despatched and invoiced, an online-store order, a remittance over two invoices, a supplier bill with a credit note. It goes **through the API** as the first admin, so every invoice has its number and ledger entry and the ledger health check agrees. Needs the admin from Step 3.
+
+- **From GitHub:** Actions → **Migrate database** → *Run workflow* with *Also load the TIG demo data* ticked.
+- **From your own computer:** as in Step 3, point one terminal at the session pooler and run `python seed_demo.py`.
+
+A run that stops part way prints what to do: running again completes the customers, suppliers, stock and logos; the jobs go in once, so if they had started, reset the database and run again. It books real invoice numbers, so load it only on a database you will clear (or reset) before going live, and not on one `seed_data.py` has filled. (`seed_data.py` is the older local-only seed: it writes rows directly, setting invoice numbers outside the sequence and making no ledger entries.)
 
 ## Step 4 — The website (the existing Vercel project)
 

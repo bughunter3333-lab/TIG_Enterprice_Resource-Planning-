@@ -23,6 +23,11 @@ describe('pageActions', () => {
     expect(page.actions.filter((a) => a.primary).map((a) => a.label)).toEqual(['New job']);
   });
 
+  test('the sales register is not offered to a role that cannot read it', () => {
+    const offer = (method, path) => path !== '/jobs/sales-register';
+    expect(keys(pageActions(ctx({ offer })))).toEqual(['new', 'dispatch', 'createList', 'export']);
+  });
+
   test('record actions appear on the job record only, never on the list', () => {
     expect(keys(pageActions(ctx()))).not.toContain('toSites');
     const page = pageActions(ctx({ showJobDetail: true, activeJob: { id: '1207505', status: 'PRINT' } }));
@@ -36,7 +41,7 @@ describe('pageActions', () => {
   });
 
   test('a page with nothing to offer gets no bar', () => {
-    for (const m of ['scheduling', 'email', 'import', 'settings', 'warehouse', 'reports', 'dashboard']) {
+    for (const m of ['scheduling', 'email', 'import', 'settings', 'warehouse', 'reports', 'home']) {
       expect(pageActions(ctx({ activeModule: m }))).toBeNull();
     }
   });

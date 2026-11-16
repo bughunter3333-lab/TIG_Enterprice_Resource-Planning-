@@ -7,7 +7,6 @@ Reference: https://abr.business.gov.au/Help/AbnFormat
 import pytest
 from app.core.abn import validate_abn, format_abn, clean_abn
 
-
 # ---------------------------------------------------------------------------
 # Valid ABNs (real and test values that pass the ATO checksum)
 # ---------------------------------------------------------------------------

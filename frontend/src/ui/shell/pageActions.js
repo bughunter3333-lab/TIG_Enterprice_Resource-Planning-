@@ -21,7 +21,7 @@ import { addDays, dayKey, todayKey } from '../../lib/dates';
 import { needsReorder } from '../../modules/stock/lowStock';
 
 export const MODULE_TITLES = {
-  dashboard: 'Dashboard',
+  home: 'Home',
   jobs: 'Jobs',
   quotes: 'Quotes',
   'purchase-orders': 'Purchase orders',
@@ -32,6 +32,14 @@ export const MODULE_TITLES = {
   'order-requirements': 'Order requirements',
   accounts: 'Accounts',
   reports: 'Reports',
+  scheduling: 'Scheduling',
+  production: 'Production',
+  picking: 'Picking',
+  returns: 'Returns',
+  styles: 'Styles',
+  email: 'Email',
+  analytics: 'Analytics',
+  import: 'Import',
 };
 
 const INVOICED = ['INVOICE', 'PAID'];
@@ -88,15 +96,18 @@ export function pageActions(ctx) {
 
   if (m === 'jobs' || m === 'quotes') {
     const quotes = m === 'quotes';
+    // Without an `offer`, everything is offered — the server still decides.
+    const may = (method, path) => (ctx.offer ? ctx.offer(method, path) : true);
     return {
       title,
       actions: [
         { key: 'new', label: quotes ? 'New quote' : 'New job', icon: Plus, primary: true, onClick: ctx.newJob },
         { key: 'dispatch', label: 'Dispatch', icon: Box, onClick: ctx.openDispatch },
-        { key: 'salesRegister', label: 'Sales register', icon: DollarSign, onClick: ctx.openSalesRegister },
+        // A money report: overseas staff do not read it.
+        may('GET', '/jobs/sales-register') && { key: 'salesRegister', label: 'Sales register', icon: DollarSign, onClick: ctx.openSalesRegister },
         { key: 'createList', label: 'Create list', icon: ClipboardList, onClick: () => ctx.createJobList(quotes ? 'quotes' : 'jobs') },
         { key: 'export', label: 'Export', icon: FileSpreadsheet, onClick: ctx.exportJobs },
-      ],
+      ].filter(Boolean),
     };
   }
 

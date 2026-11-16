@@ -82,6 +82,15 @@ def require_role(*roles: str):
 # the role existed and could not be given to anybody.
 ROLES = ("admin", "manager", "staff", "overseas_staff")
 
+# A service account: an integration, not a person. It sits outside the chain of
+# seniority above — no route lets it in because it outranks someone; a route
+# lets it in only by naming it. The online store's portal books orders and
+# comments on them, and that is all (owner decision 2026-10-25, finding F26):
+# it used to need a full staff account, which reads supplier bills and money
+# reports, and its credentials live on an internet-facing system.
+SERVICE_ROLES = ("portal",)
+ALL_ROLES = ROLES + SERVICE_ROLES
+
 require_admin = require_role("admin")
 # Stock is the ledger the whole system prices and picks from, so editing a
 # position is a supervisory act rather than a daily one. Staff read it and
@@ -89,3 +98,6 @@ require_admin = require_role("admin")
 require_manager = require_role("admin", "manager")
 require_staff = require_role("admin", "manager", "staff")
 require_any = require_role("admin", "manager", "staff", "overseas_staff")
+# Booking a job, and commenting on one: what the portal does.
+require_intake = require_role("admin", "manager", "staff", "portal")
+require_commenter = require_role(*ROLES, "portal")

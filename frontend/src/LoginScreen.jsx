@@ -159,7 +159,7 @@ export default function LoginScreen({ onLogin }) {
             {heading('Set up two-factor', 'Scan the code with your authenticator app, then enter the code it shows.')}
             {qrCode && (
               <div className="signin-qr">
-                <img src={`data:image/png;base64,${qrCode}`} alt="Two-factor setup QR code" width={168} height={168} />
+                <img data-sensitive src={`data:image/png;base64,${qrCode}`} alt="Two-factor setup QR code" width={168} height={168} />
               </div>
             )}
             {errBox}

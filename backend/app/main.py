@@ -1,3 +1,4 @@
+import logging
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -6,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -40,6 +43,13 @@ from app.routers import (
     saved_lists,
     dispatch_sessions,
     rack_sections,
+    logos,
+    crash_reports,
+    credit_notes,
+    job_lines,
+    status_times,
+    production_board,
+    remittances,
 )
 from app.routers.admin_settings import router as admin_settings_router
 
@@ -100,6 +110,39 @@ async def _invalid_request(
 
 app.add_exception_handler(RequestValidationError, _invalid_request)
 
+# Postgres stops one of two requests that waited on each other: a deadlock, a
+# serialization failure, a wait past lock_timeout. A job another request saved
+# first fails its version check. Nothing of it was saved, and the next attempt
+# meets nothing — a conflict to try again, not a server error and a crash
+# report. The lock order (app/core/row_locks.py) keeps the known paths from
+# meeting at all; this is for whatever still does.
+_TRY_AGAIN_PGCODES = frozenset({"40P01", "40001", "55P03"})
+
+
+async def _try_again(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, OperationalError):
+        if getattr(exc.orig, "pgcode", None) not in _TRY_AGAIN_PGCODES:
+            raise exc
+    logging.getLogger(__name__).warning(
+        "Two requests met on the same rows: %s %s: %s",
+        request.method,
+        request.url.path,
+        str(exc).splitlines()[0],
+    )
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": (
+                "Someone else changed the same records at the same moment, so "
+                "nothing was saved. Try again."
+            )
+        },
+    )
+
+
+app.add_exception_handler(OperationalError, _try_again)
+app.add_exception_handler(StaleDataError, _try_again)
+
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -108,6 +151,15 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         token = request_id_var.set(request_id)
         try:
             response = await call_next(request)
+        except Exception:
+            # An unhandled error still answers with its request id — in the
+            # header and the body — so a crash report can name the log lines
+            # that go with it (docs/superpowers/specs/2026-11-08-crash-reports.md).
+            logging.getLogger("app").exception("unhandled error")
+            response = JSONResponse(
+                status_code=500,
+                content={"detail": "Internal Server Error", "request_id": request_id},
+            )
         finally:
             request_id_var.reset(token)
         response.headers["X-Request-ID"] = request_id
@@ -181,3 +233,10 @@ app.include_router(saved_lists.router)
 app.include_router(dispatch_sessions.router)
 app.include_router(rack_sections.router)
 app.include_router(accounting.router)
+app.include_router(logos.router)
+app.include_router(remittances.router)
+app.include_router(production_board.router)
+app.include_router(crash_reports.router)
+app.include_router(credit_notes.router)
+app.include_router(job_lines.router)
+app.include_router(status_times.router)

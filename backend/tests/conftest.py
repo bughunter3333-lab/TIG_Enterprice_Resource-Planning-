@@ -194,6 +194,44 @@ def staff_client(test_db_session, staff_user):
 
 
 @pytest.fixture
+def client_as(test_db_session):
+    """`client_as(role)`: a TestClient signed in as a new account holding `role`.
+
+    The overrides are app-wide, so every client made here answers as the
+    account of the latest call — use one at a time.
+    """
+    made = []
+
+    def _override_db():
+        try:
+            yield test_db_session
+        finally:
+            pass
+
+    def _client(role: str) -> TestClient:
+        user = User(
+            username=f"as_{role}_{len(made)}",
+            email=f"as_{role}_{len(made)}@test.com",
+            full_name=f"Test {role}",
+            # Never checked: the sign-in is overridden below.
+            hashed_password="unused",
+            role=role,
+            is_active=True,
+        )
+        test_db_session.add(user)
+        test_db_session.commit()
+        made.append(user)
+        app.dependency_overrides[get_db] = _override_db
+        app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_signed_in_user] = lambda: user
+        return TestClient(app, raise_server_exceptions=True)
+
+    yield _client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 async def async_client(test_db_session, admin_user):
     """Async HTTPX client using ASGI transport — for async test functions."""
     from httpx import AsyncClient, ASGITransport
@@ -395,3 +433,27 @@ def make_purchase_order(test_db_session, make_supplier):
         return po
 
     return _factory
+
+
+# ---------------------------------------------------------------------------
+# The shop's clock
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shop_clock(monkeypatch):
+    """Set the server's UTC clock as the API reads it: `shop_clock("2026-06-30 22:00")`.
+
+    Production runs in UTC and the shop is in Sydney, so for ten or eleven hours
+    a day the server's date is the day before the shop's. This machine is in
+    Sydney, so a test that does not set the clock never sees the difference.
+    """
+    from datetime import datetime, timezone
+
+    from app.core import shop_day
+
+    def set_utc(utc: str) -> None:
+        at = datetime.strptime(utc, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        monkeypatch.setattr(shop_day, "_utc_now", lambda: at)
+
+    return set_utc
