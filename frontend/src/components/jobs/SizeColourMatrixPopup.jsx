@@ -38,13 +38,13 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
   const addColour = (c) => { if (c && !colours.includes(c)) setColours(cs => [...cs, c]); };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 z-9999 flex items-center justify-center" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-fg">Size / Colour Matrix</h3>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-muted cursor-pointer select-none">
-              <input type="checkbox" checked={useColours} onChange={e => { setUseColours(e.target.checked); if (e.target.checked && colours.length === 0) setColours(['Black','White']); }} className="rounded" />
+              <input type="checkbox" checked={useColours} onChange={e => { setUseColours(e.target.checked); if (e.target.checked && colours.length === 0) setColours(['Black','White']); }} className="rounded-sm" />
               Track by colour
             </label>
             <button onClick={onClose}><X className="w-4 h-4 text-faint hover:text-muted" /></button>
@@ -80,7 +80,7 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
                     <td key={sz} className="border border-hairline p-0.5">
                       <input type="number" min="0" value={getQty(colour, sz) || ''}
                         onChange={e => setQty(colour, sz, e.target.value)}
-                        className="w-full text-center text-sm font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus rounded px-1 py-0.5" />
+                        className="w-full text-center text-sm font-mono focus:outline-hidden focus:ring-1 focus:ring-accent-focus rounded-sm px-1 py-0.5" />
                     </td>
                   ))}
                   <td className="px-2 py-1 border border-accent bg-accent-tint text-center font-bold text-accent-strong">
@@ -107,21 +107,21 @@ export default function SizeColourMatrixPopup({ current, onApply, onClose }) {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-muted font-medium">Add size:</span>
             {SIZE_PRESETS.filter(s => !sizes.includes(s)).slice(0, 8).map(s => (
-              <button key={s} onClick={() => addSize(s)} className="px-2 py-0.5 border border-hairline rounded hover:bg-hairline-soft">{s}</button>
+              <button key={s} onClick={() => addSize(s)} className="px-2 py-0.5 border border-hairline rounded-sm hover:bg-hairline-soft">{s}</button>
             ))}
             <input value={newSize} onChange={e => setNewSize(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSize.trim()) { addSize(newSize.trim()); setNewSize(''); }}}
-              placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus" />
+              placeholder="Custom…" className="w-20 border rounded-sm px-2 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" />
           </div>
           {useColours && (
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-muted font-medium">Add colour:</span>
               {COLOUR_PRESETS.filter(c => !colours.includes(c)).slice(0, 6).map(c => (
-                <button key={c} onClick={() => addColour(c)} className="px-2 py-0.5 border border-hairline rounded hover:bg-hairline-soft">{c}</button>
+                <button key={c} onClick={() => addColour(c)} className="px-2 py-0.5 border border-hairline rounded-sm hover:bg-hairline-soft">{c}</button>
               ))}
               <input value={newColour} onChange={e => setNewColour(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && newColour.trim()) { addColour(newColour.trim()); setNewColour(''); }}}
-                placeholder="Custom…" className="w-20 border rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus" />
+                placeholder="Custom…" className="w-20 border rounded-sm px-2 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" />
             </div>
           )}
         </div>

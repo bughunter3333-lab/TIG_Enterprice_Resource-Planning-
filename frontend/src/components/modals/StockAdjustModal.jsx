@@ -23,7 +23,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
               value={stockAdjustModal.adjustment}
               onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, adjustment: e.target.value })}
               placeholder="e.g. +10 or -5"
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+              className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
               style={{ border: `1px solid ${T.hairline}` }}
               autoFocus
             />
@@ -38,7 +38,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
               value={stockAdjustModal.reason}
               onChange={(e) => setStockAdjustModal({ ...stockAdjustModal, reason: e.target.value })}
               placeholder="e.g. Stocktake, Damaged goods..."
-              className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+              className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
               style={{ border: `1px solid ${T.hairline}` }}
             />
           </div>
@@ -46,7 +46,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
         <div className="flex justify-end space-x-2 mt-4 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
           <button
             onClick={() => setStockAdjustModal({ show: false, sku: '', name: '', currentStock: 0, adjustment: '', reason: '' })}
-            className="px-4 py-2 rounded"
+            className="px-4 py-2 rounded-sm"
             style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}
           >
             Cancel
@@ -64,7 +64,7 @@ export default function StockAdjustModal({ adjustStock, setStockAdjustModal, sto
               }
             }}
             disabled={adj === 0}
-            className="px-4 py-2 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="px-4 py-2 text-white rounded-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             style={{ background: T.accentStrong }}
           >
             <Box className="w-4 h-4 mr-2" />

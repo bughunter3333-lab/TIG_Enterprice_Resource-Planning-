@@ -29,7 +29,7 @@ function TextInput({ value, onChange, placeholder, type = 'text', disabled = fal
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
       style={{
         border: `1px solid ${T.hairline}`,
         background: disabled ? T.hairlineSoft : T.panel,
@@ -130,7 +130,7 @@ export default function SettingsModule({ currentUser }) {
                 rows={3}
                 disabled={!isAdmin}
                 placeholder="Street address, suburb, state, postcode"
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden resize-none"
                 style={{ border: `1px solid ${T.hairline}`, background: !isAdmin ? T.hairlineSoft : T.panel, color: !isAdmin ? T.textFaint : T.text }}
               />
             </FieldRow>
@@ -162,7 +162,7 @@ export default function SettingsModule({ currentUser }) {
             <FieldRow label="Default Payment Terms">
               <select value={form.payment_terms_default || 'Net 30'} onChange={e => set('payment_terms_default', e.target.value)}
                 disabled={!isAdmin}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}`, background: !isAdmin ? T.hairlineSoft : T.panel, color: !isAdmin ? T.textFaint : T.text }}>
                 {['Net 7','Net 14','Net 21','Net 30','Net 60','COD','Prepaid'].map(t => (
                   <option key={t} value={t}>{t}</option>
@@ -228,7 +228,7 @@ export default function SettingsModule({ currentUser }) {
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: T.text }}>
                   <input type="checkbox" checked={!!form.smtp_use_tls} onChange={e => set('smtp_use_tls', e.target.checked)}
-                    disabled={!isAdmin} className="w-4 h-4 rounded" style={{ borderColor: T.hairline }} />
+                    disabled={!isAdmin} className="w-4 h-4 rounded-sm" style={{ borderColor: T.hairline }} />
                   Use STARTTLS (port 587, recommended)
                 </label>
               </div>
@@ -308,7 +308,7 @@ export default function SettingsModule({ currentUser }) {
                 value={form.tyro_environment || 'sandbox'}
                 onChange={e => set('tyro_environment', e.target.value)}
                 disabled={!isAdmin}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}`, background: !isAdmin ? T.hairlineSoft : T.panel, color: !isAdmin ? T.textFaint : T.text }}
               >
                 <option value="sandbox">Sandbox (testing)</option>

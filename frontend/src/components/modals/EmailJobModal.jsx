@@ -44,7 +44,7 @@ export default function EmailJobModal({ job, customers, onClose }) {
           <span className="font-semibold text-fg">Email {isQuote ? 'Quote' : 'Invoice'}</span>
           <span className="text-xs text-faint font-mono">#{job.invoice || job.id}</span>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-hairline-soft rounded"><X className="w-4 h-4" /></button>
+        <button onClick={onClose} className="p-1 hover:bg-hairline-soft rounded-sm"><X className="w-4 h-4" /></button>
       </div>
       {sent ? (
         <div className="px-6 py-10 text-center">
@@ -57,22 +57,22 @@ export default function EmailJobModal({ job, customers, onClose }) {
           <div>
             <label className="block text-xs font-medium text-muted mb-1">To *</label>
             <input type="email" value={form.to_email} onChange={e => setForm({ ...form, to_email: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" placeholder="customer@example.com" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" placeholder="customer@example.com" />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted mb-1">CC</label>
             <input type="email" value={form.cc} onChange={e => setForm({ ...form, cc: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" placeholder="optional" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" placeholder="optional" />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted mb-1">Subject</label>
             <input type="text" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted mb-1">Type</label>
             <select value={form.email_type} onChange={e => setForm({ ...form, email_type: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus">
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus">
               <option value="invoice">Invoice</option>
               <option value="quote">Quote</option>
               <option value="reminder">Payment Reminder</option>
@@ -82,7 +82,7 @@ export default function EmailJobModal({ job, customers, onClose }) {
             <label className="block text-xs font-medium text-muted mb-1">Message (optional)</label>
             <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
               rows={4} placeholder="Add a personal note…"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none" />
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus resize-none" />
           </div>
           {error && <p className="text-xs text-danger">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">

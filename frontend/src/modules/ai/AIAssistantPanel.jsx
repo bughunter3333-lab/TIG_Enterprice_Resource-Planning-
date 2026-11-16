@@ -32,7 +32,7 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
         const indent = bulletMatch[1].length;
         return (
           <div key={i} className="flex text-xs leading-relaxed" style={{ paddingLeft: indent * 6 }}>
-            <span className="mr-1.5 text-accent flex-shrink-0">•</span>
+            <span className="mr-1.5 text-accent shrink-0">•</span>
             <span>{renderInline(bulletMatch[2])}</span>
           </div>
         );
@@ -161,7 +161,7 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
             {aiMessages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-end gap-1.5`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-full bg-accent-tint flex items-center justify-center flex-shrink-0 mb-0.5">
+                  <div className="w-6 h-6 rounded-full bg-accent-tint flex items-center justify-center shrink-0 mb-0.5">
                     <Bot className="w-3.5 h-3.5 text-accent-strong" />
                   </div>
                 )}
@@ -187,7 +187,7 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
                   </div>
                 </div>
                 {msg.role === 'user' && (
-                  <div className="w-6 h-6 rounded-full bg-accent-strong flex items-center justify-center flex-shrink-0 mb-0.5">
+                  <div className="w-6 h-6 rounded-full bg-accent-strong flex items-center justify-center shrink-0 mb-0.5">
                     <User className="w-3.5 h-3.5 text-white" />
                   </div>
                 )}
@@ -195,7 +195,7 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
             ))}
             {aiLoading && (
               <div className="flex items-end gap-1.5">
-                <div className="w-6 h-6 rounded-full bg-accent-tint flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 rounded-full bg-accent-tint flex items-center justify-center shrink-0">
                   <Bot className="w-3.5 h-3.5 text-accent-strong" />
                 </div>
                 <div className="bg-hairline-soft px-3 py-2.5 rounded-2xl rounded-bl-sm">
@@ -219,12 +219,12 @@ export default function AIAssistantPanel({ aiClaudeEnabled, aiDragOffset, aiEndR
                 onChange={e => setAiInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendAiMessage()}
                 placeholder="Ask about jobs, revenue, stock, forecasts…"
-                className="flex-1 border border-hairline rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-accent-focus bg-panel-alt"
+                className="flex-1 border border-hairline rounded-xl px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-accent-focus bg-panel-alt"
               />
               <button
                 onClick={sendAiMessage}
                 disabled={aiLoading || !aiInput.trim()}
-                className="w-8 h-8 flex-shrink-0 bg-accent-strong text-white rounded-xl flex items-center justify-center hover:bg-accent-strong disabled:opacity-40 transition-colors"
+                className="w-8 h-8 shrink-0 bg-accent-strong text-white rounded-xl flex items-center justify-center hover:bg-accent-strong disabled:opacity-40 transition-colors"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

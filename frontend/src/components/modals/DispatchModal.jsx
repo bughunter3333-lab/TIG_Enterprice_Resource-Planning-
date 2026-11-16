@@ -48,25 +48,25 @@ export default function DispatchModal({ dispatchModal, onJobUpdated, setDispatch
         <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><Box className="w-5 h-5" style={{ color: T.accentStrong }} />Dispatch Job #{dispatchModal.job?.id}</h3>
         <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
       </div>
-      {dispatchModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, border: `1px solid ${T.danger}` }}>{dispatchModal.error}</p>}
+      {dispatchModal.error && <p className="text-sm mb-3 px-3 py-2 rounded-sm" style={{ color: T.danger, border: `1px solid ${T.danger}` }}>{dispatchModal.error}</p>}
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Via *</label>
-            <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
+            <input value={dispatchModal.shipVia} onChange={e => setDispatchModal(m => ({ ...m, shipVia: e.target.value }))} placeholder="e.g. StarTrack, Australia Post" className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} autoFocus />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Ship Reference *</label>
-            <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
+            <input value={dispatchModal.shipRef} onChange={e => setDispatchModal(m => ({ ...m, shipRef: e.target.value }))} placeholder="Tracking number" className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
           </div>
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>No. of Cartons</label>
-          <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
+          <input type="number" min="1" value={dispatchModal.cartons} onChange={e => setDispatchModal(m => ({ ...m, cartons: parseInt(e.target.value) || 1 }))} className="w-32 rounded-sm px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
         </div>
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: T.textMuted }}>Notes</label>
-          <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
+          <input value={dispatchModal.notes} onChange={e => setDispatchModal(m => ({ ...m, notes: e.target.value }))} placeholder="Optional notes" className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={{ border: `1px solid ${T.hairline}` }} />
         </div>
         {FINISHED_STATUSES.includes(dispatchModal.job?.status) && (
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: T.text }}>
@@ -76,8 +76,8 @@ export default function DispatchModal({ dispatchModal, onJobUpdated, setDispatch
         )}
       </div>
       <div className="flex justify-end gap-2 mt-5 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
-        <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
-        <button onClick={submit} disabled={dispatchModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
+        <button onClick={close} className="px-4 py-2 rounded-sm text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+        <button onClick={submit} disabled={dispatchModal.loading} className="px-4 py-2 text-white rounded-sm text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
           <Truck className="w-4 h-4" />{dispatchModal.loading ? 'Dispatching...' : 'Confirm Dispatch'}
         </button>
       </div>

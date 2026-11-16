@@ -119,16 +119,16 @@ export default function POGoodsReceiptsPanel({ po }) {
         <div className="bg-ok-tint border border-ok rounded-lg p-3 space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Landed at</label>
-              <select className="w-full border rounded px-2 py-1 text-xs" value={grBranch} onChange={e => setGrBranch(e.target.value)}>
+              <select className="w-full border rounded-sm px-2 py-1 text-xs" value={grBranch} onChange={e => setGrBranch(e.target.value)}>
                 {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
               </select></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Delivery Reference</label>
-              <input className="w-full border rounded px-2 py-1 text-xs" value={grRef} onChange={e => setGrRef(e.target.value)} placeholder="e.g. DEL-001234" /></div>
+              <input className="w-full border rounded-sm px-2 py-1 text-xs" value={grRef} onChange={e => setGrRef(e.target.value)} placeholder="e.g. DEL-001234" /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Notes</label>
-              <input className="w-full border rounded px-2 py-1 text-xs" value={grNotes} onChange={e => setGrNotes(e.target.value)} /></div>
+              <input className="w-full border rounded-sm px-2 py-1 text-xs" value={grNotes} onChange={e => setGrNotes(e.target.value)} /></div>
           </div>
-          {err && <p className="text-xs text-danger bg-danger-tint border border-danger rounded px-2 py-1">{err}</p>}
-          <table className="w-full text-xs border rounded overflow-hidden">
+          {err && <p className="text-xs text-danger bg-danger-tint border border-danger rounded-sm px-2 py-1">{err}</p>}
+          <table className="w-full text-xs border rounded-sm overflow-hidden">
             <thead className="bg-hairline-soft border-b">
               <tr>
                 {['SKU','Expected','Received','Condition'].map(h => <th key={h} className="text-left px-2 py-1.5 font-semibold text-muted">{h}</th>)}
@@ -143,12 +143,12 @@ export default function POGoodsReceiptsPanel({ po }) {
                     <input type="number" min="0" max={ln.qtyExpected}
                       value={formLines[idx].qtyReceived}
                       onChange={e => setFormLines(lines => lines.map((l, i) => i === idx ? { ...l, qtyReceived: parseInt(e.target.value) || 0 } : l))}
-                      className="w-16 border rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-ok" />
+                      className="w-16 border rounded-sm px-1.5 py-0.5 text-center focus:outline-hidden focus:ring-1 focus:ring-accent-focus font-semibold text-ok" />
                   </td>
                   <td className="px-2 py-1.5">
                     <select value={formLines[idx].condition}
                       onChange={e => setFormLines(lines => lines.map((l, i) => i === idx ? { ...l, condition: e.target.value } : l))}
-                      className="border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus">
+                      className="border rounded-sm px-1.5 py-0.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus">
                       {['Good','Damaged','Short','Surplus'].map(c => <option key={c}>{c}</option>)}
                     </select>
                   </td>
@@ -187,16 +187,16 @@ export default function POGoodsReceiptsPanel({ po }) {
                           <td className="px-2 py-1">
                             <input value={c.description} placeholder="e.g. Sea freight"
                               onChange={e => setCharge(idx, { description: e.target.value })}
-                              className="w-full border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" />
+                              className="w-full border rounded-sm px-1.5 py-0.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" />
                           </td>
                           <td className="px-2 py-1">
                             <input type="number" min="0" step="0.01" value={c.amount} placeholder="0.00"
                               onChange={e => setCharge(idx, { amount: e.target.value })}
-                              className="w-24 border rounded px-1.5 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-accent-focus" />
+                              className="w-24 border rounded-sm px-1.5 py-0.5 text-xs text-right focus:outline-hidden focus:ring-1 focus:ring-accent-focus" />
                           </td>
                           <td className="px-2 py-1">
                             <select value={c.basis} onChange={e => setCharge(idx, { basis: e.target.value })}
-                              className="border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus"
+                              className="border rounded-sm px-1.5 py-0.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus"
                               title="Value spreads by line value (duty, insurance). Qty spreads per unit (freight).">
                               <option value="value">Line value</option>
                               <option value="qty">Units</option>
@@ -234,7 +234,7 @@ export default function POGoodsReceiptsPanel({ po }) {
       )}
 
       {loadError ? (
-        <p role="alert" className="text-xs text-danger bg-danger-tint border border-danger rounded px-2 py-1">
+        <p role="alert" className="text-xs text-danger bg-danger-tint border border-danger rounded-sm px-2 py-1">
           Couldn't load goods receipts: {loadError.message || String(loadError)}
         </p>
       ) : receipts.length === 0 && !showForm ? (
@@ -248,7 +248,7 @@ export default function POGoodsReceiptsPanel({ po }) {
               <span className="text-xs text-faint">{gr.receivedDate}</span>
               {gr.reference && <span className="text-xs text-muted">· {gr.reference}</span>}
               {gr.landedTotal > 0 && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent-tint text-accent-strong"
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm bg-accent-tint text-accent-strong"
                   title={(gr.charges || []).map(c => `${c.description}: $${c.amount.toFixed(2)} (${c.basis})`).join('\n')}>
                   +${gr.landedTotal.toFixed(2)} landed
                 </span>
@@ -257,16 +257,16 @@ export default function POGoodsReceiptsPanel({ po }) {
                 {gr.status === 'Pending' && (
                   <>
                     <button onClick={() => accept(gr.id)}
-                      className="px-2 py-0.5 text-[10px] bg-ok text-white rounded font-semibold hover:bg-ok">Accept</button>
+                      className="px-2 py-0.5 text-[10px] bg-ok text-white rounded-sm font-semibold hover:bg-ok">Accept</button>
                     <button onClick={() => reject(gr.id)}
-                      className="px-2 py-0.5 text-[10px] bg-danger-tint text-danger rounded font-semibold hover:bg-danger">Reject</button>
+                      className="px-2 py-0.5 text-[10px] bg-danger-tint text-danger rounded-sm font-semibold hover:bg-danger">Reject</button>
                   </>
                 )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {(gr.lines || []).map(ln => (
-                <div key={ln.id} className="flex items-center gap-1 text-[10px] bg-panel-alt border border-hairline-soft rounded px-2 py-1">
+                <div key={ln.id} className="flex items-center gap-1 text-[10px] bg-panel-alt border border-hairline-soft rounded-sm px-2 py-1">
                   <span className="font-mono font-bold text-accent-strong">{ln.sku}</span>
                   <span className={ln.condition !== 'Good' ? 'text-accent-strong font-semibold' : 'text-muted'}>×{ln.qtyReceived}</span>
                   {ln.condition !== 'Good' && <span className="text-accent-strong">({ln.condition})</span>}

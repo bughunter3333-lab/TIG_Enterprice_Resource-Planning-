@@ -31,10 +31,10 @@ export default function UnprintModal({ onJobUpdated, setUnprintModal, unprintMod
       </div>
       <p className="text-sm mb-2" style={{ color: T.text }}>This will revert the job from <span className="font-semibold text-accent-strong">{statusLabel(unprintModal.job?.status)}</span> back to <span className="font-semibold" style={{ color: T.accentStrong }}>{statusLabel('FINISH')}</span>.</p>
       <p className="text-xs mb-4" style={{ color: T.textMuted }}>An internal comment will be added recording this action. Use this to recall and re-issue an invoice.</p>
-      {unprintModal.error && <p className="text-sm mb-3 px-3 py-2 rounded" style={{ color: T.danger, background: T.dangerTint }}>{unprintModal.error}</p>}
+      {unprintModal.error && <p className="text-sm mb-3 px-3 py-2 rounded-sm" style={{ color: T.danger, background: T.dangerTint }}>{unprintModal.error}</p>}
       <div className="flex justify-end gap-2 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
-        <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
-        <button onClick={confirm} disabled={unprintModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
+        <button onClick={close} className="px-4 py-2 rounded-sm text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+        <button onClick={confirm} disabled={unprintModal.loading} className="px-4 py-2 text-white rounded-sm text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.accentStrong }}>
           <Printer className="w-4 h-4" />{unprintModal.loading ? 'Reverting...' : 'Confirm Unprint'}
         </button>
       </div>

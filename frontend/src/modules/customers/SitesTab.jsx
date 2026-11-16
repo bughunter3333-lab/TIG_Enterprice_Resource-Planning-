@@ -25,7 +25,7 @@ export function siteProblems(form) {
   return problems;
 }
 
-const inp = 'w-full rounded border px-2 py-1 text-sm';
+const inp = 'w-full rounded-sm border px-2 py-1 text-sm';
 
 function SiteForm({ initial, editing, busy, onSave, onCancel }) {
   const [form, setForm] = useState(initial);
@@ -47,7 +47,7 @@ function SiteForm({ initial, editing, busy, onSave, onCancel }) {
     onSave(editing ? rest : { code: code.trim(), ...rest });
   };
   return (
-    <form onSubmit={submit} aria-label={editing ? `Edit site ${initial.code}` : 'New site'} className="grid grid-cols-2 gap-2 p-3 rounded border border-hairline bg-panel-alt">
+    <form onSubmit={submit} aria-label={editing ? `Edit site ${initial.code}` : 'New site'} className="grid grid-cols-2 gap-2 p-3 rounded-sm border border-hairline bg-panel-alt">
       {field('code', 'Site code', { disabled: editing, maxLength: 20 })}
       {field('name', 'Site name')}
       <div className="col-span-2">{field('address', 'Street address')}</div>
@@ -66,8 +66,8 @@ function SiteForm({ initial, editing, busy, onSave, onCancel }) {
         The customer's usual site
       </label>
       <div className="col-span-2 flex gap-2 justify-end">
-        <button type="button" onClick={onCancel} className="px-3 py-1 text-sm rounded border">Cancel</button>
-        <button type="submit" disabled={busy} className="px-3 py-1 text-sm rounded bg-accent text-white">{editing ? 'Save site' : 'Add site'}</button>
+        <button type="button" onClick={onCancel} className="px-3 py-1 text-sm rounded-sm border">Cancel</button>
+        <button type="submit" disabled={busy} className="px-3 py-1 text-sm rounded-sm bg-accent text-white">{editing ? 'Save site' : 'Add site'}</button>
       </div>
     </form>
   );
@@ -157,7 +157,7 @@ export default function SitesTab({ customerId }) {
       {canEdit && (editing === 'new' ? (
         <SiteForm initial={BLANK} busy={create.isPending} onSave={(site) => create.mutate(site)} onCancel={() => setEditing(null)} />
       ) : (
-        <button type="button" onClick={() => setEditing('new')} className="px-3 py-1 text-sm rounded border">Add a site</button>
+        <button type="button" onClick={() => setEditing('new')} className="px-3 py-1 text-sm rounded-sm border">Add a site</button>
       ))}
     </div>
   );

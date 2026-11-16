@@ -28,7 +28,7 @@ export default function StocktakeModal({ setStocktakeModal, stocktakeModal }) {
       {stocktakeModal.results ? (
         <>
           <p className="text-sm font-medium mb-3" style={{ color: T.ok }}>Stocktake complete — {stocktakeModal.results.reference}</p>
-          <div className="overflow-auto flex-1 rounded" style={{ border: `1px solid ${T.hairline}` }}>
+          <div className="overflow-auto flex-1 rounded-sm" style={{ border: `1px solid ${T.hairline}` }}>
             <table className="w-full text-xs">
               <thead className="sticky top-0" style={{ background: T.hairlineSoft }}><tr>{['SKU','Previous','Counted','Variance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr></thead>
               <tbody>
@@ -43,26 +43,26 @@ export default function StocktakeModal({ setStocktakeModal, stocktakeModal }) {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-end pt-3"><button onClick={close} className="px-4 py-2 text-white rounded text-sm" style={{ background: T.textMuted }}>Close</button></div>
+          <div className="flex justify-end pt-3"><button onClick={close} className="px-4 py-2 text-white rounded-sm text-sm" style={{ background: T.textMuted }}>Close</button></div>
         </>
       ) : (
         <>
           <div className="flex items-center gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Method</label>
-              <select value={stocktakeModal.method} onChange={e => setStocktakeModal(m => ({ ...m, method: e.target.value }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+              <select value={stocktakeModal.method} onChange={e => setStocktakeModal(m => ({ ...m, method: e.target.value }))} className="rounded-sm px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                 <option>Informed</option><option>Blind</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Branch counted</label>
-              <select value={stocktakeModal.branch} onChange={e => setStocktakeModal(m => ({ ...m, branch: e.target.value }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+              <select value={stocktakeModal.branch} onChange={e => setStocktakeModal(m => ({ ...m, branch: e.target.value }))} className="rounded-sm px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                 {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Reference</label>
-              <input value={stocktakeModal.reference} onChange={e => setStocktakeModal(m => ({ ...m, reference: e.target.value }))} placeholder="auto-generated if blank" className="rounded px-3 py-1.5 text-sm w-44" style={{ border: `1px solid ${T.hairline}` }} />
+              <input value={stocktakeModal.reference} onChange={e => setStocktakeModal(m => ({ ...m, reference: e.target.value }))} placeholder="auto-generated if blank" className="rounded-sm px-3 py-1.5 text-sm w-44" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
           </div>
           <p className="text-xs mb-3" style={{ color: T.textMuted }}>
@@ -70,7 +70,7 @@ export default function StocktakeModal({ setStocktakeModal, stocktakeModal }) {
             units are in front of you, so they stop being unlocated.
           </p>
           {stocktakeModal.error && <p className="text-sm mb-3" style={{ color: T.danger }}>{stocktakeModal.error}</p>}
-          <div className="overflow-auto flex-1 rounded mb-4" style={{ border: `1px solid ${T.hairline}` }}>
+          <div className="overflow-auto flex-1 rounded-sm mb-4" style={{ border: `1px solid ${T.hairline}` }}>
             <table className="w-full text-xs">
               <thead className="sticky top-0" style={{ background: T.hairlineSoft }}><tr>{['SKU','Name','System Qty',stocktakeModal.method === 'Blind' ? 'Counted Qty' : 'Counted Qty'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr></thead>
               <tbody>
@@ -79,15 +79,15 @@ export default function StocktakeModal({ setStocktakeModal, stocktakeModal }) {
                     <td className="px-3 py-1 font-mono" style={{ color: T.text }}>{item.sku}</td>
                     <td className="px-3 py-1" style={{ color: T.text }}>{item.name}</td>
                     <td className="px-3 py-1" style={{ color: T.textMuted }}>{stocktakeModal.method === 'Blind' ? '—' : item.currentStock}</td>
-                    <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-accent bg-accent-tint' : ''}`} /></td>
+                    <td className="px-3 py-0.5"><input type="number" min="0" value={item.countedQty} onChange={e => updateCount(item.sku, e.target.value)} className={`w-20 border rounded-sm px-2 py-1 text-xs ${item.countedQty !== item.currentStock ? 'border-accent bg-accent-tint' : ''}`} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <div className="flex justify-end gap-2 pt-3" style={{ borderTop: `1px solid ${T.hairline}` }}>
-            <button onClick={close} className="px-4 py-2 rounded text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
-            <button onClick={submit} disabled={stocktakeModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.ok }}>
+            <button onClick={close} className="px-4 py-2 rounded-sm text-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}>Cancel</button>
+            <button onClick={submit} disabled={stocktakeModal.loading} className="px-4 py-2 text-white rounded-sm text-sm disabled:opacity-50 flex items-center gap-2" style={{ background: T.ok }}>
               <CheckSquare className="w-4 h-4" />{stocktakeModal.loading ? 'Saving...' : 'Commit Stocktake'}
             </button>
           </div>

@@ -125,7 +125,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
             <thead style={{ background: T.hairlineSoft, borderBottom: `1px solid ${T.hairline}` }}>
               <tr>
                 <th className="w-8 px-3 py-2.5">
-                  <input type="checkbox" className="rounded" checked={orderReqSelected.size === reqs.length && reqs.length > 0} onChange={toggleAll} />
+                  <input type="checkbox" className="rounded-sm" checked={orderReqSelected.size === reqs.length && reqs.length > 0} onChange={toggleAll} />
                 </th>
                 {orderReqTab === 'garment' ? (
                   <>
@@ -159,7 +159,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                     style={{ background: checked ? T.hairlineSoft : T.panel, borderBottom: `1px solid ${T.hairline}` }}
                     onClick={() => toggleGroup(key)}>
                     <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" className="rounded" checked={checked} onChange={() => toggleGroup(key)} />
+                      <input type="checkbox" className="rounded-sm" checked={checked} onChange={() => toggleGroup(key)} />
                     </td>
                     {orderReqTab === 'garment' ? (
                       <>
@@ -173,7 +173,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                           <div className="flex flex-wrap gap-1">
                             {req.jobs.map(j => (
                               <button key={j.item_id} onClick={e => { e.stopPropagation(); const job = jobs.find(jb => jb.id === j.job_id); if (job) { pinJob(job); setActiveModule('jobs'); } }}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm font-mono text-[10px] transition-colors"
                                 style={{ background: T.hairlineSoft, color: T.textMuted }}
                                 title={`${j.customer_name} — ${j.b_ord} units`}>
                                 #{j.job_id} <span className="text-accent font-bold">×{j.b_ord}</span>
@@ -185,7 +185,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                     ) : (
                       <>
                         <td className="px-3 py-2.5">
-                          {(() => { const d = DEC_OPTIONS.find(o => o.v === req.decoration_type); return d ? <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold ${d.pill}`}>{d.emoji} {d.l}</span> : req.decoration_type; })()}
+                          {(() => { const d = DEC_OPTIONS.find(o => o.v === req.decoration_type); return d ? <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border text-xs font-semibold ${d.pill}`}>{d.emoji} {d.l}</span> : req.decoration_type; })()}
                         </td>
                         <td className="px-3 py-2.5 font-mono font-semibold" style={{ color: T.accentStrong }}>{req.sku || <span style={{ color: T.textFaint }}>—</span>}</td>
                         <td className="px-3 py-2.5" style={{ color: T.text }}>{req.description}</td>
@@ -201,7 +201,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                           <div className="flex flex-wrap gap-1">
                             {req.jobs.map(j => (
                               <button key={j.item_id} onClick={e => { e.stopPropagation(); const job = jobs.find(jb => jb.id === j.job_id); if (job) { pinJob(job); setActiveModule('jobs'); } }}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] transition-colors"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm font-mono text-[10px] transition-colors"
                                 style={{ background: T.hairlineSoft, color: T.textMuted }}
                                 title={`${j.customer_name} — ${j.qty} units`}>
                                 #{j.job_id} <span className="text-accent font-bold">×{j.qty}</span>
@@ -255,7 +255,7 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>PO Number *</label>
                 <input value={orderReqPoModal.poId} onChange={e => setOrderReqPoModal(m => ({ ...m, poId: e.target.value }))}
-                  className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                  className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                   style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="PO-20260429" />
               </div>
               <div>
@@ -267,21 +267,21 @@ export default function OrderRequirementsModule({ decorationReqs, garmentReqs, j
                     const d = new Date(e.target.value + 'T00:00:00');
                     setOrderReqPoModal(m => ({ ...m, expectedDate: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` }));
                   }}
-                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                  className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                   style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
               </div>
             </div>
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Supplier</label>
               <input value={orderReqPoModal.supplierName} onChange={e => setOrderReqPoModal(m => ({ ...m, supplierName: e.target.value, supplierId: '' }))}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                 style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Supplier name…" list="req-supp-list" />
               <datalist id="req-supp-list">{suppliers.map(s => <option key={s.code} value={s.name} />)}</datalist>
             </div>
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Notes</label>
               <textarea value={orderReqPoModal.notes} onChange={e => setOrderReqPoModal(m => ({ ...m, notes: e.target.value }))} rows={2}
-                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus resize-none"
                 style={{ border: `1px solid ${T.hairline}`, color: T.text }} placeholder="Optional notes…" />
             </div>
             {/* Preview */}

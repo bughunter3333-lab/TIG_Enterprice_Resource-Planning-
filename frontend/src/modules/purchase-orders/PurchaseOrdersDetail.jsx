@@ -42,7 +42,7 @@ export default function PurchaseOrdersDetail({ exportToCSV, openModal, poStatusF
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-black text-accent-strong">{selectedPO.id}</span>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${statusMeta[selectedPO.status]?.cls}`}>{selectedPO.status}</span>
-                  {isOverdue(selectedPO) && <span className="text-[10px] font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded">OVERDUE</span>}
+                  {isOverdue(selectedPO) && <span className="text-[10px] font-bold text-danger bg-danger-tint px-1.5 py-0.5 rounded-sm">OVERDUE</span>}
                 </div>
                 <p className="text-sm text-muted mt-0.5">{selectedPO.supplier}</p>
                 <p className="text-xs text-faint mt-0.5">Ordered: {selectedPO.date||'—'} · Expected: {selectedPO.expectedDate||'—'}</p>
@@ -75,7 +75,7 @@ export default function PurchaseOrdersDetail({ exportToCSV, openModal, poStatusF
                     const isDone = item.qtyReceived >= item.qtyOrdered;
                     return (
                       <tr key={item.id} className={`hover:bg-panel-alt transition-colors ${isDone?'opacity-60':''}`}>
-                        <td className="px-4 py-3"><span className="font-mono text-xs font-bold text-accent-strong bg-accent-tint px-2 py-0.5 rounded">{item.sku||'—'}</span></td>
+                        <td className="px-4 py-3"><span className="font-mono text-xs font-bold text-accent-strong bg-accent-tint px-2 py-0.5 rounded-sm">{item.sku||'—'}</span></td>
                         <td className="px-4 py-3 text-sm text-header max-w-[140px] truncate">{item.description||'—'}</td>
                         <td className="px-3 py-3 text-center font-semibold text-sm">{item.qtyOrdered}</td>
                         <td className="px-3 py-3 text-center">
@@ -92,7 +92,7 @@ export default function PurchaseOrdersDetail({ exportToCSV, openModal, poStatusF
                               value={receiveQtys[key]||''}
                               onChange={e=>setReceiveQtys(prev=>({...prev,[key]:e.target.value}))}
                               placeholder={`0–${remaining}`}
-                              className="w-20 text-center border border-hairline rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"/>
+                              className="w-20 text-center border border-hairline rounded-lg px-2 py-1 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"/>
                           ) : <span className="text-ok text-xs font-bold">✓ Complete</span>}
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums">${(item.total||0).toFixed(2)}</td>

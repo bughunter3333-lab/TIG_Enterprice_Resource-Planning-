@@ -37,7 +37,7 @@ export function logoProblems(form) {
   return problems;
 }
 
-const inp = 'w-full rounded border px-2 py-1 text-sm';
+const inp = 'w-full rounded-sm border px-2 py-1 text-sm';
 
 function AddLogo({ customerId, decorators, onDone }) {
   const [form, setForm] = useState(BLANK);
@@ -67,7 +67,7 @@ function AddLogo({ customerId, decorators, onDone }) {
     </label>
   );
   return (
-    <form onSubmit={submit} className="grid grid-cols-3 gap-2 p-3 mb-4 rounded border bg-panel-alt" aria-label="New logo">
+    <form onSubmit={submit} className="grid grid-cols-3 gap-2 p-3 mb-4 rounded-sm border bg-panel-alt" aria-label="New logo">
       {field('code', 'Code', <input className={inp} value={form.code} onChange={set('code')} placeholder="EMB.CFG.LHC" />)}
       {field('name', 'Name', <input className={inp} value={form.name} onChange={set('name')} placeholder="Left chest" />)}
       {field('decorationType', 'Method', (
@@ -92,8 +92,8 @@ function AddLogo({ customerId, decorators, onDone }) {
       {field('priceEx', 'Price ex GST', <input className={inp} inputMode="decimal" value={form.priceEx} onChange={set('priceEx')} />)}
       {field('costEx', 'Cost ex GST', <input className={inp} inputMode="decimal" value={form.costEx} onChange={set('costEx')} />)}
       <div className="col-span-3 flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="text-xs px-3 py-1.5 rounded border text-muted">Cancel</button>
-        <button type="submit" disabled={save.isPending} className="text-xs px-3 py-1.5 rounded bg-accent-strong text-white disabled:opacity-50">
+        <button type="button" onClick={onDone} className="text-xs px-3 py-1.5 rounded-sm border text-muted">Cancel</button>
+        <button type="submit" disabled={save.isPending} className="text-xs px-3 py-1.5 rounded-sm bg-accent-strong text-white disabled:opacity-50">
           {save.isPending ? 'Saving…' : 'Add logo'}
         </button>
       </div>
@@ -148,7 +148,7 @@ function EditLogo({ logo, customerId, decorators, onDone }) {
     </label>
   );
   return (
-    <form onSubmit={submit} className="grid grid-cols-3 gap-2 p-3 mb-4 rounded border bg-panel-alt" aria-label={`Edit ${logo.code}`}>
+    <form onSubmit={submit} className="grid grid-cols-3 gap-2 p-3 mb-4 rounded-sm border bg-panel-alt" aria-label={`Edit ${logo.code}`}>
       <p className="col-span-3 text-sm font-mono font-bold">{logo.code} <span className="font-sans font-normal text-muted">{logo.decorationType}</span></p>
       {field('position', 'Position', <input className={inp} value={form.position} onChange={set('position')} />)}
       {field('stitchCount', 'Stitches', <input className={inp} inputMode="numeric" value={form.stitchCount} onChange={set('stitchCount')} />)}
@@ -171,8 +171,8 @@ function EditLogo({ logo, customerId, decorators, onDone }) {
         Active
       </label>
       <div className="col-span-3 flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="text-xs px-3 py-1.5 rounded border text-muted">Cancel</button>
-        <button type="submit" disabled={save.isPending || Object.keys(changes).length === 0} className="text-xs px-3 py-1.5 rounded bg-accent-strong text-white disabled:opacity-50">
+        <button type="button" onClick={onDone} className="text-xs px-3 py-1.5 rounded-sm border text-muted">Cancel</button>
+        <button type="submit" disabled={save.isPending || Object.keys(changes).length === 0} className="text-xs px-3 py-1.5 rounded-sm bg-accent-strong text-white disabled:opacity-50">
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -215,7 +215,7 @@ export default function LogosTab({ customerId }) {
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-muted">A job line carrying a logo's code applies it — at its price, never bought as stock.</p>
         {canAdd && !adding && (
-          <button onClick={() => setAdding(true)} className="text-xs px-3 py-1.5 rounded bg-accent-strong text-white">New logo</button>
+          <button onClick={() => setAdding(true)} className="text-xs px-3 py-1.5 rounded-sm bg-accent-strong text-white">New logo</button>
         )}
       </div>
       {adding && <AddLogo customerId={customerId} decorators={decorators} onDone={() => setAdding(false)} />}

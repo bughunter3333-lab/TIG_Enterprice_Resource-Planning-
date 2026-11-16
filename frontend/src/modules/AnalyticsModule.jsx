@@ -498,15 +498,15 @@ function renderDsoTab({ dsoQuery }) {
           <div>
             <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: T.textMuted }}>Accounts Status</span>
             <div className="grid grid-cols-3 gap-1 mt-3 text-center">
-              <div className="bg-ok-tint p-1.5 rounded">
+              <div className="bg-ok-tint p-1.5 rounded-sm">
                 <p className="text-[10px] text-ok font-bold">Paid</p>
                 <p className="text-sm font-semibold text-ok">{data.paid_jobs_count}</p>
               </div>
-              <div className="bg-accent-tint p-1.5 rounded">
+              <div className="bg-accent-tint p-1.5 rounded-sm">
                 <p className="text-[10px] text-accent-strong font-bold">Partial</p>
                 <p className="text-sm font-semibold text-accent-strong">{data.partially_paid_jobs_count}</p>
               </div>
-              <div className="bg-danger-tint p-1.5 rounded">
+              <div className="bg-danger-tint p-1.5 rounded-sm">
                 <p className="text-[10px] text-danger font-bold">Unpaid</p>
                 <p className="text-sm font-semibold text-danger">{data.unpaid_invoices_count}</p>
               </div>
@@ -624,7 +624,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
               <h3 className="font-bold text-sm" style={{ color: T.text }}>Stagnant Backlog Alert Log</h3>
               <p className="text-[11px]" style={{ color: T.textMuted }}>Active jobs exceeding 1.5x average turnaround ({Math.round(data.average_turnaround_days * 1.5)} days)</p>
             </div>
-            <div className="bg-danger-tint text-danger px-2 py-1 rounded text-xs font-bold">
+            <div className="bg-danger-tint text-danger px-2 py-1 rounded-sm text-xs font-bold">
               {data.backlog.at_risk_count} At-Risk
             </div>
           </div>
@@ -650,7 +650,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                       <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
                       <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{statusLabel(j.status)}</span>
+                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded-sm text-[10px] font-semibold">{statusLabel(j.status)}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-danger">{j.days_open} days</td>
                     </tr>
@@ -684,7 +684,7 @@ function renderAbcTab({ abcQuery }) {
               <span className="text-[11px] font-bold text-accent-strong uppercase tracking-wider">A Items (Top 80% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.a_value)}</p>
             </div>
-            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded font-bold">{sum.a_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded-sm font-bold">{sum.a_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.a_skus_count} SKUs. Represent 80% of total cash valuation.</p>
         </div>
@@ -696,7 +696,7 @@ function renderAbcTab({ abcQuery }) {
               <span className="text-[11px] font-bold text-ok uppercase tracking-wider">B Items (Next 15% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.b_value)}</p>
             </div>
-            <span className="text-xs bg-ok-tint text-ok px-2 py-0.5 rounded font-bold">{sum.b_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-ok-tint text-ok px-2 py-0.5 rounded-sm font-bold">{sum.b_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.b_skus_count} SKUs. Mid-priority stock buffers.</p>
         </div>
@@ -708,7 +708,7 @@ function renderAbcTab({ abcQuery }) {
               <span className="text-[11px] font-bold text-accent-strong uppercase tracking-wider">C Items (Bottom 5% Capital)</span>
               <p className="text-2xl font-extrabold mt-2" style={{ color: T.text }}>{fmt$(sum.c_value)}</p>
             </div>
-            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded font-bold">{sum.c_skus_percentage}% of SKUs</span>
+            <span className="text-xs bg-accent-tint text-accent-strong px-2 py-0.5 rounded-sm font-bold">{sum.c_skus_percentage}% of SKUs</span>
           </div>
           <p className="text-[10px] mt-4" style={{ color: T.textFaint }}>{sum.c_skus_count} SKUs. Low-priority stock units.</p>
         </div>
@@ -921,7 +921,7 @@ function renderAnomaliesTab({ anomaliesQuery }) {
             <h3 className="font-bold text-sm" style={{ color: T.text }}>Stock Consumption Spikes (Z-Score &gt; 2.0σ)</h3>
             <p className="text-[11px]" style={{ color: T.textMuted }}>Consumption outflows that deviate significantly from historical standard deviation levels</p>
           </div>
-          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded text-xs font-bold font-mono">
+          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded-sm text-xs font-bold font-mono">
             {stock.length} Spikes
           </span>
         </div>
@@ -965,7 +965,7 @@ function renderAnomaliesTab({ anomaliesQuery }) {
             <h3 className="font-bold text-sm" style={{ color: T.text }}>Monthly Revenue Outliers (Z-Score &gt; 2.0σ)</h3>
             <p className="text-[11px]" style={{ color: T.textMuted }}>Monthly invoice aggregates that deviate significantly from baseline standard deviation</p>
           </div>
-          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded text-xs font-bold font-mono">
+          <span className="bg-danger-tint text-danger px-2 py-0.5 rounded-sm text-xs font-bold font-mono">
             {revenue.length} Outliers
           </span>
         </div>

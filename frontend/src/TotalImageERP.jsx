@@ -1638,9 +1638,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: T.textMuted }}>Other jobs for {activeJob.customer || 'this customer'}</p>
                     {related.length === 0 ? (
-                      <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No other jobs for this customer.</p>
+                      <p className="text-sm text-center py-6 border rounded-sm" style={{ color: T.textFaint, borderColor: T.hairline }}>No other jobs for this customer.</p>
                     ) : (
-                      <div className="border rounded overflow-hidden" style={{ borderColor: T.hairline }}>
+                      <div className="border rounded-sm overflow-hidden" style={{ borderColor: T.hairline }}>
                         <table className="w-full text-sm">
                           <thead style={{ background: T.hairlineSoft }}>
                             <tr>
@@ -1707,7 +1707,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setPickState(prev => ({ ...prev, [activeJob.id]: Object.fromEntries(productLines.map(i => [i.id, target(i)])) }))}
-                      className="text-sm px-3 py-1.5 rounded border flex items-center"
+                      className="text-sm px-3 py-1.5 rounded-sm border flex items-center"
                       style={{ borderColor: T.hairline, color: T.textMuted }}
                     >
                       <CheckSquare className="w-3 h-3 mr-1" />Pick All
@@ -1715,23 +1715,23 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <button
                       onClick={savePicks}
                       disabled={!dirty}
-                      className="text-sm text-white px-3 py-1.5 rounded flex items-center disabled:opacity-40"
+                      className="text-sm text-white px-3 py-1.5 rounded-sm flex items-center disabled:opacity-40"
                       style={{ background: T.accentStrong }}
                     >
                       <Save className="w-3 h-3 mr-1" />Save Picks
                     </button>
                     <button
                       onClick={() => setDocumentPrint({ type: 'pickingSlip', job: activeJob })}
-                      className="text-sm bg-accent-strong text-white px-3 py-1.5 rounded hover:bg-accent-strong flex items-center"
+                      className="text-sm bg-accent-strong text-white px-3 py-1.5 rounded-sm hover:bg-accent-strong flex items-center"
                     >
                       <Printer className="w-3 h-3 mr-1" />Picking Slip
                     </button>
                   </div>
                 </div>
                 {productLines.length === 0 ? (
-                  <p className="text-sm text-center py-6 border rounded" style={{ color: T.textFaint, borderColor: T.hairline }}>No product lines on this job.</p>
+                  <p className="text-sm text-center py-6 border rounded-sm" style={{ color: T.textFaint, borderColor: T.hairline }}>No product lines on this job.</p>
                 ) : (
-                  <div className="border rounded overflow-hidden" style={{ borderColor: T.hairline }}>
+                  <div className="border rounded-sm overflow-hidden" style={{ borderColor: T.hairline }}>
                     <table className="w-full text-sm">
                       <thead style={{ background: T.hairlineSoft }}>
                         <tr>
@@ -1754,9 +1754,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             <tr key={item.id} style={done ? { background: T.okTint } : {}} className={done ? '' : 'hover:bg-panel-alt'}>
                               <td className="px-3 py-2">
                                 {done
-                                  ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: T.okTint, color: T.ok }}>Picked</span>
+                                  ? <span className="px-1.5 py-0.5 rounded-sm text-xs font-semibold" style={{ background: T.okTint, color: T.ok }}>Picked</span>
                                   : p > 0
-                                    ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>Partial</span>
+                                    ? <span className="px-1.5 py-0.5 rounded-sm text-xs font-semibold" style={{ background: T.accentTint, color: T.accentStrong }}>Partial</span>
                                     : <span className="text-xs" style={{ color: T.textFaint }}>—</span>}
                               </td>
                               <td className="px-3 py-2 font-mono text-xs">{item.stockCode}</td>
@@ -1771,7 +1771,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                   max={t}
                                   value={p}
                                   onChange={e => setDraft(item.id, Math.max(0, Math.min(t, parseInt(e.target.value, 10) || 0)))}
-                                  className="w-16 text-right border rounded px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                                  className="w-16 text-right border rounded-sm px-1.5 py-1 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                                   style={{ borderColor: done ? T.ok : T.hairline }}
                                 />
                               </td>
@@ -1783,7 +1783,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   </div>
                 )}
                 {productLines.length > 0 && (
-                  <div className="rounded p-3" style={{ background: T.hairlineSoft }}>
+                  <div className="rounded-sm p-3" style={{ background: T.hairlineSoft }}>
                     <div className="flex items-center justify-between text-sm mb-1.5">
                       <span style={{ color: T.textMuted }}>Pick Progress</span>
                       <span className="font-medium">{pickedCount}/{productLines.length} lines ({pct}%)</span>
@@ -1797,7 +1797,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           {fullyPicked ? 'All lines picked' : 'Part picked — the rest waits on stock'}{dirty ? ' — save picks to record' : ''}
                         </span>
                         {pickMove && (
-                          <button onClick={() => updateJobStatus(activeJob.id, pickMove)} disabled={dirty} className="px-3 py-1 rounded text-sm text-white disabled:opacity-40" style={{ background: fullyPicked ? T.ok : T.warn }}>
+                          <button onClick={() => updateJobStatus(activeJob.id, pickMove)} disabled={dirty} className="px-3 py-1 rounded-sm text-sm text-white disabled:opacity-40" style={{ background: fullyPicked ? T.ok : T.warn }}>
                             {pickMove === 'Picked' ? 'Mark picked' : 'Mark Inco/Pick'}
                           </button>
                         )}
@@ -1835,7 +1835,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   const grossMargin = (activeJob.subtotal || 0) - totalCost;
                   const marginPct = activeJob.subtotal > 0 ? (grossMargin / activeJob.subtotal * 100) : 0;
                   const missingNote = uncosted.length > 0 && (
-                    <p className="text-xs rounded px-3 py-2" role="note" style={{ background: T.warnTint, color: T.text, border: `1px solid ${T.hairline}` }}>
+                    <p className="text-xs rounded-sm px-3 py-2" role="note" style={{ background: T.warnTint, color: T.text, border: `1px solid ${T.hairline}` }}>
                       No cost on {uncosted.length} of {productLines.length} line{productLines.length === 1 ? '' : 's'}
                       {' '}(line {uncosted.map(u => u.lineNo).join(', ')}).
                       {' '}{totalCost > 0 ? 'Margin below leaves them out, so it reads higher than it is.' : 'Add the supplier cost on the lines to see the margin.'}
@@ -1865,7 +1865,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                   );
                 })()}
-                <div className="rounded p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                <div className="rounded-sm p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                   <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${T.hairline}` }}><span style={{ color: T.textMuted }}>Subtotal (ex GST):</span><span className="font-medium">${(activeJob.subtotal || 0).toFixed(2)}</span></div>
                   <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${T.hairline}` }}><span style={{ color: T.textMuted }}>GST (10%):</span><span className="font-medium">${(activeJob.tax || 0).toFixed(2)}</span></div>
                   <div className="flex justify-between py-1.5 font-semibold" style={{ borderBottom: `1px solid ${T.hairline}` }}><span>Invoice Total:</span><span>${(activeJob.total || 0).toFixed(2)}</span></div>
@@ -1883,7 +1883,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   const entries = Object.entries(decMap);
                   if (!entries.length) return null;
                   return (
-                    <div className="rounded p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
+                    <div className="rounded-sm p-4 text-sm" style={{ border: `1px solid ${T.hairline}` }}>
                       <p className="font-medium mb-2" style={{ color: T.text }}>Decoration Types</p>
                       {entries.map(([type, v]) => (
                         <div key={type} className="flex justify-between py-1 text-xs last:border-0" style={{ borderBottom: `1px solid ${T.hairline}` }}>
@@ -1909,13 +1909,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="relative ml-4 space-y-0" style={{ borderLeft: `2px solid ${T.hairline}` }}>
                       {[...statusChanges].reverse().map((c, i) => (
                         <div key={c.id || i} className="relative pl-6 pb-4">
-                          <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-accent-strong' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
+                          <div className={`absolute left-[-9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-accent-strong' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>
                               <p className="text-xs" style={{ color: T.textFaint }}>{c.authorName || c.initials} · {c.date} {c.time}</p>
                             </div>
-                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{statusLabel(c.status)}</span>}
+                            {c.status && <span className="text-xs px-1.5 py-0.5 rounded-sm ml-2 shrink-0" style={{ background: T.hairlineSoft, color: T.textMuted }}>{statusLabel(c.status)}</span>}
                           </div>
                         </div>
                       ))}
@@ -1932,13 +1932,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); e.preventDefault(); } }}
                       placeholder="Add a note or comment… (Enter to submit, Shift+Enter for new line)"
                       rows={2}
-                      className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus resize-none"
+                      className="flex-1 border rounded-sm px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus resize-none"
                     />
                     <div className="flex flex-col gap-1">
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim()); setCommentInput(''); } }}
-                        className="px-3 py-1.5 text-white rounded text-xs font-medium" style={{ background: T.accentStrong }}>Send</button>
+                        className="px-3 py-1.5 text-white rounded-sm text-xs font-medium" style={{ background: T.accentStrong }}>Send</button>
                       <button onClick={() => { if (commentInput.trim()) { addJobComment(activeJob.id, commentInput.trim(), true); setCommentInput(''); } }}
-                        className="px-3 py-1.5 rounded text-xs font-medium" style={{ background: T.hairline, color: T.text }}>Internal</button>
+                        className="px-3 py-1.5 rounded-sm text-xs font-medium" style={{ background: T.hairline, color: T.text }}>Internal</button>
                     </div>
                   </div>
                 </div>
@@ -1948,9 +1948,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <div key={c.id || i} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'bg-accent-tint border border-accent' : ''}`} style={c.isInternal ? {} : { background: T.hairlineSoft }}>
                     <div className="flex items-center justify-between mb-1 gap-2">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0" style={{ background: T.accentTint, color: T.accentStrong }}>{(c.initials || '?').slice(0, 2)}</div>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: T.accentTint, color: T.accentStrong }}>{(c.initials || '?').slice(0, 2)}</div>
                         <span className="font-medium text-xs" style={{ color: T.text }}>{c.authorName || c.initials}</span>
-                        {c.isInternal && <span className="text-[10px] bg-accent-strong text-accent-strong px-1 rounded font-medium">Internal</span>}
+                        {c.isInternal && <span className="text-[10px] bg-accent-strong text-accent-strong px-1 rounded-sm font-medium">Internal</span>}
                       </div>
                       <span className="text-xs shrink-0" style={{ color: T.textFaint }}>{c.date} {c.time}</span>
                     </div>
@@ -2086,7 +2086,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           if (e.key === 'Enter' && hits[custDropdown.highlighted]) { e.preventDefault(); setJobForm(f => ({ ...f, ...applyCustomerToJobForm(hits[custDropdown.highlighted]) })); setCustDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none font-medium w-full text-xs placeholder-faint"
+                        className="bg-transparent border-0 p-0 focus:outline-hidden font-medium w-full text-xs placeholder-faint"
                         style={{color: T.text}}
                         placeholder="Type to search…" autoComplete="off" required />
                       {custDropdown.open && (() => {
@@ -2111,7 +2111,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:140}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Cust #</span>
                       <select value={jobForm.customerId} onChange={(e) => { const c = customers.find(c => c.id === e.target.value); setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value }); }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}>
                         <option value="">— select —</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.id} — {c.name}</option>)}
                       </select>
@@ -2119,12 +2119,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     {/* Invoice # */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:110}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Invoice #</span>
-                      <input value={jobForm.invoice || ''} onChange={e => setJobForm({...jobForm, invoice: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full font-mono" style={{color: T.text}} placeholder="INV-XXXX" />
+                      <input value={jobForm.invoice || ''} onChange={e => setJobForm({...jobForm, invoice: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full font-mono" style={{color: T.text}} placeholder="INV-XXXX" />
                     </div>
                     {/* Quote Ref */}
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:90}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Quote Ref</span>
-                      <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="QT-XXXX" />
+                      <input value={jobForm.quote || ''} onChange={e => setJobForm({...jobForm, quote: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="QT-XXXX" />
                     </div>
                   </div>
 
@@ -2135,11 +2135,11 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <div className="flex divide-x border-b" style={{borderColor: T.hairline}}>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Cust Ref #</span>
-                      <input value={jobForm.custRef || ''} onChange={e => setJobForm({...jobForm, custRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Customer's ref" />
+                      <input value={jobForm.custRef || ''} onChange={e => setJobForm({...jobForm, custRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="Customer's ref" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Our Ref #</span>
-                      <input value={jobForm.ourRef || ''} onChange={e => setJobForm({...jobForm, ourRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Internal contact" />
+                      <input value={jobForm.ourRef || ''} onChange={e => setJobForm({...jobForm, ourRef: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="Internal contact" />
                     </div>
                     {/* Ship To */}
                     <div className="flex flex-col px-2.5 py-1.5 relative" style={{minWidth:130}}>
@@ -2157,7 +2157,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           if (e.key === 'Enter' && hits[shipDropdown.highlighted]) { e.preventDefault(); const cf = hits[shipDropdown.highlighted]; const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Code or address" autoComplete="off" />
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="Code or address" autoComplete="off" />
                       {shipDropdown.open && (() => {
                         const q = shipDropdown.query.toLowerCase();
                         const hits = cardFiles.filter(cf => !q || (cf.shipCode||'').toLowerCase().includes(q) || (cf.companyName||'').toLowerCase().includes(q)).slice(0, 8);
@@ -2168,7 +2168,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             {hits.map((cf, i) => { const addr = [cf.suburb, cf.state, cf.postcode].filter(Boolean).join(' '); return (
                               <div key={cf.shipCode} onMouseDown={() => { const fullAddr = [cf.address1, cf.address2, cf.suburb, cf.state, cf.postcode].filter(Boolean).join('\n'); setJobForm({ ...jobForm, shipTo: cf.shipCode, shippingAddress: fullAddr || jobForm.shippingAddress }); setShipDropdown({ open: false, query: '', highlighted: 0 }); }} onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
-                                <div className="shrink-0 bg-ok-tint text-ok text-[10px] font-bold font-mono px-1.5 py-0.5 rounded">{cf.shipCode}</div>
+                                <div className="shrink-0 bg-ok-tint text-ok text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-sm">{cf.shipCode}</div>
                                 <div className="flex-1 min-w-0"><div className="font-medium truncate text-xs" style={{color:T.text}}>{cf.companyName||cf.shipCode}</div>{addr && <div className="text-xs truncate" style={{color:T.textFaint}}>{addr}</div>}</div>
                               </div>
                             ); })}
@@ -2178,15 +2178,15 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5 flex-1" style={{minWidth:160}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Description</span>
-                      <input value={jobForm.description || ''} onChange={e => setJobForm({...jobForm, description: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
+                      <input value={jobForm.description || ''} onChange={e => setJobForm({...jobForm, description: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:100}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Project #</span>
-                      <input value={jobForm.projectNo || ''} onChange={e => setJobForm({...jobForm, projectNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
+                      <input value={jobForm.projectNo || ''} onChange={e => setJobForm({...jobForm, projectNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:90}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Branch</span>
-                      <select value={jobForm.branch || 'HQ'} onChange={e => setJobForm({...jobForm, branch: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
+                      <select value={jobForm.branch || 'HQ'} onChange={e => setJobForm({...jobForm, branch: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}>
                         {['HQ','Warehouse','Melbourne','Sydney','Brisbane','Perth'].map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
@@ -2207,7 +2207,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} placeholder="Type or pick…" autoComplete="off" />
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} placeholder="Type or pick…" autoComplete="off" />
                       {assignedDropdown.open && (() => {
                         const q = (assignedDropdown.query || '').toLowerCase();
                         const names = [...new Set(jobs.map(j => j.assignedTo).filter(Boolean))];
@@ -2229,7 +2229,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:100}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Serial #</span>
-                      <input value={jobForm.serialNo || ''} onChange={e => setJobForm({...jobForm, serialNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
+                      <input value={jobForm.serialNo || ''} onChange={e => setJobForm({...jobForm, serialNo: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} />
                     </div>
                   </div>
 
@@ -2245,12 +2245,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <div key={key} className="flex flex-col px-2.5 py-1.5 flex-1">
                         <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>{label}</span>
                         <input type="date" value={jobForm[key] || ''} onChange={e => setJobForm({...jobForm, [key]: e.target.value})}
-                          className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}} />
+                          className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}} />
                       </div>
                     ))}
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Pay Method</span>
-                      <select value={jobForm.paymentMethod} onChange={e => setJobForm({...jobForm, paymentMethod: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}>
+                      <select value={jobForm.paymentMethod} onChange={e => setJobForm({...jobForm, paymentMethod: e.target.value})} className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}>
                         <option>Account</option><option>Credit Card</option><option>Cash</option><option>Bank Transfer</option>
                       </select>
                     </div>
@@ -2262,7 +2262,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Status</span>
                       <select value={jobForm.status} onChange={e => setJobForm({...jobForm, status: e.target.value})}
-                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        className="border rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus font-semibold text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         {JOB_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
                       </select>
                     </div>
@@ -2270,7 +2270,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex items-center gap-1">
                       <label htmlFor="job-order-category" className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Category</label>
                       <select id="job-order-category" value={jobForm.orderCategory ?? 'Normal'} onChange={e => setJobForm({...jobForm, orderCategory: e.target.value})}
-                        className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                        className="border rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         {ORDER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
@@ -2279,7 +2279,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Priority</span>
                       <select value={jobForm.priority} onChange={e => setJobForm({...jobForm, priority: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs ${jobForm.priority === 'Urgent' ? 'bg-danger-tint text-danger border-danger' : jobForm.priority === 'High' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
+                        className={`border rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus text-xs ${jobForm.priority === 'Urgent' ? 'bg-danger-tint text-danger border-danger' : jobForm.priority === 'High' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
                         style={jobForm.priority === 'Urgent' || jobForm.priority === 'High' ? {} : {background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Low</option><option>Normal</option><option>High</option><option>Urgent</option>
                       </select>
@@ -2287,7 +2287,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     {/* Type */}
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Type</span>
-                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
+                      <select value={jobForm.type} onChange={e => setJobForm({...jobForm, type: e.target.value})} className="border rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus text-xs" style={{background: T.panel, borderColor: T.hairline, color: T.text}}>
                         <option>Standard</option><option>Custom</option><option>Rush</option>
                       </select>
                     </div>
@@ -2297,14 +2297,14 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         As dropdowns they let a job read Paid with no payment taken. */}
                     <div className="flex items-center gap-1" title="Changes when a payment is recorded on the job">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Paid</span>
-                      <span className={`border rounded px-1.5 py-0.5 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : ''}`}
+                      <span className={`border rounded-sm px-1.5 py-0.5 text-xs font-semibold ${jobForm.paymentStatus === 'paid' ? 'bg-ok-tint text-ok border-ok' : jobForm.paymentStatus === 'partial' ? 'bg-warn-tint text-warn border-warn' : ''}`}
                         style={jobForm.paymentStatus === 'paid' || jobForm.paymentStatus === 'partial' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         {{ paid: 'Paid', partial: 'Partial' }[jobForm.paymentStatus] || 'Unpaid'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1" title="Changes when the job is invoiced">
                       <span className="text-[9px] font-bold uppercase tracking-wider" style={{color: T.textFaint}}>Invoice</span>
-                      <span className={`border rounded px-1.5 py-0.5 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
+                      <span className={`border rounded-sm px-1.5 py-0.5 text-xs font-medium ${jobForm.invoiceStatus === 'invoiced' ? 'bg-accent-tint text-accent-strong border-accent' : ''}`}
                         style={jobForm.invoiceStatus === 'invoiced' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         {{ invoiced: 'Invoiced', to_invoice: 'To invoice' }[jobForm.invoiceStatus] || 'Not invoiced'}
                       </span>
@@ -2317,7 +2317,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         <span className="text-xs" style={{ color: T.textMuted }} title="Approved once per logo, on the customer's Logos tab">On its logos</span>
                       ) : (
                       <select value={jobForm.proofStatus || 'none'} onChange={e => setJobForm({...jobForm, proofStatus: e.target.value})}
-                        className={`border rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-ok-tint text-ok border-ok' : jobForm.proofStatus === 'sent' ? 'bg-warn-tint text-warn border-warn' : jobForm.proofStatus === 'rejected' ? 'bg-danger-tint text-danger border-danger' : ''}`}
+                        className={`border rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus text-xs font-medium ${jobForm.proofStatus === 'approved' ? 'bg-ok-tint text-ok border-ok' : jobForm.proofStatus === 'sent' ? 'bg-warn-tint text-warn border-warn' : jobForm.proofStatus === 'rejected' ? 'bg-danger-tint text-danger border-danger' : ''}`}
                         style={jobForm.proofStatus === 'approved' || jobForm.proofStatus === 'sent' || jobForm.proofStatus === 'rejected' ? {} : {background: T.hairlineSoft, borderColor: T.hairline, color: T.textMuted}}>
                         <option value="none">No Proof</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
                       </select>
@@ -2326,7 +2326,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="w-px h-4" style={{background: T.hairline}} />
                     {/* Lock — amber kept as identity colour */}
                     <button type="button" onClick={() => setJobForm(f => ({ ...f, locked: !f.locked }))}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-accent-tint text-accent-strong border-accent hover:bg-accent-strong' : ''}`}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-sm border text-xs font-semibold transition-colors ${jobForm.locked ? 'bg-accent-tint text-accent-strong border-accent hover:bg-accent-strong' : ''}`}
                       style={jobForm.locked ? {} : {background: T.panel, color: T.textMuted, borderColor: T.hairline}}>
                       {jobForm.locked ? '🔒 Locked' : '🔓 Unlocked'}
                     </button>
@@ -2337,12 +2337,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Job Notes</span>
                       <textarea value={jobForm.notes || ''} onChange={e => setJobForm({...jobForm, notes: e.target.value})}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} placeholder="Special instructions, artwork notes…" />
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} placeholder="Special instructions, artwork notes…" />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:220}}>
                       <span className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{color: T.textFaint}}>Shipping Address</span>
                       <textarea value={jobForm.shippingAddress || ''} onChange={e => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} />
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full resize-none leading-relaxed" style={{color: T.text}} rows={2} />
                     </div>
                     {(() => {
                       const fc = customers.find(c => c.id === jobForm.customerId);
@@ -2368,7 +2368,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <select
                         value={jobForm.priceLevel || ''}
                         onChange={e => setJobForm(f => ({ ...f, priceLevel: e.target.value }))}
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}
                       >
                         <option value="">— select —</option>
                         {['Retail', 'Trade', 'Wholesale', 'VIP', 'Cost'].map(l => <option key={l} value={l}>{l}</option>)}
@@ -2380,7 +2380,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         value={jobForm.accMgr || ''}
                         onChange={e => setJobForm(f => ({ ...f, accMgr: e.target.value }))}
                         placeholder="Initials or name"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:130}}>
@@ -2389,7 +2389,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         value={jobForm.exJobRef || ''}
                         onChange={e => setJobForm(f => ({ ...f, exJobRef: e.target.value }))}
                         placeholder="Customer PO or ref"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5" style={{minWidth:140}}>
@@ -2398,7 +2398,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         value={jobForm.requestedBy || ''}
                         onChange={e => setJobForm(f => ({ ...f, requestedBy: e.target.value }))}
                         placeholder="Person who placed order"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full" style={{color: T.text}}
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex flex-col px-2.5 py-1.5 flex-1">
@@ -2408,7 +2408,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         onChange={e => setJobForm(f => ({ ...f, invoiceDesc: e.target.value }))}
                         rows={2}
                         placeholder="Description to print on invoice"
-                        className="bg-transparent border-0 p-0 focus:outline-none text-xs w-full resize-none leading-relaxed" style={{color: T.text}}
+                        className="bg-transparent border-0 p-0 focus:outline-hidden text-xs w-full resize-none leading-relaxed" style={{color: T.text}}
                       />
                     </div>
                     <div className="flex items-center px-2.5 py-1.5 gap-1.5">
@@ -2417,7 +2417,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         id="lockRate"
                         checked={!!jobForm.lockRate}
                         onChange={e => setJobForm(f => ({ ...f, lockRate: e.target.checked }))}
-                        className="rounded"
+                        className="rounded-sm"
                       />
                       <label htmlFor="lockRate" className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap" style={{color: T.textFaint}}>Lock Rate</label>
                     </div>
@@ -2456,7 +2456,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           }
                           if (e.key === 'Escape') setCustDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type to search customers…"
                         autoComplete="off"
                         required
@@ -2480,7 +2480,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                 onMouseEnter={() => setCustDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border-b last:border-0 ${i === custDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}
                               >
-                                <div className="w-7 h-7 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center shrink-0">
                                   {c.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -2501,7 +2501,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           const c = customers.find(c => c.id === e.target.value);
                           setJobForm(f => c ? { ...f, ...applyCustomerToJobForm(c) } : { ...f, customerId: e.target.value });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                       >
                         <option value="">Select Customer</option>
                         {customers.map(c => (
@@ -2528,24 +2528,24 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Date In</label>
                         <input type="date" value={jobForm.dateIn} onChange={(e) => setJobForm({...jobForm, dateIn: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Due Date <span className="font-normal text-xs" style={{color: T.textFaint}}>(auto from terms)</span></label>
                         <input type="date" value={jobForm.due} onChange={(e) => setJobForm({...jobForm, due: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Out Date</label>
                         <input type="date" value={jobForm.out || ''} onChange={(e) => setJobForm({...jobForm, out: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Commitment Date</label>
                         <input type="date" value={jobForm.commitmentDate || ''} onChange={(e) => setJobForm({...jobForm, commitmentDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Promised delivery date" />
                       </div>
                     </div>
                   </div>
@@ -2555,34 +2555,34 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Cust Ref #</label>
                       <input type="text" value={jobForm.custRef || ''} onChange={(e) => setJobForm({...jobForm, custRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Customer's own reference" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Our Ref #</label>
                       <input type="text" value={jobForm.ourRef || ''} onChange={(e) => setJobForm({...jobForm, ourRef: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="Internal contact" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Quote Ref</label>
                         <input type="text" value={jobForm.quote} onChange={(e) => setJobForm({...jobForm, quote: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                       </div>
                       <div>
                         <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Valid Until</label>
                         <input type="date" value={jobForm.validityDate || ''} onChange={(e) => setJobForm({...jobForm, validityDate: e.target.value})}
-                          className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
+                          className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} title="Quote expiry date" />
                       </div>
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Description</label>
                       <input type="text" value={jobForm.description || ''} onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} placeholder="e.g. Ad-Hoc Sale" />
                     </div>
                     <div>
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Project #</label>
                       <input type="text" value={jobForm.projectNo || ''} onChange={(e) => setJobForm({...jobForm, projectNo: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}} />
                     </div>
                     <div className="relative">
                       <label className="block font-medium mb-0.5" style={{color: T.textMuted}}>Assigned To</label>
@@ -2601,7 +2601,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           if (e.key === 'Enter' && hits[assignedDropdown.highlighted]) { e.preventDefault(); setJobForm({...jobForm, assignedTo: hits[assignedDropdown.highlighted]}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }
                           if (e.key === 'Escape') setAssignedDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Type or pick…"
                         autoComplete="off"
                       />
@@ -2618,7 +2618,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                 onMouseDown={() => { setJobForm({...jobForm, assignedTo: name}); setAssignedDropdown({ open: false, query: '', highlighted: 0 }); }}
                                 onMouseEnter={() => setAssignedDropdown(s => ({ ...s, highlighted: i }))}
                                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b last:border-0 ${i === assignedDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}>
-                                <div className="w-6 h-6 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center flex-shrink-0">{name.charAt(0).toUpperCase()}</div>
+                                <div className="w-6 h-6 rounded-full bg-accent-tint text-accent-strong font-bold text-xs flex items-center justify-center shrink-0">{name.charAt(0).toUpperCase()}</div>
                                 <span className="text-xs" style={{color: T.text}}>{name}</span>
                               </div>
                             ))}
@@ -2655,7 +2655,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           }
                           if (e.key === 'Escape') setShipDropdown({ open: false, query: '', highlighted: 0 });
                         }}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         placeholder="Ship-to code or address"
                         autoComplete="off"
                       />
@@ -2681,7 +2681,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                   onMouseEnter={() => setShipDropdown(s => ({ ...s, highlighted: i }))}
                                   className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-b last:border-0 ${i === shipDropdown.highlighted ? 'bg-accent-tint' : 'hover:bg-panel-alt'}`}
                                 >
-                                  <div className="flex-shrink-0 bg-ok-tint text-ok text-xs font-bold font-mono px-2 py-0.5 rounded">
+                                  <div className="shrink-0 bg-ok-tint text-ok text-xs font-bold font-mono px-2 py-0.5 rounded-sm">
                                     {cf.shipCode}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -2700,7 +2700,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <textarea
                         value={jobForm.shippingAddress}
                         onChange={(e) => setJobForm({...jobForm, shippingAddress: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                       />
                     </div>
@@ -2709,7 +2709,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <textarea
                         value={jobForm.notes || ''}
                         onChange={(e) => setJobForm({...jobForm, notes: e.target.value})}
-                        className="w-full border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
+                        className="w-full border rounded-sm px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-accent-focus" style={{borderColor: T.hairline, color: T.text}}
                         rows="3"
                         placeholder="Special instructions, artwork notes..."
                       />
@@ -2727,7 +2727,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="flex items-center gap-1 flex-wrap">
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateModalOpen(true)}
-                          className="text-xs px-2 py-1 rounded hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
+                          className="text-xs px-2 py-1 rounded-sm hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <BookOpen className="w-3 h-3" />Load
                         </button>
                         {templateModalOpen && (
@@ -2741,7 +2741,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             ) : (
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {jobTemplates.map(tpl => (
-                                  <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded hover:bg-panel-alt group">
+                                  <div key={tpl.id} className="flex items-center justify-between gap-2 p-2 rounded-sm hover:bg-panel-alt group">
                                     <button type="button" onMouseDown={() => loadJobTemplate(tpl)} className="flex-1 text-left text-sm font-medium truncate hover:text-accent-strong" style={{ color: T.text }}>
                                       {tpl.name} <span className="text-xs font-normal" style={{ color: T.textFaint }}>({tpl.items?.length || 0} items)</span>
                                     </button>
@@ -2757,7 +2757,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       </div>
                       <div className="relative">
                         <button type="button" onClick={() => setTemplateSaveOpen(o => !o)}
-                          className="text-xs px-2 py-1 rounded hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
+                          className="text-xs px-2 py-1 rounded-sm hover:bg-panel-alt flex items-center gap-1" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>
                           <Save className="w-3 h-3" />Save
                         </button>
                         {templateSaveOpen && (
@@ -2766,24 +2766,24 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             <input autoFocus type="text" value={templateSaveName}
                               onChange={e => setTemplateSaveName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter' && templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); if (e.key === 'Escape') setTemplateSaveOpen(false); }}
-                              className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus mb-2" placeholder="e.g. Standard Polo Order" />
+                              className="w-full border rounded-sm px-2 py-1 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus mb-2" placeholder="e.g. Standard Polo Order" />
                             <div className="flex gap-2">
                               <button type="button" onMouseDown={() => { if (templateSaveName.trim()) saveJobTemplate(templateSaveName.trim()); }}
-                                className="flex-1 bg-ok text-white text-xs py-1.5 rounded hover:bg-ok font-medium" disabled={!templateSaveName.trim()}>Save</button>
+                                className="flex-1 bg-ok text-white text-xs py-1.5 rounded-sm hover:bg-ok font-medium" disabled={!templateSaveName.trim()}>Save</button>
                               <button type="button" onMouseDown={() => setTemplateSaveOpen(false)} className="text-xs text-muted hover:text-header">Cancel</button>
                             </div>
                           </div>
                         )}
                       </div>
                       <button type="button" onClick={() => setJobForm(f => ({ ...f, items: [...f.items, { ...blankItem(), displayType: 'note' }] }))}
-                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Note</button>
+                        className="text-xs px-2 py-1 rounded-sm hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Note</button>
                       <button type="button" onClick={addJobItem}
-                        className="text-xs px-3 py-1 rounded flex items-center gap-0.5" style={{ background: T.accentStrong, color: T.panel }}>
+                        className="text-xs px-3 py-1 rounded-sm flex items-center gap-0.5" style={{ background: T.accentStrong, color: T.panel }}>
                         <Plus className="w-3 h-3" />Add Item
                       </button>
                       <button type="button"
                         onClick={() => setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Freight', stockCode: 'FREIGHT', priceEx: 0, priceInc: 0, qty: 1, order: 1 }] }))}
-                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Freight</button>
+                        className="text-xs px-2 py-1 rounded-sm hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Freight</button>
                       <button type="button"
                         onClick={() => {
                           const freightItem = jobForm.items.find(i => (i.stockCode || '').toUpperCase() === 'FREIGHT' || (i.description || '').toLowerCase().includes('freight'));
@@ -2791,7 +2791,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           const levy = freightAmt > 0 ? Math.round(freightAmt * 0.13 * 100) / 100 : 0;
                           setJobForm(f => recalcJobTotals({ ...f, items: [...f.items, { ...blankItem(), displayType: 'product', description: 'Fuel Levy', stockCode: 'FUEL-LEVY', priceEx: levy, priceInc: levy * 1.1, qty: 1, order: 1 }] }));
                         }}
-                        className="text-xs px-2 py-1 rounded hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Fuel Levy</button>
+                        className="text-xs px-2 py-1 rounded-sm hover:bg-panel-alt" style={{ background: T.panel, color: T.textMuted, border: `1px solid ${T.hairline}` }}>+ Fuel Levy</button>
                     </div>
                   </div>
 
@@ -2843,7 +2843,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             const borderLeft = isSec ? 'border-l-2 border-l-blue-500' : isNote ? 'border-l-2 border-l-yellow-300'
                               : isOutOfStock ? 'border-l-2 border-l-indigo-400' : isLowMargin ? 'border-l-2 border-l-red-400' : '';
 
-                            const ci = 'w-full h-6 border border-hairline rounded px-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white';
+                            const ci = 'w-full h-6 border border-hairline rounded-sm px-1 text-[11px] focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white';
                             const ciR = ci + ' text-right tabular-nums';
 
                             const dIsOpen = descDropdown.idx === idx;
@@ -2918,7 +2918,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                   {isSec || isNote ? (
                                     <td colSpan={14} className="px-2 py-0.5">
                                       <input type="text" value={item.description || ''} onChange={e => updateJobItem(idx, 'description', e.target.value)}
-                                        className={`w-full bg-transparent text-xs h-6 focus:outline-none border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-accent-strong' : 'italic text-warn'}`}
+                                        className={`w-full bg-transparent text-xs h-6 focus:outline-hidden border-b border-transparent focus:border-current px-0 ${isSec ? 'font-bold text-accent-strong' : 'italic text-warn'}`}
                                         placeholder={isSec ? 'Section heading…' : 'Note or instruction…'} />
                                     </td>
                                   ) : (<>
@@ -3021,10 +3021,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                       )}
                                       <div className="flex items-center gap-0.5 mt-0.5">
                                         <input type="text" value={item.sizes || ''} onChange={e => updateJobItem(idx, 'sizes', e.target.value)}
-                                          className="flex-1 h-5 border border-hairline-soft rounded px-1 text-[10px] text-faint placeholder-faint focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white"
+                                          className="flex-1 h-5 border border-hairline-soft rounded-sm px-1 text-[10px] text-faint placeholder-faint focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white"
                                           placeholder="Sizes…" />
                                         <button type="button" onClick={() => setMatrixPopup({ idx })} title="Size/colour matrix"
-                                          className="shrink-0 h-5 w-5 flex items-center justify-center border border-accent text-accent rounded hover:bg-accent-tint text-[10px] font-bold leading-none">⊞</button>
+                                          className="shrink-0 h-5 w-5 flex items-center justify-center border border-accent text-accent rounded-sm hover:bg-accent-tint text-[10px] font-bold leading-none">⊞</button>
                                       </div>
                                     </td>
 
@@ -3103,13 +3103,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                         {hasDecoration ? (
                                           <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
                                             aria-label={`Line ${idx + 1} decoration: ${decOpt.l}`}
-                                            className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${decOpt.pill}`}>
+                                            className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border text-[10px] font-semibold ${decOpt.pill}`}>
                                             {decOpt.emoji} {decOpt.l} <ChevronDown className="w-2.5 h-2.5 opacity-40" />
                                           </button>
                                         ) : (
                                           <button type="button" onClick={() => setOpenDecIdx(openDecIdx === idx ? null : idx)}
                                             aria-label={`Add decoration to line ${idx + 1}`}
-                                            className="shrink-0 inline-flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium hover:underline"
+                                            className="shrink-0 inline-flex items-center gap-1 px-1 py-0.5 rounded-sm text-[10px] font-medium hover:underline"
                                             style={{ color: T.accentStrong }}>
                                             + Decoration
                                           </button>
@@ -3136,12 +3136,12 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                         {hasDecoration && (<>
                                         {/* Generic decoration code — works for any method (EMB/TRS/SP/DTF…) */}
                                         <input type="text" value={item.decCode || item.embCode || item.trsCode || ''} onChange={e => updateJobItem(idx, 'decCode', e.target.value)}
-                                          className="h-5 border rounded px-1.5 text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-accent-focus w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
+                                          className="h-5 border rounded-sm px-1.5 text-[11px] font-mono focus:outline-hidden focus:ring-1 focus:ring-accent-focus w-32 bg-white" style={{ borderColor: T.hairline, color: T.accentStrong }} placeholder={`${decOpt.v} code…`} />
                                         {/* EMB: stitch count */}
                                         {decOpt.v === 'EMB' && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="0" value={item.stitchCount || ''} onChange={e => updateJobItem(idx, 'stitchCount', e.target.value)}
-                                              className="h-5 w-20 border rounded px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white" style={{ borderColor: T.hairline }} placeholder="Stitches" />
+                                              className="h-5 w-20 border rounded-sm px-1.5 text-[11px] focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white" style={{ borderColor: T.hairline }} placeholder="Stitches" />
                                             <span className="text-[10px] shrink-0" style={{ color: T.textFaint }}>sts</span>
                                           </div>
                                         )}
@@ -3149,13 +3149,13 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                         {decOpt.hasColors && (
                                           <div className="flex items-center gap-0.5">
                                             <input type="number" min="1" max="16" value={item.colorCount || ''} onChange={e => updateJobItem(idx, 'colorCount', e.target.value)}
-                                              className="h-5 w-12 border border-hairline rounded px-1.5 text-[11px] text-muted focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white" placeholder="#" />
+                                              className="h-5 w-12 border border-hairline rounded-sm px-1.5 text-[11px] text-muted focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white" placeholder="#" />
                                             <span className="text-[10px] text-faint shrink-0">col</span>
                                           </div>
                                         )}
                                         {/* Position for all decoration types */}
                                         <select value={item.decPosition || ''} onChange={e => updateJobItem(idx, 'decPosition', e.target.value)}
-                                          className="h-5 border border-hairline rounded px-1 text-[11px] text-muted focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white">
+                                          className="h-5 border border-hairline rounded-sm px-1 text-[11px] text-muted focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white">
                                           <option value="">Position…</option>
                                           {DEC_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
@@ -3206,7 +3206,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                             </div>
                           </div>
                         )}
-                        <div className="w-56 space-y-0.5 text-xs flex-shrink-0">
+                        <div className="w-56 space-y-0.5 text-xs shrink-0">
                           {totalCost > 0 && <div className="flex justify-between" style={{ color: T.textFaint }}><span>Total Cost:</span><span>${totalCost.toFixed(2)}</span></div>}
                           {totalCost > 0 && (
                             <div className={`flex justify-between font-medium ${grossMargin >= 0 ? 'text-ok' : 'text-danger'}`}>
@@ -3230,7 +3230,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 {/* Drag handle */}
                 <div
                   onMouseDown={startLineItemsResize}
-                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-accent-tint group flex-shrink-0"
+                  className="h-2 flex items-center justify-center cursor-ns-resize rounded-b-lg hover:bg-accent-tint group shrink-0"
                   style={{ background: T.hairlineSoft, borderTop: `1px solid ${T.hairline}` }}
                   title="Drag to resize"
                 >
@@ -3247,7 +3247,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               <div className="flex justify-end space-x-2 pt-4 border-t">
                 <button
                   onClick={closeModal}
-                  className="px-4 py-2 border rounded hover:bg-panel-alt"
+                  className="px-4 py-2 border rounded-sm hover:bg-panel-alt"
                 >
                   Cancel
                 </button>
@@ -3256,7 +3256,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 )}
                 <button
                   onClick={saveJob}
-                  className="px-4 py-2 bg-accent-strong text-white rounded hover:bg-accent-strong flex items-center"
+                  className="px-4 py-2 bg-accent-strong text-white rounded-sm hover:bg-accent-strong flex items-center"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Job
@@ -3405,17 +3405,17 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <div>
                     <div className="flex items-center space-x-3">
                       <span className="font-mono font-black text-2xl text-accent-strong">{card.shipCode}</span>
-                      <span className="text-sm bg-hairline-soft text-muted px-2 py-1 rounded font-mono">Group: {card.group}</span>
+                      <span className="text-sm bg-hairline-soft text-muted px-2 py-1 rounded-sm font-mono">Group: {card.group}</span>
                     </div>
                     <p className="text-muted text-sm mt-1">Customer Code: <span className="font-mono font-semibold text-header">{card.customerCode}</span></p>
                   </div>
                   <div className="flex space-x-2">
                     <button onClick={() => openEdit(card)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-hairline-soft hover:bg-hairline rounded text-sm">
+                      className="flex items-center space-x-1 px-3 py-2 bg-hairline-soft hover:bg-hairline rounded-sm text-sm">
                       <Edit className="w-4 h-4" /><span>Edit</span>
                     </button>
                     <button onClick={() => deleteCard(card.shipCode)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-danger-tint hover:bg-danger-tint text-danger rounded text-sm">
+                      className="flex items-center space-x-1 px-3 py-2 bg-danger-tint hover:bg-danger-tint text-danger rounded-sm text-sm">
                       <Trash2 className="w-4 h-4" /><span>Delete</span>
                     </button>
                   </div>
@@ -3447,7 +3447,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     {card.notes && (
                       <div className="mt-4">
                         <p className="text-xs font-semibold text-faint uppercase mb-1">Notes</p>
-                        <p className="text-sm text-muted bg-panel-alt rounded p-2">{card.notes}</p>
+                        <p className="text-sm text-muted bg-panel-alt rounded-sm p-2">{card.notes}</p>
                       </div>
                     )}
                   </div>
@@ -3459,7 +3459,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   {relatedJobs.length === 0 ? (
                     <p className="text-sm text-faint">No jobs found for this ship code.</p>
                   ) : (
-                    <div className="divide-y rounded border overflow-hidden">
+                    <div className="divide-y rounded-sm border overflow-hidden">
                       {relatedJobs.slice(0, 10).map(j => (
                         <button key={j.id} onClick={() => { pinJob(j); setActiveModule('jobs'); }}
                           className="w-full text-left px-4 py-2.5 hover:bg-accent-tint flex items-center justify-between">
@@ -3674,7 +3674,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                                 )}
                               </div>
                             </div>
-                            <div className="flex space-x-1 ml-2 flex-shrink-0">
+                            <div className="flex space-x-1 ml-2 shrink-0">
                               <button onClick={() => openEditParcel(p)}
                                 className="p-1.5 rounded-lg transition-colors"
                                 style={{ color: T.textMuted }}>
@@ -3708,7 +3708,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                           <div className="flex items-center justify-between mt-3 pt-2"
                             style={{ borderTop: `1px solid ${T.hairline}` }}>
                             {p.carrierCode && (
-                              <span className="text-xs font-mono px-2 py-0.5 rounded"
+                              <span className="text-xs font-mono px-2 py-0.5 rounded-sm"
                                 style={{ color: T.textMuted, background: T.hairlineSoft }}>
                                 {p.carrierCode}
                               </span>
@@ -3737,7 +3737,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Account Number</label>
                       <input type="text" value={ofAccount.accountNumber}
                         onChange={e => { setOfAccount(a => ({ ...a, accountNumber: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="e.g. OF-12345" />
                     </div>
@@ -3745,7 +3745,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Account Name</label>
                       <input type="text" value={ofAccount.accountName}
                         onChange={e => { setOfAccount(a => ({ ...a, accountName: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="Total Image" />
                     </div>
@@ -3753,7 +3753,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Depot / Branch</label>
                       <input type="text" value={ofAccount.depot}
                         onChange={e => { setOfAccount(a => ({ ...a, depot: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="e.g. Sydney West" />
                     </div>
@@ -3761,21 +3761,21 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Name</label>
                       <input type="text" value={ofAccount.contactName}
                         onChange={e => { setOfAccount(a => ({ ...a, contactName: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Phone</label>
                       <input type="text" value={ofAccount.contactPhone}
                         onChange={e => { setOfAccount(a => ({ ...a, contactPhone: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Contact Email</label>
                       <input type="email" value={ofAccount.contactEmail}
                         onChange={e => { setOfAccount(a => ({ ...a, contactEmail: e.target.value })); setOfAccountDirty(true); }}
-                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
                     </div>
                   </div>
@@ -3786,7 +3786,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </label>
                     <input type="password" value={ofAccount.apiKey}
                       onChange={e => { setOfAccount(a => ({ ...a, apiKey: e.target.value })); setOfAccountDirty(true); }}
-                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none"
+                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-hidden"
                       style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder={ofAccount.apiKeySet ? '(configured — leave blank to keep)' : 'API key or login credentials'} />
                   </div>
@@ -3794,7 +3794,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Notes</label>
                     <textarea rows={3} value={ofAccount.notes}
                       onChange={e => { setOfAccount(a => ({ ...a, notes: e.target.value })); setOfAccountDirty(true); }}
-                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                       style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder="Any additional account notes…" />
                   </div>
@@ -3815,7 +3815,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
         {/* ── Add / Edit Parcel Type sub-modal ─────────────────────────── */}
         {ofParcelModal.open && (
-          <DraggableModal onClose={() => setOfParcelModal({ open: false, editing: null })} cardClass="w-full max-w-lg max-h-[90vh] overflow-y-auto" overlayClass="z-[60]">
+          <DraggableModal onClose={() => setOfParcelModal({ open: false, editing: null })} cardClass="w-full max-w-lg max-h-[90vh] overflow-y-auto" overlayClass="z-60">
               <div className="flex items-center justify-between px-6 py-4"
                 style={{ borderBottom: `1px solid ${T.hairline}` }}>
                 <h3 className="font-bold" style={{ color: T.text }}>
@@ -3834,7 +3834,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   </label>
                   <input type="text" value={ofParcelForm.name}
                     onChange={e => setOfParcelForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                     style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                     placeholder="e.g. Standard Satchel 500g" autoFocus />
                 </div>
@@ -3863,7 +3863,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Service Level</label>
                     <select value={ofParcelForm.service}
                       onChange={e => setOfParcelForm(f => ({ ...f, service: e.target.value }))}
-                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                       style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
                       {SERVICES.map(s => <option key={s}>{s}</option>)}
                     </select>
@@ -3878,7 +3878,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Max Weight (kg)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.maxWeightKg}
                         onChange={e => setOfParcelForm(f => ({ ...f, maxWeightKg: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="0.5" />
                     </div>
@@ -3886,7 +3886,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Length (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.lengthCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, lengthCm: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="30" />
                     </div>
@@ -3894,7 +3894,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Width (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.widthCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, widthCm: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="20" />
                     </div>
@@ -3902,7 +3902,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <label className="block text-xs mb-1" style={{ color: T.textMuted }}>Height (cm)</label>
                       <input type="number" step="0.1" min="0" value={ofParcelForm.heightCm}
                         onChange={e => setOfParcelForm(f => ({ ...f, heightCm: e.target.value }))}
-                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-none"
+                        className="w-full rounded-lg px-2 py-2 text-sm text-center focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="10" />
                     </div>
@@ -3918,7 +3918,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     </label>
                     <input type="text" value={ofParcelForm.carrierCode}
                       onChange={e => setOfParcelForm(f => ({ ...f, carrierCode: e.target.value.toUpperCase() }))}
-                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-none"
+                      className="w-full rounded-lg px-3 py-2 text-sm font-mono focus:outline-hidden"
                       style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                       placeholder="e.g. SAT500" />
                   </div>
@@ -3928,7 +3928,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                       <span className="absolute left-3 top-2 text-sm" style={{ color: T.textMuted }}>$</span>
                       <input type="number" step="0.01" min="0" value={ofParcelForm.rate}
                         onChange={e => setOfParcelForm(f => ({ ...f, rate: e.target.value }))}
-                        className="w-full rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none"
+                        className="w-full rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-hidden"
                         style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                         placeholder="0.00" />
                     </div>
@@ -3940,7 +3940,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   <label className="block text-sm font-medium mb-1" style={{ color: T.text }}>Notes</label>
                   <input type="text" value={ofParcelForm.notes}
                     onChange={e => setOfParcelForm(f => ({ ...f, notes: e.target.value }))}
-                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-hidden"
                     style={{ border: `1px solid ${T.hairline}`, color: T.text }}
                     placeholder="Any special handling notes…" />
                 </div>
@@ -4189,7 +4189,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       {/* ── Nav context menu ── */}
       {navCtxMenu.open && (
         <div
-          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-hairline py-1 min-w-[180px] text-sm"
+          className="fixed z-9999 bg-white rounded-lg shadow-xl border border-hairline py-1 min-w-[180px] text-sm"
           style={{ left: navCtxMenu.x, top: navCtxMenu.y }}
           onClick={e => e.stopPropagation()}
         >
@@ -4216,7 +4216,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
       {/* ── F12 Quick Job Lookup ── */}
       {f12Open && (
-        <div className="fixed inset-0 z-[9999]" onClick={() => setF12Open(false)}>
+        <div className="fixed inset-0 z-9999" onClick={() => setF12Open(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           <div
             ref={f12PopupRef}
@@ -4282,7 +4282,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     }
                   }}
                   placeholder="Job #, invoice, or ref…"
-                  className="w-full pl-9 pr-4 py-2.5 border border-hairline rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus focus:border-transparent"
+                  className="w-full pl-9 pr-4 py-2.5 border border-hairline rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus focus:border-transparent"
                   autoComplete="off"
                 />
               </div>
@@ -4316,7 +4316,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
             {/* Footer */}
             <div className="px-5 py-3 bg-panel-alt border-t border-hairline-soft flex items-center justify-between">
-              <span className="text-xs text-faint">Press <kbd className="bg-white border border-hairline rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Enter</kbd> to open · <kbd className="bg-white border border-hairline rounded px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Esc</kbd> to close</span>
+              <span className="text-xs text-faint">Press <kbd className="bg-white border border-hairline rounded-sm px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Enter</kbd> to open · <kbd className="bg-white border border-hairline rounded-sm px-1.5 py-0.5 text-[10px] font-mono shadow-sm">Esc</kbd> to close</span>
               <button
                 onMouseDown={() => {
                   const q = f12Input.trim().toLowerCase();
@@ -4388,7 +4388,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   type="password"
                   value={changePasswordForm.current}
                   onChange={e => setChangePasswordForm(f => ({ ...f, current: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                   placeholder="Enter current password"
                 />
               </div>
@@ -4398,7 +4398,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   type="password"
                   value={changePasswordForm.newPass}
                   onChange={e => setChangePasswordForm(f => ({ ...f, newPass: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                   placeholder="At least 8 characters"
                 />
               </div>
@@ -4408,7 +4408,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                   type="password"
                   value={changePasswordForm.confirm}
                   onChange={e => setChangePasswordForm(f => ({ ...f, confirm: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
                   placeholder="Repeat new password"
                 />
               </div>
@@ -4431,7 +4431,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
 
       {/* ── Global Search (Ctrl+K) ── */}
       {globalSearchOpen && (
-        <div className="fixed inset-0 z-[99999] bg-black/50" onClick={() => setGlobalSearchOpen(false)}>
+        <div className="fixed inset-0 z-99999 bg-black/50" onClick={() => setGlobalSearchOpen(false)}>
           <div className="absolute left-1/2 top-[15%] -translate-x-1/2 w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-5 py-4 border-b">
               <Search className="w-5 h-5 text-faint shrink-0" />
@@ -4441,9 +4441,9 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                 value={globalSearchQuery}
                 onChange={e => setGlobalSearchQuery(e.target.value)}
                 placeholder="Search jobs, customers, inventory, suppliers…"
-                className="flex-1 text-base outline-none text-header placeholder-faint"
+                className="flex-1 text-base outline-hidden text-header placeholder-faint"
               />
-              <kbd className="text-xs bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 text-muted font-mono shrink-0">Esc</kbd>
+              <kbd className="text-xs bg-hairline-soft border border-hairline rounded-sm px-1.5 py-0.5 text-muted font-mono shrink-0">Esc</kbd>
             </div>
             {globalSearchQuery.length > 0 && (() => {
               const q = globalSearchQuery.toLowerCase();
@@ -4499,7 +4499,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                         <div key={i.sku} className="flex items-center gap-3 px-5 py-2.5 hover:bg-accent-tint cursor-pointer"
                           onClick={() => { setActiveModule('inventory'); setGlobalSearchOpen(false); }}>
                           <Package className="w-4 h-4 text-emphasis shrink-0" />
-                          <span className="font-mono text-xs bg-hairline-soft px-1.5 py-0.5 rounded shrink-0">{i.sku}</span>
+                          <span className="font-mono text-xs bg-hairline-soft px-1.5 py-0.5 rounded-sm shrink-0">{i.sku}</span>
                           <span className="flex-1 text-sm text-header truncate">{i.name}</span>
                           <span className={`text-xs font-semibold ${i.stock < i.reorderLevel ? 'text-danger' : 'text-ok'}`}>{i.stock} in stock</span>
                         </div>
@@ -4532,10 +4532,10 @@ Invoice anyway? The shortfall will be recorded on the job.`,
               <div className="px-5 py-6 text-center text-faint">
                 <p className="text-sm">Type to search across jobs, customers, inventory, and suppliers</p>
                 <div className="flex items-center justify-center gap-4 mt-3 text-xs text-faint">
-                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+J</kbd> Jobs</span>
-                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+C</kbd> Customers</span>
-                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">Alt+I</kbd> Inventory</span>
-                  <span><kbd className="bg-hairline-soft border border-hairline rounded px-1.5 py-0.5 font-mono">F12</kbd> Quick Job</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded-sm px-1.5 py-0.5 font-mono">Alt+J</kbd> Jobs</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded-sm px-1.5 py-0.5 font-mono">Alt+C</kbd> Customers</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded-sm px-1.5 py-0.5 font-mono">Alt+I</kbd> Inventory</span>
+                  <span><kbd className="bg-hairline-soft border border-hairline rounded-sm px-1.5 py-0.5 font-mono">F12</kbd> Quick Job</span>
                 </div>
               </div>
             )}
@@ -4546,7 +4546,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
       {/* Right-click context menu for line items */}
       {ctxMenu.visible && (
         <div
-          className="fixed rounded-lg shadow-2xl z-[99999] py-1 min-w-[200px] text-sm"
+          className="fixed rounded-lg shadow-2xl z-99999 py-1 min-w-[200px] text-sm"
           style={{ left: ctxMenu.x, top: ctxMenu.y, background: T.panel, border: `1px solid ${T.hairline}` }}
           onMouseLeave={closeCtx}
           onClick={(e) => e.stopPropagation()}

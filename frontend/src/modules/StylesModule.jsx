@@ -155,9 +155,9 @@ function StyleFormModal({ initial, onSave, onClose }) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {err && (
-            <div className="px-3 py-2 rounded text-sm flex gap-2"
+            <div className="px-3 py-2 rounded-sm text-sm flex gap-2"
               style={{ background: '#fef2f2', border: `1px solid #fecaca`, color: T.danger }}>
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{err}
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{err}
             </div>
           )}
 
@@ -166,41 +166,41 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Style Code *</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.code} onChange={f('code')} placeholder="e.g. POLO-5230" disabled={!!initial} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.code} onChange={f('code')} placeholder="e.g. POLO-5230" disabled={!!initial} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Style Name *</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.name} onChange={f('name')} placeholder="e.g. Classic Polo Shirt" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.name} onChange={f('name')} placeholder="e.g. Classic Polo Shirt" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Category</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.category} onChange={f('category')} placeholder="Polo Shirts, Jackets, Caps…" list="cat-list" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.category} onChange={f('category')} placeholder="Polo Shirts, Jackets, Caps…" list="cat-list" />
                   <datalist id="cat-list">
                     {['Polo Shirts', 'T-Shirts', 'Jackets', 'Pants', 'Shorts', 'Caps', 'Bags', 'Hi-Vis', 'Dress Shirts', 'Fleece'].map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Brand</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.brand} onChange={f('brand')} placeholder="e.g. JB's Wear, AS Colour" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.brand} onChange={f('brand')} placeholder="e.g. JB's Wear, AS Colour" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Gender</label>
-                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.gender} onChange={f('gender')}>
+                  <select className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.gender} onChange={f('gender')}>
                     <option value="">— select —</option>
                     <option>Unisex</option><option>Mens</option><option>Womens</option><option>Kids</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Season</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.season} onChange={f('season')} placeholder="Core, AW2026, SS2026…" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.season} onChange={f('season')} placeholder="Core, AW2026, SS2026…" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Collection</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.collection} onChange={f('collection')} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.collection} onChange={f('collection')} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Status</label>
-                  <select className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.active ? 'active' : 'archived'} onChange={e => setForm(p => ({ ...p, active: e.target.value === 'active' }))}>
+                  <select className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.active ? 'active' : 'archived'} onChange={e => setForm(p => ({ ...p, active: e.target.value === 'active' }))}>
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>
                   </select>
@@ -209,15 +209,15 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Base Purchase Price (ex GST)</label>
-                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.base_purchase_price} onChange={f('base_purchase_price')} min="0" step="0.01" />
+                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.base_purchase_price} onChange={f('base_purchase_price')} min="0" step="0.01" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Base Sell Price (ex GST)</label>
-                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.base_sell_price} onChange={f('base_sell_price')} min="0" step="0.01" />
+                  <input type="number" className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={form.base_sell_price} onChange={f('base_sell_price')} min="0" step="0.01" />
                 </div>
               </div>
               {liveMargin !== null && (
-                <div className={`text-xs px-3 py-1.5 rounded flex items-center gap-2 ${liveMargin >= 30 ? 'bg-ok-tint text-ok' : liveMargin >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
+                <div className={`text-xs px-3 py-1.5 rounded-sm flex items-center gap-2 ${liveMargin >= 30 ? 'bg-ok-tint text-ok' : liveMargin >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                   <TrendingUp className="w-3.5 h-3.5" />
                   Gross margin: <strong>{liveMargin.toFixed(1)}%</strong>
                   {liveMargin < 10 && ' — below minimum target'}
@@ -227,7 +227,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
               )}
               <div>
                 <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Description / Notes</label>
-                <textarea className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} rows={3} value={form.description} onChange={f('description')} />
+                <textarea className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} rows={3} value={form.description} onChange={f('description')} />
               </div>
             </>
           )}
@@ -246,7 +246,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
                         ? { background: T.hairlineSoft, color: T.textFaint, border: `1px solid ${T.hairline}` }
                         : { background: T.panel, color: T.text, border: `1px solid ${T.hairline}` }}>
                       {/* garment colour swatch — preserve actual hex */}
-                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.hex, border: `1px solid ${T.hairline}` }} />
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: p.hex, border: `1px solid ${T.hairline}` }} />
                       {p.name}
                     </button>
                   ))}
@@ -256,18 +256,18 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Code</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={colourInput.code} onChange={e => setColourInput(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="NVY" maxLength={10} />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={colourInput.code} onChange={e => setColourInput(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="NVY" maxLength={10} />
                 </div>
-                <div className="flex-[2]">
+                <div className="flex-2">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Colour Name</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={colourInput.name} onChange={e => setColourInput(p => ({ ...p, name: e.target.value }))} placeholder="Navy" />
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={colourInput.name} onChange={e => setColourInput(p => ({ ...p, name: e.target.value }))} placeholder="Navy" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Swatch</label>
                   {/* garment swatch colour picker — preserve actual hex value */}
-                  <input type="color" className="h-[34px] w-10 rounded cursor-pointer" style={{ border: `1px solid ${T.hairline}` }} value={colourInput.hex} onChange={e => setColourInput(p => ({ ...p, hex: e.target.value }))} />
+                  <input type="color" className="h-[34px] w-10 rounded-sm cursor-pointer" style={{ border: `1px solid ${T.hairline}` }} value={colourInput.hex} onChange={e => setColourInput(p => ({ ...p, hex: e.target.value }))} />
                 </div>
-                <button onClick={addColour} type="button" className="px-3 py-1.5 rounded text-sm text-white" style={{ background: T.accentStrong }}>Add</button>
+                <button onClick={addColour} type="button" className="px-3 py-1.5 rounded-sm text-sm text-white" style={{ background: T.accentStrong }}>Add</button>
               </div>
               {/* Colour list */}
               {form.colours.length > 0 && (
@@ -276,7 +276,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
                     <div key={c.code} className="flex items-center gap-3 px-3 py-2 last:border-0"
                       style={{ borderBottom: `1px solid ${T.hairline}`, background: T.panel }}>
                       {/* garment colour swatch — preserve actual hex */}
-                      <span className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: c.hex || '#ccc', border: `1px solid ${T.hairline}` }} />
+                      <span className="w-5 h-5 rounded-full shrink-0" style={{ background: c.hex || '#ccc', border: `1px solid ${T.hairline}` }} />
                       <span className="font-mono text-xs w-12" style={{ color: T.textMuted }}>{c.code}</span>
                       <span className="text-sm flex-1" style={{ color: T.text }}>{c.name}</span>
                       <button onClick={() => removeColour(c.code)} style={{ color: T.danger }}><X className="w-3.5 h-3.5" /></button>
@@ -296,7 +296,7 @@ function StyleFormModal({ initial, onSave, onClose }) {
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(PRESET_SIZES).map(([label, codes]) => (
                     <button key={label} onClick={() => addSizes(codes)} type="button"
-                      className="px-2.5 py-1 rounded text-xs transition-colors"
+                      className="px-2.5 py-1 rounded-sm text-xs transition-colors"
                       style={{ background: T.panel, color: T.text, border: `1px solid ${T.hairline}` }}>
                       {label}
                     </button>
@@ -307,11 +307,11 @@ function StyleFormModal({ initial, onSave, onClose }) {
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-0.5" style={labelStyle}>Size codes (space or comma separated)</label>
-                  <input className="w-full px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={sizeInput} onChange={e => setSizeInput(e.target.value)}
+                  <input className="w-full px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus" style={inputStyle} value={sizeInput} onChange={e => setSizeInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSizeInput(); } }}
                     placeholder="e.g. XS S M L XL" />
                 </div>
-                <button onClick={addSizeInput} type="button" className="px-3 py-1.5 rounded text-sm text-white" style={{ background: T.accentStrong }}>Add</button>
+                <button onClick={addSizeInput} type="button" className="px-3 py-1.5 rounded-sm text-sm text-white" style={{ background: T.accentStrong }}>Add</button>
               </div>
               {/* Size chips */}
               {form.sizes.length > 0 && (
@@ -409,7 +409,7 @@ function VariantMatrix({ style, onGenerateSkus, generating }) {
                 <td className="px-3 py-2" style={{ border: `1px solid ${T.hairline}`, background: T.panel }}>
                   <div className="flex items-center gap-2">
                     {/* garment colour swatch — preserve actual hex */}
-                    <span className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: c.hex || '#ccc', border: `1px solid ${T.hairline}` }} />
+                    <span className="w-4 h-4 rounded-full shrink-0" style={{ background: c.hex || '#ccc', border: `1px solid ${T.hairline}` }} />
                     <div>
                       <span className="font-medium" style={{ color: T.text }}>{c.name}</span>
                       <span className="ml-1.5 font-mono" style={{ color: T.textFaint }}>{c.code}</span>
@@ -489,15 +489,15 @@ function StyleDetail({ style, onEdit, onDelete, onRefresh }) {
       <div className="px-5 py-3 space-y-2" style={{ borderBottom: `1px solid ${T.hairline}`, background: T.panel }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg flex-shrink-0"
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg shrink-0"
               style={{ background: T.accentTint, color: T.accentStrong }}>
               {style.code.charAt(0)}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs px-1.5 py-0.5 rounded"
+                <span className="font-mono text-xs px-1.5 py-0.5 rounded-sm"
                   style={{ background: T.hairlineSoft, color: T.textMuted }}>{style.code}</span>
-                {!style.active && <span className="text-xs px-1.5 py-0.5 rounded"
+                {!style.active && <span className="text-xs px-1.5 py-0.5 rounded-sm"
                   style={{ background: '#fffbeb', color: '#b45309' }}>Archived</span>}
               </div>
               <h2 className="font-semibold text-base leading-tight mt-0.5" style={{ color: T.text }}>{style.name}</h2>
@@ -509,7 +509,7 @@ function StyleDetail({ style, onEdit, onDelete, onRefresh }) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
               <Edit2 className="w-3.5 h-3.5" />Edit
@@ -748,7 +748,7 @@ export default function StylesModule() {
   return (
     <div className="flex h-full" style={{ background: T.hairlineSoft }}>
       {/* Left panel — style list */}
-      <div className="w-72 flex-shrink-0 flex flex-col" style={{ background: T.panel, borderRight: `1px solid ${T.hairline}` }}>
+      <div className="w-72 shrink-0 flex flex-col" style={{ background: T.panel, borderRight: `1px solid ${T.hairline}` }}>
         {/* List header */}
         <div className="px-3 py-3 space-y-2" style={{ borderBottom: `1px solid ${T.hairline}` }}>
           <div className="flex items-center justify-between">
@@ -767,7 +767,7 @@ export default function StylesModule() {
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5" style={{ color: T.textFaint }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-focus"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
               style={{ border: `1px solid ${T.hairline}`, color: T.text, background: T.panel }}
               placeholder="Search code, name, brand…" />
           </div>
@@ -779,7 +779,7 @@ export default function StylesModule() {
               { label: 'Season', val: filterSeason, set: setFilterSeason, opts: meta.seasons },
             ].map(({ label, val, set, opts }) => (
               <select key={label} value={val} onChange={e => set(e.target.value)}
-                className="text-xs rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-accent-focus"
+                className="text-xs rounded-sm px-1.5 py-0.5 focus:outline-hidden focus:ring-1 focus:ring-accent-focus"
                 style={{ border: `1px solid ${T.hairline}`, background: T.panel, color: T.text }}>
                 <option value="">{label}</option>
                 {opts.map(o => <option key={o} value={o}>{o}</option>)}
@@ -815,7 +815,7 @@ export default function StylesModule() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono text-[10px]" style={{ color: T.textFaint }}>{s.code}</span>
-                      {!s.active && <span className="text-[9px] px-1 rounded" style={{ background: '#fffbeb', color: '#b45309' }}>archived</span>}
+                      {!s.active && <span className="text-[9px] px-1 rounded-sm" style={{ background: '#fffbeb', color: '#b45309' }}>archived</span>}
                     </div>
                     <div className="text-xs font-medium truncate" style={{ color: T.text }}>{s.name}</div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -823,7 +823,7 @@ export default function StylesModule() {
                       {s.season && <span className="text-[10px]" style={{ color: T.accentStrong }}>{s.season}</span>}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right shrink-0">
                     <div className="flex gap-1 justify-end mb-0.5">
                       {/* garment colour swatches — preserve actual hex */}
                       {s.colours.slice(0, 5).map(c => (
