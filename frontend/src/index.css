@@ -1,22 +1,106 @@
 @import 'tailwindcss';
 
+/* The theme is still tailwind.config.js, which reads src/ui/palette.js. */
 @config '../tailwind.config.js';
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+/* ── Tailwind 3 defaults this app still relies on ───────────────────────────
+   Tailwind 4 changed some defaults of its base layer (preflight) and of its
+   utilities. These put back the ones the screens depend on, so the upgrade
+   changes nothing a person sees. Each can go once every element that leans on
+   it says what it wants with a utility of its own.
+   Guide: https://tailwindcss.com/docs/upgrade-guide#changes-from-v3 */
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+/* A colourless `ring-*` (the scheduler's drag-over column) was v3's blue-500
+   at half strength; v4 draws it in the text colour. */
+@theme {
+  --default-ring-color: color-mix(in oklab, var(--color-blue-500) 50%, transparent);
+}
+
 @layer base {
+  /* A bare `border` was gray-200 in v3; v4 draws it in the text colour. */
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
+  }
+
+  /* Placeholder text was gray-400; v4 uses the text colour at half strength. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  /* Buttons had the pointer and a disabled control the arrow; v4 gives
+     buttons the arrow. */
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  :disabled {
+    cursor: default;
+  }
+
+  /* v3 left a field's background, corners and opacity to the browser — a
+     white field on a grey panel — and v4 makes them transparent and square.
+     `revert-layer` hands them back to the browser, as v3 did. A button kept
+     v3's transparent background, so only its corners and opacity go back. */
+  input:where(:not([type='button'], [type='reset'], [type='submit'])),
+  select,
+  optgroup,
+  textarea {
+    background-color: revert-layer;
+    border-radius: revert-layer;
+    opacity: revert-layer;
+  }
+  button,
+  input:where([type='button'], [type='reset'], [type='submit']) {
+    border-radius: revert-layer;
+    opacity: revert-layer;
+  }
+  button,
+  select {
+    text-transform: none;
+  }
+
+  /* v4 zeroes every element's padding; v3 left table cells the browser's. */
+  th,
+  td {
+    padding: revert-layer;
+  }
+
+  /* A search field drew as a plain text field in v3. */
+  [type='search'] {
+    -webkit-appearance: textfield;
+    outline-offset: -2px;
+  }
+
+  /* v4 trims the inside of date and time fields (Chrome, Safari), which makes
+     them shorter than they were. These hand it back to the browser. */
+  ::-webkit-date-and-time-value {
+    min-height: revert-layer;
+    text-align: revert-layer;
+  }
+  ::-webkit-datetime-edit {
+    display: revert-layer;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: revert-layer;
+  }
+  ::-webkit-datetime-edit,
+  ::-webkit-datetime-edit-year-field,
+  ::-webkit-datetime-edit-month-field,
+  ::-webkit-datetime-edit-day-field,
+  ::-webkit-datetime-edit-hour-field,
+  ::-webkit-datetime-edit-minute-field,
+  ::-webkit-datetime-edit-second-field,
+  ::-webkit-datetime-edit-millisecond-field,
+  ::-webkit-datetime-edit-meridiem-field {
+    padding-block: revert-layer;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: revert-layer;
   }
 }
 
@@ -41,6 +125,15 @@
   --text: #111114;
   --selection: #d6e4ff;
 }
+
+/* ── The app's own rules sit with the utilities, after them ─────────────────
+   Tailwind 3 wrote its CSS without cascade layers, so the rules below met the
+   utilities on specificity and won a tie by coming last. Tailwind 4 puts all
+   of its CSS in layers, and a rule outside every layer beats every layer —
+   which would let the app-wide focus ring override a screen's own
+   focus:ring-*. Inside `@layer utilities`, after Tailwind's own, the rules
+   keep the standing they had. The layer runs to the end of the file. */
+@layer utilities {
 
 /* Geist for the UI (src/ui/fonts.css), with tabular figures everywhere so a
    column of numbers lines up. Codes and IDs use Geist Mono via .font-mono. */
@@ -137,3 +230,5 @@ input.cell-input:focus-visible {
      when printing to save ink. These documents are read in a warehouse. */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+} /* end @layer utilities */
