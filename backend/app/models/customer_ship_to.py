@@ -1,10 +1,26 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 
 class CustomerShipTo(Base):
     __tablename__ = "customer_ship_tos"
+    # Declared so the model describes the database. It was created by
+    # i3j4k5l6m7n8 but never written here, so autogenerate read its absence as
+    # an instruction and proposed dropping it — which would let one customer
+    # hold two sites under the same ship code.
+    __table_args__ = (
+        UniqueConstraint("customer_id", "code", name="uq_customer_ship_tos_code"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(

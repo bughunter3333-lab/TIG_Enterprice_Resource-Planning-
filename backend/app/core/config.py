@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Mapping, Optional
 
 
 class Settings(BaseSettings):
@@ -24,8 +24,28 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = Settings()
+
+
+def migration_database_url(environ: Mapping[str, str], database_url: str) -> str:
+    """The connection Alembic migrates through.
+
+    On Vercel the API reaches Supabase through its transaction pooler (many
+    short-lived connections); Supabase points migrations at a session, so
+    `MIGRATION_DATABASE_URL` carries the session pooler's string when it is
+    set. Without it, the API's own string is used.
+    """
+    return (environ.get("MIGRATION_DATABASE_URL") or "").strip() or database_url
+
+
+def for_alembic_ini(url: str) -> str:
+    """A connection string as Alembic's ini parser needs it.
+
+    The parser reads `%` as the start of a substitution, so a password with a
+    percent-encoded character in it (`@` is written `%40`) stopped every
+    migration with an interpolation error.
+    """
+    return url.replace("%", "%%")

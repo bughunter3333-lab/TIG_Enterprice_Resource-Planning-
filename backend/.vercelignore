@@ -1,0 +1,9 @@
+tests/
+.pytest_cache/
+.env
+*.bat
+Dockerfile
+# Vercel's Python build reads a pyproject.toml here as the API's package list and
+# stops on one without a [project] table. There is none (ruff's settings are in
+# ruff.toml); this keeps one added later from breaking the build.
+pyproject.toml

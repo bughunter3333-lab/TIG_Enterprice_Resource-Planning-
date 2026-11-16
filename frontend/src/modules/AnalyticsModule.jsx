@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  TrendingUp, BarChart3, Clock, AlertTriangle, Users,
+  TrendingUp, Clock, AlertTriangle, Users,
   Package, DollarSign, RefreshCw, LayoutGrid, HelpCircle,
-  Calendar, Percent, ArrowUpRight, ArrowDownRight, ShieldAlert,
+  Percent, ArrowUpRight, ShieldAlert,
   ChevronRight, Activity
 } from 'lucide-react';
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
+import { statusLabel } from './jobs/jobStatuses';
 import {
-  ResponsiveContainer, AreaChart, Area, LineChart, Line, 
+  ResponsiveContainer, AreaChart, Area, Line,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart as RechartsPie, Pie, Cell
 } from 'recharts';
@@ -32,7 +33,7 @@ export default function AnalyticsModule() {
   const churnQuery = useQuery({ queryKey: ['analytics/churn'], queryFn: api.analytics.getChurn, staleTime: 30000, enabled: activeTab === 'churn' || activeTab === 'overview', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const marginsQuery = useQuery({ queryKey: ['analytics/margins'], queryFn: api.analytics.getMargins, staleTime: 30000, enabled: activeTab === 'margins', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const turnaroundQuery = useQuery({ queryKey: ['analytics/turnaround'], queryFn: api.analytics.getTurnaround, staleTime: 30000, enabled: activeTab === 'turnaround', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
-  const seasonalityQuery = useQuery({ queryKey: ['analytics/seasonality'], queryFn: api.analytics.getSeasonality, staleTime: 30000, enabled: activeTab === 'seasonality', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
+  const seasonalityQuery = useQuery({ queryKey: ['analytics/seasonality'], queryFn: api.analytics.getSeasonality, staleTime: 30000, enabled: activeTab === 'forecast', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
   const anomaliesQuery = useQuery({ queryKey: ['analytics/anomalies'], queryFn: api.analytics.getAnomalies, staleTime: 30000, enabled: activeTab === 'anomalies' || activeTab === 'overview', onError: (e) => { const m = e?.message || String(e); setQueryError(m); notify(m, { type: 'error' }); } });
 
   const refetchAll = () => {
@@ -54,7 +55,7 @@ export default function AnalyticsModule() {
     (activeTab === 'churn' && churnQuery.isLoading) ||
     (activeTab === 'margins' && marginsQuery.isLoading) ||
     (activeTab === 'turnaround' && turnaroundQuery.isLoading) ||
-    (activeTab === 'seasonality' && seasonalityQuery.isLoading) ||
+    (activeTab === 'forecast' && seasonalityQuery.isLoading) ||
     (activeTab === 'anomalies' && anomaliesQuery.isLoading);
 
   return (
@@ -345,7 +346,6 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
   if (forecastQuery.isError) return <div className="p-4 rounded-lg" style={{ background: T.dangerTint, color: T.danger }}>Error loading forecast: {forecastQuery.error.message}</div>;
 
   const data = forecastQuery.data;
-  const seasonality = seasonalityQuery.data;
   const months = data.recent_months || [];
 
   return (
@@ -434,6 +434,12 @@ function renderForecastTab({ forecastQuery, seasonalityQuery }) {
             <div className="text-center py-10 text-xs" style={{ color: T.textFaint }}>Loading seasonality indexes...</div>
           ) : seasonalityQuery.isError ? (
             <div className="text-xs" style={{ color: T.danger }}>Error: {seasonalityQuery.error.message}</div>
+          ) : !seasonalityQuery.data?.monthly_patterns?.length ? (
+            // The seasonality chart is drawn on the forecast tab; a database
+            // with too little history has no monthly pattern yet.
+            <div className="text-center py-10 text-xs" style={{ color: T.textFaint }}>
+              {seasonalityQuery.data?.error || 'Not enough sales history for seasonal patterns yet.'}
+            </div>
           ) : (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -644,7 +650,7 @@ function renderTurnaroundTab({ turnaroundQuery }) {
                       <td className="px-3 py-2 font-mono font-bold" style={{ color: T.accentStrong }}>#{j.job_id}</td>
                       <td className="px-3 py-2 font-medium truncate max-w-[150px]" title={j.customer_name} style={{ color: T.text }}>{j.customer_name}</td>
                       <td className="px-3 py-2">
-                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{j.status}</span>
+                        <span className="bg-accent-tint text-accent-strong px-1.5 py-0.5 rounded text-[10px] font-semibold">{statusLabel(j.status)}</span>
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-danger">{j.days_open} days</td>
                     </tr>
@@ -905,7 +911,6 @@ function renderAnomaliesTab({ anomaliesQuery }) {
   const data = anomaliesQuery.data;
   const stock = data.stock_consumption_anomalies || [];
   const revenue = data.revenue_anomalies || [];
-  const stagnant = data.stagnant_jobs || [];
 
   return (
     <div className="space-y-6">

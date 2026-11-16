@@ -1,0 +1,361 @@
+{
+ "overview": {
+  "active_jobs_count": 8,
+  "overdue_jobs_count": 0,
+  "low_stock_count": 3,
+  "outstanding_receivables": 6400.4,
+  "stagnant_jobs_count": 0,
+  "draft_pos_count": 1,
+  "high_risk_churn_count": 0
+ },
+ "forecast": {
+  "error": "Insufficient data (need at least 3 months) to calculate forecast.",
+  "recent_months": []
+ },
+ "dso": {
+  "dso_days": 55.8,
+  "total_outstanding": 6400.4,
+  "revenue_last_90_days": 10331.8,
+  "paid_jobs_count": 3,
+  "partially_paid_jobs_count": 0,
+  "unpaid_invoices_count": 1,
+  "collection_health_rating": "Action needed",
+  "top_receivables": [
+   {
+    "customer_id": "ARCARE",
+    "customer_name": "Arcare Aged Care",
+    "balance_due": 2623.5
+   },
+   {
+    "customer_id": "BANK.SYD",
+    "customer_name": "Bank of Sydney",
+    "balance_due": 1089.0
+   },
+   {
+    "customer_id": "TIMEZONE",
+    "customer_name": "Timezone",
+    "balance_due": 699.6
+   },
+   {
+    "customer_id": "AVEO",
+    "customer_name": "Aveo Group",
+    "balance_due": 541.2
+   },
+   {
+    "customer_id": "MERRY.RSL",
+    "customer_name": "Merrylands RSL",
+    "balance_due": 438.9
+   },
+   {
+    "customer_id": "YHA",
+    "customer_name": "YHA Australia",
+    "balance_due": 437.25
+   },
+   {
+    "customer_id": "RICOH",
+    "customer_name": "Ricoh Australia",
+    "balance_due": 426.8
+   },
+   {
+    "customer_id": "GOODSTART",
+    "customer_name": "Goodstart Early Learning",
+    "balance_due": 144.15
+   }
+  ]
+ },
+ "abc": {
+  "summary": {
+   "total_skus": 9,
+   "total_value": 5778.0,
+   "a_skus_count": 5,
+   "a_skus_percentage": 55.6,
+   "a_value": 4225.0,
+   "b_skus_count": 2,
+   "b_skus_percentage": 22.2,
+   "b_value": 968.0,
+   "c_skus_count": 2,
+   "c_skus_percentage": 22.2,
+   "c_value": 585.0
+  },
+  "top_a_items": [
+   {
+    "sku": "BZ-P400-NVY-M",
+    "name": "Biz Crew Polo Navy M",
+    "stock": 90,
+    "unit_cost": 11.5,
+    "stock_value": 1035.0
+   },
+   {
+    "sku": "BZ-J307-BLK-L",
+    "name": "Biz Soft Shell Jacket Black L",
+    "stock": 25,
+    "unit_cost": 38.0,
+    "stock_value": 950.0
+   },
+   {
+    "sku": "AS5001-WHT-M",
+    "name": "AS Colour Staple Tee White M",
+    "stock": 140,
+    "unit_cost": 6.2,
+    "stock_value": 868.0
+   },
+   {
+    "sku": "BZ-P400-NVY-L",
+    "name": "Biz Crew Polo Navy L",
+    "stock": 60,
+    "unit_cost": 11.5,
+    "stock_value": 690.0
+   },
+   {
+    "sku": "AS5001-WHT-L",
+    "name": "AS Colour Staple Tee White L",
+    "stock": 110,
+    "unit_cost": 6.2,
+    "stock_value": 682.0
+   }
+  ]
+ },
+ "churn": {
+  "summary": {
+   "total_active_customers": 10,
+   "high_risk_count": 0,
+   "at_risk_count": 0,
+   "never_ordered_count": 0
+  },
+  "high_risk_customers": [],
+  "at_risk_customers": [],
+  "never_ordered_customers": []
+ },
+ "margins": {
+  "summary": {
+   "total_billed_inc": 10331.8,
+   "total_ex_gst": 9392.55,
+   "total_gst_collected": 939.25,
+   "avg_job_value": 860.98,
+   "median_job_value": 632.5,
+   "min_job_value": 144.15,
+   "max_job_value": 2358.4
+  },
+  "price_distribution": [
+   {
+    "bracket": "< $500",
+    "count": 5
+   },
+   {
+    "bracket": "$500 - $2,000",
+    "count": 5
+   },
+   {
+    "bracket": ">= $2,000",
+    "count": 2
+   }
+  ],
+  "top_customers": [
+   {
+    "customer_id": "ARCARE",
+    "customer_name": "Arcare Aged Care",
+    "revenue": 2623.5,
+    "jobs_count": 2,
+    "avg_job_value": 1311.75,
+    "revenue_share_percentage": 25.4
+   },
+   {
+    "customer_id": "SUTH.SHIRE",
+    "customer_name": "Sutherland Shire Council",
+    "revenue": 2358.4,
+    "jobs_count": 1,
+    "avg_job_value": 2358.4,
+    "revenue_share_percentage": 22.8
+   },
+   {
+    "customer_id": "ZONE.BOWL",
+    "customer_name": "Zone Bowling",
+    "revenue": 1573.0,
+    "jobs_count": 2,
+    "avg_job_value": 786.5,
+    "revenue_share_percentage": 15.2
+   },
+   {
+    "customer_id": "BANK.SYD",
+    "customer_name": "Bank of Sydney",
+    "revenue": 1089.0,
+    "jobs_count": 1,
+    "avg_job_value": 1089.0,
+    "revenue_share_percentage": 10.5
+   },
+   {
+    "customer_id": "TIMEZONE",
+    "customer_name": "Timezone",
+    "revenue": 699.6,
+    "jobs_count": 1,
+    "avg_job_value": 699.6,
+    "revenue_share_percentage": 6.8
+   },
+   {
+    "customer_id": "AVEO",
+    "customer_name": "Aveo Group",
+    "revenue": 541.2,
+    "jobs_count": 1,
+    "avg_job_value": 541.2,
+    "revenue_share_percentage": 5.2
+   },
+   {
+    "customer_id": "MERRY.RSL",
+    "customer_name": "Merrylands RSL",
+    "revenue": 438.9,
+    "jobs_count": 1,
+    "avg_job_value": 438.9,
+    "revenue_share_percentage": 4.2
+   },
+   {
+    "customer_id": "YHA",
+    "customer_name": "YHA Australia",
+    "revenue": 437.25,
+    "jobs_count": 1,
+    "avg_job_value": 437.25,
+    "revenue_share_percentage": 4.2
+   },
+   {
+    "customer_id": "RICOH",
+    "customer_name": "Ricoh Australia",
+    "revenue": 426.8,
+    "jobs_count": 1,
+    "avg_job_value": 426.8,
+    "revenue_share_percentage": 4.1
+   },
+   {
+    "customer_id": "GOODSTART",
+    "customer_name": "Goodstart Early Learning",
+    "revenue": 144.15,
+    "jobs_count": 1,
+    "avg_job_value": 144.15,
+    "revenue_share_percentage": 1.4
+   }
+  ]
+ },
+ "turnaround": {
+  "completed_jobs_analysed": 5,
+  "average_turnaround_days": 13.6,
+  "median_turnaround_days": 13,
+  "p90_turnaround_days": 22,
+  "throughput_rating": "Slow",
+  "speed_breakdown": [
+   {
+    "category": "Fast (\u22643 days)",
+    "count": 0
+   },
+   {
+    "category": "Medium (4-10 days)",
+    "count": 2
+   },
+   {
+    "category": "Slow (>10 days)",
+    "count": 3
+   }
+  ],
+  "backlog": {
+   "active_backlog_count": 8,
+   "average_backlog_age_days": 6.0,
+   "at_risk_count": 0,
+   "at_risk_jobs": []
+  }
+ },
+ "seasonality": {
+  "overall_average_revenue": 143.5,
+  "peak_month": "Oct",
+  "peak_month_avg": 1165.36,
+  "slowest_month": "Nov",
+  "slowest_month_avg": 556.61,
+  "monthly_patterns": [
+   {
+    "month_num": 1,
+    "month_name": "Jan",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 2,
+    "month_name": "Feb",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 3,
+    "month_name": "Mar",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 4,
+    "month_name": "Apr",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 5,
+    "month_name": "May",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 6,
+    "month_name": "Jun",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 7,
+    "month_name": "Jul",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 8,
+    "month_name": "Aug",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 9,
+    "month_name": "Sep",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   },
+   {
+    "month_num": 10,
+    "month_name": "Oct",
+    "average_revenue": 1165.36,
+    "seasonal_index": 8.12,
+    "jobs_count": 6
+   },
+   {
+    "month_num": 11,
+    "month_name": "Nov",
+    "average_revenue": 556.61,
+    "seasonal_index": 3.88,
+    "jobs_count": 6
+   },
+   {
+    "month_num": 12,
+    "month_name": "Dec",
+    "average_revenue": 0.0,
+    "seasonal_index": 0.0,
+    "jobs_count": 0
+   }
+  ]
+ },
+ "anomalies": {
+  "stock_consumption_anomalies": [],
+  "revenue_anomalies": [],
+  "stagnant_jobs": []
+ }
+}

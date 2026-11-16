@@ -128,6 +128,33 @@ class TestAdjustmentsHoldInvariants:
         )
         assert_invariants(db, "IV4", before, what="adjusting stock up")
 
+    def _put_away(self, client, sku, **over):
+        body = {"branch": "HQ", "bin": "B.3.H.1", "sku": sku, "quantity": 0}
+        body.update(over)
+        return client.post("/inventory/bin-map/put-away", json=body)
+
+    def test_put_away_of_new_stock(self, client, db, stocked):
+        before = stocked("IV21", 50)
+        self._put_away(client, "IV21", quantity=7, new_stock=True)
+        after = assert_invariants(db, "IV21", before, what="new stock into a box")
+        assert after.stock == 57
+
+    def test_put_away_of_stock_already_on_hand(self, client, db, stocked):
+        before = stocked("IV22", 50)
+        self._put_away(client, "IV22", quantity=50)
+        after = assert_invariants(db, "IV22", before, what="on-hand stock into a box")
+        assert after.stock == 50
+
+    def test_put_away_places_stock_that_had_no_branch(self, client, db, make_inventory):
+        """The one baseline here that starts unreconciled: legacy stock has a
+        total and no position, and putting it away is what reconciles it."""
+        make_inventory(sku="IV23", stock=40)
+        db.commit()
+        before = snapshot(db, "IV23")
+        self._put_away(client, "IV23", quantity=40)
+        after = assert_invariants(db, "IV23", before, what="placing unlocated stock")
+        assert after.stock == 40
+
     def test_stocktake_variance(self, client, db, stocked):
         before = stocked("IV5", 80)
         client.post(

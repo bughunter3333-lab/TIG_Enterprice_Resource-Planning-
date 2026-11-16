@@ -1,17 +1,31 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, func
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Numeric,
+    DateTime,
+    ForeignKey,
+    Index,
+    func,
+)
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
+    # Named as d1e3f5a7b9c0 created them. `index=True` would derive
+    # `ix_purchase_orders_*`, which reads to autogenerate as a drop and a
+    # rebuild of two indexes that already exist.
+    __table_args__ = (
+        Index("ix_po_supplier_id", "supplier_id"),
+        Index("ix_po_status", "status"),
+    )
 
     id = Column(String(20), primary_key=True)
-    supplier_id = Column(
-        String(20), ForeignKey("suppliers.id"), nullable=True, index=True
-    )
+    supplier_id = Column(String(20), ForeignKey("suppliers.id"), nullable=True)
     supplier_name = Column(String(100))
-    status = Column(String(20), default="Draft", index=True)
+    status = Column(String(20), default="Draft")
     order_date = Column(String(20))
     expected_date = Column(String(20))
     total = Column(Numeric(10, 2), default=0)
@@ -36,6 +50,10 @@ class PurchaseOrderItem(Base):
     order_id = Column(String(20), ForeignKey("purchase_orders.id"), nullable=False)
     sku = Column(String(50))
     description = Column(String(255))
+    # The job this line is for. Jim2 puts it on every PO line, which is what
+    # lets one purchase order cover many jobs and still say which units belong
+    # to which -- the "35 units across 22 jobs" problem from the Arcare run.
+    job_id = Column(String(20), index=True, nullable=True)
     qty_ordered = Column(Integer, default=0)
     qty_received = Column(Integer, default=0)
     unit_cost = Column(Numeric(10, 2), default=0)

@@ -1,34 +1,16 @@
-import { useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, Filter, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, Users, Clock, AlertCircle } from 'lucide-react';
 import { T } from '../ui/tokens';
+import { FINISHED_STATUSES, PRODUCTION_STATUSES, statusLabel } from './jobs/jobStatuses';
+import StatusBadge from '../ui/StatusBadge';
+import { DEC_OPTIONS } from '../lib/decoration';
 
-const STATUS_COLORS = {
-  QUOTE: 'bg-hairline-soft text-header border-hairline',
-  New: 'bg-accent-tint text-accent-strong border-accent',
-  ORDER: 'bg-accent-tint text-accent-strong border-accent',
-  'In Progress': 'bg-warn-tint text-warn border-warn',
-  PROOF: 'bg-emphasis-tint text-emphasis border-emphasis',
-  PRINT: 'bg-accent-tint text-accent-strong border-accent',
-  'Pick/Pack': 'bg-accent-tint text-accent-strong border-accent',
-  FINISH: 'bg-ok-tint text-ok border-ok',
-  INVOICE: 'bg-accent-tint text-accent-strong border-accent',
-  PAID: 'bg-ok-tint text-ok border-ok',
-  CANCEL: 'bg-danger-tint text-danger border-danger',
-};
 
-const DEC_COLORS = {
-  EMB:    { dot: 'bg-emphasis',  pill: 'bg-emphasis-tint text-emphasis',  label: 'Embroidery' },
-  TRS:    { dot: 'bg-accent-strong',  pill: 'bg-accent-tint text-accent-strong',  label: 'Transfer' },
-  Screen: { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Screen Print' },
-  DTF:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'DTF' },
-  Laser:  { dot: 'bg-danger',     pill: 'bg-danger-tint text-danger',        label: 'Laser' },
-  Sub:    { dot: 'bg-emphasis',    pill: 'bg-emphasis-tint text-emphasis',      label: 'Sublimation' },
-  Pad:    { dot: 'bg-accent-strong',    pill: 'bg-accent-tint text-accent-strong',      label: 'Pad Print' },
-  Vinyl:  { dot: 'bg-ok',   pill: 'bg-ok-tint text-ok',    label: 'Vinyl Cut' },
-  None:   { dot: 'bg-hairline',    pill: 'bg-panel-alt text-muted',      label: 'None' },
-};
+// The decoration methods are the shared list's (lib/decoration.js): a copy
+// kept here had drifted and had no DTG.
+const DEC_COLORS = Object.fromEntries(DEC_OPTIONS.map((o) => [o.v, { dot: o.dot, pill: o.pill, label: o.l }]));
 
-const PROD_STATUSES = ['ORDER', 'In Progress', 'PROOF', 'PRINT', 'Pick/Pack', 'FINISH'];
+const PROD_STATUSES = PRODUCTION_STATUSES;
 
 function parseDate(str) {
   if (!str) return null;
@@ -63,11 +45,9 @@ function addDays(d, n) {
 function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
   const due = parseDate(job.due);
   const now = new Date();
-  const isOverdue = due && due < now && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
+  const isOverdue = due && due < now && ![...FINISHED_STATUSES, 'PAID', 'CANCEL', 'INVOICE'].includes(job.status);
   const daysLeft = due ? Math.ceil((due - now) / 86400000) : null;
   const decs = [...new Set((job.items || []).map(i => i.decorationType).filter(d => d && d !== 'None'))];
-  const primaryDec = decs[0] || null;
-  const decStyle = primaryDec ? DEC_COLORS[primaryDec] : DEC_COLORS.None;
 
   return (
     <div
@@ -84,7 +64,7 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
         <div className="flex items-center gap-1 shrink-0">
           {job.priority === 'Urgent' && <span className="text-[10px] px-1 rounded font-bold leading-4" style={{ background: T.dangerTint, color: T.danger }}>URG</span>}
           {job.priority === 'High' && <span className="text-[10px] bg-accent-tint text-accent-strong px-1 rounded font-bold leading-4">HIGH</span>}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[job.status] || 'bg-hairline-soft text-muted'}`}>{job.status}</span>
+          <StatusBadge status={job.status} size="sm" />
         </div>
       </div>
       <p className="text-xs font-semibold truncate leading-tight" style={{ color: T.text }}>{job.customer}</p>
@@ -101,7 +81,7 @@ function ScheduleJobCard({ job, onPin, onDrop, isDragOver }) {
       )}
       <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${T.hairline}` }}>
         {due ? (
-          <span className="text-[10px] font-medium" style={{ color: isOverdue ? T.danger : daysLeft <= 1 ? '#c2410c' : T.textFaint }}>
+          <span className="text-[10px] font-medium" style={{ color: isOverdue ? T.danger : daysLeft <= 1 ? T.warn : T.textFaint }}>
             {isOverdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
           </span>
         ) : <span className="text-[10px]" style={{ color: T.textFaint }}>No due date</span>}
@@ -124,7 +104,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
   const displayed = filterStatus === 'all' ? jobs : jobs.filter(j => j.status === filterStatus);
   const overdueCount = displayed.filter(j => {
     const d = parseDate(j.due);
-    return d && d < new Date() && !['FINISH', 'PAID', 'CANCEL', 'INVOICE'].includes(j.status);
+    return d && d < new Date() && ![...FINISHED_STATUSES, 'PAID', 'CANCEL', 'INVOICE'].includes(j.status);
   }).length;
 
   return (
@@ -132,7 +112,7 @@ function DayColumn({ date, jobs, isToday, onPin, onDropJob, filterStatus }) {
       className={`flex-1 min-w-0 rounded-xl border-t-4 transition-colors ${dragOver ? 'ring-2 ring-inset' : ''}`}
       style={{
         borderTopColor: isToday ? T.accentStrong : T.hairline,
-        background: isToday ? '#fefce8' : isWeekend ? T.hairlineSoft : T.panel,
+        background: isToday ? T.accentTint : isWeekend ? T.hairlineSoft : T.panel,
         ...(dragOver ? { outlineColor: T.accentStrong } : {}),
       }}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -187,7 +167,6 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
   const [filterStaff, setFilterStaff] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showWeekend, setShowWeekend] = useState(false);
-  const [droppingJob, setDroppingJob] = useState(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -301,7 +280,7 @@ export default function SchedulingModule({ jobs = [], onPinJob, onUpdateJobDue, 
             className="rounded-lg px-2 py-1.5 text-xs focus:outline-none"
             style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
             <option value="all">All Statuses</option>
-            {PROD_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            {PROD_STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
           </select>
           <button
             onClick={() => setShowWeekend(v => !v)}

@@ -7,6 +7,8 @@ from sqlalchemy import (
     ForeignKey,
     Boolean,
     Text,
+    Index,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -15,9 +17,15 @@ from app.database import Base
 
 class Style(Base):
     __tablename__ = "styles"
+    # Both enforce the same thing; declared as the database actually holds them
+    # so the model is a description rather than a proposal to rebuild.
+    __table_args__ = (
+        UniqueConstraint("code", name="styles_code_key"),
+        Index("ix_styles_code", "code"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    code = Column(String(50), unique=True, nullable=False, index=True)
+    code = Column(String(50), nullable=False)
     name = Column(String(255), nullable=False)
     category = Column(String(100))
     brand = Column(String(100))

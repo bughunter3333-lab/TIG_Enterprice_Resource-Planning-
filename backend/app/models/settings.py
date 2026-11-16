@@ -13,6 +13,9 @@ class CompanySettings(Base):
     website = Column(String(100))
     gst_rate = Column(Numeric(5, 2), default=10.0)
     invoice_prefix = Column(String(10), default="INV")
+    # The number the next issued invoice gets, after the prefix. Empty means
+    # "one more than the highest already used" (app/core/invoice_numbers.py).
+    invoice_next_number = Column(Integer, nullable=True)
     quote_prefix = Column(String(10), default="QT")
     bank_name = Column(String(100))
     bank_bsb = Column(String(10))
@@ -37,7 +40,11 @@ class EmailLog(Base):
     to_email = Column(String(200))
     subject = Column(String(200))
     job_id = Column(String(20))
-    email_type = Column(String(20))  # invoice / quote / reminder / statement
+    # A purchase order sent to its supplier (finding F17); job_id is then empty.
+    po_id = Column(String(20))
+    email_type = Column(
+        String(20)
+    )  # invoice / quote / reminder / statement / purchase_order
     status = Column(String(20))  # sent / failed
     error = Column(Text)
     sent_by = Column(String(50))

@@ -12,7 +12,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.core.dependencies import get_current_user
+
+# People only: a service account (the portal) keeps no lists.
+from app.core.dependencies import require_any
 from app.models.saved_list import SavedList
 from app.models.user import User
 
@@ -46,7 +48,7 @@ def _serialize(row: SavedList) -> dict:
 @router.get("")
 def list_saved_lists(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any),
 ):
     rows = (
         db.query(SavedList)
@@ -61,7 +63,7 @@ def list_saved_lists(
 def create_saved_list(
     body: SavedListCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any),
 ):
     if body.node not in ALLOWED_NODES:
         raise HTTPException(status_code=422, detail=f"Unknown node '{body.node}'")
@@ -94,7 +96,7 @@ def update_saved_list(
     list_id: str,
     body: SavedListUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any),
 ):
     row = (
         db.query(SavedList)
@@ -115,7 +117,7 @@ def update_saved_list(
 def delete_saved_list(
     list_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any),
 ):
     row = (
         db.query(SavedList)

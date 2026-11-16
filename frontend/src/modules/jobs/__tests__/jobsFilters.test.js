@@ -1,4 +1,6 @@
-import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { filterJobs, buildFilterOptions, matchJobList, computeAutoPickAvailability, quickListModule, mergeJobs, QUICK_FILTERS, EMPTY_JOBS_FILTERS } from '../jobsFilters';
+import { jobsInView } from '../jobMetrics';
+import { todayKey } from '../../../lib/dates';
 
 const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const today = new Date();
@@ -21,6 +23,29 @@ test('search matches id, customer, customerId, refs', () => {
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, searchTerm: 'po-9' }, null)).toHaveLength(1);
 });
 
+test('search also finds a portal order by its order number, contact, requester, ex-job ref or connote (F01)', () => {
+  const portal = { ...jobs[1], id: '1004', serialNo: 'WEB-10422', nameContact: 'Priya Natarajan', requestedBy: 'Dale Cooper', exJobRef: 'J2-88123', connote: 'STK00991' };
+  const all = [...jobs, portal];
+  for (const term of ['web-104', 'priya', 'dale c', 'j2-881', 'stk009']) {
+    expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: term }, null).map(j => j.id)).toEqual(['1004']);
+  }
+});
+
+test('search finds the jobs a purchase order buys for, by the PO number on their lines (JIM26)', () => {
+  const buying = { ...jobs[1], id: '1005', items: [{ stockCode: 'KG-HV-XL', poNo: 'PO-DEMO-001' }, { stockCode: 'EMB', poNo: '' }] };
+  const all = [...jobs, buying];
+  expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: 'po-demo-001' }, null).map(j => j.id)).toEqual(['1005']);
+  expect(filterJobs(all, { ...EMPTY_JOBS_FILTERS, searchTerm: 'demo-0' }, null).map(j => j.id)).toEqual(['1005']);
+});
+
+test('jobs the server found are added to the loaded list once, the loaded copy kept (F01)', () => {
+  const found = [{ ...jobs[0], customer: 'stale copy' }, { id: '0999', customer: 'Old Co', items: [] }];
+  const merged = mergeJobs(jobs, found);
+  expect(merged.map(j => j.id)).toEqual(['1001', '1002', '1003', '0999']);
+  expect(merged[0].customer).toBe('BHP Group');
+  expect(mergeJobs(jobs, undefined)).toBe(jobs);
+});
+
 test('status, priority, customer, assignee filters', () => {
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, status: 'PRINT' }, null)).toHaveLength(1);
   expect(filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, priority: 'Urgent' }, null)).toHaveLength(1);
@@ -34,9 +59,11 @@ test('quick filter overdue excludes finished statuses', () => {
   expect(out.map(j => j.id)).toEqual(['1001']);
 });
 
-test('quick filter myJobs matches assignedTo against current user', () => {
+test('quick filter myJobs is my open work', () => {
+  // The shared 'mine' view (jobMetrics.js): assigned to or account-managed by
+  // me, and still to be delivered — 1003 is PAID, so it is no longer mine to do.
   const out = filterJobs(jobs, { ...EMPTY_JOBS_FILTERS, quick: 'myJobs' }, { username: 'Emon' });
-  expect(out.map(j => j.id)).toEqual(['1001', '1003']);
+  expect(out.map(j => j.id)).toEqual(['1001']);
 });
 
 test('customerGroup filters on customerId prefix before the dot', () => {
@@ -154,8 +181,38 @@ test('computeAutoPickAvailability mixes tracked + untracked lines proportionally
   expect(computeAutoPickAvailability(js, inv)).toEqual({ M: 75 });
 });
 
-test('QUICK_FILTERS exposes the seven quick filter ids', () => {
-  expect(QUICK_FILTERS.map(q => q.id)).toEqual(['overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs', 'urgent']);
+test('QUICK_FILTERS exposes the quick filter ids, the saved ones first and unchanged', () => {
+  expect(QUICK_FILTERS.map(q => q.id)).toEqual([
+    'overdue', 'dueToday', 'thisWeek', 'inProduction', 'needsInvoice', 'myJobs',
+    'pickPack', 'proof', 'orderNotStarted', 'inProgress', 'notDespatched', 'quoteExpiring',
+    'overTime', 'urgent',
+  ]);
+});
+
+test('each Home quick filter opens exactly the jobs its view counts', () => {
+  const FIXED = new Date('2026-06-12T03:00:00Z');
+  const today = todayKey(FIXED);
+  const tjobs = [
+    { id: 'A', status: 'PROOF', due: '' },
+    { id: 'B', status: 'ORDER', due: '' },
+    { id: 'C', status: 'In Progress', due: '' },
+    { id: 'D', status: 'FINISH', due: '', dispatchedAt: '' },
+    { id: 'E', status: 'INVOICE', due: '', dispatchedAt: '2026-06-10' },
+    { id: 'F', status: 'QUOTE', due: '', validityDate: today },
+    { id: 'G', status: 'QUOTE', due: '', validityDate: '2020-01-01' },
+    { id: 'H', status: 'Pick/Pack', due: '' },
+  ];
+  const pairs = { pickPack: 'pickPack', proof: 'proof', orderNotStarted: 'orderNotStarted', inProgress: 'inProgress', notDespatched: 'notDespatched', quoteExpiring: 'quoteExpiring' };
+  for (const [quick, view] of Object.entries(pairs)) {
+    const opened = filterJobs(tjobs, { ...EMPTY_JOBS_FILTERS, quick }, null, FIXED).map(j => j.id);
+    expect(opened).toEqual(jobsInView(tjobs, view, { today }).map(j => j.id));
+    expect(opened).toHaveLength(1);
+  }
+});
+
+test('quotes expiring open in the Quotes list; every other quick list in Jobs', () => {
+  expect(quickListModule('quoteExpiring')).toBe('quotes');
+  for (const q of QUICK_FILTERS.filter(f => f.id !== 'quoteExpiring')) expect(quickListModule(q.id)).toBe('jobs');
 });
 
 test('time-sensitive quick filters are deterministic with injected now', () => {
@@ -177,6 +234,7 @@ test('time-sensitive quick filters are deterministic with injected now', () => {
 
   expect(ids('overdue')).toEqual(['A']);                 // D and E finished, excluded
   expect(ids('thisWeek')).toEqual(['B', 'C']);           // both future within 7 days
-  expect(ids('inProduction')).toEqual(['A', 'C']);       // A is PRINT (in production), C is In Progress
+  // The production phase (jobMetrics.js): ORDER through PRINT. B is an ORDER.
+  expect(ids('inProduction')).toEqual(['A', 'B', 'C']);
   expect(ids('needsInvoice')).toEqual(['D']);            // FINISH status
 });

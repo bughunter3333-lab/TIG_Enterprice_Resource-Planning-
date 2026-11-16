@@ -1,0 +1,10 @@
+/* Geist and Geist Mono (SIL Open Font License), self-hosted through Fontsource:
+   one variable file per family, fetched the first time text needs it, no
+   request leaves the app. Geist carries every word; Geist Mono codes and IDs.
+
+   SAP's 72 is no longer the UI face, but its package stays installed: the 3D
+   warehouse (modules/warehouse/Bins3D.jsx, Sections3D.jsx) draws its labels
+   from 72's .woff file, which the 3D text renderer needs and Geist does not
+   ship. */
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';

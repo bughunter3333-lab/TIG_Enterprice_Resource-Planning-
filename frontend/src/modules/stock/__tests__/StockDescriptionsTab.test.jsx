@@ -3,13 +3,20 @@ import { renderWithQuery } from '../../../test/renderWithQuery';
 import StockDescriptionsTab from '../tabs/StockDescriptionsTab';
 
 const update = vi.fn().mockResolvedValue({});
-vi.mock('../../../api', () => ({ stock: { update: (...a) => update(...a) } }));
+vi.mock('../../../api', () => ({ inventory: { update: (...a) => update(...a) } }));
 
 const wrap = renderWithQuery;
 
 const item = { sku: 'CAP-1', desc_extended: 'orig', desc_web: '', desc_care: '' };
 
 beforeEach(() => update.mockClear());
+
+// The mock once offered a stock.update that the real api.js never had, so the
+// test passed while Save failed in the app. The method mocked must exist.
+test('saves through a method the real api has', async () => {
+  const real = await vi.importActual('../../../api');
+  expect(typeof real.inventory.update).toBe('function');
+});
 
 test('seeds textareas from the item and disables Save until edited', () => {
   wrap(<StockDescriptionsTab item={item} />);

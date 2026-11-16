@@ -12,123 +12,141 @@
  * `tokens.js` builds the `T` object from the same values for the inline-style
  * call sites. One change, one effect, everywhere.
  *
- * ── The direction ─────────────────────────────────────────────────────────
+ * ── The direction (2026-10-25) ────────────────────────────────────────────
  *
- * "Press room", carried inward from the sign-in screen. The business puts ink
- * and thread onto garments, so the interface is built from the press floor
- * rather than from generic business software:
+ * A calm, modern product look (the owner's references: Humaplus, FlowAI, the
+ * spline.one system) over Fiori's page structure, which stays. Spec:
+ * docs/superpowers/specs/2026-10-25-calm-product-look.md.
  *
- *   ink     the machine — chrome, top bar, nav, primary text
- *   paper   warm newsprint stock, the ground everything sits on
- *   panel   the sheet being worked on; stays pure white so data reads cleanly
- *   accent  process cyan, the live ink
- *   emphasis process magenta, used sparingly for the one thing that matters
+ *   - A near-neutral ground, white surfaces drawn with hairlines rather than
+ *     shadows, and one blue that means "act" or "you are here".
+ *   - Colour carries state, never decoration: the traffic light and the job's
+ *     phase are the only other hues on a screen.
+ *   - Geist for every word, Geist Mono for codes and IDs, tabular figures
+ *     everywhere so a column of numbers lines up.
  *
- * Semantic colour is deliberately separate from brand colour. `ok`, `warn` and
- * `danger` are a traffic light and mean the same thing on every surface; they
- * are not free to follow the brand, because a job status is information rather
- * than decoration.
+ * It replaces the SAP Horizon values (2026-10-10). The key names are the app's
+ * own and are kept because ~3,000 call sites read them; what changed is what
+ * they hold.
  *
- * ── Contrast ──────────────────────────────────────────────────────────────
+ *   ink     the top bar — white, with dark text
+ *   rail    the sidebar: a second neutral, a step off the page
+ *   paper   the page background behind cards and tables
+ *   panel   cards, tables, record pages
+ *   accent  the one blue; primary actions, links, selection, focus
+ *   emphasis a deeper blue for the occasional single highlight
  *
- * Ratios below are against `panel` (#ffffff) unless stated. `accent` is 3.5:1,
- * which passes for graphics and large text but NOT for body copy — use
- * `accentStrong` (5.2:1) wherever cyan carries words.
+ * ── Contrast (against white) ──────────────────────────────────────────────
  *
- * `faint` was #8d8d99, which measured 3.28:1 in the running application in 17
- * places — the nav-tree section labels, the empty-state line, the status bar.
- * Those are read, not decorative. It is #686874 now: 5.4:1 on panel, 4.7:1 on
- * paper, so it passes on both grounds. That narrows the gap to `muted`, which
- * is the right trade: a third grey nobody can read is not a third level of
- * hierarchy. Anything quieter than `muted` gets there by size and weight.
+ *   text #111114 18.9:1 · muted #55575f 7.2:1 · faint #6e7079 4.9:1
+ *   accent #0b63f6 5.1:1 · accentStrong #0a52cc 6.8:1
+ *   ok #15803d 5.0:1 · warn #b45309 5.0:1 · danger #c0262d 5.9:1
+ *
+ * Every chip pairs one of those text colours with its own pale tint, so the
+ * word passes 4.5:1 on the chip as well.
  */
 
 export const palette = {
-  // ── Chrome: the machine ────────────────────────────────────────────────
-  ink: '#17171c',
-  inkRaised: '#23232b',
-  inkHover: '#2f2f39',
-  inkText: '#ffffff',
-  inkTextMuted: '#a8a8b8',
+  // ── Top bar ────────────────────────────────────────────────────────────
+  ink: '#ffffff',
+  inkRaised: '#f7f7f8',
+  inkHover: '#f0f0f2',
+  inkText: '#111114',
+  inkTextMuted: '#5d5f67',
+
+  // ── Sidebar: the second neutral layer ──────────────────────────────────
+  rail: '#fafafa',
+  railHover: '#f0f0f2',
 
   // ── Ground and surfaces ────────────────────────────────────────────────
-  paper: '#f1eee8',
+  paper: '#f5f5f6',
   panel: '#ffffff',
-  panelAlt: '#faf8f4',
-  hairline: '#d8d3c8',
-  hairlineSoft: '#ebe7de',
+  panelAlt: '#fafafb',
+  hairline: '#e4e4e7',
+  hairlineSoft: '#efeff1',
+  // A field's edge: a step darker than a card's, so an empty input still
+  // reads as a place to type.
+  fieldBorder: '#cfd0d5',
+  fieldBorderHover: '#a1a3ab',
 
   // ── Text ───────────────────────────────────────────────────────────────
-  text: '#1a1a1f',
-  muted: '#5c5c66',
-  faint: '#686874',
-  headerText: '#3a3a44',
+  text: '#111114',
+  muted: '#55575f',
+  faint: '#6e7079',
+  headerText: '#111114',
 
-  // ── Accent: process cyan ───────────────────────────────────────────────
-  accent: '#0090c8',
-  accentStrong: '#00719e',
-  accentTint: '#d9f0fa',
-  accentFocus: '#7fcbe8',
+  // ── Accent: the one blue ───────────────────────────────────────────────
+  accent: '#0b63f6',
+  accentStrong: '#0a52cc',
+  accentTint: '#eef4ff',
+  accentFocus: '#0a52cc',
 
-  // ── Emphasis: process magenta. One thing at a time. ────────────────────
-  emphasis: '#c8006b',
-  emphasisTint: '#fce4f1',
+  // ── Emphasis: a deeper blue, sparingly ─────────────────────────────────
+  emphasis: '#0a52cc',
+  emphasisTint: '#e3ecff',
 
-  // ── Semantic traffic light ─────────────────────────────────────────────
+  // ── Semantic ───────────────────────────────────────────────────────────
   ok: '#15803d',
-  okTint: '#dcf5e4',
+  okTint: '#ecf8f0',
   warn: '#b45309',
-  warnTint: '#fdf0d5',
-  danger: '#c8102e',
-  dangerTint: '#fdeaec',
+  warnTint: '#fff5e8',
+  danger: '#c0262d',
+  dangerTint: '#fdeeee',
 
-  // Editable grid cell. Jim2 tints columns you can type into; the tint is
-  // warmed here so it sits on paper rather than glowing against it.
-  editable: '#fdf9e3',
+  // Editable grid cell: a faint blue keeps borderless in-grid cells
+  // recognisably typeable.
+  editable: '#f5f8ff',
+
+  // Selected text: the browser draws it, but it is still part of the design.
+  selection: '#d6e4ff',
 };
 
 /**
- * Density. The brief was to relax slightly: larger targets and more room to
- * read, paid for with a few rows per screen. Row height moves 30 → 33 and the
- * grid type 12 → 13, which at 1080p costs roughly three rows on a full-height
- * list and buys a noticeably calmer surface for someone reading it all day.
+ * Density. Work grids are compact by default (32px rows) with a comfortable
+ * step (40px) a person can switch to; fields are 32px, the size a pointer hits
+ * without aiming. One corner language: 8px for controls and fields, 12px for
+ * cards and panels, 6px for chips.
  */
 export const density = {
-  rowHeight: 33,
-  inputHeight: 29,
-  radius: 5,
-  radiusLg: 8,
+  rowHeight: 32,
+  rowHeightComfortable: 40,
+  inputHeight: 32,
+  radius: 8,
+  radiusLg: 12,
+  radiusField: 8,
+  radiusSm: 6,
 };
 
 /**
- * Type. Archivo carries the UI: it is a grotesque with a large x-height and a
- * narrow set width, so it holds more characters per column than IBM Plex Sans
- * at the same size while reading better at 13px. IBM Plex Mono stays for
- * anything that must align in a column — SKUs, job numbers, money, dates.
+ * Type — Geist for everything, Geist Mono where codes and IDs must align.
+ * A tight scale (about 1.2 between steps): product screens have many type
+ * elements, and wide contrast between them reads as noise.
  */
 export const type = {
-  font: "'Archivo', ui-sans-serif, system-ui, sans-serif",
-  fontMono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace",
+  font: "'Geist Variable', ui-sans-serif, system-ui, sans-serif",
+  fontMono: "'Geist Mono Variable', ui-monospace, SFMono-Regular, monospace",
   fsBase: 14,
   fsGrid: 13,
-  fsHeader: 11,
-  fsSmall: 11.5,
+  fsHeader: 12,
+  fsSmall: 12,
+  fsSection: 15,
+  fsTitle: 20,
+  fsKpi: 28,
 };
 
 /**
- * Elevation, tinted with the chrome ink rather than pure black — black shadows
- * go muddy on a warm ground. Depth separates layers; it is not decoration, and
- * density is never traded for it.
+ * Elevation. Surfaces are drawn with hairlines; shadow is kept for what sits
+ * above the page — a card's faint resting lift, a menu, a dialog.
  */
 export const elevation = {
-  shadowSm: '0 1px 2px rgba(23,23,28,.07), 0 1px 1px rgba(23,23,28,.04)',
-  shadowMd: '0 2px 8px rgba(23,23,28,.11), 0 1px 2px rgba(23,23,28,.06)',
-  shadowHeader: '0 3px 5px -2px rgba(23,23,28,.10)',
-  shadowChrome: '0 1px 3px rgba(23,23,28,.30)',
-  shadowPress: '3px 3px 0 rgba(23,23,28,.85)',
+  shadowSm: '0 1px 2px rgba(17,17,20,.05)',
+  shadowMd: '0 1px 2px rgba(17,17,20,.06), 0 4px 12px rgba(17,17,20,.06)',
+  shadowHeader: 'inset 0 -1px 0 0 #e4e4e7',
+  shadowChrome: 'inset 0 -1px 0 0 #e4e4e7',
+  shadowPress: '0 2px 6px rgba(17,17,20,.08), 0 12px 32px rgba(17,17,20,.14)',
 };
 
 export const motion = {
-  transition: '120ms cubic-bezier(.4,0,.2,1)',
-  spring: '340ms cubic-bezier(.32,.72,0,1)',
+  transition: '150ms cubic-bezier(.2,0,0,1)',
+  spring: '240ms cubic-bezier(.16,1,.3,1)',
 };

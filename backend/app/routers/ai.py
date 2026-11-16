@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 import re
 
 from app.core.replenishment import replenishment_rows
+from app.core.reservations import FINISHED_STATUSES
 from app.database import get_db
 from app.core.dependencies import require_any
 from app.core.config import settings
@@ -16,8 +17,15 @@ from app.models.customer import Customer
 from app.models.supplier import Supplier
 from app.models.purchase_order import PurchaseOrder
 from app.models.card_file import CardFile
+from app.routers.jobs import PRODUCTION_LADDER
+from app.core import shop_day
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Off the floor: gone (FINISH, or FINISH marked Ready to invoice), paid or
+# cancelled. Done: gone, invoiced or paid — a job counted as completed.
+_OFF_THE_FLOOR = (*FINISHED_STATUSES, "PAID", "CANCEL")
+_DONE = (*FINISHED_STATUSES, "INVOICE", "PAID")
 
 
 class ChatRequest(BaseModel):
@@ -54,14 +62,14 @@ def pct(part: int, total: int) -> str:
 
 
 def get_active_jobs(db: Session) -> list:
-    return db.query(Job).filter(Job.status.notin_(["FINISH", "CANCEL", "PAID"])).all()
+    return db.query(Job).filter(Job.status.notin_(_OFF_THE_FLOOR)).all()
 
 
 def get_overdue_jobs(db: Session) -> list:
     return [
         j
         for j in get_active_jobs(db)
-        if (d := parse_date(j.due or "")) and d < date.today()
+        if (d := parse_date(j.due or "")) and d < shop_day.today()
     ]
 
 
@@ -78,11 +86,11 @@ def get_low_stock(db: Session) -> list:
 
 
 def get_jobs_due_soon(db: Session, days: int = 7) -> list:
-    cutoff = date.today() + timedelta(days=days)
+    cutoff = shop_day.today() + timedelta(days=days)
     return [
         j
         for j in get_active_jobs(db)
-        if (d := parse_date(j.due or "")) and date.today() <= d <= cutoff
+        if (d := parse_date(j.due or "")) and shop_day.today() <= d <= cutoff
     ]
 
 
@@ -99,7 +107,7 @@ def get_open_freight(db: Session) -> list:
 
 
 def jobs_this_month(db: Session) -> list:
-    today = date.today()
+    today = shop_day.today()
     month_start = today.replace(day=1)
     return [
         j
@@ -109,7 +117,7 @@ def jobs_this_month(db: Session) -> list:
 
 
 def jobs_last_month(db: Session) -> list:
-    today = date.today()
+    today = shop_day.today()
     first_this = today.replace(day=1)
     first_last = (first_this - timedelta(days=1)).replace(day=1)
     return [
@@ -194,7 +202,7 @@ def _zscore_anomalies(values: list) -> list[tuple[int, float]]:
 
 def respond_jobs_summary(db: Session) -> str:
     all_jobs = db.query(Job).all()
-    active = [j for j in all_jobs if j.status not in ("FINISH", "CANCEL", "PAID")]
+    active = [j for j in all_jobs if j.status not in _OFF_THE_FLOOR]
     overdue = get_overdue_jobs(db)
     due_soon = get_jobs_due_soon(db, 7)
     by_status: dict = {}
@@ -224,7 +232,7 @@ def respond_overdue(db: Session) -> str:
     lines = [f"**{len(overdue)} overdue job(s):**"]
     for j in sorted(overdue, key=lambda x: parse_date(x.due or "") or date.max):
         bal = float(j.balance_due or 0)
-        days_late = (date.today() - (parse_date(j.due) or date.today())).days
+        days_late = (shop_day.today() - (parse_date(j.due) or shop_day.today())).days
         lines.append(
             f"• #{j.id} – {j.customer_name} | Due: {j.due} ({days_late}d late) | {j.status}"
             + (f" | Balance: {fmt_currency(bal)}" if bal > 0 else "")
@@ -273,7 +281,7 @@ def respond_monthly_revenue(db: Session) -> str:
     this_rev = sum(float(j.total_inc or 0) for j in this_m)
     last_rev = sum(float(j.total_inc or 0) for j in last_m)
     lines = [
-        f"**{date.today().strftime('%B %Y')} Revenue**",
+        f"**{shop_day.today().strftime('%B %Y')} Revenue**",
         f"• Jobs: {len(this_m)} | Revenue: {fmt_currency(this_rev)}",
         f"• Last month: {len(last_m)} jobs | {fmt_currency(last_rev)}",
     ]
@@ -426,15 +434,15 @@ def respond_specific_job(db: Session, job_id: str) -> str:
             lines.append(f"  [{c.date} {c.initials}] {c.comment}")
     if (
         (due := parse_date(job.due or ""))
-        and due < date.today()
-        and job.status not in ("FINISH", "PAID", "CANCEL")
+        and due < shop_day.today()
+        and job.status not in _OFF_THE_FLOOR
     ):
-        lines.append(f"\n⚠ **{(date.today() - due).days} day(s) overdue.**")
+        lines.append(f"\n⚠ **{(shop_day.today() - due).days} day(s) overdue.**")
     return "\n".join(lines)
 
 
 def respond_production_pipeline(db: Session) -> str:
-    stages = ["ORDER", "In Progress", "PROOF", "PRINT", "Pick/Pack", "FINISH"]
+    stages = list(PRODUCTION_LADDER)
     all_jobs = db.query(Job).filter(Job.status.in_(stages)).all()
     by_stage: dict = {s: [] for s in stages}
     for j in all_jobs:
@@ -448,7 +456,7 @@ def respond_production_pipeline(db: Session) -> str:
             for j in js[:3]:
                 flag = (
                     " ⚠OVERDUE"
-                    if (d := parse_date(j.due or "")) and d < date.today()
+                    if (d := parse_date(j.due or "")) and d < shop_day.today()
                     else ""
                 )
                 lines.append(f"    #{j.id} – {j.customer_name} | Due: {j.due}{flag}")
@@ -482,7 +490,7 @@ def respond_due_soon(db: Session, days: int = 7) -> str:
     lines = [f"**{len(due)} job(s) due within {days} days:**"]
     for j in sorted(due, key=lambda x: parse_date(x.due or "") or date.max):
         d = parse_date(j.due or "")
-        days_left = (d - date.today()).days if d else 0
+        days_left = (d - shop_day.today()).days if d else 0
         flag = "🔴" if days_left <= 1 else "🟡" if days_left <= 3 else "🟢"
         lines.append(
             f"{flag} #{j.id} – {j.customer_name} | Due: {j.due} ({days_left}d) | {j.status} | {fmt_currency(j.total_inc)}"
@@ -586,7 +594,7 @@ def respond_ship_to(db: Session, ship_code: str) -> str:
 
 
 def respond_todays_summary(db: Session) -> str:
-    today = date.today()
+    today = shop_day.today()
     overdue = get_overdue_jobs(db)
     due_soon = get_jobs_due_soon(db, 3)
     low = get_low_stock(db)
@@ -613,7 +621,13 @@ def respond_todays_summary(db: Session) -> str:
     else:
         lines.append("✅ No critical items — all clear.")
     in_prog = (
-        db.query(Job).filter(Job.status.in_(["In Progress", "PRINT", "PROOF"])).all()
+        db.query(Job)
+        .filter(
+            Job.status.in_(
+                ["In Progress", "PROOF", "Picked", "Inco/Pick", "PRINT", "ProdExt"]
+            )
+        )
+        .all()
     )
     if in_prog:
         lines.append(f"\n**In Production ({len(in_prog)}):**")
@@ -653,7 +667,7 @@ def respond_forecast(db: Session) -> str:
     # Ensemble: weighted average (Holt 60%, OLS 40%)
     ensemble = 0.6 * holt_pred + 0.4 * ols_pred
 
-    today = date.today()
+    today = shop_day.today()
     next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
     confidence = "High" if holt_r2 > 0.7 else "Moderate" if holt_r2 > 0.4 else "Low"
     trend_dir = (
@@ -727,9 +741,9 @@ def respond_anomalies(db: Session) -> str:
     # Stagnant jobs
     active_jobs = get_active_jobs(db)
     stuck = [
-        (j, (date.today() - (parse_date(j.date_in or "") or date.today())).days)
+        (j, (shop_day.today() - (parse_date(j.date_in or "") or shop_day.today())).days)
         for j in active_jobs
-        if (d := parse_date(j.date_in or "")) and (date.today() - d).days > 30
+        if (d := parse_date(j.date_in or "")) and (shop_day.today() - d).days > 30
     ]
     stuck.sort(key=lambda x: -x[1])
 
@@ -779,7 +793,7 @@ def respond_customer_churn(db: Session) -> str:
             total_spend[j.customer_id] = total_spend.get(j.customer_id, 0) + float(
                 j.total_inc or 0
             )
-    today = date.today()
+    today = shop_day.today()
     at_risk, high_risk, never = [], [], []
     for c in customers:
         last = last_order.get(c.id)
@@ -931,7 +945,7 @@ def respond_dso(db: Session) -> str:
     total_rev_90 = sum(
         float(j.total_inc or 0)
         for j in all_jobs
-        if (d := parse_date(j.date_in or "")) and (date.today() - d).days <= 90
+        if (d := parse_date(j.date_in or "")) and (shop_day.today() - d).days <= 90
     )
     dso = (total_outstanding / total_rev_90 * 90) if total_rev_90 > 0 else 0
     # Collection efficiency
@@ -977,20 +991,14 @@ def respond_dso(db: Session) -> str:
 
 def respond_turnaround(db: Session) -> str:
     """Average job turnaround time from creation to completion."""
-    finished = [
-        j
-        for j in db.query(Job).all()
-        if j.status in ("FINISH", "INVOICE", "PAID") and j.date_in
-    ]
+    finished = [j for j in db.query(Job).all() if j.status in _DONE and j.date_in]
     if not finished:
         return "No completed jobs to analyse turnaround time."
     durations = []
     for j in finished:
         d_in = parse_date(j.date_in or "")
         d_out = parse_date(j.out or "") or (
-            parse_date(j.due or "")
-            if j.status in ("FINISH", "INVOICE", "PAID")
-            else None
+            parse_date(j.due or "") if j.status in _DONE else None
         )
         if d_in and d_out and d_out >= d_in:
             durations.append((d_out - d_in).days)
@@ -1022,7 +1030,12 @@ def respond_turnaround(db: Session) -> str:
     active = get_active_jobs(db)
     if active:
         ages = [
-            (j, (date.today() - (parse_date(j.date_in or "") or date.today())).days)
+            (
+                j,
+                (
+                    shop_day.today() - (parse_date(j.date_in or "") or shop_day.today())
+                ).days,
+            )
             for j in active
         ]
         avg_backlog_age = sum(a for _, a in ages) / len(ages) if ages else 0
@@ -1096,7 +1109,7 @@ def respond_seasonality(db: Session) -> str:
 def build_live_context(db: Session) -> str:
     """Snapshot of key metrics to inject into the LLM system prompt."""
     all_jobs = db.query(Job).all()
-    active = [j for j in all_jobs if j.status not in ("FINISH", "CANCEL", "PAID")]
+    active = [j for j in all_jobs if j.status not in _OFF_THE_FLOOR]
     overdue = get_overdue_jobs(db)
     low_stock = get_low_stock(db)
     this_m = jobs_this_month(db)
@@ -1115,7 +1128,7 @@ def build_live_context(db: Session) -> str:
         by_status[j.status] = by_status.get(j.status, 0) + 1
 
     return f"""
-LIVE ERP DATA SNAPSHOT ({date.today().strftime('%d %b %Y')}):
+LIVE ERP DATA SNAPSHOT ({shop_day.today().strftime('%d %b %Y')}):
 - Total jobs: {len(all_jobs)} | Active: {len(active)} | Overdue: {len(overdue)}
 - Jobs by status: {', '.join(f'{s}:{c}' for s, c in sorted(by_status.items()))}
 - This month revenue: ${this_m_rev:,.2f} ({len(this_m)} jobs)
@@ -1142,7 +1155,7 @@ You have access to live data from their ERP system. Respond concisely using mark
 
 {live_context}
 
-Job workflow: QUOTE → New → ORDER → In Progress → PROOF → PRINT → Pick/Pack → FINISH → INVOICE → PAID (or CANCEL at any stage).
+Job workflow: QUOTE → New (shown as Booked) → ORDER (shown as Confirmed) → In Progress → PROOF → Picked → Inco/Pick (part picked) → PRINT → ProdExt (out at an external decorator) → Pick/Pack → Desp/Ready → FINISH (despatched) → Ready (ready to invoice) → INVOICE → PAID (or CANCEL at any stage).
 
 Capabilities you can describe or compute:
 - Job status, overdue jobs, production pipeline, due dates
@@ -1224,7 +1237,7 @@ def ai_chat(
     # Greetings
     if re.match(r"^(hi|hello|hey|g'day|good morning|good afternoon|howdy)\b", m):
         name = current_user.full_name or current_user.username
-        hour = datetime.now().hour
+        hour = shop_day.wall_clock().hour
         greeting = (
             "Good morning"
             if hour < 12

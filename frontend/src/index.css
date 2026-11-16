@@ -2,43 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── ERP Design System — "press room" ────────────────────────────────────────
-   Ink chrome, warm paper ground, white data panels, process cyan as the live
-   accent. The palette lives in src/ui/palette.js and is read by both
-   tailwind.config.js and src/ui/tokens.js.
-
-   CSS cannot import that module, so the handful of values below are mirrored as
-   custom properties instead of being pasted in as literals. Previously they
-   were literals, and the old accent (#2b7bd4) went on leaking into new work
-   from this file long after the tokens had moved on — keyboard focus was still
-   painting steel-blue onto a screen that had no steel-blue left in it. */
+/* ── ERP Design System — the calm product look (2026-10-25) ──────────────────
+   The palette lives in src/ui/palette.js and is read by both
+   tailwind.config.js and src/ui/tokens.js. CSS cannot import that module, so
+   the few values needed here are mirrored as custom properties.
+   Spec: docs/superpowers/specs/2026-10-25-calm-product-look.md */
 
 :root {
-  --paper: #f1eee8;
+  --paper: #f5f5f6;
   --panel: #ffffff;
-  --hairline: #d8d3c8;
-  --hairline-soft: #ebe7de;
-  --accent: #0090c8;
-  --accent-strong: #00719e;
-  --accent-tint: #d9f0fa;
-  --accent-focus: #7fcbe8;
-  --faint: #686874;
+  --hairline: #e4e4e7;
+  --hairline-soft: #efeff1;
+  --field-border: #cfd0d5;
+  --field-border-hover: #a1a3ab;
+  --accent: #0b63f6;
+  --accent-strong: #0a52cc;
+  --accent-tint: #eef4ff;
+  --accent-focus: #0a52cc;
+  --faint: #6e7079;
+  --text: #111114;
+  --selection: #d6e4ff;
 }
 
-/* Type foundation: Archivo for UI — a grotesque with a large x-height and a
-   narrow set width, so it holds more per column than IBM Plex Sans did at the
-   same size while reading better small. Tabular numerals everywhere, because a
-   figure that does not line up with the one above it cannot be compared.
-   IDs, SKUs, money and dates use IBM Plex Mono via .font-mono. */
+/* Geist for the UI (src/ui/fonts.css), with tabular figures everywhere so a
+   column of numbers lines up. Codes and IDs use Geist Mono via .font-mono. */
 html, body {
-  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 }
 body {
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background: var(--paper);
+  color: var(--text);
+  caret-color: var(--accent);
 }
+
+/* The parts of the page the browser draws still belong to the design. */
+::selection { background: var(--selection); color: var(--text); }
 
 /* Remove native number spinners from line-items table inputs — they eat column width */
 .line-items-table input[type=number]::-webkit-outer-spin-button,
@@ -51,11 +52,22 @@ body {
   appearance: textfield;
 }
 
-/* ── Scrollbar — warm, to sit with the paper ground ── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--hairline-soft); }
-::-webkit-scrollbar-thumb { background: #c4bcab; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+/* ── Scrollbar — a quiet neutral thumb, inset from the edge ── */
+* { scrollbar-color: var(--field-border) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--field-border);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--field-border-hover); background-clip: padding-box; }
+
+/* ── Arrival — a finished thing (a despatch recorded) settles in once ── */
+@keyframes tig-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tig-arrive { animation: tig-arrive 240ms cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .tig-arrive { animation: none; } }
 
 /* ── One focus language, app-wide ──────────────────────────────────────────
    Every focusable control gets the same accent ring, so keyboard focus never
@@ -69,7 +81,9 @@ button:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-focus);
+  /* A white gap, then the ring: it stays visible on the blue of a primary
+     button and on a tinted chip alike. */
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent-focus);
   border-color: var(--accent);
 }
 

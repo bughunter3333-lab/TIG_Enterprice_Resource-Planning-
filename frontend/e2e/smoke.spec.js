@@ -9,9 +9,9 @@ test.describe('app boot', () => {
   test('login screen renders with credential fields', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    await expect(page.getByLabel('Operator')).toBeVisible();
-    await expect(page.getByLabel('Passphrase')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Run job' })).toBeVisible();
+    await expect(page.getByLabel('Username')).toBeVisible();
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
   });
 
   test('no uncaught JavaScript errors on load', async ({ page }) => {
@@ -39,15 +39,15 @@ test.describe('authenticated core flow', () => {
 
   test('sign in reaches the application shell', async ({ page }) => {
     await page.goto('/');
-    await page.getByLabel('Operator').fill(process.env.E2E_USERNAME);
-    await page.getByLabel('Passphrase').fill(process.env.E2E_PASSWORD);
-    await page.getByRole('button', { name: 'Run job' }).click();
+    await page.getByLabel('Username').fill(process.env.E2E_USERNAME);
+    await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // Land on either the 2FA challenge or the module bar (Jobs is the default surface).
+    // Land on either the 2FA challenge or Home, the default surface.
     await expect(
       page
         .getByRole('heading', { name: 'Verify' })
-        .or(page.getByText('Jobs').first()),
+        .or(page.getByRole('heading', { name: 'Home', exact: true })),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

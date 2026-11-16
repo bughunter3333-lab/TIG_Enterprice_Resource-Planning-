@@ -61,3 +61,23 @@ test('a missing optional field does not crash the form', () => {
   expect(() => setup({ customerForm: { name: 'Bare Minimum' } })).not.toThrow();
   expect(screen.getByLabelText('Customer Name')).toHaveValue('Bare Minimum');
 });
+
+test('a customer is put on credit hold, the rest of the form kept (Phase 0)', () => {
+  const props = setup();
+  fireEvent.click(screen.getByRole('checkbox', { name: /On credit hold/ }));
+  expect(props.setCustomerForm).toHaveBeenCalledWith({ ...form, creditHold: true });
+});
+
+test('a customer on hold shows as on hold, and is taken off it', () => {
+  const props = setup({ customerForm: { ...form, creditHold: true } });
+  const box = screen.getByRole('checkbox', { name: /On credit hold/ });
+  expect(box).toBeChecked();
+  fireEvent.click(box);
+  expect(props.setCustomerForm).toHaveBeenCalledWith({ ...form, creditHold: false });
+});
+
+test('the watchout is typed on the customer, the rest of the form kept', () => {
+  const props = setup();
+  fireEvent.change(screen.getByLabelText('Watchout'), { target: { value: 'Ask if name badges are needed' } });
+  expect(props.setCustomerForm).toHaveBeenCalledWith({ ...form, watchout: 'Ask if name badges are needed' });
+});

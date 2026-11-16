@@ -44,6 +44,11 @@ afterEach(() => vi.restoreAllMocks());
 
 const ready = () => waitFor(() => expect(screen.getByText(/Previewing job/)).toBeInTheDocument());
 
+// The page's computed width, in millimetres. jsdom 30 resolves a computed
+// length to px as a browser does (210mm reads back as 793.701px), so it is
+// converted back through the CSS reference pixel: 96px = 1in = 25.4mm.
+const widthMm = (el) => (parseFloat(getComputedStyle(el).width) * 25.4) / 96;
+
 describe('the designer', () => {
   test('opens on the job sheet and previews it against a real job', async () => {
     renderWithQuery(<DocumentDesigner />);
@@ -64,11 +69,11 @@ describe('the designer', () => {
   test('the paper size drives the page, so a label is not laid out as A4', async () => {
     const { container } = renderWithQuery(<DocumentDesigner />);
     await ready();
-    expect(container.querySelector('.doc-page')).toHaveStyle({ width: '210mm' });
+    expect(widthMm(container.querySelector('.doc-page'))).toBeCloseTo(210, 2);
 
     fireEvent.change(screen.getByLabelText('Document'), { target: { value: 'shipLabel' } });
     await waitFor(() =>
-      expect(container.querySelector('.doc-page')).toHaveStyle({ width: '100mm' }),
+      expect(widthMm(container.querySelector('.doc-page'))).toBeCloseTo(100, 2),
     );
   });
 

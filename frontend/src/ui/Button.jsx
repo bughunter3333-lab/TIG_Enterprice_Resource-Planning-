@@ -1,22 +1,27 @@
 import { useState } from 'react';
 import { T } from './tokens';
 
+// One blue means "do this" (primary); everything else is a quiet white button
+// with a hairline, so a toolbar shows at a glance which action matters.
 const VARIANTS = {
-  primary:   { background: T.accentStrong, color: '#fff', border: `1px solid ${T.accentStrong}` },
-  secondary: { background: T.panel, color: T.text, border: `1px solid ${T.hairline}` },
-  danger:    { background: T.danger, color: '#fff', border: `1px solid ${T.danger}` },
-  ghost:     { background: 'transparent', color: T.textMuted, border: '1px solid transparent' },
+  primary:   { background: T.accent, color: '#fff', border: `1px solid ${T.accent}`, boxShadow: '0 1px 2px rgba(11,99,246,.22), inset 0 1px 0 rgba(255,255,255,.12)' },
+  secondary: { background: T.panel, color: T.text, border: `1px solid ${T.hairline}`, boxShadow: T.shadowSm },
+  danger:    { background: T.danger, color: '#fff', border: `1px solid ${T.danger}`, boxShadow: '0 1px 2px rgba(192,38,45,.22)' },
+  ghost:     { background: 'transparent', color: T.textMuted, border: '1px solid transparent', boxShadow: 'none' },
 };
 
 // Hover deltas stay inside the existing token steps so no new colours enter
 // the system. `ghost` needs the strongest shift — resting, it is muted text
 // with a transparent border and reads as a label rather than a control.
 const HOVER = {
-  primary:   { background: T.accent, border: `1px solid ${T.accent}` },
-  secondary: { background: T.hairlineSoft, border: `1px solid ${T.textFaint}` },
+  primary:   { background: T.accentStrong, border: `1px solid ${T.accentStrong}` },
+  secondary: { background: T.panelAlt, border: `1px solid ${T.fieldBorder}` },
   danger:    { filter: 'brightness(.92)' },
   ghost:     { background: T.hairlineSoft, color: T.text },
 };
+
+// Heights, not paddings: buttons in one row line up whatever their label.
+const HEIGHTS = { sm: 28, md: 32, lg: 36 };
 
 export default function Button({
   variant = 'secondary', size = 'md', children, disabled, style,
@@ -34,8 +39,9 @@ export default function Button({
   const off = disabled
     ? (variant === 'ghost'
         ? { color: T.textFaint }
-        : { background: T.hairlineSoft, color: T.textFaint, border: `1px solid ${T.hairline}` })
+        : { background: T.hairlineSoft, color: T.textFaint, border: `1px solid ${T.hairline}`, boxShadow: 'none' })
     : null;
+  const tile = size === 'tile';
 
   return (
     <button
@@ -52,23 +58,26 @@ export default function Button({
         ...(hovered ?? {}),
         ...(off ?? {}),
         fontFamily: T.font,
-        fontSize: size === 'sm' || size === 'tile' ? T.fsSmall : T.fsGrid,
-        fontWeight: 600,
+        fontSize: size === 'sm' || tile ? T.fsSmall : T.fsGrid,
+        fontWeight: 500,
+        letterSpacing: '-0.005em',
         borderRadius: T.radius,
-        padding: size === 'sm' ? '3px 8px' : size === 'tile' ? '9px 6px' : '5px 12px',
+        height: tile ? undefined : HEIGHTS[size] ?? HEIGHTS.md,
+        padding: tile ? '10px 6px' : size === 'sm' ? '0 10px' : '0 12px',
         cursor: disabled ? 'default' : 'pointer',
         // `tile` stacks an icon over its label for a grid of actions. It is a
         // shape, not a new palette — the same four variants apply, so a row of
         // tiles says which action is primary instead of being six decorative
         // pastels that happen to sit together.
-        display: size === 'tile' ? 'flex' : 'inline-flex',
-        flexDirection: size === 'tile' ? 'column' : 'row',
+        display: tile ? 'flex' : 'inline-flex',
+        flexDirection: tile ? 'column' : 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: size === 'tile' ? 4 : 5,
+        gap: tile ? 4 : 6,
+        whiteSpace: 'nowrap',
         // Pressed reads as an inset, never a lift — controls don't elevate.
-        boxShadow: !disabled && pressed ? 'inset 0 1px 2px rgba(24,42,66,.18)' : 'none',
-        transition: `background ${T.transition}, color ${T.transition}, box-shadow ${T.transition}`,
+        ...(!disabled && pressed ? { boxShadow: 'inset 0 1px 2px rgba(17,17,20,.16)' } : {}),
+        transition: `background ${T.transition}, color ${T.transition}, border-color ${T.transition}, box-shadow ${T.transition}`,
         ...style,
       }}
       {...rest}

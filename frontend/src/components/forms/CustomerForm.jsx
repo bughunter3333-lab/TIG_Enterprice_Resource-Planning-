@@ -126,6 +126,29 @@ export default function CustomerForm({ closeModal, customerForm, saveCustomer, s
                     style={{border: `1px solid ${T.hairline}`}}
                     min="0"
                   />
+                  {/* On hold, the credit check refuses the customer's new orders. */}
+                  <label className="flex items-center gap-2 mt-2 text-sm" style={{color: T.text}}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(customerForm.creditHold)}
+                      onChange={(e) => setCustomerForm({...customerForm, creditHold: e.target.checked})}
+                    />
+                    On credit hold — new orders are refused
+                  </label>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1" style={{color: T.textMuted}} htmlFor="customer-watchout">Watchout</label>
+                  {/* Shown on every job for this customer, where the order is taken and worked on. */}
+                  <textarea id="customer-watchout"
+                    rows={2}
+                    maxLength={500}
+                    value={customerForm.watchout || ''}
+                    onChange={(e) => setCustomerForm({...customerForm, watchout: e.target.value})}
+                    placeholder="e.g. Always ask if name badges are needed"
+                    className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+                    style={{border: `1px solid ${T.hairline}`}}
+                  />
                 </div>
 
                 <div>

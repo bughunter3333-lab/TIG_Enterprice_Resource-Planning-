@@ -53,3 +53,25 @@ test('column render prop formats cell content', () => {
   expect(screen.getByText('$319')).toBeInTheDocument();
   expect(screen.getByText('$867')).toBeInTheDocument();
 });
+
+test('a column can sort by a value other than what it shows', () => {
+  // Dates are stored in two shapes; shown one way, they must sort by the day.
+  const cols = [
+    { key: 'id', label: 'Job#' },
+    { key: 'due', label: 'Due', render: (r) => r.shown, sortValue: (r) => r.day },
+  ];
+  const data = [
+    { id: 'late', due: '04/07/2026 05:00 PM', shown: '4 July 2026', day: '2026-07-04' },
+    { id: 'early', due: '2026-06-27', shown: '27 June 2026', day: '2026-06-27' },
+  ];
+  render(<DataGrid columns={cols} rows={data} />);
+  fireEvent.click(screen.getByText('Due'));
+  expect(screen.getAllByRole('row').slice(1)[0]).toHaveTextContent('early');
+});
+
+test('a column with no field of its own still sorts through sortValue', () => {
+  const cols = [{ key: 'avail', label: 'Avail', render: (r) => r.stock - r.committed, sortValue: (r) => r.stock - r.committed }];
+  render(<DataGrid columns={cols} rows={[{ stock: 9, committed: 1 }, { stock: 5, committed: 4 }]} />);
+  fireEvent.click(screen.getByText('Avail'));
+  expect(screen.getAllByRole('row').slice(1).map((r) => r.textContent)).toEqual(['1', '8']);
+});

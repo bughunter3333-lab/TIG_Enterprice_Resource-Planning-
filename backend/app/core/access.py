@@ -1,0 +1,165 @@
+"""Who can do what, read from the routes themselves.
+
+Every endpoint names its gate as a dependency: `require_admin`,
+`require_manager`, `require_staff`, `require_any`, or plain `get_current_user`
+for "anyone signed in". The admin screen shows what each role can do. Described
+by hand, that goes stale — the old user screen's legend did not mention
+managers at all — so the table is built from the gates the routes carry, and
+what it says is what the server enforces.
+"""
+
+from typing import Optional
+
+from fastapi import FastAPI
+from fastapi import routing as fastapi_routing
+from fastapi.routing import APIRoute
+
+from app.core.dependencies import ALL_ROLES, get_current_user, get_signed_in_user
+
+# The business area each router's tag belongs to, in the order the table
+# shows them. A tag that is not listed is shown under its own name, so a new
+# router appears in the table without being added here.
+AREAS = {
+    "jobs": "Jobs and quotes",
+    "dispatch": "Jobs and quotes",
+    "pdf": "Jobs and quotes",
+    "customers": "Customers",
+    "ship-to": "Customers",
+    "logos": "Customers",
+    "card-files": "Card files",
+    "inventory": "Stock",
+    "rack-sections": "Stock",
+    "styles": "Stock",
+    "purchase_orders": "Purchasing",
+    "goods-receipts": "Purchasing",
+    "suppliers": "Purchasing",
+    "supplier-price-list": "Purchasing",
+    "open-freight": "Freight",
+    "accounts_payable": "Accounts",
+    "accounting": "Accounts",
+    "credit-notes": "Accounts",
+    "returns": "Stock",
+    "reports": "Reports",
+    "analytics": "Reports",
+    "email": "Email",
+    "ai": "AI assistant",
+    "saved-lists": "Saved lists",
+    "users": "Users and roles",
+    "admin": "System settings",
+    "settings": "System settings",
+    "document-templates": "System settings",
+    "import": "System settings",
+    "crash-reports": "System settings",
+}
+
+READS = {"GET", "HEAD", "OPTIONS"}
+
+
+def served_routes(app: FastAPI) -> list:
+    """Every route the app serves, as it is served.
+
+    Up to FastAPI 0.11x, `app.routes` lists each route with its router's prefix
+    and dependencies already applied. Later versions keep an included router as
+    one entry and serve its routes through it, so walking `app.routes` found no
+    endpoints at all — every gate check passed or failed on nothing, and the
+    access table came back empty. `fastapi.routing.iter_route_contexts`, the
+    walk FastAPI's own OpenAPI generation uses, gives each route with its
+    effective path, methods, tags and dependencies. Either way the items read
+    alike: `.path`, `.methods`, `.tags`, `.dependant`.
+    """
+    walk = getattr(fastapi_routing, "iter_route_contexts", None)
+    return list(walk(app.routes)) if walk else list(app.routes)
+
+
+def declared(route):
+    """The route as it was declared; its class says what kind of route it is."""
+    return getattr(route, "original_route", route)
+
+
+def api_routes(app: FastAPI) -> list:
+    """The app's endpoints — the served routes declared as `APIRoute`s."""
+    return [r for r in served_routes(app) if isinstance(declared(r), APIRoute)]
+
+
+def route_roles(route) -> Optional[tuple[str, ...]]:
+    """The roles a route lets through.
+
+    Every role when it only asks for a sign-in; None when no gate is declared
+    on it at all (the sign-in routes themselves, and the health checks).
+    """
+    allowed = None
+    pending = list(route.dependant.dependencies)
+    while pending:
+        dependency = pending.pop()
+        gate = getattr(dependency.call, "roles", None)
+        if gate is None and dependency.call in (get_current_user, get_signed_in_user):
+            # A sign-in alone admits every account, a service account too.
+            gate = ALL_ROLES
+        if gate is not None:
+            # A route with two gates lets through only who passes both.
+            within = ALL_ROLES if allowed is None else allowed
+            allowed = tuple(role for role in within if role in gate)
+        pending.extend(dependency.dependencies)
+    return allowed
+
+
+def access_table(app: FastAPI) -> dict:
+    """For each area, how many of its actions each role can use.
+
+    `view` counts the routes that only read, `change` the ones that write.
+    Each is `{role: [allowed, of]}`, so a screen can say all, some or none
+    without this deciding how to word it.
+    """
+    areas: dict[str, dict] = {}
+    for route in api_routes(app):
+        allowed = route_roles(route)
+        if allowed is None:
+            continue
+        tag = route.tags[0] if route.tags else "other"
+        name = AREAS.get(tag, tag.replace("-", " ").replace("_", " ").capitalize())
+        area = areas.setdefault(
+            name,
+            {
+                "area": name,
+                "view": {role: [0, 0] for role in ALL_ROLES},
+                "change": {role: [0, 0] for role in ALL_ROLES},
+            },
+        )
+        for method in route.methods:
+            kind = "view" if method in READS else "change"
+            for role in ALL_ROLES:
+                area[kind][role][1] += 1
+                if role in allowed:
+                    area[kind][role][0] += 1
+    listed = list(dict.fromkeys(AREAS.values()))
+    ordered = sorted(
+        areas.values(),
+        key=lambda a: (
+            listed.index(a["area"]) if a["area"] in listed else len(listed),
+            a["area"],
+        ),
+    )
+    return {"roles": list(ALL_ROLES), "areas": ordered}
+
+
+def role_access(app: FastAPI, role: str) -> dict:
+    """What one role can do: its column of the access table, and its routes.
+
+    `areas` is the role's own `[allowed, of]` counts, area by area, in the
+    table's order. `allowed` names every route the role's gate lets through as
+    "METHOD /path", the path as the server matches it, so the website can
+    decide what to offer someone from the same gates that will answer them —
+    rather than from a list of its own that drifts from them.
+    """
+    areas = [
+        {"area": a["area"], "view": a["view"][role], "change": a["change"][role]}
+        for a in access_table(app)["areas"]
+    ]
+    allowed = {
+        f"{method} {route.path}"
+        for route in api_routes(app)
+        if role in (route_roles(route) or ())
+        for method in route.methods
+        if method not in ("HEAD", "OPTIONS")
+    }
+    return {"role": role, "areas": areas, "allowed": sorted(allowed)}

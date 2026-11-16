@@ -7,6 +7,7 @@ GET /jobs/{job_id}/pdf?type=quote     →  Quote document
 
 import io
 from datetime import date
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
@@ -26,11 +27,18 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 from app.database import get_db
-from app.core.dependencies import require_any
+from app.core import credit_notes, despatch_documents, payment_terms
+from app.core.dependencies import require_any, require_staff
+from app.core.job_weight import order_weight, unweighed_lines
+from app.core.ledger_postings import INVOICED_STATUSES
+from app.core.pdf_text import para
+from app.models.dispatch_session import DispatchSessionLine
 from app.models.job import Job
+from app.routers.jobs import _despatch_address
 from app.models.customer import Customer
 from app.models.settings import CompanySettings
 from app.models.user import User
+from app.core import shop_day
 
 router = APIRouter(tags=["pdf"])
 
@@ -42,7 +50,48 @@ BORDER = colors.HexColor("#e2e8f0")
 WHITE = colors.white
 
 
-def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
+def printable_lines(job: Job) -> list:
+    """The lines a customer's priced document shows.
+
+    Not hidden lines — 'Hide' is how a line is kept off what the customer sees
+    — and not section or note markers. The invoice printed hidden lines (F34);
+    their amounts are still in the totals, as they always were.
+    """
+    return [
+        it
+        for it in (job.items or [])
+        if it.display_type not in ("section", "note") and not it.hide
+    ]
+
+
+def _invoice_terms(
+    job: Job, company: CompanySettings, customer: Optional[Customer]
+) -> tuple[str, Optional[str]]:
+    """The terms an invoice prints and the day it falls due (S2-13).
+
+    As stamped when it was issued; worked out, the way aged receivables does,
+    for an invoice issued before invoices carried them. The PDF used to print
+    the goods' due date as the Due Date and the company's terms, whatever the
+    customer's were.
+    """
+    if job.invoice_terms and job.invoice_due_date:
+        return job.invoice_terms, job.invoice_due_date
+    terms = payment_terms.terms_in_force(
+        customer.payment_terms if customer else None, company.payment_terms_default
+    )
+    try:
+        issued = date.fromisoformat((job.invoice_date or "")[:10])
+    except ValueError:
+        return terms, None
+    return terms, payment_terms.due_date(issued, terms).isoformat()
+
+
+def _build_pdf(
+    job: Job,
+    company: CompanySettings,
+    doc_type: str,
+    customer: Optional[Customer] = None,
+) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -67,16 +116,26 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     )
 
     is_invoice = doc_type == "invoice"
-    title = "TAX INVOICE" if is_invoice else "QUOTE"
-    doc_no = job.invoice if is_invoice else job.quote
-    doc_date = job.invoice_date or job.date_in or date.today().isoformat()
+    # A proforma asks for payment before the goods are supplied: priced like an
+    # invoice, numbered by the job, and plainly not a tax invoice.
+    is_proforma = doc_type == "proforma"
+    title = {"invoice": "TAX INVOICE", "proforma": "PROFORMA INVOICE"}.get(
+        doc_type, "QUOTE"
+    )
+    doc_no = job.invoice if is_invoice else (job.id if is_proforma else job.quote)
+    doc_label = {"invoice": "Invoice", "proforma": "Proforma"}.get(doc_type, "Quote")
+    doc_date = (
+        (job.invoice_date if is_invoice else None)
+        or job.date_in
+        or shop_day.today().isoformat()
+    )
 
     story = []
 
     # ── Header ────────────────────────────────────────────────────────────────
     header_data = [
         [
-            Paragraph(company.company_name or "Total Image", h1),
+            Paragraph(para(company.company_name or "Total Image"), h1),
             Paragraph(
                 title,
                 ParagraphStyle(
@@ -104,23 +163,27 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     # ── Company info + doc details ────────────────────────────────────────────
     co_lines = []
     if company.address:
-        co_lines.append(company.address)
+        co_lines.append(para(company.address))
     if company.phone:
-        co_lines.append(f"Ph: {company.phone}")
+        co_lines.append(f"Ph: {para(company.phone)}")
     if company.email:
-        co_lines.append(company.email)
+        co_lines.append(para(company.email))
     if company.abn:
-        co_lines.append(f"ABN: {company.abn}")
+        co_lines.append(f"ABN: {para(company.abn)}")
 
     doc_lines = [
-        f"{'Invoice' if is_invoice else 'Quote'} No: <b>{doc_no or 'N/A'}</b>",
-        f"Date: <b>{doc_date}</b>",
-        f"Job No: <b>{job.id}</b>",
+        f"{doc_label} No: <b>{para(doc_no or 'N/A')}</b>",
+        f"Date: <b>{para(doc_date)}</b>",
+        f"Job No: <b>{para(job.id)}</b>",
     ]
     if not is_invoice and job.validity_date:
-        doc_lines.append(f"Valid Until: <b>{job.validity_date}</b>")
-    if is_invoice and job.due:
-        doc_lines.append(f"Due Date: <b>{job.due}</b>")
+        doc_lines.append(f"Valid Until: <b>{para(job.validity_date)}</b>")
+    terms = company.payment_terms_default
+    if is_invoice:
+        terms, due = _invoice_terms(job, company, customer)
+        doc_lines.append(f"Terms: <b>{para(terms)}</b>")
+        if due:
+            doc_lines.append(f"Due Date: <b>{para(due)}</b>")
 
     # Render as paragraphs
     co_cell = [Paragraph(l, small) for l in co_lines]
@@ -147,14 +210,21 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
                 S("bt", fontSize=8, textColor=ACCENT, fontName="Helvetica-Bold"),
             )
         ],
-        [Paragraph(f"<b>{job.customer_name or ''}</b>", normal)],
+        # The buyer from the customer master when the job names none (S2-01):
+        # a tax invoice of $1,000 or more must identify the buyer.
+        [
+            Paragraph(
+                f"<b>{para(job.customer_name or (customer.name if customer else ''))}</b>",
+                normal,
+            )
+        ],
     ]
+    if customer and customer.abn:
+        bill_to_data.append([Paragraph(f"ABN: {para(customer.abn)}", small)])
     if job.cust_ref:
-        bill_to_data.append([Paragraph(f"Ref: {job.cust_ref}", small)])
+        bill_to_data.append([Paragraph(f"Ref: {para(job.cust_ref)}", small)])
     if job.shipping_address:
-        bill_to_data.append(
-            [Paragraph(job.shipping_address.replace("\n", "<br/>"), small)]
-        )
+        bill_to_data.append([Paragraph(para(job.shipping_address), small)])
     bill_table = Table(bill_to_data, colWidths=["100%"])
     bill_table.setStyle(
         TableStyle(
@@ -188,9 +258,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     td_r = ParagraphStyle("tdr", fontSize=8, textColor=DARK, alignment=TA_RIGHT)
 
     rows = [[Paragraph(h, th) for h in item_header]]
-    product_items = [
-        it for it in (job.items or []) if it.display_type not in ("section", "note")
-    ]
+    product_items = printable_lines(job)
 
     for it in product_items:
         qty = int(it.order_qty or 0)
@@ -203,7 +271,7 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
             desc = f"{it.stock_code} — {it.description}"
         rows.append(
             [
-                Paragraph(desc, td),
+                Paragraph(para(desc), td),
                 Paragraph(str(qty), td_r),
                 Paragraph(f"${price_ex:.2f}", td_r),
                 Paragraph(f"{discount:.1f}%" if discount else "—", td_r),
@@ -280,19 +348,29 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     story.append(Spacer(1, 6 * mm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=4))
 
-    # ── Bank details (invoice only) ───────────────────────────────────────────
-    if is_invoice and company.bank_account:
+    if is_proforma:
+        story.append(
+            Paragraph(
+                "<b>This is not a tax invoice.</b> A tax invoice is issued when "
+                "the goods are supplied.",
+                small,
+            )
+        )
+        story.append(Spacer(1, 3 * mm))
+
+    # ── Bank details (invoice and proforma) ───────────────────────────────────
+    if (is_invoice or is_proforma) and company.bank_account:
         bank_lines = ["<b>Payment Details</b>"]
         if company.bank_name:
-            bank_lines.append(f"Bank: {company.bank_name}")
+            bank_lines.append(f"Bank: {para(company.bank_name)}")
         if company.bank_bsb:
-            bank_lines.append(f"BSB: {company.bank_bsb}")
+            bank_lines.append(f"BSB: {para(company.bank_bsb)}")
         if company.bank_account:
-            bank_lines.append(f"Account: {company.bank_account}")
+            bank_lines.append(f"Account: {para(company.bank_account)}")
         if company.bank_account_name:
-            bank_lines.append(f"Account Name: {company.bank_account_name}")
-        if company.payment_terms_default:
-            bank_lines.append(f"Terms: {company.payment_terms_default}")
+            bank_lines.append(f"Account Name: {para(company.bank_account_name)}")
+        if terms:
+            bank_lines.append(f"Terms: {para(terms)}")
         for line in bank_lines:
             story.append(Paragraph(line, small))
         story.append(Spacer(1, 3 * mm))
@@ -300,15 +378,15 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     # ── Notes ─────────────────────────────────────────────────────────────────
     if job.notes:
         story.append(Paragraph("<b>Notes:</b>", small))
-        story.append(Paragraph(job.notes.replace("\n", "<br/>"), small))
+        story.append(Paragraph(para(job.notes), small))
         story.append(Spacer(1, 3 * mm))
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    footer_text = f"{company.company_name or 'Total Image'}"
+    footer_text = para(company.company_name or "Total Image")
     if company.abn:
-        footer_text += f"  |  ABN {company.abn}"
+        footer_text += f"  |  ABN {para(company.abn)}"
     if company.website:
-        footer_text += f"  |  {company.website}"
+        footer_text += f"  |  {para(company.website)}"
     story.append(
         Paragraph(
             footer_text,
@@ -325,7 +403,13 @@ def _build_pdf(job: Job, company: CompanySettings, doc_type: str) -> bytes:
     return buf.getvalue()
 
 
-def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
+def _build_picking_slip(
+    job: Job,
+    company: CompanySettings,
+    unweighed: Optional[list] = None,
+    weight: float = 0.0,
+) -> bytes:
+    unweighed = unweighed or []
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -354,7 +438,7 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "PICKING SLIP",
                     ParagraphStyle(
@@ -378,21 +462,21 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
         [
             [
                 Paragraph("JOB #", label),
-                Paragraph(job.id, bold),
+                Paragraph(para(job.id), bold),
                 Paragraph("CUSTOMER", label),
-                Paragraph(job.customer_name or "", bold),
+                Paragraph(para(job.customer_name), bold),
             ],
             [
                 Paragraph("DUE", label),
-                Paragraph(job.due or "—", normal),
+                Paragraph(para(job.due or "—"), normal),
                 Paragraph("CUST REF", label),
-                Paragraph(job.cust_ref or "—", normal),
+                Paragraph(para(job.cust_ref or "—"), normal),
             ],
             [
                 Paragraph("BRANCH", label),
-                Paragraph(getattr(job, "branch", "") or "HQ", normal),
+                Paragraph(para(getattr(job, "branch", "") or "HQ"), normal),
                 Paragraph("ASSIGNED", label),
-                Paragraph(job.assigned_to or "—", normal),
+                Paragraph(para(job.assigned_to or "—"), normal),
             ],
         ],
         colWidths=["12%", "28%", "12%", "48%"],
@@ -418,8 +502,8 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
 
     # Ship-to address block
     if job.shipping_address or job.ship_to:
-        ship_label = job.ship_to or ""
-        ship_addr = (job.shipping_address or "").replace("\n", "<br/>")
+        ship_label = para(job.ship_to)
+        ship_addr = para(job.shipping_address)
         story.append(
             Paragraph(
                 "<b>SHIP TO:</b>",
@@ -452,12 +536,12 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
     for it in product_items:
         rows.append(
             [
-                Paragraph(it.stock_code or "—", td),
-                Paragraph(it.description or "", td),
+                Paragraph(para(it.stock_code or "—"), td),
+                Paragraph(para(it.description), td),
                 Paragraph("", td),  # location — filled in at warehouse
                 Paragraph(str(it.qty or it.order_qty or 0), td_r),
                 Paragraph("", td),  # blank for warehouse to fill
-                Paragraph(it.item_status or "", td),
+                Paragraph(para(it.item_status), td),
             ]
         )
     # Empty pick rows to give warehouse room to write
@@ -487,25 +571,25 @@ def _build_picking_slip(job: Job, company: CompanySettings) -> bytes:
         )
     )
 
-    # Weight and notes footer
-    weight = float(getattr(job, "weight_total", 0) or 0)
-    zero_weight = sum(
-        1
-        for it in product_items
-        if it.stock_code and not float(getattr(it, "weight_kg", 0) or 0)
-    )
+    # Weight and notes footer. The garments with no weight are named, as Jim2
+    # names them: freight is charged on this figure (app/core/job_weight.py).
+    # It is weighed as the slip prints, not read from the job: the stored
+    # weight went stale when a stock item's weight was entered later (F08).
     footer_rows = []
-    if weight > 0 or zero_weight:
+    if weight > 0 or unweighed:
         weight_text = f"Order Weight: {weight:.2f} kg"
-        if zero_weight:
-            weight_text += f"  ({zero_weight} item(s) have 0 weight)"
+        if unweighed:
+            weight_text += (
+                f"  ({len(unweighed)} item(s) have 0 weight: "
+                f"{para(', '.join(unweighed))})"
+            )
         footer_rows.append([Paragraph(weight_text, bold), ""])
     if job.notes:
         footer_rows.append(
             [
                 Paragraph("<b>Notes:</b>", normal),
                 Paragraph(
-                    job.notes.replace("\n", "<br/>"),
+                    para(job.notes),
                     S("fnotes", fontSize=8, textColor=DARK),
                 ),
             ]
@@ -577,7 +661,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "JOB SHEET",
                     ParagraphStyle(
@@ -604,27 +688,27 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
         [
             [
                 Paragraph("JOB #", label),
-                Paragraph(job.id, bold),
+                Paragraph(para(job.id), bold),
                 Paragraph("CUSTOMER", label),
-                Paragraph(job.customer_name or "", bold),
+                Paragraph(para(job.customer_name), bold),
             ],
             [
                 Paragraph("DUE", label),
-                Paragraph(job.due or "—", normal),
+                Paragraph(para(job.due or "—"), normal),
                 Paragraph("TYPE", label),
-                Paragraph(job.type or "Normal", normal),
+                Paragraph(para(job.type or "Normal"), normal),
             ],
             [
                 Paragraph("BRANCH", label),
-                Paragraph(getattr(job, "branch", "") or "HQ", normal),
+                Paragraph(para(getattr(job, "branch", "") or "HQ"), normal),
                 Paragraph("ASSIGNED TO", label),
-                Paragraph(job.assigned_to or "—", normal),
+                Paragraph(para(job.assigned_to or "—"), normal),
             ],
             [
                 Paragraph("DESCRIPTION", label),
-                Paragraph(job.description or "—", normal),
+                Paragraph(para(job.description or "—"), normal),
                 Paragraph("CUST REF", label),
-                Paragraph(job.cust_ref or "—", normal),
+                Paragraph(para(job.cust_ref or "—"), normal),
             ],
         ],
         colWidths=["12%", "28%", "15%", "45%"],
@@ -668,7 +752,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
             rows.append(
                 [
                     Paragraph(
-                        f"<b>{it.description or ''}</b>",
+                        f"<b>{para(it.description)}</b>",
                         ParagraphStyle(
                             "sec_js",
                             fontSize=9,
@@ -683,19 +767,19 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
                 ]
             )
         elif it.display_type == "note":
-            rows.append([Paragraph(it.description or "", small), "", "", "", ""])
+            rows.append([Paragraph(para(it.description), small), "", "", "", ""])
         else:
             dec = it.decoration_type or "None"
             dec_code = (it.emb_code if dec == "EMB" else it.trs_code) or "—"
-            desc = it.description or it.stock_code or "—"
+            desc = para(it.description or it.stock_code or "—")
             if it.stock_code and it.description:
-                desc = f"<b>{it.stock_code}</b><br/>{it.description}"
+                desc = f"<b>{para(it.stock_code)}</b><br/>{para(it.description)}"
             rows.append(
                 [
                     Paragraph(desc, td),
                     Paragraph(str(it.qty or it.order_qty or 0), td_r),
-                    Paragraph(dec, td),
-                    Paragraph(dec_code, td),
+                    Paragraph(para(dec), td),
+                    Paragraph(para(dec_code), td),
                     Paragraph("", td),  # placement notes — filled by production
                 ]
             )
@@ -732,7 +816,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
         story.append(Paragraph("<b>Proof / Artwork Notes:</b>", bold))
         story.append(
             Paragraph(
-                job.proof_notes.replace("\n", "<br/>"),
+                para(job.proof_notes),
                 S("pn", fontSize=8, textColor=DARK, leading=11),
             )
         )
@@ -744,7 +828,7 @@ def _build_job_sheet(job: Job, company: CompanySettings) -> bytes:
 
     if job.notes:
         story.append(Paragraph("<b>General Notes:</b>", bold))
-        story.append(Paragraph(job.notes.replace("\n", "<br/>"), small))
+        story.append(Paragraph(para(job.notes), small))
         story.append(
             HRFlowable(
                 width="100%", thickness=0.5, color=BORDER, spaceBefore=4, spaceAfter=4
@@ -816,7 +900,7 @@ def _build_statement(
     hdr = Table(
         [
             [
-                Paragraph(company.company_name or "Total Image", h1),
+                Paragraph(para(company.company_name or "Total Image"), h1),
                 Paragraph(
                     "STATEMENT OF ACCOUNT",
                     ParagraphStyle(
@@ -836,28 +920,28 @@ def _build_statement(
     story.append(HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=6))
 
     # Two-column: bill-to + statement meta
-    bill_lines = [Paragraph(f"<b>{customer.name}</b>", bold)]
+    bill_lines = [Paragraph(f"<b>{para(customer.name)}</b>", bold)]
     if customer.address:
-        bill_lines.append(Paragraph(customer.address.replace("\n", "<br/>"), small))
+        bill_lines.append(Paragraph(para(customer.address), small))
     if customer.email:
-        bill_lines.append(Paragraph(customer.email, small))
+        bill_lines.append(Paragraph(para(customer.email), small))
     if customer.abn:
-        bill_lines.append(Paragraph(f"ABN: {customer.abn}", small))
+        bill_lines.append(Paragraph(f"ABN: {para(customer.abn)}", small))
 
     meta_lines = [
         Paragraph(
-            f"Statement Date: <b>{date.today().strftime('%d/%m/%Y')}</b>", normal
+            f"Statement Date: <b>{shop_day.today().strftime('%d/%m/%Y')}</b>", normal
         ),
     ]
     if date_from or date_to:
-        period = f"{date_from or ''} – {date_to or 'present'}"
+        period = para(f"{date_from or ''} – {date_to or 'present'}")
         meta_lines.append(Paragraph(f"Period: <b>{period}</b>", normal))
     if customer.payment_terms:
         meta_lines.append(
-            Paragraph(f"Payment Terms: <b>{customer.payment_terms}</b>", normal)
+            Paragraph(f"Payment Terms: <b>{para(customer.payment_terms)}</b>", normal)
         )
     if company.abn:
-        meta_lines.append(Paragraph(f"ABN: {company.abn}", small))
+        meta_lines.append(Paragraph(f"ABN: {para(company.abn)}", small))
 
     info_tbl = Table([[bill_lines, meta_lines]], colWidths=["55%", "45%"])
     info_tbl.setStyle(
@@ -883,7 +967,7 @@ def _build_statement(
                 "Invoice #",
                 "Description",
                 "Amount",
-                "Paid",
+                "Paid/Credit",
                 "Balance",
             ]
         ]
@@ -891,20 +975,26 @@ def _build_statement(
     running = 0.0
     for line in lines:
         amount = float(line.get("total_inc", 0))
-        paid = float(line.get("paid", 0))
+        # Settled by payments and by credit notes applied.
+        paid = float(line.get("paid", 0)) + float(line.get("credited", 0))
         balance = float(line.get("balance", 0))
         running += balance
         bal_style = right_bold if balance > 0 else right
         rows.append(
             [
-                Paragraph(line.get("date") or "—", S("td", fontSize=8, textColor=DARK)),
-                Paragraph(line.get("due") or "—", S("td2", fontSize=8, textColor=DARK)),
                 Paragraph(
-                    line.get("invoice_no") or line.get("job_id") or "—",
+                    para(line.get("date") or "—"), S("td", fontSize=8, textColor=DARK)
+                ),
+                Paragraph(
+                    para(line.get("due") or "—"), S("td2", fontSize=8, textColor=DARK)
+                ),
+                Paragraph(
+                    para(line.get("invoice_no") or line.get("job_id") or "—"),
                     S("td3", fontSize=8, textColor=DARK, fontName="Helvetica-Bold"),
                 ),
                 Paragraph(
-                    line.get("description") or "", S("td4", fontSize=8, textColor=DARK)
+                    para(line.get("description")),
+                    S("td4", fontSize=8, textColor=DARK),
                 ),
                 Paragraph(f"${amount:,.2f}", right),
                 Paragraph(f"${paid:,.2f}", right),
@@ -952,6 +1042,17 @@ def _build_statement(
             Paragraph("Total Paid:", right),
             Paragraph(f"${float(totals.get('paid', 0)):,.2f}", right),
         ],
+        *(
+            [
+                [
+                    "",
+                    Paragraph("Total Credited:", right),
+                    Paragraph(f"${float(totals['credited']):,.2f}", right),
+                ]
+            ]
+            if float(totals.get("credited") or 0)
+            else []
+        ),
         [
             "",
             Paragraph("<b>AMOUNT DUE:</b>", right_bold),
@@ -989,19 +1090,19 @@ def _build_statement(
     if company.bank_account:
         pay_lines = ["<b>Remittance Details</b>"]
         if company.bank_name:
-            pay_lines.append(f"Bank: {company.bank_name}")
+            pay_lines.append(f"Bank: {para(company.bank_name)}")
         if company.bank_bsb:
-            pay_lines.append(f"BSB: {company.bank_bsb}")
-        pay_lines.append(f"Account: {company.bank_account}")
+            pay_lines.append(f"BSB: {para(company.bank_bsb)}")
+        pay_lines.append(f"Account: {para(company.bank_account)}")
         if company.bank_account_name:
-            pay_lines.append(f"Account Name: {company.bank_account_name}")
+            pay_lines.append(f"Account Name: {para(company.bank_account_name)}")
         for pl in pay_lines:
             story.append(Paragraph(pl, small))
         story.append(Spacer(1, 3 * mm))
 
-    footer_text = f"{company.company_name or 'Total Image'}"
+    footer_text = para(company.company_name or "Total Image")
     if company.abn:
-        footer_text += f"  |  ABN {company.abn}"
+        footer_text += f"  |  ABN {para(company.abn)}"
     story.append(
         Paragraph(
             footer_text,
@@ -1024,16 +1125,20 @@ def customer_statement_pdf(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    # Money: staff and above, like the statement in reports.py.
+    _: User = Depends(require_staff),
 ):
     """Statement of Account PDF for a customer."""
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # Invoices only, as the customer's balance and aged receivables count: the
+    # statement sent to the customer charged them for FINISH jobs with no
+    # invoice yet (F06).
     q = db.query(Job).filter(
         Job.customer_id == customer_id,
-        Job.status.in_(["INVOICE", "PAID", "FINISH"]),
+        Job.status.in_(list(INVOICED_STATUSES)),
     )
     if date_from:
         q = q.filter((Job.invoice_date >= date_from) | (Job.date_in >= date_from))
@@ -1052,14 +1157,24 @@ def customer_statement_pdf(
                 "description": j.description or "",
                 "total_inc": float(j.total_inc or 0),
                 "paid": float(j.deposit or 0),
+                "credited": float(j.credited or 0),
                 "balance": float(j.balance_due or 0),
                 "status": j.status,
             }
         )
+    # Each credit note as a credit; what is left of it is credit on account
+    # (docs/superpowers/specs/2026-11-09-returns-credit-notes.md).
+    credits = [
+        credit_notes.statement_line(n)
+        for n in credit_notes.in_period(db, date_from, date_to, customer_id)
+    ]
+    invoices = lines
+    lines = sorted(lines + credits, key=lambda line: line["date"] or "")
 
     totals = {
-        "invoiced": round(sum(l["total_inc"] for l in lines), 2),
-        "paid": round(sum(l["paid"] for l in lines), 2),
+        "invoiced": round(sum(l["total_inc"] for l in invoices), 2),
+        "paid": round(sum(l["paid"] for l in invoices), 2),
+        "credited": round(-sum(l["total_inc"] for l in credits), 2),
         "outstanding": round(sum(l["balance"] for l in lines), 2),
     }
 
@@ -1068,42 +1183,146 @@ def customer_statement_pdf(
     )
     pdf_bytes = _build_statement(customer, lines, totals, company, date_from, date_to)
 
-    filename = f"statement_{customer_id}_{date.today().isoformat()}.pdf"
+    filename = f"statement_{customer_id}_{shop_day.today().isoformat()}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+_DOCUMENT_TYPES = (
+    "invoice|quote|proforma|picking-slip|job-sheet|delivery-note|ship-label|job-label"
+)
+# Documents with prices on them. Tax invoices and proformas are money
+# documents, so — like the sales register and the money reports — they are not
+# for overseas staff; every role prints the production and despatch paperwork.
+_MONEY_DOCUMENTS = {"invoice", "proforma"}
+# What prints across a list of jobs in one go, as Jim2 prints delivery notes
+# for a whole filtered list.
+_LIST_DOCUMENTS = {
+    "delivery-note": (despatch_documents.DELIVERY_NOTE, 15 * mm),
+    "ship-label": (despatch_documents.SHIP_LABEL, 6 * mm),
+    "job-label": (despatch_documents.JOB_LABEL, 4 * mm),
+}
+
+
+def _company(db: Session) -> CompanySettings:
+    return db.query(CompanySettings).first() or CompanySettings(
+        company_name="Total Image"
+    )
+
+
+def _last_despatch(db: Session, job: Job) -> dict:
+    line = (
+        db.query(DispatchSessionLine)
+        .filter(DispatchSessionLine.job_id == job.id)
+        .order_by(DispatchSessionLine.id.desc())
+        .first()
+    )
+    if line is None:
+        return {"address": _despatch_address(job)}
+    return {
+        "ship_via": line.ship_via,
+        "ship_ref": line.ship_ref,
+        "cartons": line.cartons,
+        "address": line.address or _despatch_address(job),
+    }
+
+
+def _list_story(db: Session, job: Job, company: CompanySettings, type: str) -> list:
+    if type == "delivery-note":
+        return despatch_documents.delivery_note(job, company, _last_despatch(db, job))
+    if type == "ship-label":
+        return despatch_documents.ship_labels(job, company, _last_despatch(db, job))
+    return despatch_documents.job_label(job, company)
+
+
+def _pdf_response(pdf_bytes: bytes, filename: str) -> StreamingResponse:
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get("/job-documents")
+def jobs_documents(
+    type: str = Query(..., pattern="^(delivery-note|ship-label|job-label)$"),
+    job_id: list[str] = Query(..., min_length=1, max_length=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any),
+):
+    """One document type for many jobs, in one PDF — a page (or label) each.
+
+    Not under /jobs/: the jobs router's GET /jobs/{job_id} would read the path
+    as a job id.
+    """
+    jobs = {
+        j.id: j
+        for j in db.query(Job)
+        .options(joinedload(Job.items))
+        .filter(Job.id.in_(job_id))
+        .all()
+    }
+    missing = [j for j in job_id if j not in jobs]
+    if missing:
+        raise HTTPException(
+            status_code=404, detail=f"Job(s) not found: {', '.join(missing)}"
+        )
+    company = _company(db)
+    pagesize, margin = _LIST_DOCUMENTS[type]
+    stories = [_list_story(db, jobs[j], company, type) for j in dict.fromkeys(job_id)]
+    return _pdf_response(
+        despatch_documents.render(stories, pagesize, margin), f"{type}s.pdf"
     )
 
 
 @router.get("/jobs/{job_id}/pdf")
 def job_pdf(
     job_id: str,
-    type: str = Query("invoice", pattern="^(invoice|quote|picking-slip|job-sheet)$"),
+    type: str = Query("invoice", pattern=f"^({_DOCUMENT_TYPES})$"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any),
+    current_user: User = Depends(require_any),
 ):
-    """Stream a PDF for the given job: invoice, quote, picking-slip, or job-sheet."""
+    """Stream one document for the given job.
+
+    invoice, quote and proforma are priced; picking-slip and job-sheet are
+    production paperwork; delivery-note, ship-label and job-label go with the
+    goods (app/core/despatch_documents.py — they used to exist only as
+    templates in the browser, F21).
+    """
+    if type in _MONEY_DOCUMENTS and current_user.role not in require_staff.roles:
+        raise HTTPException(
+            status_code=403, detail="Invoices and proformas are printed by staff"
+        )
     job = db.query(Job).options(joinedload(Job.items)).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    company = db.query(CompanySettings).first() or CompanySettings(
-        company_name="Total Image"
-    )
+    company = _company(db)
 
     if type == "picking-slip":
-        pdf_bytes = _build_picking_slip(job, company)
+        pdf_bytes = _build_picking_slip(
+            job, company, unweighed_lines(job, db), order_weight(job, db)
+        )
         filename = f"picking_slip_{job_id}.pdf"
     elif type == "job-sheet":
         pdf_bytes = _build_job_sheet(job, company)
         filename = f"job_sheet_{job_id}.pdf"
+    elif type in _LIST_DOCUMENTS:
+        pagesize, margin = _LIST_DOCUMENTS[type]
+        pdf_bytes = despatch_documents.render(
+            [_list_story(db, job, company, type)], pagesize, margin
+        )
+        filename = f"{type}_{job_id}.pdf"
     else:
-        pdf_bytes = _build_pdf(job, company, type)
-        filename = f"{type}_{job.invoice or job_id}.pdf"
+        customer = (
+            db.get(Customer, job.customer_id) if job.customer_id is not None else None
+        )
+        pdf_bytes = _build_pdf(job, company, type, customer)
+        filename = (
+            f"{type}_{(job.invoice if type == 'invoice' else None) or job_id}.pdf"
+        )
 
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
-    )
+    return _pdf_response(pdf_bytes, filename)

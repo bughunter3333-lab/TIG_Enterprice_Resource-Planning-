@@ -1,4 +1,4 @@
-import { palette, type } from './src/ui/palette.js';
+import { palette, type, elevation } from './src/ui/palette.js';
 
 /**
  * The theme reads the same palette as src/ui/tokens.js.
@@ -22,7 +22,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Chrome — the machine: top bar, nav tree, status bar.
+        // Chrome — the top bar, white with dark text.
         ink: {
           DEFAULT: palette.ink,
           raised: palette.inkRaised,
@@ -31,10 +31,14 @@ export default {
           muted: palette.inkTextMuted,
         },
 
+        // The sidebar: a second neutral, a step off the page.
+        rail: { DEFAULT: palette.rail, hover: palette.railHover },
+
         // Ground and surfaces.
         paper: palette.paper,
         panel: { DEFAULT: palette.panel, alt: palette.panelAlt },
         hairline: { DEFAULT: palette.hairline, soft: palette.hairlineSoft },
+        field: { DEFAULT: palette.fieldBorder, hover: palette.fieldBorderHover },
 
         // Text. `fg` rather than `text` so the utility reads `text-fg` instead
         // of the nonsense `text-text`.
@@ -43,8 +47,7 @@ export default {
         faint: palette.faint,
         header: palette.headerText,
 
-        // Accent — process cyan. `accent` is 3.5:1 on white, so it is for
-        // fills, borders and large text; `accent-strong` (5.2:1) carries words.
+        // Accent — the one blue (5.1:1); `accent-strong` (6.8:1) for hover.
         accent: {
           DEFAULT: palette.accent,
           strong: palette.accentStrong,
@@ -52,7 +55,7 @@ export default {
           focus: palette.accentFocus,
         },
 
-        // Emphasis — process magenta, for one thing per surface.
+        // Emphasis — a deeper blue, for one thing per surface.
         emphasis: { DEFAULT: palette.emphasis, tint: palette.emphasisTint },
 
         // Traffic light. Information, not brand.
@@ -60,25 +63,26 @@ export default {
         warn: { DEFAULT: palette.warn, tint: palette.warnTint },
         danger: { DEFAULT: palette.danger, tint: palette.dangerTint },
 
-        // The Jim2 convention: a column you can type into is tinted.
+        // A borderless cell you can type into is faintly tinted.
         editable: palette.editable,
       },
 
       fontFamily: {
-        sans: [type.font.split(',')[0].replace(/'/g, ''), 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        // Geist and Geist Mono, self-hosted (src/ui/fonts.css).
+        sans: ['"Geist Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
       // Figures in a column have to line up, or the eye cannot compare them.
       fontVariantNumeric: { tabular: 'tabular-nums' },
 
       boxShadow: {
-        // Tinted with the chrome ink; pure black goes muddy on a warm ground.
-        sm: '0 1px 2px rgba(23,23,28,.07), 0 1px 1px rgba(23,23,28,.04)',
-        DEFAULT: '0 2px 8px rgba(23,23,28,.11), 0 1px 2px rgba(23,23,28,.06)',
-        header: '0 3px 5px -2px rgba(23,23,28,.10)',
-        chrome: '0 1px 3px rgba(23,23,28,.30)',
-        press: '3px 3px 0 rgba(23,23,28,.85)',
+        // palette.js `elevation`: faint for resting cards, deep for overlays.
+        sm: elevation.shadowSm,
+        DEFAULT: elevation.shadowMd,
+        header: elevation.shadowHeader,
+        chrome: elevation.shadowChrome,
+        press: elevation.shadowPress,
       },
 
       transitionTimingFunction: {

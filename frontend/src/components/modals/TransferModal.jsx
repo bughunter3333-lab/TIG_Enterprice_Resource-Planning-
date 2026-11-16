@@ -67,7 +67,7 @@ export default function TransferModal({ inventory, setTransferModal, transferMod
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: T.text }}>New Location</label>
-              <input value={transferModal.toLocation} onChange={e => setTransferModal(m => ({ ...m, toLocation: e.target.value, toSku: '' }))} placeholder="e.g. Bin A3" className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
+              <input value={transferModal.toLocation} onChange={e => setTransferModal(m => ({ ...m, toLocation: e.target.value, toSku: '' }))} placeholder="e.g. B.3.H.1" className="w-full rounded px-3 py-2 text-sm" style={{ border: `1px solid ${T.hairline}` }} />
             </div>
           </div>
         </div>

@@ -5,12 +5,15 @@ import os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.core.config import settings
+from app.core.config import for_alembic_ini, migration_database_url, settings
 from app.database import Base
 import app.models  # noqa: F401 — ensures all models are registered
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option(
+    "sqlalchemy.url",
+    for_alembic_ini(migration_database_url(os.environ, settings.DATABASE_URL)),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -34,6 +37,12 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
+            # Two production builds can run at once (a push and a redeploy):
+            # one migrates, the other waits for it here and then finds nothing
+            # left to do. Held until the transaction ends, so it works through
+            # Supabase's poolers too.
+            if connection.dialect.name == "postgresql":
+                connection.exec_driver_sql("SELECT pg_advisory_xact_lock(727274)")
             context.run_migrations()
 
 

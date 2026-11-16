@@ -179,7 +179,7 @@ INVENTORY = [
         100,
         6.20,
         18.00,
-        "A-01-03",
+        "A.1.C.3",
         0.180,
     ),
     (
@@ -191,7 +191,7 @@ INVENTORY = [
         100,
         6.20,
         18.00,
-        "A-01-04",
+        "A.1.D.4",
         0.195,
     ),
     (
@@ -203,7 +203,7 @@ INVENTORY = [
         100,
         6.20,
         18.00,
-        "A-02-01",
+        "A.2.A.1",
         0.195,
     ),
     (
@@ -215,7 +215,7 @@ INVENTORY = [
         60,
         9.80,
         28.00,
-        "B-03-02",
+        "B.3.B.2",
         0.230,
     ),
     (
@@ -227,7 +227,7 @@ INVENTORY = [
         50,
         12.40,
         34.00,
-        "B-05-01",
+        "B.5.A.1",
         0.260,
     ),
     (
@@ -239,7 +239,7 @@ INVENTORY = [
         80,
         4.10,
         14.00,
-        "C-01-01",
+        "C.1.A.1",
         0.090,
     ),
     (
@@ -251,7 +251,7 @@ INVENTORY = [
         40,
         19.50,
         52.00,
-        "A-04-02",
+        "A.4.B.2",
         0.620,
     ),
     (
@@ -263,7 +263,7 @@ INVENTORY = [
         20,
         3.40,
         0.00,
-        "D-01-01",
+        "D.1.A.1",
         0.080,
     ),
     (
@@ -275,7 +275,7 @@ INVENTORY = [
         200,
         0.85,
         0.00,
-        "D-02-03",
+        "D.2.C.3",
         0.020,
     ),
     ("FREIGHT", "Freight / Delivery", "Service", "", 0, 0, 0.00, 0.00, "", 0.000),
@@ -908,7 +908,7 @@ def seed():
             if melb:
                 db.add(
                     StockLocation(
-                        sku=item.sku, branch="Melbourne", zone=zone, qty_on_hand=melb
+                        sku=item.sku, branch="MELB", zone=zone, qty_on_hand=melb
                     )
                 )
             created["stock_locations"] += 1

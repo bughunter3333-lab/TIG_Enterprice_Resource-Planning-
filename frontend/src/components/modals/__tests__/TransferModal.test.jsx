@@ -33,7 +33,7 @@ const open = (over = {}) => ({
   toLocation: '',
   quantity: 5,
   fromBranch: 'HQ',
-  toBranch: 'Sydney',
+  toBranch: 'MELB',
   reference: 'XFER-014',
   notes: '',
   loading: false,
@@ -126,7 +126,7 @@ test('the source item is not offered back as its own destination', () => {
 test('both branches are pickable and hold their own value', () => {
   setup();
   expect(branchSelect('HQ')).toBeInTheDocument();
-  expect(branchSelect('Sydney')).toBeInTheDocument();
+  expect(branchSelect('MELB')).toBeInTheDocument();
 });
 
 test('a failed transfer is shown, not swallowed', () => {
@@ -177,7 +177,7 @@ test('a move to a new bin sends the whole payload, both branches included', asyn
     toLocation: 'Bin A3',
     quantity: 5,
     fromBranch: 'HQ',
-    toBranch: 'Sydney',
+    toBranch: 'MELB',
     reference: 'XFER-014',
     notes: 'Overflow rack',
   });
@@ -238,7 +238,7 @@ test('picking a destination SKU clears a typed location', async () => {
 
 test('typing a location clears a picked destination SKU', () => {
   const { setTransferModal } = setup({ toSku: 'CAP-NVY' });
-  fireEvent.change(screen.getByPlaceholderText('e.g. Bin A3'), { target: { value: 'Bin A3' } });
+  fireEvent.change(screen.getByPlaceholderText('e.g. B.3.H.1'), { target: { value: 'Bin A3' } });
 
   const next = applyLast(setTransferModal, open({ toSku: 'CAP-NVY', notes: 'KEEP-ME' }));
   expect(next.toSku).toBe('');

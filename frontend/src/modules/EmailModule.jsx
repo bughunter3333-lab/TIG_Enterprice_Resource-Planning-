@@ -4,6 +4,8 @@ import { Mail, Send, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle } fro
 import * as api from '../api';
 import { notify } from '../lib/notify';
 import { T } from '../ui/tokens';
+import { statusLabel } from './jobs/jobStatuses';
+import { localDay } from '../lib/localDay';
 
 const EMAIL_TYPES = [
   { value: 'invoice', label: 'Tax Invoice' },
@@ -52,7 +54,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
   const log = logData || [];
 
   // Warn if this job was already emailed today
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   const alreadySentToday = form.job_id
     ? log.filter(e => e.job_id === form.job_id && e.status === 'sent' && e.sent_at?.startsWith(today))
     : [];
@@ -139,7 +141,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
                         <span className="font-mono text-xs shrink-0" style={{ color: T.accentStrong }}>{j.id}</span>
                         <span className="truncate flex-1" style={{ color: T.text }}>{j.customer}</span>
                         <span className="text-xs shrink-0" style={{ color: T.textFaint }}>
-                          {j.invoice ? `#${j.invoice}` : j.status} · ${parseFloat(j.total || 0).toFixed(2)}
+                          {j.invoice ? `#${j.invoice}` : statusLabel(j.status)} · ${parseFloat(j.total || 0).toFixed(2)}
                         </span>
                       </button>
                     ))}

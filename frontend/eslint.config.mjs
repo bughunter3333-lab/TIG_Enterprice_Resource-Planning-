@@ -58,7 +58,7 @@ export default [
       // The other half of the same gap, and the reason it has to be on: without
       // it no-unused-vars counts an import rendered only as JSX as unused, so
       // every icon and primitive in the app reports as dead. Those were real
-      // false positives here — ModuleBar's `Search` and `Bell` are both used —
+      // false positives here — the top bar's `Search` and `Bell` are both used —
       // and a warning that is wrong is how a lint report becomes noise nobody
       // reads, which is the failure this config is written to avoid.
       'react/jsx-uses-vars': 'error',
@@ -84,7 +84,7 @@ export default [
   {
     // Test files run under vitest globals and may legitimately hold unused
     // scaffolding while a test is being written.
-    files: ['**/__tests__/**', '**/*.test.{js,jsx}', 'src/test/**', 'src/test-setup.js'],
+    files: ['**/__tests__/**', '**/*.test.{js,jsx}', 'src/test/**', 'src/test-setup.js', 'scene-probes/**'],
     languageOptions: {
       globals: { ...globals.node, ...globals.vitest },
     },

@@ -73,7 +73,7 @@ const CASES = [
             sku: 'TEE-BLK-M', name: 'Heavy Tee — Black', category: 'Tees',
             stock: '120', reorderLevel: '40', location: 'A-12-3',
             supplierCode: 'SUP-014', unitCost: '6.40', unitPrice: '18.00',
-            minOrder: '25', leadTime: '14',
+            minOrder: '25', leadTime: '14', weight_kg: '0.23',
           }}
           categoryDropdown={closed} locationDropdown={closed}
           setCategoryDropdown={noop} setLocationDropdown={noop}
@@ -85,7 +85,7 @@ const CASES = [
       ),
     expect: {
       'SKU': 'TEE-BLK-M', 'Category': 'Tees', 'Item Name': 'Heavy Tee — Black',
-      'Stock Quantity': '120', 'Reorder Level': '40', 'Location': 'A-12-3',
+      'Stock Quantity': '120', 'Reorder Level': '40', 'Weight per unit (kg)': '0.23', 'Location': 'A-12-3',
       'Unit Cost ($)': '6.40', 'Unit Price ($)': '18.00',
       'Minimum Order Qty': '25', 'Lead Time (days)': '14',
     },

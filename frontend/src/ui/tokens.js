@@ -12,12 +12,16 @@
 import { palette, density, type, elevation, motion } from './palette';
 
 export const T = {
-  // Chrome — the machine. Was steel-blue (#2c4a6e); now ink.
+  // Chrome — the top bar: white, with dark text.
   chrome: palette.ink,
   chromeRaised: palette.inkRaised,
   chromeHover: palette.inkHover,
   chromeText: palette.inkText,
   chromeTextMuted: palette.inkTextMuted,
+
+  // The sidebar, a second neutral a step off the page.
+  rail: palette.rail,
+  railHover: palette.railHover,
 
   // Surfaces
   page: palette.paper,
@@ -25,6 +29,8 @@ export const T = {
   panelAlt: palette.panelAlt,
   hairline: palette.hairline,
   hairlineSoft: palette.hairlineSoft,
+  fieldBorder: palette.fieldBorder,
+  fieldBorderHover: palette.fieldBorderHover,
 
   // Text
   text: palette.text,
@@ -32,19 +38,18 @@ export const T = {
   textFaint: palette.faint,
   headerText: palette.headerText,
 
-  // Accent — process cyan. `accent` is 3.5:1 on white: fills, borders and large
-  // text only. Anything small that carries words uses accentStrong (5.2:1).
+  // Accent — the one blue. It means "act" or "you are here", nothing else.
   accent: palette.accent,
   accentStrong: palette.accentStrong,
   accentTint: palette.accentTint,
   accentFocus: palette.accentFocus,
 
-  // Emphasis — process magenta. For the single most important thing on a
+  // Emphasis — a deeper blue, for the single most important thing on a
   // surface, and nothing else. If two things are emphasised, neither is.
   emphasis: palette.emphasis,
   emphasisTint: palette.emphasisTint,
 
-  // Editable grid cell — Jim2 tints columns you can type into.
+  // Editable grid cell — a faint tint marks borderless cells you can type into.
   editable: palette.editable,
 
   // Feedback — a full traffic light. These are information, not brand, and do
@@ -63,12 +68,18 @@ export const T = {
   fsGrid: type.fsGrid,
   fsHeader: type.fsHeader,
   fsSmall: type.fsSmall,
+  fsSection: type.fsSection,
+  fsTitle: type.fsTitle,
+  fsKpi: type.fsKpi,
 
   // Density
   rowHeight: density.rowHeight,
+  rowHeightComfortable: density.rowHeightComfortable,
   inputHeight: density.inputHeight,
   radius: density.radius,
   radiusLg: density.radiusLg,
+  radiusField: density.radiusField,
+  radiusSm: density.radiusSm,
 
   // Elevation
   shadowSm: elevation.shadowSm,
@@ -84,30 +95,71 @@ export const T = {
 
 // Workflow statuses, in the order a job moves through them.
 //
-// These are learned: staff read the colour before the word, so they are not
-// free to follow the brand. Two were changed and the rest were left alone.
+// Coloured by phase, so a colour says where a job is in its life rather than
+// giving twelve statuses twelve hues. The word carries the exact status. Each
+// phase has a text colour and the pale tint its chip sits on (both pairs pass
+// 4.5:1, and the text colour also carries white words as a fill):
 //
-//   New   was #1d4ed8, a blue close enough to ORDER's indigo that the two were
-//         hard to separate at badge size. It takes the process cyan instead,
-//         at the darker step so white text on it still passes.
-//   PROOF was #9333ea, a purple sitting beside QUOTE's violet with the same
-//         problem. It takes the press magenta, which is both distinguishable
-//         and the one place the emphasis colour earns a permanent home —
-//         PROOF is the status that means someone outside is waiting on you.
-export const STATUS_COLORS = {
-  QUOTE: '#7c3aed',
-  New: palette.accentStrong,
-  ORDER: '#4f46e5',
-  'In Progress': palette.warn,
-  PROOF: palette.emphasis,
-  PRINT: '#c2410c',
-  'Pick/Pack': '#0e7490',
-  FINISH: palette.ok,
-  INVOICE: '#0f766e',
-  PAID: '#047857',
-  CANCEL: palette.muted,
+//   Intake      QUOTE, New (Booked)          violet — nobody has committed yet;
+//               a booked order waits to be released (F11), so it sits with
+//               the quote rather than the work
+//   Production  ORDER (Confirmed), In Progress, Picked, PRINT    blue
+//   Waiting     PROOF, Inco/Pick, ProdExt    amber — someone outside is
+//               holding things up: the customer's approval, the rest of
+//               the stock, the external decorator
+//   Fulfil      Pick/Pack, Desp/Ready        teal
+//   Finished    FINISH                       green — gone (TIG's green FINISH)
+//   Ready       Ready                        red — FINISH a person has checked,
+//               ready to invoice (TIG's red FINISH; owner approved 2026-11-07)
+//   Billing     INVOICE, PAID                dark slate — Jim2 shows invoiced
+//               jobs black, and green now means gone, not invoiced
+//   Closed      CANCEL                       grey
+// FINISH green and Ready red differ in their word too ("Ready to invoice"),
+// so nothing depends on colour alone.
+// `onDark` is the same phase lifted for the one dark surface (Home's work in
+// hand): the text colours above sink into a near-black ground.
+const PHASES = {
+  intake:     { color: '#6d28d9', tint: '#f3effe', onDark: '#b69cf7' },
+  production: { color: '#0b63f6', tint: '#eef4ff', onDark: '#6ea2ff' },
+  waiting:    { color: '#b45309', tint: '#fff5e8', onDark: '#f2b056' },
+  fulfil:     { color: '#0f766e', tint: '#e8f6f4', onDark: '#4fd1c1' },
+  finished:   { color: palette.ok, tint: '#ecf8f0', onDark: '#5fd38a' },
+  ready:      { color: palette.danger, tint: palette.dangerTint, onDark: '#f87171' },
+  billing:    { color: '#1e293b', tint: '#eef1f5', onDark: '#e2e8f0' },
+  closed:     { color: '#52525b', tint: '#f1f1f3', onDark: '#a1a1aa' },
 };
+
+const STATUS_PHASE = {
+  QUOTE: 'intake',
+  New: 'intake',
+  ORDER: 'production',
+  'In Progress': 'production',
+  PROOF: 'waiting',
+  Picked: 'production',
+  'Inco/Pick': 'waiting',
+  PRINT: 'production',
+  ProdExt: 'waiting',
+  'Pick/Pack': 'fulfil',
+  'Desp/Ready': 'fulfil',
+  FINISH: 'finished',
+  Ready: 'ready',
+  INVOICE: 'billing',
+  PAID: 'billing',
+  CANCEL: 'closed',
+};
+
+export const STATUS_COLORS = Object.fromEntries(
+  Object.entries(STATUS_PHASE).map(([status, phase]) => [status, PHASES[phase].color]),
+);
 
 export function statusColor(status) {
   return STATUS_COLORS[status] ?? T.textMuted;
+}
+
+export function statusTint(status) {
+  return PHASES[STATUS_PHASE[status]]?.tint ?? T.hairlineSoft;
+}
+
+export function statusOnDark(status) {
+  return PHASES[STATUS_PHASE[status]]?.onDark ?? '#a1a1aa';
 }

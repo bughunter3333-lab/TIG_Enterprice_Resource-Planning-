@@ -440,8 +440,30 @@ in F3 at a twelfth of the size.
 gated on `ofModalOpen` — the query takes `enabled`, the effect returns early —
 so a fresh authenticated load makes 22 API requests and none of them go to
 `/open-freight`. Nothing is deleted, so wiring the entry point back up still
-works unchanged. What remains open is only the product question: put the button
-back, or remove the feature.
+works unchanged.
+
+**Update — the product question is answered: wire it back.** A photograph of a
+live Jim2 job (1186437, reviewed 2026-09-02) carries this comment against the
+job:
+
+> Status set by bulk OpenFreight Script
+
+So OpenFreight is not a half-finished idea somebody abandoned. It is load
+bearing in the business today, to the point of setting job statuses in bulk on
+the system this one replaces. The 453 lines here are an unfinished port of a
+daily workflow, not dead weight.
+
+That reverses the recommendation this entry would otherwise have earned. On the
+evidence available when it was written — an unreachable modal, no entry point,
+fetches firing on every load for a feature nobody could open — deletion was the
+defensible call. It would have been the wrong one, and it is worth recording
+why: the codebase cannot tell you which of its unreachable features someone
+depends on somewhere else.
+
+What is still unknown, and matters before the port: the Jim2 script sets status
+in *bulk* across many jobs, and `api.openFreight` here exposes only per-parcel
+CRUD. Whatever the bulk path is on their side needs finding before the entry
+point goes back.
 
 ### Running the frontend against real data locally
 
@@ -502,6 +524,1142 @@ either way. Deleting the job builders does not touch it.
 The decision is delete-or-keep, and it is small either way. Keeping it costs
 730 lines that no test exercises through the UI; deleting it removes an API
 route that something outside this repo might be using.
+
+## ORD1-ORD12. Findings from the Arcare multi-site order simulation
+
+Run on 2026-09-02 against a local SQLite instance, not production. One customer
+purchase order — Arcare, 100 staff personal packs (2 polos + 1 jacket each,
+embroidered logo and the employee's first name) — delivered to all 68 Arcare
+residences. Site list taken from arcare.com.au/residence-sitemap.xml; street
+addresses were synthetic. The whole order was driven through quote → order →
+procurement → production → invoice → despatch.
+
+Ordered by what they would cost the business, not by how hard they are to fix.
+
+### Checked against the reference product
+
+A photograph of a live Jim2 job — sales job 1186437, Merrylands RSL Club, status
+FINISH, invoice 3059786 — was reviewed after this simulation was written. It
+confirms four of the findings from the product this ERP is modelled on, and
+corrects one.
+
+**The Order / Supply / B.Ord loop, complete.** The garment line reads
+`Status Received · PO# 2045613 · PO Due 04/03/2026 · Order 10 · Supply 10 ·
+B.Ord 0`. That is the whole cycle: a custom indent could not be supplied from
+stock, so B.Ord carried the shortfall, a purchase order was raised against that
+line, the goods arrived, and receipt filled Supply and cleared B.Ord to zero.
+
+`goods_receipt.py:373` implements the last step of that and nothing implements
+the first. ORD4 and ORD5 are therefore a missing half of a loop the reference
+completes, not a difference of opinion about how ordering should work.
+
+**Balance due is a first-class job field.** The footer reads `Invoice Paid $0.00`
+/ `Balance Due $1,243.00` next to SubTotal and Tax. In Jim2 that number always
+exists. In ours it exists only when a person has had the job open in a browser,
+which is ORD2.
+
+**Two mechanisms ORD1 asks for already exist there.** `Create Similar` sits in
+the button row, and `Linked Jobs/Quotes` is one of the job's tabs. So the
+reference has both the duplicate action and the parent/child relation whose
+absence makes a 68-site order into 68 unrelated jobs here.
+
+**And one correction.** ORD9 claimed size and colour should be structured
+fields. Jim2 writes the size curve into the line description as prose — see the
+revised ORD9 below.
+
+Two things the photograph shows that are worth copying regardless of the above:
+the footer warns `Order Weight: 15kg (2 items has 0 weight)`, naming the lines
+with no weight because freight is billed on that number, and it carries a
+`Qty Count` alongside the money totals. Our consignment note totals what it has
+and says nothing about what is missing.
+
+### ORD1. One order cannot reach more than one address (HIGH, structural)
+
+`Job.ship_to_id` is on the job. `JobItem` has no destination field of any kind,
+and `/jobs/{id}/dispatch` records a single despatch event per job — it sets
+`dispatched_at` only `if not job.dispatched_at` and carries no address.
+
+So a purchase order going to 68 sites is 68 jobs. There is no split, duplicate,
+copy or bulk-create endpoint, so in the UI that is 68 hand-built jobs. It
+produced 68 invoice numbers against the customer's single PO ARC-PO-88421, and
+a shortage of one garment came back from Order Requirements as "35 units across
+22 jobs" for the buyer to reconcile by hand.
+
+It also duplicates production: one embroidery run of 300 garments is
+represented as 68 jobs, so every picking slip is one to three garments.
+
+`project_no` and `cust_ref` can tie the 68 together, and a DispatchSession
+despatched all 68 in one batch in well under a second — so the model can
+express the grouping. What is missing is a line-level destination, or a "split
+by ship-to" action that fans one order out and keeps the parent.
+
+### ORD2. Invoicing through the API leaves accounts receivable at zero (FIXED — bfb3fdc)
+
+`_recalculate_customer_balance` sums `Job.balance_due` over INVOICE/PAID/FINISH
+jobs. Nothing on the server ever derives `balance_due` from the invoice total —
+the only place it is computed is the job form in the browser, at
+`TotalImageERP.jsx:861`, as `total - invoicePaid`.
+
+68 jobs were invoiced for $15,400 inc GST. `customer.balance` stayed at $0.00
+and `ytd_sales` at $0.00.
+
+Everything downstream reads that field: the credit-limit check at
+`jobs.py:253`, the customer statement, the sales register, the customer detail
+panel, and every accounts-receivable answer the AI assistant gives. A job
+invoiced by anything other than a person clicking through the job form is
+invisible to all of them — an import, an EDI feed, a customer portal, or a
+script. Deriving `balance_due` server-side on the INVOICE transition closes it.
+
+### ORD3. On-hand stock is allowed to go negative, silently (FIXED — d89e8fa)
+
+`AS5026-BLK-L` had 65 units. The 68 jobs needed 100. All 68 were invoiced
+without a block, a warning, or a confirmation, and the SKU finished at **−35 on
+hand**.
+
+The ledger itself is honest: 100 movement rows, every one carrying
+`location_branch`, split correctly into Released and Sale. Nothing was
+corrupted. The system faithfully recorded shipping stock that did not exist,
+which is the point — a negative on-hand figure means either the goods never
+shipped or the count is wrong, and nobody is told either way.
+
+### ORD4. The procurement worklist only shows what someone typed into it (FIXED — 1b672c5)
+
+`GET /jobs/order-requirements?type=garment` filters on `JobItem.b_ord > 0`.
+Nothing computes `b_ord`. Across the backend it is only ever *decremented* — by
+goods receipt at `goods_receipt.py:373` — or read. The only writer is an
+operator typing into the B/Ord column, which `api.js` sends as `b_ord`.
+
+With 100 units committed against 65 in stock, the shortage was real, derivable,
+and visible in the stock figures. Order Requirements returned **zero rows**.
+Hand-entering `b_ord: 35` made the correct row appear immediately, with the
+right supplier and cost — so the screen works; it is just fed by hand.
+
+A buyer working that screen is not seeing what the business is short of. They
+are seeing what colleagues remembered to flag.
+
+### ORD5. Orders reserve no stock until someone fills the Supply column (FIXED — 1b672c5)
+
+Commitment keys off `JobItem.supply_qty > 0` (`inventory.py:911`,
+`reservations.py`). `supply_qty` defaults to 0 in `JobCreate` and is only
+auto-filled by goods receipt.
+
+68 orders for 100 + 100 + 100 units were created and `committed_qty` did not
+move. Available stock still read 65 for a SKU that was fully spoken for. Two
+salespeople could each promise the same 65 garments. Setting
+`supply_qty = order_qty` made commitment correct at once, and the shortage
+appeared as −35 available.
+
+ORD4 and ORD5 are the same shape as ORD2: a number the system can derive, left to a
+human to type, with everything downstream trusting it.
+
+### ORD6. The jobs list cannot show which site a job is for (FIXED — d058a67, 2b02c63)
+
+`JobsList.jsx` defines eight columns — Job#, Customer, Status, Dec, Priority,
+Acc Mgr, Total, Due. None is the ship-to. All 68 Arcare jobs render as visually
+identical rows: same customer, same status, same decoration, same date, and
+only two distinct totals.
+
+The odd part is that the data is already there for filtering:
+`jobsFilters.js:163` filters by ship code, `:147` searches it, and `:132` builds
+the dropdown of codes. So the ship code drives the filter bar and is never
+shown in the grid. On a 68-site order the operator can narrow to one site at a
+time but cannot see the shape of the whole order.
+
+Adding the column is a one-line change to the column array.
+
+### ORD7. Three-letter ship codes do not survive a customer this size (MEDIUM — LARGELY DISSOLVED, see JIM16)
+
+**Mostly withdrawn.** Real ship codes are numeric site IDs — `RICO.2201`,
+`RICO.2202`, `RICO.2202P`, `RICO.2203` — not abbreviations of place names, so
+the six collisions below were an artefact of a scheme this analysis invented.
+What survives is only: adopt the numbering the business already uses.
+
+
+Under the `AR.` + first-three-letters convention, Arcare's 68 residences
+produce **6 collisions covering 13 sites**: AR.HEL (Helensvale, Helensvale St
+James), AR.KNO (Knox, Knox The Lodge), AR.NOR (North Shore, North Lakes),
+AR.POI (Point Lonsdale, Point Cook), AR.WAR (Warriewood, Warners Bay), and
+AR.PAR three ways (Parkwood, Parkview, Parkinson).
+
+The ERP behaves correctly — `POST /customers/{id}/ship-tos` returns 409
+"Ship-to code 'AR.PAR' already exists for this customer" — so nothing corrupt
+gets in. The gap is that codes then get invented ad hoc at the point of
+rejection. Auto-lengthening produced AR.BEL beside AR.PARKI, which is no longer
+a scannable convention.
+
+A process decision rather than a defect: pick a fixed-width scheme
+(AR.PKW / AR.PKV / AR.PKN) and write it down, because the collisions are
+between sites in different states whose garments must not be swapped.
+
+### ORD8. PATCH accepts field names it does not recognise and reports success (FIXED — SIM F10)
+
+`PATCH /jobs/{id}` with items carrying `supply` instead of `supply_qty`
+returned 200 for 69 consecutive jobs and changed nothing. Pydantic ignores
+extra keys by default, so a misspelt field is indistinguishable from a
+successful write.
+
+This cost time inside the simulation itself: the commitment figures looked like
+a stock bug for several minutes before the cause turned out to be a silently
+discarded field name. Any integration written against this API can make the
+same mistake and be told it worked. `model_config = ConfigDict(extra="forbid")`
+on the item schema turns it into a 422.
+
+### ORD9. Size and colour live only inside the SKU string (LOW — revised, largely withdrawn)
+
+**Revised against the reference product. The original finding was wrong on the
+important half.**
+
+The original claim was that the size and colour breakdown belongs in
+`InventoryItem.style_id` / `colour_code` / `size_code` rather than being parsed
+out of a code, and that leaving those null was an oversight.
+
+Jim2 does not do that. On job 1186437 the garment line is stock code
+`FB.INDENT` — a generic indent code carrying no size, no colour and no style —
+with the whole breakdown written into the description as free text:
+
+```
+Fashion Biz Special Custom Made Garment - Womens Harper 3/4 Sleeve Shirt - Ink/Silver
+6 x size 30
+4 x size 32
+```
+
+So the size curve living in prose is the reference behaviour, deliberately, and
+for a good reason: a custom indent has no SKU to hang sizes off. Any rule that
+demanded structured size fields on every line would have nowhere to put that
+order.
+
+What survives of the finding is much narrower, and only applies to *stocked*
+items: where a SKU does encode style/colour/size (`AS5026-BLK-L`), the three
+columns that exist to hold that are null, so a stocked-item size or colour
+report still has to split a string. That is worth fixing for stocked lines and
+must not be extended into a requirement for indent lines.
+
+### ORD10. Per-garment personalisation has nowhere structured to live (LOW — ANSWERED, see JIM13)
+
+**Superseded.** The September photographs answer this: personalisation is one
+job per person, with the employee name and staff number in `Cust Ref#`. The
+question below assumed the unit was the garment; it is the job. Left in place
+because the reasoning explains what was looked for and why it was not found.
+
+
+The order was 100 *personal* packs: each garment carries the employee's first
+name under the logo. `JobItem` has `description`, `sizes`, `dec_code`,
+`emb_code` and `dec_position` — all per line, none per unit.
+
+The 100 names went in as a free-text note on the job. Nothing can produce a
+per-garment name list for the embroidery machine, check that 100 names were
+supplied for 100 garments, or reprint one person's polo without re-reading a
+comment. Named personalisation is ordinary in uniform work and is currently
+outside the data model.
+
+### ORD11. Decoration is an attribute here and a line item in Jim2 (MEDIUM)
+
+On job 1186437 the embroidery is its own row:
+
+```
+EMB.5244   Merrylands RSL Logo in Blue/Gold/Black (Shirts Only ~ Left Chest)
+           Order 10   Supply 10   B.Ord 0   Price 0.00   Hide ✓
+```
+
+A separate stock code that *is* the embroidery design number, quantity tracked
+alongside the garment, priced at zero because the cost is carried in the
+garment price, and hidden from the printed invoice.
+
+We model decoration as attributes hanging off the garment line —
+`decoration_type`, `emb_code`, `dec_code`, `dec_position`, `stitch_count`. That
+works for printing a job sheet and is why the decoration requirements report
+groups by `decoration_type:dec_code`. What it cannot do is give a logo an
+identity of its own: EMB.5244 is a thing that exists across jobs, has a stitch
+count, has a setup cost, can be re-run, and can be reported on. As a field on a
+line it exists once per line and nowhere else.
+
+Consequences worth weighing before changing anything, because this is a real
+schema decision and not a defect:
+
+- The freight line on the same job (`FREIGHT`, "Freight Charges Con #
+  CPCXF0C1006242") shows the same pattern — a non-garment cost as a line with a
+  code, not a field. Our despatch stores the consignment reference on the
+  DispatchSession line instead.
+- ORD10 probably resolves into this. Per-garment names may want to be a
+  decoration line with a quantity and an attached name list, rather than a new
+  per-unit field on JobItem.
+- The `Hide` flag already exists on JobItem and the template renderer already
+  honours it, so a zero-priced hidden line would print correctly today.
+
+### ORD12. Jim2 carries three card references on a job; we carry two (LOW)
+
+The header of 1186437 has `Cust#`, `From#` and `Ship#` as three separate
+fields, all reading MERRY.RSL here only because a single-site club is all three
+at once.
+
+We have `customer_id` and `ship_to_id`. There is no equivalent of From#. For a
+customer like Arcare — head office raising the order, 68 sites receiving it,
+one entity invoiced — the three genuinely differ, and the missing one is the
+"who asked for this" card that a query about the order should go back to.
+
+Low priority because `cust_ref` and `name_contact` cover most of what From# is
+used for day to day. Recorded so that the shape is known before anyone designs
+the multi-destination work in ORD1.
+
+### What worked
+
+Recorded so the list above is not read as a verdict on the whole system.
+
+- Ship-to codes are enforced unique per customer, with a clear 409.
+- `INVOICE` is refused until an invoice number is set.
+- The stock ledger stayed correct under 100 movements — every row carried
+  `location_branch`, and Released/Sale were separated properly.
+- `_apply_status_transition` handled all 68 jobs with no drift; committed and
+  depleted move on boundaries, so reverse transitions stay right.
+- One DispatchSession absorbed 68 consignments instantly.
+- All 68 jobs carried both ship-to code and shipping address, so the
+  consignment notes and labels built earlier render correctly per site.
+- Creating 68 jobs took 1.0s and 68 ship-tos 0.8s over HTTP. Nothing here is a
+  performance problem.
+
+## JIM1-JIM12. What 31 photographs of the live Jim2 system show
+
+Surveyed 2026-09-02 from `OneDrive/ERP` — 31 screen photographs taken between
+April and June 2026 covering jobs, the job-list builder, stock, a purchase
+order, both report menus, and every ribbon tab. Findings are ordered by how much
+they change what we build, not by size.
+
+Several confirm earlier guesses; three overturn them. Where a photograph
+contradicts something written here previously, the photograph wins.
+
+### JIM1. The business is multi-site by default, not by exception (ADDRESSED — d058a67)
+
+The recently-opened list alone holds Dan Murphy's (three jobs, "Vendor No.
+96026…"), Respect Group (four), Pickles Auctions **Adelaide** and Pickles
+Auctions **Bibra Lake** as separate cards, Corinthian Industries **WA**, and a
+saved list "Zone Bowling" holding **13 jobs**. Add Arcare's 68 residences and
+Anytime Fitness's franchises.
+
+ORD1 was written as though a 68-site order were an unusual event to be designed
+for. It is the ordinary shape of the work. That raises its priority and changes
+its framing: this is not "support an edge case", it is "support the main case".
+
+**How Jim2 survives it, exactly:** one job per destination — the same thing our
+simulation was forced into — made workable by two tools we lack, `Create
+Similar` on every job, and a saved List that is a live query. Job 1200193 is
+TEEG with `Cust# ZON.BOWL.C` but `Ship# TZ.CRONL.N`, sitting inside the "Zone
+Bowling" list beside its twelve siblings.
+
+**So the fix is not a new data model.** It is Create Similar, plus a list.
+
+### JIM2. A job line is an assembly of three lines, not one line (HIGH)
+
+The clearest example, from job 1200193:
+
+```
+1  ZON.1062.CHB.3XL                       TIMEZONE Mens Superdry Polo - Charcoal/Black - 3XL  2 2 0  33.00  36.30 G     72.60
+2  EMB.TIMEZONE.LHC                       TIMEZONE logo - yellow - left chest (2.0K)          2 2 0   4.71   5.18 G ✓   10.36
+3  Received 2049993 PI.1062.CHB.TZON.3XL  Mens Superdry Polo - Charcoal/Black - 3XL           2 2 0  28.29  31.12 G ✓   62.24
+```
+
+- `ZON.` — the **sell** line, the customer's own code, at full price, visible
+- `EMB.` — the **decoration**, priced per use, hidden, "(2.0K)" = stitch count
+- `PI.` — the **bought garment**, at cost, hidden, carrying the PO# and its
+  Received status
+
+Margin is therefore visible on the job itself as sell minus components, which is
+what the open "COG on job lines" question was really asking about.
+
+`EMB.TIMEZONE.LHC` repeats across every garment on the job: **a logo is a stock
+item with an identity, reused and priced per application.** This is ORD11
+confirmed with prices attached — the earlier Merrylands photograph showed the
+decoration line at $0.00, which made it look like a note. It is not; it is a
+priced component that was zero on that job.
+
+There is a second form as well. Recently-opened stock includes
+`AF.PS60.16 TRS.AF.LHC, TRS.ANYTIMEH.B…` — garment plus both transfers as a
+single **kit** SKU, and Jim2 carries `Stock List Kits` and `Action Kits Stock
+list` reports. So repeat customers get a kitted code; ad-hoc work gets component
+lines.
+
+### JIM3. Purchase order lines carry the job they are for (FIXED — 20894aa)
+
+PO 2048001 (Workwear Group) has eight lines spanning **six different jobs** —
+1194959, 1194956, 1194961, 1194951, 1192494, 1194960 — each line naming its
+`Job#`, and comment 6 reads:
+
+> `07/04/2026 KS Booked — "Auto created from Job 1192799 for Workwear Group"`
+
+**Purchase orders are auto-created from jobs, and consolidate across them.**
+That is precisely the "35 units across 22 jobs" problem the Arcare simulation
+surfaced (ORD4), and the mechanism is a `job_id` on the purchase-order line.
+
+Ours has no such column. `PurchaseOrderItem` is `order_id · sku · description ·
+qty_ordered · qty_received · unit_cost · total` — no job link, and no
+`vendor_stock_code` or `list_price_ex` either, both of which Jim2 carries
+(`K43012` beside our `RS.K43012CU.NAV.12`; RRP 89.09 beside our buy 49.99).
+
+### JIM4. A stock code is garment + colour + size, and there is a parent above it (HIGH)
+
+The stock list filtered on `MR.RB967LS.SIL` returns **twelve rows, one per
+size** — `.4 .6 .8 .10 .12 .14 .16 .18 .20 .22 .24 .26`, all "Ladies Kayla
+Blouse - Silver - <size>".
+
+That answers the long-open SKU question outright: **one SKU per size.** And the
+grid carries a **`Parent Stock`** column — the style above the per-size codes,
+which is what our null `style_id` was always for.
+
+Stock-level columns we do not have: **`On PO`**, **`BackOrder`**, **`Packaged`**
+as distinct quantity buckets alongside On Hand / Committed / Available.
+
+### JIM5. Ten stock locations, with bins and a reorder calculation (MEDIUM)
+
+`3PLP · AF · BULK · GS · HQ · MELB · QING · QUA · RET · SAMP` — third-party
+logistics, Melbourne, **Qingdao**, quarantine, returns, samples — each with
+Branch, Zone, **Primary Bin 1 + Max Qty**, **Primary Bin 2 + Max Qty**.
+
+Per stock item, a Procurement block: *Min Qty per Location method · Daily Avg
+Sold per day based on last N days · Add extra N% to calculated Qty · Re-order
+Qty*. **Reorder quantity is computed from sales velocity.** We have `min_stock`
+and `reorder_qty` as static numbers.
+
+### JIM6. Stock transactions are linked in pairs (MEDIUM)
+
+The Transactions tab carries `Tran# · Date · Type · Ref# · Loc. · Qty · Qty Bal ·
+PO# · POLine# · Job# · **Link Tran** · Link GL · Pack# · Bin`. Purchase 79180661
+links to Sale 79305720. Every movement names the PO line it came from, the job
+it went to, its bin, and the transaction it is paired with.
+
+Our ledger is honest and carries `location_branch` (the Arcare run proved it),
+but it cannot answer "which purchase did this sale consume", which is what makes
+true landed-cost and margin-by-unit possible.
+
+### JIM7. Priority is an order category here, not an urgency (MEDIUM)
+
+Values across the photographs: **`Normal`**, **`Branch`**, **`Employee`**. Not
+Low/Normal/High/Urgent. "Employee" is a staff uniform order; "Branch" is a
+venue order.
+
+Ours is a three-level urgency and drives colour in the grid. Adopting Jim2's
+meaning would change what the field is *for*, so this is a decision rather than
+a defect — but the current filter offers a vocabulary the business does not use.
+
+### JIM8. Jobs are created from email, and the system writes its own comments (MEDIUM)
+
+Every job title bar reads `Viewing Sales Job 1199536 ( **Source: Email #970981** )`.
+Orders arrive as email, become jobs, and the email thread stays attached — the
+Jobs ribbon carries Reply / Reply All / Forward next to Print.
+
+The comment trail is written by `SYS` as well as by people:
+`Ordered On Account - Proceed with order` (Inc ✓) · `Confirmed` · `Booked` ·
+`Status set by bulk OpenFreight Script`. Comments carry Date · Initials ·
+**Status at the time** · **Inc** (include on the printed document) · text.
+
+We have a JobComment with status and is_internal, so the shape is right. What is
+missing is the email as the origin of a job.
+
+### JIM9. Statuses are configurable, and theirs are different from ours (MEDIUM)
+
+Seen: `Backorder · Confirmed · Booked · Desp/Ready · Pick/Pack · FINISH`, with
+POs running `Booked → Ordered → Received → FINISH`, and a separate `Mode:
+ACTIVE` field on both jobs and POs. Tools → **`Status`** is a configuration
+screen, so this vocabulary is theirs, not the product's.
+
+The Job List builder groups statuses into buckets — **Active / Finish / Ready /
+Inv'd** — and classifies jobs as **Sale / Service / Manufacturing**.
+
+Ours: QUOTE · ORDER · PROOF · PRINT · Pick/Pack · FINISH · INVOICE · PAID ·
+CANCEL, one job kind, no buckets, no Mode.
+
+### JIM10. Ours is a production system; theirs is also an accounting system (MEDIUM)
+
+The Accounts ribbon: Debtors · Creditors · Advanced Creditors · **General
+Ledger** · Account Inquiry · Transaction Journal · General Journals · **GST
+Sessions** · Multicurrency Revaluations · Cheque Book · Bank Deposits · **Bank
+Rec.** · Till Rec. · **Bank Feeds** · Bulk Payments · **Electronic Payments**.
+Management adds **Business Analysis · Budgets · Cash Flow · Commission
+Sessions**.
+
+This is worth stating plainly because it bounds the project: replacing Jim2
+outright means replacing a general ledger, or integrating one. Nothing in the
+current codebase approaches that, and the Arcare simulation's ORD2 (receivables
+reading zero) is the first symptom of the gap.
+
+### JIM11. Three capabilities we have not begun (LOW-MEDIUM)
+
+- **Scheduling** is a resource calendar — Day/Work Week/Week/Month/Year/Time
+  Line/Current+7, **grouped by Resources**, with saved views. That is production
+  capacity planning against machines and people. We have a `SchedulingModule`
+  that is not this.
+- **Documents** is a DMS with **Checkout / Cancel Checkout**. For a decoration
+  business that is artwork version control — the thing that stops two people
+  embroidering from different logo files.
+- **Tools** carries `Report Designer` (the direct analogue of the document
+  template designer built here — that instinct was right), `Scripting Engine` and
+  `Menu Scripts` (where "bulk OpenFreight Script" lives), `Watchouts`,
+  `Integration Configuration`, `Import Data`, `Close Fin. Year`, and a
+  configurable `Status` and `Groups`.
+
+### JIM12. The document set, checked against our designer (LOW)
+
+Jim2's job report menu: `TIG Job Sheet · TIG Picking Slip · TIG Delivery Note ·
+Job Label · Ship Label - Total Image · TIG Delivery Note - NZ · TIG Sample Sales
+Contract · TIG TAX Proforma Invoice · TIG TAX Proforma Invoice Balance ONLY`.
+
+We have eight of the nine. Two gaps and one correction:
+- **`Job Label` is a separate document from `Ship Label`.** Our toolbar points
+  both at `shipLabel`.
+- **`TIG Sample Sales Contract`** does not exist in our designer at all.
+- **Jim2 has no consignment note.** The connote comes from the carrier and lands
+  on the job as freight-line text (`Freight Charges Con # CPCXF0C1006242`). Ours
+  is invented — not wrong, but it is ours, not a Jim2 parity item.
+
+Also on every job footer: `Order Weight: 15kg **(2 items has 0 weight)**` and a
+`Qty Count`. The warning names the lines missing a weight, which matters because
+freight is billed on it. Ours totals silently.
+
+### And the thing that is not in the ERP at all
+
+Behind the Jim2 window in one photograph sits an open Excel file: **"New Polo
+EBA Employee Sizes Listing"**, with tabs **QLD · NSW · WA**.
+
+That is ORD10 in its real form. Employee-level size and name lists arrive as
+spreadsheets, per state, under an enterprise agreement, and are keyed to
+individual people. Nothing in Jim2 holds them either — which is why the answer
+to per-garment personalisation is a genuine product decision rather than a
+parity item, and possibly the clearest place this system could beat the one it
+replaces.
+
+## JIM13-JIM20. The September photographs — how personalised orders actually run
+
+Eight more photographs from `OneDrive/ERP/New`, taken 2026-09-03, following one
+customer (Ricoh Australia) from online order through picking to the purchase
+order that pays for the embroidery. They answer ORD10 outright and correct ORD7.
+
+### JIM13. Personalisation is one job per person, not a field on a line (HIGH — answers ORD10)
+
+Job List filtered on `Order# 2056727` returns **ten Ricoh jobs, one per
+employee**:
+
+```
+Job#     Cust Ref#              Item#        Item Desc                    Serial#   Name
+1218774  <EMPLOYEE 1>…          NOP.ONLINE   <employee email>             4514649   SYS
+1219015  <EMPLOYEE 2>           NOP.ONLINE   <employee email>             4514839   SYS
+1219117  <EMPLOYEE 3>-22…       NOP.ONLINE   <employee email>             4514921   SYS
+1219209  <EMPLOYEE 4>…          NOP.ONLINE   <employee email>             4515000   SYS
+1219224  <EMPLOYEE 5>           SALE         Ad-Hoc Sale                            <staff login>
+1219225  <EMPLOYEE 6>           SALE         Ad-Hoc Sale                            <staff login>
+1219319  <EMPLOYEE 7>           NOP.ONLINE   <employee email>             4515086   SYS
+1219410  <EMPLOYEE 8>…          NOP.ONLINE   <employee email>             4515160   SYS
+1219433  <EMPLOYEE 9> - 22(     NOP.ONLINE   <employee email>             4515183   SYS
+1219454  <EMPLOYEE 10> -        NOP.ONLINE   <employee email>             4515196   SYS
+```
+
+(People's names and work emails replaced with placeholders, 2026-10-23: this
+repository is public. The shape is what matters — a person's name, sometimes
+with a staff number after it, and their work email.)
+
+The employee's **name and staff number go in `Cust Ref#`**, their **email in the
+job description**, and the job is theirs alone.
+
+ORD10 asked where a per-garment name should live and concluded the data model
+had no room for it. The question was wrong. **The unit of personalisation is the
+job, not the line.** Job 1218774 is one employee's pullover, pants, shirt and
+two polos — their whole pack, on their own job, embroidered `RICOH (Only) - in RED
+for LH Chest on Shirt, Back right of pants`.
+
+That also re-frames the Arcare simulation: 100 personal packs is not one job
+with 100 names, it is **100 jobs** — which makes `Create Similar` and bulk status
+handling (JIM1) not a convenience but the load-bearing mechanism.
+
+### JIM14. A self-service ordering portal feeds a large share of the work (HIGH)
+
+`Item#` splits every job into two intake channels:
+
+- **`NOP.ONLINE`** — the employee ordered it themselves. Their email is the job
+  description, `Serial#` is the portal's order number (4514649, 4514839, …), and
+  `Name` is **`SYS`**: nobody keyed it.
+- **`SALE`** — "Ad-Hoc Sale", keyed by a person (`Name:` a staff login).
+
+Eight of those ten jobs arrived without a human touching them. Corinthian and
+Zone Bowling jobs are `NOP.ONLINE` too. This is what Jim2's **eBusiness** ribbon
+is for, and nothing in our system corresponds to it.
+
+**This is the single largest omission the photographs have exposed.** We have
+modelled the back office of a business whose front door is a portal.
+
+### JIM15. The job list is grouped by Ship#, and that is the despatch screen (FIXED — 2b02c63)
+
+Job List filtered on `Cust Grp: Ricoh`, **grouped by `Ship#`**:
+
+```
+▾ Ship# : RICO.2201  (Count=3)   [100%] 1218996  <EMPLOYEE>   [100%] 1219454  <EMPLOYEE>   [100%] 1219456  <EMPLOYEE>
+▾ Ship# : RICO.2202  (Count=3)   [100%] 1218790  <EMPLOYEE>   [100%] 1218800  <EMPLOYEE>   [100%] 1218989  <EMPLOYEE>
+▾ Ship# : RICO.2202P (Count=1)   [100%] 1219015  <EMPLOYEE>
+▾ Ship# : RICO.2203  (Count=2)   [100%] 1218980  <EMPLOYEE>   [100%] 1218992  <EMPLOYEE>
+```
+
+Three things here we do not have:
+
+1. **Grouping by any column.** "Drag a column header here to group by that
+   column" — ORD6 asked for a ship-to *column*; what the work actually needs is
+   **grouping by ship-to**, which turns 15 jobs into 4 despatches.
+2. **`Availability %`** with a progress bar per job — how much of that job can be
+   filled from stock right now. That is the number a despatcher sorts on.
+3. **A `Pick` checkbox per row plus `Auto Pick Stock`** — select many jobs and
+   pick them in one action.
+
+And the report dropdown reads **`Job List - TIG Delivery Note`**: documents print
+**across a filtered list**, not one job at a time. Our designer prints per job.
+
+### JIM16. Ship codes are numeric site IDs, which dissolves ORD7 (MEDIUM — corrects ORD7)
+
+`RICO.2201 · RICO.2202 · RICO.2202P · RICO.2203`.
+
+Not three-letter abbreviations of place names. **Numeric site codes**, with a
+suffix where a site needs more than one destination (`2202P`).
+
+ORD7 spent its length on the six collisions Arcare's 68 residences produce under
+an `AR.` + first-three-letters scheme, and recommended inventing a fixed-width
+abbreviation. That was solving a self-inflicted problem: **the business already
+numbers its sites.** ORD7 should be reduced to "adopt the existing numeric
+convention".
+
+### JIM17. Embroidery is bought on a purchase order, per job (HIGH)
+
+PO 2056727 to `MY.APPAR` (Fly Apparel Aust Pty Ltd TA Procent Apparel), FINISH:
+
+```
+Location  Job#     Stock Code   Description                                              Ordered Received Cost(COG) Price Ex Total
+HQ        1219433  EMB.RIC.R    RICOH (Only) - in RED for LH Chest on Shirt, Back…       2       2        5.0000    5.00     11.00
+HQ        1219454  EMB.RIC.R    …                                                        1       1        2.5000    2.50      2.75
+HQ        1219209  EMB.RIC.R    …                                                        3       3        2.5000    2.50      8.25
+HQ        1219410  EMB.RIC.R    …                                                        3       3        2.5000    2.50      8.25
+…13 lines across ~8 Ricoh jobs…                          Qty Count: 116   Total $196.90
+```
+
+**The decoration is subcontracted and purchased**, at $2.50 a unit, consolidated
+across every job that needs it — 116 applications on one PO. The same job#-on-
+PO-line mechanism as JIM3, applied to a service rather than a garment.
+
+They do both: comment 5 on job 1218774 reads **"Line 1 given to Lina for EMB"**,
+so some decoration is in-house and some is bought. Either way `EMB.RIC.R` is a
+stock item with a cost and a sell price, which is JIM2 confirmed from the buy
+side.
+
+The PO comment is also the standing instruction to suppliers, worth keeping:
+> Can you please leave any out of stocks on back order and despatch what ever is
+> available. Please also advise ETA's on any backorders/discontinued stock.
+
+### JIM18. Line status is per line and includes Pulled and Applies (MEDIUM)
+
+Job 1218774's lines each carry their own status: **`Pulled`**, **`FINISH`**,
+**`Applies`**. Not just the `Received`/`Ordered` seen earlier.
+
+- `Pulled` — taken from stock
+- `Applies` — the line modifies another line rather than being goods
+
+Which brings the next finding.
+
+### JIM19. Alterations are line items (MEDIUM)
+
+```
+7  FINISH  2056333 07/09/2026 PI.1062.NSI.RIC.XL  Mens Super Dry Polo Shirt With Pocket - Navy/Silver - XL
+8  Applies                    ALT.POCKET          ***ALTERATION TO ADD LEFT CHEST POCKET (Include Fee & Instructions if required)***
+```
+
+`ALT.POCKET` is a stock code for an alteration, sitting beneath the garment it
+alters with status `Applies`. Alterations are a priced service line in the same
+way decoration is. We have no concept of a line that modifies another line.
+
+Note also that job 1218774's eleven lines draw on **five different purchase
+orders** (2056566, 2056346, 2056338, 2056333, 2056727) — one job, five suppliers,
+because each garment and the embroidery are sourced separately.
+
+### JIM20. Status is moved in bulk, and production is tracked in comments (PARTLY FIXED — b1b96d1)
+
+Job 1218774's comment trail:
+
+```
+03/09/2026  EM   FINISH      Status set by bulk OpenFreight Script
+02/09/2026  NA   Pick/Pack   Bulk status update
+01/09/2026  NA   Confirmed   Bulk status update
+01/09/2026  NA   Pick/Pack   Bulk status update
+24/08/2026  EM               Line 1 given to Lina for EMB          (Inc ✓)
+21/08/2026  SYS  Confirmed
+21/08/2026  SYS  Booked
+```
+
+Two working practices to support rather than replace:
+- **Bulk status update** is routine, not exceptional. Ours moves one job at a
+  time through `/jobs/{id}/status`.
+- **Production hand-offs are recorded as comments naming the operator** — "Line 1
+  given to Lina for EMB", flagged `Inc` so it prints. There is no work-in-
+  progress table; the comment trail *is* the shop-floor record.
+
+### JIM21. The bin code is a walk order, and ours is a fiction (MEDIUM)
+
+Two photographs of the racking, plus the operator's confirmation that the
+warehouse runs **five aisles, A–E**, and that the labelled aisle is **B**.
+
+Every visible label in the first photograph shares the prefix `B.3`, the letter
+changes as the eye travels **up**, and the last digit changes as it travels
+**down the aisle**:
+
+```
+          ← further down the aisle          nearest the aisle mouth →
+ higher   B.3.I.2                                      (B.3.I.1)
+          B.3.H.3        B.3.H.2                        B.3.H.1
+          B.3.G.3        B.3.G.2                        B.3.G.1
+          B.3.F.3        B.3.F.2                        B.3.F.1
+          B.3.E.3        B.3.E.2                        B.3.E.1
+ lower    B.3.D.3        B.3.D.2                        B.3.D.1
+          B.3.C.3
+```
+
+So the four parts are **aisle · bay · level · position**:
+
+| Part | Example | Varies | Observed range |
+| --- | --- | --- | --- |
+| Aisle | `B` | one of five racking runs | `A`–`E` (stated) |
+| Bay | `3` | constant across the whole photograph | at least `3` |
+| Level | `H` | ascends **upward** | `C`–`J` seen |
+| Position | `1` | ascends **down the aisle** | `1`–`5` seen |
+
+**Why the order matters more than the format.** Three of the four parts are a
+route: aisle, then bay, then position is the order a picker physically walks.
+Level is the only part that costs nothing to change — you reach up, you do not
+walk. A picking slip sorted by `aisle, bay, position, level` is a single pass
+down each aisle; sorted by SKU or by line order, which is what ours does now, it
+is a random walk. **This is the whole operational value of the code, and nothing
+in the system uses it.**
+
+**State of the code.** No schema work is needed — `StockLocation.primary_bin_1`
+/ `_2` and `InventoryItem.bin` are already free-text `String(50)`, and nothing
+parses or validates a bin anywhere. What contradicts the warehouse is:
+
+1. `backend/seed_data.py` invents nine bins in a format that does not exist
+   here — `A-01-03`, `B-03-02`, `D-02-03`. Anyone reading seeded data learns
+   the wrong shape.
+2. `TransferModal` prompts with `placeholder="e.g. Bin A3"` — also not a real
+   code.
+3. Nothing sorts by bin. The picking document resolves a bin per line
+   (`TemplateRenderer`) and prints it in line order.
+
+**Open — the one thing the photographs cannot settle.** Whether `3` is the bay
+and the last digit the position *within* that bay, or the reverse. Both readings
+agree that the last digit is the along-aisle axis, so a walk-order sort is
+correct either way; the two only diverge on how a slip breaks across bays. Worth
+one question to a picker before building the sort.
+
+Also visible: every bin carries **two** labels — the location code, and a
+smaller printed product label on the box. And the second photograph shows the
+storage is two-tier: large bulk cartons on the top beams, the coded pick bins
+below. The letters we can read are pick faces, not bulk.
+
+
+### JIM22. The Locations screen, and who is allowed to type in it (FIXED)
+
+The live screen lists **every** branch as a numbered row and you fill in the
+ones that apply — `Line · Branch · Location · Zone · Primary Bin 1 · Max Qty 1 ·
+Primary Bin 2 · Max Qty 2` — with an explicit **Edit** button rather than a grid
+of live inputs. Ours listed only branches that already had a record, so "no bin
+here" and "no branch here" looked identical, and nothing in the UI could write a
+bin at all: the API had accepted `primary_bin_1` since the module was built and
+the column had always been in the grid, printing empty on every picking slip.
+
+Now: all branches as rows, an Edit mode gated to **admin or manager**, and a
+per-field edit history. Three defects surfaced while building it.
+
+1. **A bin could be set but never cleared.** `PATCH` built its update with
+   `exclude_none=True`, which cannot tell "leave this alone" from "empty this".
+   The picking slip kept sending people to a shelf the stock had left. Now
+   `exclude_unset`.
+2. **Pressing Edit before the grid loaded wiped every record.** The first
+   version snapshotted a draft per row when Edit was pressed; if the fetch had
+   not returned, those drafts were blank, and saving wrote the blanks back.
+   Drafts are now derived on demand, so a row nobody typed into has no draft and
+   cannot be sent at all.
+3. **`stock_audit.changed_at` had no writer.** The schema-conventions test
+   caught it — the exemption list covers `created_at`/`updated_at` by name, and
+   a server default is not a writer. Written explicitly, which also pins the
+   value to one UTC clock instead of the database's.
+
+**The branch vocabulary (FIXED — 2a06ee6).** The photograph shows ten
+locations: `3PLP · AF · BULK · GS · HQ · MELB · QING · QUA · RET · SAMP`. Ours
+were six invented ones. Theirs carry operational meaning ours had no word for —
+quarantine, returns, samples, bulk, third-party logistics, the Qingdao office.
+
+Counting the rows first is what made this safe rather than frightening. Only
+two branch values had ever been written: `HQ`, everywhere, and `MELB` on ten
+`stock_locations` rows — and `MELB` was already one of the real codes, never one
+of ours. `Warehouse`, `Sydney`, `Brisbane` and `Perth` existed only in the list.
+So the change moves nothing here; the migration exists for any database seeded
+by `seed_data.py`, which placed stock at "Melbourne".
+
+The one hazard is the unique constraint on `(sku, branch)`: a SKU holding both
+spellings cannot be renamed onto itself. They are one shelf under two names, so
+the quantities are summed and the duplicate dropped — verified against a
+constructed collision, because there is none in this database and the branch
+would otherwise have shipped unexercised.
+
+`AF` and `GS` are still undecoded. They are carried verbatim rather than
+renamed to a guess.
+
+**Also open — staff lost stock editing.** The gate is now admin or manager, per
+instruction. `manager` is a new role; no existing user has it, and existing
+staff accounts can no longer change a stock position.
+
+### ERP1. A general ledger underneath everything (BUILT)
+
+Researched against ERPNext, Odoo and Tryton (design only — ERPNext is GPL-3.0),
+which agree on every rule that matters: balanced entries of one-sided lines,
+posted entries corrected only by reversal, nothing posted into a closed period,
+operational documents posting automatically. Design and reasons:
+`docs/superpowers/specs/2026-09-25-general-ledger-design.md`.
+
+Built: an Australian chart of accounts found by role; one posting function that
+enforces the rules (and a database check that holds the one-side rule too);
+invoices post on the same INVOICE/PAID boundary stock uses and reverse when a
+job leaves it; payments, bills and bill payments post and re-post themselves
+when changed; manual journals with reversal; trial balance, P&L, balance sheet
+(split on the Australian financial year), general ledger and BAS read only from
+journal lines; a lock date; bringing history in, idempotently; and a health
+check that ties receivables and payables to the jobs and bills line by line.
+
+**This answers JIM10 provisionally.** The ledger makes the system a full ERP
+rather than an operations tool beside one. It does not stop Jim2 or Xero owning
+the books instead — the entries are exactly what an export would carry — but
+lodging from this ledger is now possible, which it was not.
+
+**Found by building it** (fixed; see the spec's "What building it found"): the
+BAS claimed GST credits on purchase orders; invoiced jobs could carry no invoice
+date and dropped out of the BAS; jobs marked PAID with no payment recorded.
+
+**Open, deliberately not changed:**
+
+- *Aged payables* (`/reports/aged-payables`) ages open **purchase orders**, not
+  unpaid bills. That may be intended as committed spend, but it is not what
+  "payables" means in the ledger, and the two will not agree.
+- The bill form lets a bill be set to *Paid* without recording a payment. The
+  ledger keeps it owed, which is honest, but the form should route "paid"
+  through the payment dialog.
+- Moving a job to PAID records no payment either (the health check lists these).
+  Refusing PAID until the balance is zero would stop it at source, but bulk
+  status and the despatch flow use PAID, so that is a workflow decision.
+- Inventory is periodic. Perpetual cost of goods sold — posted at each shipment
+  at average cost — is the next step once the stock ledger's cost figures are
+  trusted.
+- No bank reconciliation, customer credit notes as documents, or year-end
+  closing entry yet (retained earnings are computed on the balance sheet
+  instead of posted).
+
+### Phase A closed — and what it cost to find
+
+ORD2, ORD3, ORD4 and ORD5 are fixed. They were one idea in four places: a
+number the system can work out, left for a person to type, with everything
+downstream trusting it. Four further defects surfaced only because these were
+being fixed, and none of them were on any list:
+
+- `_recalculate_customer_balance` summed before its caller's write was flushed,
+  because `SessionLocal` sets `autoflush=False`. Paying an invoice did not move
+  the customer's balance until an unrelated later write happened to flush it.
+- A job created straight into a committed status never committed its stock.
+  `_commit_job_stock` only ran from `_apply_status_transition`, and creation is
+  not a transition.
+- The first supply derivation read `InventoryItem.committed_qty`, which is not
+  maintained — `inventory.py` derives commitment from the open jobs and
+  overrides the column on read. Every line looked fully suppliable.
+- The negative-stock guard first raised *after* `job.status` had been
+  reassigned, so a refused transition left the job holding the status it had
+  just been refused.
+
+Two of those were found only by running against the live instance, and both had
+passing tests over them. In each case the test supplied the value under test —
+`_make_job` hand-set `balance_due`, and a fixture set `committed_qty` — so the
+test and the bug agreed with each other. That is the pattern worth remembering
+from this phase, more than any individual fix.
+
+
+### Phase B closed
+
+Create Similar with a fan-out to a customer's sites, a Ship# column, grouping by
+any column, bulk status in one request, `job_id` on purchase-order lines and
+`jobs.item_no`. ORD1 turned out to need none of the data-model work it seemed to
+ask for — the model was already Jim2's; what was missing were the two tools that
+make it survivable.
+
+What still stands from JIM20: bulk status moves are covered, but production
+hand-offs are not. Jim2 records them as comments naming the operator ("Line 1
+given to Lina for EMB"), and that comment trail is the only shop-floor record
+there is. We have the comment model; nothing writes those.
+
+Three bugs surfaced again only by running it rather than testing it:
+
+- `bulk-status` first called `db.rollback()` on a refusal, which discards the
+  whole session — every job already moved in the batch would have been undone by
+  the next one that refused. All five tests passed because none had a success
+  followed by a failure. Each job gets a SAVEPOINT now.
+- Grouping used `?? '—'` for a missing value. Normalised rows carry `''`, not
+  null, so the band rendered with a blank heading that read as a fault. Only the
+  live grid showed it; the test used a missing key.
+- The existing Clone button spread each line wholesale, so a clone inherited the
+  original's picked quantities, its PO number and its line status.
+
+## JIM23-JIM31. The October photographs — the despatch end of the work
+
+Seven photographs taken 14–22 October 2026: three job lists, the job list's
+right-click menu, a ship label on a satchel, a printed job sheet and a picking
+slip. Clients and people are deliberately not named here — the photographs
+carry employee names and work emails, and this repository is public.
+
+### JIM23. The status ladder in daily use (MEDIUM — extends JIM9)
+
+The navigation tree and job lists show, in order of the work:
+**`Booked · Confirmed · Picked · ProdExt · Pick/Pack · Desp/Ready · FINISH`**.
+Portal jobs reach `Desp/Ready` together, and `FINISH` is written on despatch by
+the bulk OpenFreight script ("Status set by bulk OpenFreight Script").
+
+Ours: QUOTE · New · ORDER · In Progress · PROOF · PRINT · Pick/Pack · FINISH ·
+INVOICE · PAID. Missing as states: `Booked` vs `Confirmed` (taken vs accepted),
+`Picked` (pulled from stock, before decoration), **`ProdExt`** — read as
+*production external*, out at the embroiderer; **inferred, confirm with the
+owner** — and **`Desp/Ready`**, packed and waiting for the carrier, which is a
+different fact from FINISH (gone).
+
+**Partly done (2026-10-25, SIM F30/F32):** `Desp/Ready` is a status, before
+FINISH, and anyone may skip forward. `Booked`/`Confirmed`, `Picked` and
+`ProdExt` are still not states.
+
+### JIM24. The job list's bulk actions are the daily controls (HIGH)
+
+Right-click on any job list: **Auto Pick Stock · Auto Create Purchase Orders ·
+Change Jobs Status · Change Jobs Date Due · Pick All Jobs** · Export Data ·
+Export Grid · Print. An **`Auto Pick Stock`** tick sits at the foot of the list.
+
+Ours has bulk status (`POST /jobs/bulk-status`, b1b96d1). Picking is one job at a
+time (`POST /jobs/{id}/pick`), there is no bulk due-date change, and purchase
+orders are raised from the procurement worklist rather than from a selected
+list of jobs.
+
+**Partly done (2026-10-25, SIM F20):** Auto Pick Stock across the despatch list
+(`POST /jobs/auto-pick`). Bulk due-date change and creating POs from selected
+jobs are still open.
+
+### JIM25. Availability % is the sort key for despatch (MEDIUM — confirms JIM15)
+
+Every list carries `Availability` as a coloured bar — **100 green, 66–87
+orange** — beside a `Pick` tick, and portal lists are sorted on it: what can go
+today is at the top. JIM15 recorded the column; these lists show it is the
+first thing read.
+
+### JIM26. Every job on a purchase order, found from the PO number (MEDIUM)
+
+A job list filtered on **`Order# 2059625`** — a purchase order number — returns
+the portal jobs that order supplies, ready to pick when it lands. Ours carries
+`po_no` on job lines but the jobs list cannot filter on it.
+
+### JIM27. Customers are grouped by industry (LOW)
+
+`CardFile Group Management` holds a tree — Automotive, CCW, Corporate,
+Education, Government, Healthcare, Hi Vis & Workwear, Hospitality,
+Manufacturing, Other, Retail, Services, Teamwear & Fitness — and a group (e.g.
+one client's aged-care homes) is a job-list filter (`Cust Grp`). Ours has a
+free-text `customers.customer_group` (default "General") and no tree.
+
+### JIM28. One satchel per person, and what its label says (HIGH — despatch)
+
+A portal pack goes out as its own satchel. The ship label reads: **Ship Code ·
+Attn · site address · From (TIG, Marrickville) · `Sender Ref#` — the person the
+pack is for · `Job #` · `Ship Via: OpenFreight` · `Con. No` · `1 of 1`**. The
+job carries the carrier's consignment on a **`FREIGHT`** line ("Freight Charges
+Con # …") and a **`FUEL.LEVY`** line ("Temporary Fuel Levy").
+
+Checks for ours: the ship label's fields (Sender Ref# is the job's Cust Ref, not
+the customer's reference), a parcel count, and the connote written back onto
+the job by despatch.
+
+**Partly done (2026-10-25, SIM F21/F22):** a ship label per carton ("Carton n of
+N") with the job, its Cust Ref, the connote and the sender; despatch writes the
+connote and ship via onto the job. The label does not yet print Attn, the Ship
+Code or Ship Via, and freight and fuel levy are not lines despatch adds.
+
+### JIM29. Payment terms are codes: `30DAYSINV` (FIXED)
+
+A printed job sheet reads **`Pay Terms 30DAYSINV`**. The overdue rule
+(`app/core/payment_terms.py`, owner decision 2026-10-19) read "Net 30" and
+"30 days" but not this, so a `14DAYSINV` account would have fallen back to the
+30-day default. It now reads `NDAYSINV` and "N days from invoice".
+
+### JIM30. Returns run on comments and a handwritten note (HIGH)
+
+A finished job's sheet, comment 1: the customer returned two garments; they are
+to go back into HQ stock; the invoice may need altering; the returned lines are
+highlighted on the printout ("NO LOGO") and the items left on a colleague's
+desk. There is no return document — the comment trail and a pen are the
+process.
+
+Ours has the `RET` (returns) location and a stock adjustment, but no return
+against a job's lines, no restock in one step, and no customer credit note
+(ERP1, "Open": no credit notes as documents).
+
+### JIM31. The picking slip, line by line (LOW — confirms JIM2, JIM21)
+
+`Location HQ · Bin (empty) · Stock · Description · Unit · Pick · Picked ☐`, with
+lines **`FREIGHT` · `KIT`** (the sell line, size curve written as prose:
+"size M/3, XL/12") **· `EMB.4299`** (the logo, 8 cm, two colours) **·** the
+garment stock code. The Bin column is empty on a real slip — JIM21's finding
+that bins are not in use, seen on paper. Saved stock lists in the tree also flag
+items as **`Depleting`**: reorder watch lists, kept by hand.
+
+## SIM F01-F38. The order-to-despatch simulation, and what was done
+
+One portal order was taken from intake through to the customer's remittance,
+against the API on a test database, and the report recorded 38 findings
+(2026-10-24). Each was then fixed in code with a test — except F37, which is a
+decision. Owner decisions taken on the way (2026-10-25): **Desp/Ready is a
+status and anyone may skip steps forward**; **a logo is a master record, and a
+decoration line points at the garment it is done to**; **the online store gets
+its own limited `portal` role**; **aged payables ages bills, with open POs shown
+beside it as committed spend** (the API's 300-second limit stays).
+
+| # | Was | Now |
+| --- | --- | --- |
+| F01 HIGH | A portal retry booked a second job; search could not find the order number or the email | A second online-store order with the same order number for the same customer is a 409 naming the job already made. Search covers serial no., contact, requested by, ex-job ref and connote |
+| F02 HIGH | Sell line + decoration + bought garment could not be one job without buying the garment twice | Decoration and alteration lines are services (`JobItem.logo_id` / `applies_to_item_id` → `is_service`): never reserved, bought, picked or shipped. The garment line is the one stock line |
+| F03 HIGH | Receiving a consolidated PO credited only the first line with that SKU, and the PO never closed | `app/core/receiving.py`: a receipt fills every open line of the SKU in order and settles the PO to Partial or Received |
+| F04 HIGH | Invoice, AR and the ledger used whatever header total the caller sent | The server totals the lines on every write (`app/core/job_totals.py`); the ledger health check lists any job whose total disagrees with its lines |
+| F05 HIGH | Despatch with "advance status" invoiced past the checks | Despatch changes status through `_apply_status_transition`, like every other path |
+| F06 HIGH | The customer balance counted FINISH (not yet invoiced) jobs | The balance is invoiced jobs less payments, recalculated whenever a job crosses the invoiced boundary; health lists balances that disagree with the invoices |
+| F07 HIGH | A bill payment overwrote the amount paid and marked any part-payment paid | `supplier_bill_payments`: each payment is a row with its own ledger entry, a bill is paid when its payments reach its total, and a payment can be taken back |
+| F08 MEDIUM | Stock weight had no writer, so every order weighed 0 kg | `weight_kg` on stock create and update; the warning counts unweighed goods lines only (`app/core/job_weight.py`) |
+| F09 MEDIUM | A logo existed only as text on each job line | `logos` and `/logos`: customer, code, position, stitches, price, cost, who makes it, proof. Customer → Logos tab |
+| F10 MEDIUM | Unknown JSON fields were accepted and dropped | Job, line and comment schemas forbid unknown fields, so a misspelt field is a 422. **This also fixes ORD8** |
+| F11 MEDIUM | `New` reserved stock with no movement | `New` is uncommitted: nothing is reserved until the order is confirmed |
+| F12 MEDIUM | Decoration lines from the portal became back-orders to buy | Service lines are not goods (F02), so they are not back-ordered or bought |
+| F13 MEDIUM | Order requirements counted QUOTE jobs; the back-order report did not | Both read the committed statuses only |
+| F14 MEDIUM | Committed movements reserved the order quantity; everything else reserved supply | Reservation movements post supply-quantity deltas, and committed is derived from committed jobs' goods lines |
+| F15 MEDIUM | POs raised from requirements had no GST or inc-GST total | Every PO write totals its lines with GST |
+| F16 MEDIUM | The decoration worklist could not tell subcontracted from in-house | A logo says who makes it (`in_house`, or `subcontract` with the supplier); in-house work is not bought |
+| F17 MEDIUM | No purchase-order document, and no way to send it | `GET /purchase-orders/{id}/pdf`; `POST /purchase-orders/{id}/email` attaches it, logs the send and makes a Draft Sent. Print and Email supplier on the PO screen |
+| F18 MEDIUM | Receipts were not traceable to a PO line; a line never read Received; back-order fill ignored whose order it was | Goods-receipt lines carry `po_item_id`; filling a back-order gives the stock to the jobs the PO lines were raised for first, and a covered line reads Received |
+| F19 MEDIUM | Picking overwrote the line status; an alteration could not point at its garment | Picking touches goods lines only; a service line points at its garment (`applies_to_item_id`) |
+| F20 MEDIUM | Picking was one job per request | `POST /jobs/auto-pick` across the despatch list; Auto Pick on the Dispatch screen |
+| F21 MEDIUM | No delivery note, ship label, job label or proforma | `GET /jobs/{id}/pdf?type=proforma\|delivery-note\|ship-label\|job-label`, and `GET /job-documents` for many jobs in one PDF; print buttons on the Dispatch screen |
+| F22 MEDIUM | Despatch did not record the site, did not check status, and did not write the connote back | A despatch is a recorded session with the ship-to and address; it refuses jobs not ready to go and writes ship via and connote onto the job |
+| F23 MEDIUM | Overseas staff could move a job to INVOICE or PAID | Invoicing, PAID and cancelling an invoice need staff or above. Overseas staff also cannot read the sales register or print an invoice or proforma |
+| F24 MEDIUM | Invoice numbers had to be typed | The next number is issued on entering INVOICE or PAID (`app/core/invoice_numbers.py`, prefix + Next Invoice Number in Company Settings); a typed number another job holds is refused |
+| F25 MEDIUM | Aged payables aged purchase orders | It ages unpaid bills; open POs are shown beside it as committed spend |
+| F26 MEDIUM | No service role: the portal had to hold a staff account | `portal` creates jobs and comments on its own intake, nothing else (`SERVICE_ROLES` in `app/core/dependencies.py`) |
+| F27 MEDIUM | Creating a job straight into ORDER skipped the credit check | A new job is created as QUOTE and moved through the gate, so the credit check runs. An order taken over the limit on account says so in a comment |
+| F28 LOW | Intake wrote no system comments | Create writes "Booked from the online store — order …" or "Created as …" |
+| F29 LOW | A partial receipt left the PO at Sent | Partial (F03) |
+| F30 LOW | Non-admins had to walk every intermediate status | Anyone may skip forward within production and go back one step; an admin may go further back |
+| F31 LOW | Proof approval was per job | `POST /logos/{id}/proof`: approved once, for every job that uses the logo |
+| F32 LOW | FINISH stamped `dispatched_at` before any despatch | Only a despatch stamps it. `Desp/Ready` (packed, waiting for the carrier) sits before FINISH |
+| F33 LOW | Unprint left `invoice_status` and the old invoice date | Leaving invoiced clears both |
+| F34 LOW | The invoice PDF printed hidden lines | PDFs and invoice emails print visible lines only |
+| F35 LOW | One remittance had to be split into a payment per job by the caller | `POST /customers/{id}/remittances`: one amount, allocated as given or oldest invoice first, all or nothing. Form on the customer's Aged AR tab |
+| F36 LOW | Supplier bills were typed with nothing matching them to the PO | A bill shows its PO's ordered, received and billed figures (`app/core/bill_matching.py`) |
+| F37 LOW | Job margins and the ledger's cost of sales are different numbers | **Open, by design** — see SIM-F37 below |
+| F38 LOW | Stock Stats never saw goods receipts | Stats count every receipt type |
+
+### SIM-F37. Job margin vs the ledger's cost of sales (OPEN — owner decision)
+
+A job's margin is sell less the cost on its lines; the ledger's cost of sales is
+periodic (purchases adjusted by the stock count). They do not meet per job and
+are not meant to. Perpetual inventory — cost of sales posted at average cost on
+despatch — would make them meet; it changes the chart of accounts, the BAS and
+every past period's comparatives, so it is for the owner and the bookkeeper.
+Written up in `docs/superpowers/specs/2026-10-25-job-cost-and-the-ledger.md`.
+
+## SIM2 S2-01–S2-20. The research-based simulation (2026-11-01)
+
+Eight scenarios from `docs/research/2026-10-31-how-a-uniform-supplier-runs.md`
+were run end to end through the real API on throwaway databases (after the 27
+SIM gaps were closed): an aged-care allocation roll-out (24 wearers, 4
+residences), Ricoh-style personalised packs (10 people, 4 sites, subcontract
+embroidery), a franchise bulk order with name badges and a credit hold, a club
+indent with deposit and balance, an office order with set-up fee and price
+breaks on 30 EOM, hi-vis for night road works, a council allowance with cost
+centres and client-held stock, and a childcare card-paid order with an
+exchange. All eight ran to the end — several only through staff workarounds.
+55 findings (19 bugs, 13 gaps, 9 missing, 3 UX, 11 rules that held) reduce to
+20 root causes. **(decision)** marks a fix that needs an owner rule first.
+
+| # | Sev | Root cause | Findings | Fix direction |
+| --- | --- | --- | --- | --- |
+| S2-01 | HIGH | Portal jobs carry no customer name: tax invoices print an empty Bill To (invalid from $1,000), aged receivables say "Unknown" | A1-01, B1-01 | Fill `customer_name` from the customer on create; the invoice prints the customer's name and ABN from the master |
+| S2-02 | HIGH | Invoicing a partly despatched job bills the back-ordered units; at INVOICE the back-orders drop out of buying and filling, so stock bought for the job sits free | A1-02, C2-01, B1-04, C2-03 | **(decision)** refuse to invoice while lines are back-ordered (close the back-order first), or invoice per consignment |
+| S2-03 | HIGH | Editing a line's quantity never re-works supply and back-order: bills the new quantity, ships the old | B3-01 | Re-derive the split on any quantity change |
+| S2-04 | HIGH | Receiving a bought-in (non-stock) code never reaches the job line, and the buying list keeps asking | B2-01 | Fill by the PO line's job when the code is no stock item |
+| S2-05 | HIGH | Charge lines (FREIGHT, set-up, fees, notes) are goods: back-ordered, bought, weighed, printed as back-ordered | A2-01, B3-02 | A stock item whose type is Service is a service line |
+| S2-06 | HIGH | A $0 job (no-charge exchange, remake) is held by the credit check, cannot be invoiced or closed, so its goods never leave stock | A1-04, B1-05 | **(decision)** a no-charge job closes at $0 and depletes stock; $0 adds no credit exposure |
+| S2-07 | HIGH | No returns: no document, no return location, no inspection, no credit note; a −1 line is accepted, reserves −1 and never restocks | A1-05, A1-06, C3-03, B3-05 | Quantities ≥ 0 now; **(decision)** returns against job lines into RET, inspected to restock / quarantine / scrap (decorated goods not restockable), fee line, exchange link, credit note |
+| S2-08 | HIGH | Card-paid portal orders arrive unpaid (payment fields dropped silently); inc-only prices make a $0 job; inc prices drift a cent so the real card amount is refused | A1-03, C3-04, C3-01, C3-02, C3-05 | Intake records the store's card payment; a line priced inc derives ex and totals to the cent the store charged; fully paid at invoice reads PAID |
+| S2-09 | HIGH | Supplier credit notes cannot be applied, and aged payables ignores them | C1-02 | Apply a credit against the supplier's bills; aged payables nets it |
+| S2-10 | HIGH | No allowance or funding split per wearer | C2-02, A1-03 | **(decision)** allowance ledger per wearer per financial year; each line funded by allowance, card or employee debt |
+| S2-11 | HIGH | Client-held stock is not ring-fenced | C2-05 | **(decision)** stock owned by a named customer, available only to its orders |
+| S2-12 | HIGH | No hi-vis class or UPF on stock; a Class D swap onto a night-works order is accepted | C1-01 | **(decision)** compliance attributes on stock and a required class on the job |
+| S2-13 | MED | Invoice prints the delivery date as Due Date and the company's terms; changing a customer's terms re-dates open invoices; AR "as at" lists later invoices | B2-02, B2-03, B2-04 | Store terms and due date on the invoice when issued; as-at filters by invoice date |
+| S2-14 | MED | Money rules: COD not enforced and a zero limit means unlimited; no authorised credit release; overpayment cannot sit on account; deposit GST falls in the invoice period | B2-07, B1-02, B1-03, B2-05 | **(decision)** COD blocks confirm until paid; release by a manager with a reason; customer deposits held until invoiced |
+| S2-15 | MED | No proof gate: a job reaches PRINT with its logo unapproved | B2-06 | PRINT needs every logo on the job approved |
+| S2-16 | MED | Pricing: quantity breaks stored but never applied; a line with no price books at $0; a duplicated job re-charges the logo set-up | B3-03, B3-04 | Price from the stock's levels when no price is keyed; the logo records that its set-up was billed |
+| S2-17 | MED | Scrap and close-short on decoration do not feed back to the job: scrapped units stay supplied, decoration applications are not re-listed | C1-03, A2-02 | Scrap against a job line back-orders it; close-short releases decoration lines too |
+| S2-18 | MED | Job profitability costs stocked lines at $0 | B1-06 | Cost from the stock's unit cost when the line has none |
+| S2-19 | MED | No cost centre on job, statement or search | C2-04 | **(decision)** a cost centre per job, on the statement and in search |
+| S2-20 | LOW | Despatch and PO details: one job with nothing to send refuses the whole batch; a further consignment's note lists empty lines; no despatch date; PO items cannot be added by PATCH (silently ignored); indent size curve is free text only | A1-07, A1-08, B1-07, C1-04, B2-08 | Skip and report jobs with nothing to send; notes list only what went; PATCH refuses or adds items |
+
+**Status 2026-11-02 — the ones that needed no decision are fixed** (migration
+`e7f8a9b0c1d2`; tests `tests/integration/test_sim2_*.py`):
+
+- S2-01 a job takes its customer's name when none is keyed (create, a move to
+  another customer, and a backfill); the invoice's Bill To prints the master's
+  name and ABN.
+- S2-03 a saved line whose quantity or code changes has its supply and
+  back-order worked out again, unless the save sent a split that adds up;
+  and a save never has an open order hold more than is free to it.
+- S2-04 a code that is no stock item goes to the PO line's job on receipt.
+- S2-05 a stock code typed Service or Non-Depleting, or in the Service
+  category, is a charge: supplied in full, never reserved, bought, weighed,
+  picked or listed as back-ordered.
+- S2-07 (in part) line quantities are never below zero. Returns themselves
+  wait on the decision.
+- S2-08 (in part) a line sent priced inc GST totals to the cent; the store's
+  payment (`deposit`, `payment_method`) is recorded with a portal order, and
+  more than the order is refused. **Open:** whether an invoiced job that is
+  fully paid moves to PAID by itself (C3-05) — today no payment moves a job
+  to PAID, before or after invoicing.
+- S2-09 a credit note is applied to the supplier's bill
+  (`POST /ap/bills/{credit}/apply`); outstanding and aged payables net it,
+  and neither side can later be edited past it or moved to another
+  supplier. Accounts Payable offers Apply on a credit note.
+- S2-13 an invoice stamps its terms and due date when issued; aged
+  receivables as at a past date leaves out later invoices and adds back
+  payments taken after it.
+- S2-15 a job goes from anywhere before PRINT (a quote, a portal order, a
+  job being created) to PRINT, past it or straight to invoiced only with
+  every logo on it approved.
+- S2-16 (in part) a line sent with no price takes the stock's price-level
+  break for its own quantity, else the sell price. **Open:** the logo set-up
+  charged once — nothing ties a set-up line (SETUP.LOGO) to the logo it set
+  up, so the rule for recognising one is needed first.
+- S2-17 a write-off against a job (`POST /inventory/{sku}/adjust` with
+  `job_id`) back-orders the job's line (and its pick), at the job's branch,
+  and is recorded as the job's; closing a decoration PO short re-lists the
+  applications it did not bring — a line it brought in part is split.
+- S2-18 a stocked line with no purchase price costs the stock's unit cost.
+- S2-20 (in part) a despatch batch leaves out, and names, a job with nothing
+  to send; a further consignment's note leaves off lines finished earlier; a
+  PO PATCH refuses unknown fields and adds lines by `add_items`; a despatch
+  is dated (today unless the despatcher picks the next collection, after the
+  carrier's cut-off — B1-07), and its delivery note prints that day. The
+  invoice is still dated the day it is issued (that is S2-02's decision).
+  **Open:** an indent's size curve (B2-08), which needs a design: per-size
+  quantities on an indent line, received and closed short per size.
+
+Held under pressure: the portal retry 409, confirmation back-ordering the
+shortfall with a trail, one PO across many jobs with oldest-first fill,
+subcontract decoration bought per job and not shelved, all-or-nothing
+remittances, the credit check counting open orders, badge names on the PO, the
+second consignment printing only its contents, order weight naming unweighed
+lines, 30 EOM due dates, and the ledger agreeing with the documents in every
+scenario.
 
 ## Known gaps, deliberately open
 
