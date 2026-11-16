@@ -1909,7 +1909,7 @@ Invoice anyway? The shortfall will be recorded on the job.`,
                     <div className="relative ml-4 space-y-0" style={{ borderLeft: `2px solid ${T.hairline}` }}>
                       {[...statusChanges].reverse().map((c, i) => (
                         <div key={c.id || i} className="relative pl-6 pb-4">
-                          <div className={`absolute left-[-9px] top-1 w-4 h-4 rounded-full border-2 border-white${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-accent-strong' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
+                          <div className={`absolute left-[-9px] top-1 w-4 h-4 rounded-full border-2 border-white ${c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? ' bg-accent-strong' : ''}`} style={c.comment?.startsWith('Status changed') ? { background: T.accent } : c.comment?.startsWith('Payment') ? { background: T.ok } : c.comment?.startsWith('Job locked') || c.comment?.startsWith('Job unlocked') ? {} : { background: T.textFaint }} />
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-sm font-medium" style={{ color: T.text }}>{c.comment}</p>

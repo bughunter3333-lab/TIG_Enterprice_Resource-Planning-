@@ -10,10 +10,23 @@
    it says what it wants with a utility of its own.
    Guide: https://tailwindcss.com/docs/upgrade-guide#changes-from-v3 */
 
-/* A colourless `ring-*` (the scheduler's drag-over column) was v3's blue-500
-   at half strength; v4 draws it in the text colour. */
 @theme {
+  /* A colourless `ring-*` (the scheduler's drag-over column) was v3's
+     blue-500 at half strength; v4 draws it in the text colour. */
   --default-ring-color: color-mix(in oklab, var(--color-blue-500) 50%, transparent);
+
+  /* `text-xs` … `text-4xl` set a line height in rem in v3, which a child with
+     a size of its own (a `text-[9px]` label under `text-xs`) inherits as a
+     length. v4 sets a ratio, which that child scales down to its own size, so
+     every such label and badge came out shorter. */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
 }
 
 @layer base {
@@ -64,9 +77,11 @@
     text-transform: none;
   }
 
-  /* v4 zeroes every element's padding; v3 left table cells the browser's. */
+  /* v4 zeroes every element's padding; v3 left table cells and a select's
+     options (the rows of its open list) the browser's. */
   th,
-  td {
+  td,
+  option {
     padding: revert-layer;
   }
 
@@ -101,6 +116,57 @@
   }
   ::-webkit-calendar-picker-indicator {
     line-height: revert-layer;
+  }
+}
+
+/* space-* and divide-* put a gap between children. v3 put it on each child
+   after the first (`> :not([hidden]) ~ :not([hidden])`: margin-top,
+   border-top) with a selector that outranked the child's own margin; v4 puts
+   it on each child before the last (margin-bottom, border-bottom) inside
+   :where(), which outranks nothing. So a heading's own `mb-2` in a
+   `space-y-4` card cut the gap under it from 16px to 8px, and a hidden last
+   child left one behind. The first rules hand v4's placement back to the
+   layer below at its own zero rank — a child's own utility still wins, as it
+   did — and the rest are v3's rules, for the steps the app uses. A new step
+   gets v4's behaviour until it is added here. */
+@layer utilities {
+  :where(.space-y-0, .space-y-0\.5, .space-y-1, .space-y-1\.5, .space-y-2, .space-y-3, .space-y-3\.5,
+      .space-y-4, .space-y-5, .space-y-6) > * {
+    margin-block: revert-layer;
+  }
+  :where(.space-x-1, .space-x-2, .space-x-2\.5, .space-x-3) > * {
+    margin-inline: revert-layer;
+  }
+  :where(.divide-y) > * {
+    border-block-style: revert-layer;
+    border-block-width: revert-layer;
+  }
+  :where(.divide-x) > * {
+    border-inline-style: revert-layer;
+    border-inline-width: revert-layer;
+  }
+  :where(.divide-hairline-soft) > * {
+    border-color: revert-layer;
+  }
+
+  .space-y-0 > :not([hidden]) ~ :not([hidden]) { margin-top: 0; margin-bottom: 0; }
+  .space-y-0\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.125rem; margin-bottom: 0; }
+  .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; margin-bottom: 0; }
+  .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; margin-bottom: 0; }
+  .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; margin-bottom: 0; }
+  .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; margin-bottom: 0; }
+  .space-y-3\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem; margin-bottom: 0; }
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; margin-bottom: 0; }
+  .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; margin-bottom: 0; }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; margin-bottom: 0; }
+  .space-x-1 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.25rem; margin-right: 0; }
+  .space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.5rem; margin-right: 0; }
+  .space-x-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.625rem; margin-right: 0; }
+  .space-x-3 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.75rem; margin-right: 0; }
+  .divide-y > :not([hidden]) ~ :not([hidden]) { border-top-width: 1px; border-bottom-width: 0; }
+  .divide-x > :not([hidden]) ~ :not([hidden]) { border-left-width: 1px; border-right-width: 0; }
+  .divide-hairline-soft > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--hairline-soft);
   }
 }
 
