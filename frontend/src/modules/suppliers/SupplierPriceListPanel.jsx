@@ -58,28 +58,28 @@ export default function SupplierPriceListPanel({ supplierId }) {
       {form && (
         <div className="bg-accent-tint border border-accent rounded-lg p-4 space-y-3">
           <h4 className="text-sm font-semibold text-accent-strong">{editId ? 'Edit' : 'Add'} Price List Entry</h4>
-          {err && <p className="text-xs text-danger bg-danger-tint border border-danger rounded px-2 py-1">{err}</p>}
+          {err && <p className="text-xs text-danger bg-danger-tint border border-danger rounded-sm px-2 py-1">{err}</p>}
           <div className="grid grid-cols-3 gap-2">
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">SKU *</label>
-              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.sku}
+              <input className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.sku}
                 onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} disabled={!!editId} /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Unit Cost *</label>
-              <input type="number" min="0" step="0.01" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.unitCost}
+              <input type="number" min="0" step="0.01" className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.unitCost}
                 onChange={e => setForm(f => ({ ...f, unitCost: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Min Qty</label>
-              <input type="number" min="1" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.minQty}
+              <input type="number" min="1" className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.minQty}
                 onChange={e => setForm(f => ({ ...f, minQty: parseInt(e.target.value) || 1 }))} /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Lead Time (days)</label>
-              <input type="number" min="0" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.leadTimeDays}
+              <input type="number" min="0" className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.leadTimeDays}
                 onChange={e => setForm(f => ({ ...f, leadTimeDays: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Valid From</label>
-              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.validFrom}
+              <input type="date" className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.validFrom}
                 onChange={e => setForm(f => ({ ...f, validFrom: e.target.value }))} /></div>
             <div><label className="text-[10px] font-medium text-muted block mb-0.5">Valid To</label>
-              <input type="date" className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.validTo}
+              <input type="date" className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.validTo}
                 onChange={e => setForm(f => ({ ...f, validTo: e.target.value }))} /></div>
             <div className="col-span-3"><label className="text-[10px] font-medium text-muted block mb-0.5">Description / Notes</label>
-              <input className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus" value={form.notes}
+              <input className="w-full border rounded-sm px-2 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus" value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <div className="flex gap-2 justify-end">
@@ -115,8 +115,8 @@ export default function SupplierPriceListPanel({ supplierId }) {
                   <td className="px-2 py-2">
                     <div className="flex gap-1">
                       <button onClick={() => { setEditId(item.id); setForm({ sku: item.sku, description: item.description || '', unitCost: item.unit_cost, minQty: item.min_qty || 1, leadTimeDays: item.lead_time_days || '', validFrom: item.valid_from || '', validTo: item.valid_to || '', notes: item.notes || '' }); setErr(''); }}
-                        className="p-1 hover:bg-accent-tint rounded text-accent"><Edit className="w-3 h-3" /></button>
-                      <button onClick={() => del(item.id)} className="p-1 hover:bg-danger-tint rounded text-danger"><Trash2 className="w-3 h-3" /></button>
+                        className="p-1 hover:bg-accent-tint rounded-sm text-accent"><Edit className="w-3 h-3" /></button>
+                      <button onClick={() => del(item.id)} className="p-1 hover:bg-danger-tint rounded-sm text-danger"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   </td>
                 </tr>

@@ -126,7 +126,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
                   value={jobSearch}
                   onChange={e => { setJobSearch(e.target.value); setForm(f => ({ ...f, job_id: '' })); }}
                   placeholder="Type job# or customer name…"
-                  className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+                  className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden"
                   style={{ border: `1px solid ${T.hairline}` }}
                 />
                 {jobSearch && !form.job_id && filteredJobs.length > 0 && (
@@ -149,7 +149,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
                 )}
               </div>
               {selectedJob && (
-                <div className="mt-1 text-xs rounded px-2 py-1.5 flex items-center justify-between" style={{ color: T.ok, background: T.okTint }}>
+                <div className="mt-1 text-xs rounded-sm px-2 py-1.5 flex items-center justify-between" style={{ color: T.ok, background: T.okTint }}>
                   <span>✓ {selectedJob.customer}</span>
                   <span className="font-medium">
                     {selectedJob.invoice ? `Invoice #${selectedJob.invoice}` : `Job #${selectedJob.id}`}
@@ -173,7 +173,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Email Type</label>
               <select value={form.email_type} onChange={e => setForm(f => ({ ...f, email_type: e.target.value }))}
-                className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}`, color: T.text }}>
                 {EMAIL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
@@ -183,7 +183,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>To *</label>
               <input type="email" value={form.to_email} onChange={e => setForm(f => ({ ...f, to_email: e.target.value }))}
                 required placeholder="customer@example.com"
-                className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}` }} />
               {selectedJob && !form.to_email && (
                 <p className="text-xs mt-0.5" style={{ color: '#d97706' }}>No email on file for this customer — enter manually.</p>
@@ -196,7 +196,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
               </label>
               <input type="text" value={form.cc} onChange={e => setForm(f => ({ ...f, cc: e.target.value }))}
                 placeholder="optional — e.g. accounts@co.com, mgr@co.com"
-                className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}` }} />
             </div>
 
@@ -204,7 +204,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
               <label className="text-xs font-medium block mb-1" style={{ color: T.textMuted }}>Subject</label>
               <input type="text" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
                 placeholder={subjectPreview || 'Auto-generated if blank'}
-                className="w-full rounded px-3 py-2 text-sm focus:outline-none"
+                className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden"
                 style={{ border: `1px solid ${T.hairline}` }} />
               {subjectPreview && !form.subject && (
                 <p className="text-xs mt-0.5" style={{ color: T.textFaint }}>Will use: <em>{subjectPreview}</em></p>
@@ -217,7 +217,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
               </label>
               <textarea value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
                 rows={3} placeholder="e.g. Please find your tax invoice attached. Payment is due within 30 days."
-                className="w-full rounded px-3 py-2 text-sm focus:outline-none resize-none"
+                className="w-full rounded-sm px-3 py-2 text-sm focus:outline-hidden resize-none"
                 style={{ border: `1px solid ${T.hairline}` }} />
             </div>
 
@@ -259,7 +259,7 @@ export default function EmailModule({ jobs = [], customers = [] }) {
             value={logJobFilter}
             onChange={e => setLogJobFilter(e.target.value)}
             placeholder="Filter by job# or recipient…"
-            className="w-full rounded px-3 py-1.5 text-xs mb-3 focus:outline-none"
+            className="w-full rounded-sm px-3 py-1.5 text-xs mb-3 focus:outline-hidden"
             style={{ border: `1px solid ${T.hairline}` }}
           />
           {filteredLog.length === 0 ? (

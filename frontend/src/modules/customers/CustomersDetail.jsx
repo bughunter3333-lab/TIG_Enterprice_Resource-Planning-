@@ -111,28 +111,28 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                 {/* Customer header */}
                 <div className="p-5 border-b flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent-strong to-accent-strong text-white font-black text-2xl flex items-center justify-center shadow-md">
+                    <div className="w-14 h-14 rounded-xl bg-linear-to-br from-accent-strong to-accent-strong text-white font-black text-2xl flex items-center justify-center shadow-md">
                       {(c.name||'?').charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-fg">{c.name}</h3>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-xs font-mono text-muted bg-hairline-soft px-2 py-0.5 rounded">{c.id}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.status === 'Active' || !c.status ? 'bg-ok-tint text-ok' : 'bg-danger-tint text-danger'}`}>{c.status || 'Active'}</span>
+                        <span className="text-xs font-mono text-muted bg-hairline-soft px-2 py-0.5 rounded-sm">{c.id}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-sm font-medium ${c.status === 'Active' || !c.status ? 'bg-ok-tint text-ok' : 'bg-danger-tint text-danger'}`}>{c.status || 'Active'}</span>
                         <span className="text-xs text-muted">{c.accountType || 'Account'}</span>
-                        {c.creditHold && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded font-bold">On credit hold</span>}
-                        {overLimit && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded font-bold">⚠ Over Credit Limit</span>}
+                        {c.creditHold && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded-sm font-bold">On credit hold</span>}
+                        {overLimit && <span className="text-xs bg-danger-tint text-danger px-2 py-0.5 rounded-sm font-bold">⚠ Over Credit Limit</span>}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => openModal('customer', c)} className="px-3 py-1.5 bg-accent-tint text-accent-strong rounded hover:bg-accent-tint flex items-center gap-1 text-sm font-medium">
+                    <button onClick={() => openModal('customer', c)} className="px-3 py-1.5 bg-accent-tint text-accent-strong rounded-sm hover:bg-accent-tint flex items-center gap-1 text-sm font-medium">
                       <Edit className="w-3.5 h-3.5" />Edit
                     </button>
-                    <button onClick={() => { setSelectedCustomer(null); deleteCustomer(c.id); }} className="px-3 py-1.5 bg-danger-tint text-danger rounded hover:bg-danger-tint flex items-center gap-1 text-sm">
+                    <button onClick={() => { setSelectedCustomer(null); deleteCustomer(c.id); }} className="px-3 py-1.5 bg-danger-tint text-danger rounded-sm hover:bg-danger-tint flex items-center gap-1 text-sm">
                       <Trash2 className="w-3.5 h-3.5" />Delete
                     </button>
-                    <button onClick={() => setSelectedCustomer(null)} className="p-1.5 hover:bg-hairline-soft rounded">
+                    <button onClick={() => setSelectedCustomer(null)} className="p-1.5 hover:bg-hairline-soft rounded-sm">
                       <X className="w-4 h-4 text-muted" />
                     </button>
                   </div>
@@ -242,9 +242,9 @@ export default function CustomersDetail({ customers, deleteCustomer, exportToCSV
                           {offer('GET', `/customers/${c.id}/statement.pdf`) && <a
                             href={`/api/customers/${c.id}/statement.pdf`}
                             target="_blank" rel="noopener noreferrer"
-                            className="text-xs bg-danger text-white px-3 py-1.5 rounded hover:bg-danger flex items-center gap-1"
+                            className="text-xs bg-danger text-white px-3 py-1.5 rounded-sm hover:bg-danger flex items-center gap-1"
                           ><Download className="w-3 h-3"/>Download PDF</a>}
-                          <button onClick={() => window.print()} className="text-xs bg-accent-strong text-white px-3 py-1.5 rounded hover:bg-accent-strong flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
+                          <button onClick={() => window.print()} className="text-xs bg-accent-strong text-white px-3 py-1.5 rounded-sm hover:bg-accent-strong flex items-center gap-1"><Printer className="w-3 h-3"/>Print</button>
                         </div>
                       </div>
                       <CustomerStatement customer={c} />

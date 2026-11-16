@@ -177,7 +177,7 @@ export default function ImportModule() {
                   <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Recognised columns (Jim2 names auto-mapped)</p>
                   <p className="text-xs font-mono leading-relaxed" style={{ color: T.textFaint }}>{entity.fields}</p>
                   {entity.jim2hint && (
-                    <p className="text-xs mt-1.5 rounded px-2 py-1" style={{ color: T.accentStrong, background: T.accentTint }}>
+                    <p className="text-xs mt-1.5 rounded-sm px-2 py-1" style={{ color: T.accentStrong, background: T.accentTint }}>
                       💡 {entity.jim2hint}
                     </p>
                   )}
@@ -215,7 +215,7 @@ export default function ImportModule() {
                 {preview && preview.preview.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-1" style={{ color: T.textMuted }}>Preview (first {Math.min(preview.preview.length, 3)} rows)</p>
-                    <div className="overflow-x-auto rounded text-xs" style={{ border: `1px solid ${T.hairline}` }}>
+                    <div className="overflow-x-auto rounded-sm text-xs" style={{ border: `1px solid ${T.hairline}` }}>
                       <table className="w-full">
                         <thead style={{ background: T.hairlineSoft }}>
                           <tr>
@@ -245,15 +245,15 @@ export default function ImportModule() {
                   <div className="bg-ok-tint border border-ok rounded-lg p-3 text-sm">
                     <p className="font-semibold text-ok mb-1">Import complete</p>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded p-2" style={{ background: T.panel }}>
+                      <div className="rounded-sm p-2" style={{ background: T.panel }}>
                         <p className="text-lg font-bold text-ok">{result.inserted}</p>
                         <p className="text-xs" style={{ color: T.textMuted }}>Inserted</p>
                       </div>
-                      <div className="rounded p-2" style={{ background: T.panel }}>
+                      <div className="rounded-sm p-2" style={{ background: T.panel }}>
                         <p className="text-lg font-bold" style={{ color: T.accentStrong }}>{result.updated}</p>
                         <p className="text-xs" style={{ color: T.textMuted }}>Updated</p>
                       </div>
-                      <div className="rounded p-2" style={{ background: T.panel }}>
+                      <div className="rounded-sm p-2" style={{ background: T.panel }}>
                         <p className="text-lg font-bold" style={{ color: T.textMuted }}>{result.skipped}</p>
                         <p className="text-xs" style={{ color: T.textMuted }}>Skipped</p>
                       </div>
@@ -299,11 +299,11 @@ export default function ImportModule() {
       <div className="rounded-lg p-4 text-sm" style={{ background: T.hairlineSoft, border: `1px solid ${T.hairline}`, color: T.textMuted }}>
         <p className="font-semibold mb-2" style={{ color: T.text }}>Tips for a successful import</p>
         <ul className="space-y-1 list-disc list-inside" style={{ color: T.textMuted }}>
-          <li>Column names are matched flexibly — <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>Customer Name</code>, <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>customer_name</code>, and <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>Company</code> all map to the name field.</li>
+          <li>Column names are matched flexibly — <code className="px-1 rounded-sm text-xs" style={{ background: T.hairline }}>Customer Name</code>, <code className="px-1 rounded-sm text-xs" style={{ background: T.hairline }}>customer_name</code>, and <code className="px-1 rounded-sm text-xs" style={{ background: T.hairline }}>Company</code> all map to the name field.</li>
           <li>Import <strong>Customers</strong> and <strong>Suppliers</strong> first, then <strong>Inventory</strong>, then <strong>Jobs</strong>.</li>
           <li>Existing records (matched by ID) are <em>updated</em>, not duplicated. Safe to re-run after corrections.</li>
           <li>CSV files must be UTF-8 encoded. Excel users: File → Save As → CSV UTF-8.</li>
-          <li>Dates can be in <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>DD/MM/YYYY</code> or <code className="px-1 rounded text-xs" style={{ background: T.hairline }}>YYYY-MM-DD</code> format.</li>
+          <li>Dates can be in <code className="px-1 rounded-sm text-xs" style={{ background: T.hairline }}>DD/MM/YYYY</code> or <code className="px-1 rounded-sm text-xs" style={{ background: T.hairline }}>YYYY-MM-DD</code> format.</li>
         </ul>
       </div>
     </div>

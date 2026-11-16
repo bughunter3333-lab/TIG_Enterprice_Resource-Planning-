@@ -140,7 +140,7 @@ function BillForm({ bill, suppliers, onSave, onClose }) {
   };
 
   const inputStyle = { border: `1px solid ${T.hairline}`, color: T.text };
-  const inputCls = 'w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none';
+  const inputCls = 'w-full rounded-lg px-3 py-1.5 text-sm focus:outline-hidden';
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={onClose}>
@@ -310,20 +310,20 @@ function PayModal({ bill, onPay, onTakeBack, onClose }) {
           <div>
             <label htmlFor="pay-amount" className="text-xs mb-1 block" style={{ color: T.textMuted }}>This payment</label>
             <input id="pay-amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-hidden"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
           <div>
             <label htmlFor="pay-date" className="text-xs mb-1 block" style={{ color: T.textMuted }}>Payment Date</label>
             <input id="pay-date" type="date" value={paidDate} onChange={e => setPaidDate(e.target.value)}
-              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-hidden"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
           <div>
             <label htmlFor="pay-reference" className="text-xs mb-1 block" style={{ color: T.textMuted }}>Reference</label>
             <input id="pay-reference" value={reference} onChange={e => setReference(e.target.value)} maxLength={100}
               placeholder="EFT reference (optional)"
-              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+              className="w-full rounded-lg px-3 py-1.5 text-sm focus:outline-hidden"
               style={{ border: `1px solid ${T.hairline}`, color: T.text }} />
           </div>
         </div>}
@@ -546,7 +546,7 @@ export default function AccountsPayableModule({ suppliers = [] }) {
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           placeholder="Search supplier, bill#, description…"
-          className="flex-1 min-w-48 rounded-lg px-3 py-2 text-sm focus:outline-none"
+          className="flex-1 min-w-48 rounded-lg px-3 py-2 text-sm focus:outline-hidden"
           style={{ border: `1px solid ${T.hairline}`, color: T.text }}
         />
         <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: `1px solid ${T.hairline}` }}>
@@ -649,12 +649,12 @@ export default function AccountsPayableModule({ suppliers = [] }) {
                       )}
                       <button onClick={() => setBillForm(bill)}
                         aria-label={`Edit bill ${bill.billNumber || bill.id}`} title="Edit bill"
-                        className="p-1 rounded" style={{ color: T.textFaint }}>
+                        className="p-1 rounded-sm" style={{ color: T.textFaint }}>
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setDelConfirm(bill.id)}
                         aria-label={`Delete bill ${bill.billNumber || bill.id}`} title="Delete bill"
-                        className="p-1 rounded" style={{ color: T.textFaint }}>
+                        className="p-1 rounded-sm" style={{ color: T.textFaint }}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>

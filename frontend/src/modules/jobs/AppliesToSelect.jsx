@@ -16,7 +16,7 @@ export default function AppliesToSelect({ items, idx, onChange }) {
     <label className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: T.textFaint }}>
       Applies to
       <select value={shown} onChange={e => onChange(e.target.value)} aria-label={`Line ${idx + 1} applies to`}
-        className="h-5 border border-hairline rounded px-1 text-[11px] text-muted focus:outline-none focus:ring-1 focus:ring-accent-focus bg-white"
+        className="h-5 border border-hairline rounded-sm px-1 text-[11px] text-muted focus:outline-hidden focus:ring-1 focus:ring-accent-focus bg-white"
         style={{ maxWidth: 220 }}>
         <option value="">— none —</option>
         {choices.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}

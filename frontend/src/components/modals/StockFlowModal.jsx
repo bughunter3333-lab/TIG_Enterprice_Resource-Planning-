@@ -12,12 +12,12 @@ export default function StockFlowModal({ setStockFlowModal, stockFlowModal }) {
         <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: T.text }}><TrendingUp className="w-5 h-5" style={{ color: T.accentStrong }} />Stock Flow</h3>
         <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
       </div>
-      <input value={stockFlowModal.search} onChange={e => setStockFlowModal(m => ({ ...m, search: e.target.value }))} placeholder="Search SKU or name..." className="rounded px-3 py-2 text-sm mb-3 w-64" style={{ border: `1px solid ${T.hairline}` }} />
+      <input value={stockFlowModal.search} onChange={e => setStockFlowModal(m => ({ ...m, search: e.target.value }))} placeholder="Search SKU or name..." className="rounded-sm px-3 py-2 text-sm mb-3 w-64" style={{ border: `1px solid ${T.hairline}` }} />
       {stockFlowModal.loading && <p className="text-sm py-8 text-center" style={{ color: T.textMuted }}>Loading stock flow data...</p>}
       {!stockFlowModal.loading && (
         <div className="overflow-auto flex-1 space-y-3">
           {filtered.map(item => (
-            <div key={item.sku} className="rounded p-3" style={{ border: `1px solid ${T.hairline}` }}>
+            <div key={item.sku} className="rounded-sm p-3" style={{ border: `1px solid ${T.hairline}` }}>
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <span className="font-mono font-medium text-sm" style={{ color: T.accentStrong }}>{item.sku}</span>

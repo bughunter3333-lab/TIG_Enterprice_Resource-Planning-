@@ -54,11 +54,11 @@ function DateRange({ from, to, onChange }) {
     <div className="flex items-center gap-2 text-sm">
       <label style={{ color: T.textMuted }}>From</label>
       <input type="date" value={from} onChange={e => onChange('from', e.target.value)}
-        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus"
+        className="rounded-sm px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-accent-focus"
         style={{ border: `1px solid ${T.hairline}` }} />
       <label style={{ color: T.textMuted }}>To</label>
       <input type="date" value={to} onChange={e => onChange('to', e.target.value)}
-        className="rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-accent-focus"
+        className="rounded-sm px-2 py-1 text-sm focus:outline-hidden focus:ring-1 focus:ring-accent-focus"
         style={{ border: `1px solid ${T.hairline}` }} />
     </div>
   );
@@ -592,7 +592,7 @@ function JobProfitabilityTab() {
                     <td className="px-3 py-2 text-right text-danger">{fmt$(r.cost)}</td>
                     <td className="px-3 py-2 text-right text-ok font-medium">{fmt$(r.margin)}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
+                      <span className={`px-1.5 py-0.5 rounded-sm text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                         {r.margin_pct}%
                       </span>
                     </td>
@@ -811,7 +811,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
       {/* Multi-supplier warning */}
       {selected.size > 0 && uniqueSuppliers.length > 1 && (
         <div className="flex items-center gap-2 bg-accent-tint border border-accent rounded-lg px-3 py-2 text-xs text-accent-strong">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 shrink-0" />
           Selected items span {uniqueSuppliers.length} suppliers ({uniqueSuppliers.join(', ')}). You can still raise one PO — just confirm the supplier in the form.
         </div>
       )}
@@ -841,7 +841,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 <tr>
                   <th className="px-3 py-2 w-8">
                     <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                      className="rounded border-hairline text-accent-strong focus:ring-accent-focus" />
+                      className="rounded-sm border-hairline text-accent-strong focus:ring-accent-focus" />
                   </th>
                   {['SKU','Description','Category','Supplier','SOH','B/O Qty','Unit Cost','Value','Jobs & POs'].map(h => (
                     <th key={h} className="text-left px-3 py-2 text-xs font-semibold whitespace-nowrap" style={{ color: T.textMuted }}>{h}</th>
@@ -861,11 +861,11 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         : { background: i % 2 === 0 ? T.panel : T.hairlineSoft }}>
                       <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleRow(r.sku)}
-                          className="rounded border-hairline text-accent-strong focus:ring-accent-focus" />
+                          className="rounded-sm border-hairline text-accent-strong focus:ring-accent-focus" />
                       </td>
                       <td className="px-3 py-2.5 font-mono text-xs font-semibold whitespace-nowrap">
                         {r.sku}
-                        {alreadyOnPO && <span className="ml-1.5 text-[10px] bg-accent-tint text-accent-strong px-1 py-0.5 rounded">on PO</span>}
+                        {alreadyOnPO && <span className="ml-1.5 text-[10px] bg-accent-tint text-accent-strong px-1 py-0.5 rounded-sm">on PO</span>}
                       </td>
                       <td className="px-3 py-2.5 max-w-44 truncate text-xs" title={r.description}>{r.description}</td>
                       <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: T.textMuted }}>{r.category || '—'}</td>
@@ -879,18 +879,18 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                           {(r.jobs || []).map(j => (
                             <div key={j.job_id} className="flex items-center gap-1.5 flex-wrap">
                               <button onClick={() => onOpenJob?.(j.job_id)}
-                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded hover:bg-accent-tint font-semibold"
+                                className="inline-flex items-center gap-1 font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded-sm hover:bg-accent-tint font-semibold"
                                 title={`Open job ${j.job_id} — ${j.customer_name}`}>
                                 {j.job_id}{j.b_ord > 1 && <span className="text-accent">×{j.b_ord}</span>}
                               </button>
                               {j.po_no && (
-                                <span className="font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded" title={`PO: ${j.po_no}`}>
+                                <span className="font-mono text-[11px] bg-accent-tint text-accent-strong border border-accent px-1.5 py-0.5 rounded-sm" title={`PO: ${j.po_no}`}>
                                   PO {j.po_no}
                                 </span>
                               )}
                               <span className="text-[11px] truncate max-w-28" style={{ color: T.textFaint }} title={j.customer_name}>{j.customer_name}</span>
                               {j.due && (
-                                <span className={`text-[10px] px-1 py-0.5 rounded ${new Date(j.due) < new Date() ? 'bg-danger-tint text-danger' : ''}`} style={new Date(j.due) >= new Date() ? { color: T.textFaint } : undefined}>
+                                <span className={`text-[10px] px-1 py-0.5 rounded-sm ${new Date(j.due) < new Date() ? 'bg-danger-tint text-danger' : ''}`} style={new Date(j.due) >= new Date() ? { color: T.textFaint } : undefined}>
                                   due {j.due}
                                 </span>
                               )}
@@ -935,8 +935,8 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {poErr && (
-                <div className="bg-danger-tint border border-danger text-danger px-3 py-2 rounded text-sm flex gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{poErr}
+                <div className="bg-danger-tint border border-danger text-danger px-3 py-2 rounded-sm text-sm flex gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{poErr}
                 </div>
               )}
 
@@ -944,13 +944,13 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>PO Number *</label>
-                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus font-mono text-sm"
+                  <input className="w-full rounded-sm px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-accent-focus font-mono text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.id} onChange={e => setPoForm(f => ({ ...f, id: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Supplier</label>
-                  <select className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
+                  <select className="w-full rounded-sm px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.supplierCode}
                     onChange={e => {
@@ -963,13 +963,13 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Expected Delivery Date</label>
-                  <input type="date" className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
+                  <input type="date" className="w-full rounded-sm px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.expectedDate} onChange={e => setPoForm(f => ({ ...f, expectedDate: e.target.value }))} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-0.5" style={{ color: T.textMuted }}>Notes</label>
-                  <input className="w-full rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent-focus text-sm"
+                  <input className="w-full rounded-sm px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-accent-focus text-sm"
                     style={{ border: `1px solid ${T.hairline}` }}
                     value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
@@ -1002,7 +1002,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                               items[idx] = { ...items[idx], qty: parseInt(e.target.value) || 0 };
                               return { ...f, items };
                             })}
-                            className="w-16 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-accent-focus font-semibold text-accent-strong"
+                            className="w-16 rounded-sm px-1.5 py-0.5 text-center focus:outline-hidden focus:ring-1 focus:ring-accent-focus font-semibold text-accent-strong"
                             style={{ border: `1px solid ${T.hairline}` }} />
                         </td>
                         <td className="px-3 py-2 text-right" style={{ color: T.textMuted }}>{fmt$(item.unitCost)}</td>
@@ -1010,7 +1010,7 @@ function BackOrdersTab({ onOpenJob, suppliers = [], purchaseOrders = [], onNavig
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {item.jobIds.map(jid => (
-                              <span key={jid} className="font-mono text-[10px] bg-accent-tint text-accent-strong border border-accent px-1 py-0.5 rounded">
+                              <span key={jid} className="font-mono text-[10px] bg-accent-tint text-accent-strong border border-accent px-1 py-0.5 rounded-sm">
                                 {jid}
                               </span>
                             ))}
@@ -1101,7 +1101,7 @@ function DecorationPerformanceTab() {
                     <td className="px-3 py-2 text-right text-danger">{fmt$(r.cost)}</td>
                     <td className="px-3 py-2 text-right text-ok font-medium">{fmt$(r.margin)}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
+                      <span className={`px-1.5 py-0.5 rounded-sm text-xs font-medium ${r.margin_pct >= 30 ? 'bg-ok-tint text-ok' : r.margin_pct >= 10 ? 'bg-warn-tint text-warn' : 'bg-danger-tint text-danger'}`}>
                         {r.margin_pct}%
                       </span>
                     </td>

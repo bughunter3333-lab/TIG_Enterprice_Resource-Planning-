@@ -21,7 +21,7 @@ export function remittanceProblems(form, owed) {
   return problems;
 }
 
-const inp = 'w-full rounded border px-2 py-1 text-sm';
+const inp = 'w-full rounded-sm border px-2 py-1 text-sm';
 
 export default function RemittanceForm({ customerId, owed }) {
   const [form, setForm] = useState({ amount: '', reference: '', method: 'EFT', receivedDate: todayKey() });
@@ -61,7 +61,7 @@ export default function RemittanceForm({ customerId, owed }) {
         {field('amount', 'Amount received', <input className={inp} inputMode="decimal" value={form.amount} onChange={set('amount')} />)}
         {field('reference', 'Reference', <input className={inp} value={form.reference} onChange={set('reference')} maxLength={100} />)}
         {field('receivedDate', 'Received', <input className={inp} type="date" value={form.receivedDate} onChange={set('receivedDate')} />)}
-        <button type="submit" disabled={send.isPending} className="text-xs px-3 py-2 rounded bg-accent-strong text-white disabled:opacity-50">
+        <button type="submit" disabled={send.isPending} className="text-xs px-3 py-2 rounded-sm bg-accent-strong text-white disabled:opacity-50">
           {send.isPending ? 'Recording…' : 'Pay oldest invoices first'}
         </button>
       </form>

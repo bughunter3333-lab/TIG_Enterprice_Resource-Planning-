@@ -44,7 +44,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
         <div className="relative flex-1 min-w-48">
           <Search className="w-4 h-4 absolute left-3 top-2.5" style={{ color: T.textFaint }} />
           <input type="text" placeholder="Search by name, code, contact…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-focus"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}`, color: T.text }}
             value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoComplete="off" />
         </div>
@@ -70,7 +70,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                 <div key={sup.code} onClick={() => { setSelectedSupplier(sup); setSuppTab('details'); }}
                   className="flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-4"
                   style={{ background: isSel ? T.hairlineSoft : T.panel, borderLeftColor: isSel ? T.accentStrong : 'transparent', borderBottom: `1px solid ${T.hairline}` }}>
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-accent-strong text-white font-black text-sm flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-linear-to-br from-accent to-accent-strong text-white font-black text-sm flex items-center justify-center shrink-0">
                     {(sup.name||'?').charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -99,7 +99,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
           ) : (
             <div className="rounded-xl overflow-hidden" style={{ background: T.panel, border: `1px solid ${T.hairline}` }}>
               <div className="px-6 py-4 flex items-start gap-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-accent-strong text-white font-black text-lg flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-accent to-accent-strong text-white font-black text-lg flex items-center justify-center shrink-0">
                   {(sel.name||'?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -173,7 +173,7 @@ export default function SuppliersModule({ deleteSupplier, exportToCSV, inventory
                     {suppItems(sel).length===0 ? <p className="text-sm text-center py-8" style={{ color: T.textFaint }}>No inventory items linked to this supplier</p>
                     : suppItems(sel).map(item => (
                       <div key={item.sku} className="flex items-center gap-3 p-3 rounded-lg" style={{ border: `1px solid ${T.hairline}` }}>
-                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded w-24 shrink-0" style={{ color: T.accentStrong, background: T.hairlineSoft }}>{item.sku}</span>
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm w-24 shrink-0" style={{ color: T.accentStrong, background: T.hairlineSoft }}>{item.sku}</span>
                         <span className="flex-1 text-sm truncate" style={{ color: T.text }}>{item.name}</span>
                         <span className={`text-xs font-semibold ${item.stock<=0?'text-danger':item.stock<item.reorderLevel?'text-warn':'text-ok'}`}>{item.stock} on hand</span>
                       </div>

@@ -110,7 +110,7 @@ function JobProof({ job, onUpdate }) {
           onBlur={() => { if (proofNotes !== job.proofNotes) update(job.proofStatus || 'none', proofNotes); }}
           rows={2}
           placeholder="Proof notes (revision requests, approval notes…)"
-          className="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent-focus resize-none text-muted"
+          className="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-accent-focus resize-none text-muted"
         />
       </div>
     </div>

@@ -42,10 +42,10 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
         <button onClick={close}><X className="w-5 h-5" style={{ color: T.textMuted }} /></button>
       </div>
       <div className="flex items-end gap-3 mb-4">
-        <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date From</label><input type="date" value={salesRegModal.dateFrom} onChange={e => setSalesRegModal(m => ({ ...m, dateFrom: e.target.value, data: null }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
-        <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date To</label><input type="date" value={salesRegModal.dateTo} onChange={e => setSalesRegModal(m => ({ ...m, dateTo: e.target.value, data: null }))} className="rounded px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
-        <button onClick={load} disabled={salesRegModal.loading} className="px-4 py-2 text-white rounded text-sm disabled:opacity-50" style={{ background: T.accentStrong }}>{salesRegModal.loading ? 'Loading...' : 'Load'}</button>
-        {salesRegModal.data && <button onClick={exportCSV} className="px-4 py-2 rounded text-sm flex items-center gap-1" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}><FileSpreadsheet className="w-4 h-4" />Export CSV</button>}
+        <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date From</label><input type="date" value={salesRegModal.dateFrom} onChange={e => setSalesRegModal(m => ({ ...m, dateFrom: e.target.value, data: null }))} className="rounded-sm px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
+        <div><label className="block text-xs font-medium mb-1" style={{ color: T.text }}>Date To</label><input type="date" value={salesRegModal.dateTo} onChange={e => setSalesRegModal(m => ({ ...m, dateTo: e.target.value, data: null }))} className="rounded-sm px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.hairline}` }} /></div>
+        <button onClick={load} disabled={salesRegModal.loading} className="px-4 py-2 text-white rounded-sm text-sm disabled:opacity-50" style={{ background: T.accentStrong }}>{salesRegModal.loading ? 'Loading...' : 'Load'}</button>
+        {salesRegModal.data && <button onClick={exportCSV} className="px-4 py-2 rounded-sm text-sm flex items-center gap-1" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }}><FileSpreadsheet className="w-4 h-4" />Export CSV</button>}
       </div>
       {salesRegModal.error && <p className="text-sm mb-3" style={{ color: T.danger }}>{salesRegModal.error}</p>}
       {salesRegModal.data && (
@@ -56,7 +56,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
             <span>Tax: <span className="font-semibold" style={{ color: T.text }}>${salesRegModal.data.summary.total_tax.toFixed(2)}</span></span>
             <span>Inc: <span className="font-semibold text-base" style={{ color: T.ok }}>${salesRegModal.data.summary.total_inc.toFixed(2)}</span></span>
           </div>
-          <div className="overflow-auto flex-1 rounded" style={{ border: `1px solid ${T.hairline}` }}>
+          <div className="overflow-auto flex-1 rounded-sm" style={{ border: `1px solid ${T.hairline}` }}>
             <table className="w-full text-xs">
               <thead className="sticky top-0" style={{ background: T.hairlineSoft }}>
                 <tr>{['Job','Customer','Status','Date In','Invoice','Ex GST','GST','Inc GST','Balance'].map(h => <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: T.textMuted }}>{h}</th>)}</tr>
@@ -66,7 +66,7 @@ export default function SalesRegisterModal({ salesRegModal, setSalesRegModal }) 
                   <tr key={j.id} style={{ borderTop: `1px solid ${T.hairline}` }}>
                     <td className="px-3 py-1.5 font-mono font-medium" style={{ color: T.accentStrong }}>{j.id}</td>
                     <td className="px-3 py-1.5" style={{ color: T.text }}>{j.customer}</td>
-                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded text-[10px] font-medium ${j.status === 'PAID' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{statusLabel(j.status)}</span></td>
+                    <td className="px-3 py-1.5"><span className={`px-2 py-0.5 rounded-sm text-[10px] font-medium ${j.status === 'PAID' ? 'bg-ok-tint text-ok' : 'bg-warn-tint text-warn'}`}>{statusLabel(j.status)}</span></td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.dateIn}</td>
                     <td className="px-3 py-1.5" style={{ color: T.textMuted }}>{j.invoice || '—'}</td>
                     <td className="px-3 py-1.5 text-right" style={{ color: T.text }}>${(j.subtotal||0).toFixed(2)}</td>

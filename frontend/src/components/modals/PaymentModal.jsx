@@ -82,7 +82,7 @@ export default function PaymentModal({ paymentModal, recordPayment, setPaymentMo
             type="number" step="0.01" min="0.01" max={paymentModal.maxAmount}
             value={paymentModal.amount}
             onChange={(e) => setPaymentModal({ ...paymentModal, amount: e.target.value })}
-            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+            className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}` }}
             autoFocus disabled={paymentModal.tyroProcessing}
           />
@@ -93,7 +93,7 @@ export default function PaymentModal({ paymentModal, recordPayment, setPaymentMo
           <select
             value={paymentModal.method}
             onChange={(e) => setPaymentModal({ ...paymentModal, method: e.target.value, tyroStatus: null })}
-            className="w-full rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-focus"
+            className="w-full rounded-sm px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-accent-focus"
             style={{ border: `1px solid ${T.hairline}` }}
             disabled={paymentModal.tyroProcessing}
           >
@@ -129,13 +129,13 @@ export default function PaymentModal({ paymentModal, recordPayment, setPaymentMo
       </div>
 
       <div className="flex justify-end space-x-2 mt-4 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
-        <button onClick={closeModal} className="px-4 py-2 rounded" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }} disabled={paymentModal.tyroProcessing}>
+        <button onClick={closeModal} className="px-4 py-2 rounded-sm" style={{ border: `1px solid ${T.hairline}`, color: T.textMuted }} disabled={paymentModal.tyroProcessing}>
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           disabled={paymentModal.tyroProcessing || !parseFloat(paymentModal.amount)}
-          className="px-4 py-2 text-white rounded flex items-center gap-2 disabled:opacity-50"
+          className="px-4 py-2 text-white rounded-sm flex items-center gap-2 disabled:opacity-50"
           style={{ background: isTyro ? T.accentStrong : T.ok }}
         >
           <CreditCard className="w-4 h-4" />
