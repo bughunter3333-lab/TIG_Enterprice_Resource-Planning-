@@ -4,7 +4,7 @@ sqlalchemy==2.0.30
 alembic==1.19.1
 psycopg2-binary==2.9.13
 PyJWT==2.15.1
-cryptography>=42.0.0
+cryptography>=50.0.2
 passlib[bcrypt]==1.7.4
 bcrypt==5.0.0
 python-multipart==0.0.32
