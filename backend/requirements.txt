@@ -13,6 +13,6 @@ qrcode[pil]==8.2
 python-dotenv==1.2.4
 pydantic[email]==2.13.5
 pydantic-settings==2.15.0
-slowapi==0.1.9
+slowapi==0.1.10
 anthropic>=2.6.0
 reportlab==5.0.1
